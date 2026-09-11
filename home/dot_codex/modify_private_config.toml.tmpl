@@ -1,3 +1,22 @@
+#!/bin/sh
+# ~/.codex/config.toml 是兩方共用的檔案:上半段是這個 repo 的設定,下半段全是 codex
+# 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
+# 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
+#
+# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只重寫到 [model_providers.codex-lb-gcp]
+# 為止,第一個 codex 自己的 table 之後原封不動吐回去。`chezmoi diff` 因此會是空的。
+# 同一招的前例見 home/modify_private_dot_claude.json。
+#
+# ⚠️ 新機器上這份只會產出 header,codex 的區段要自己長回來:
+#   codex features enable hooks    # [features] hooks = true
+#   信任專案第一次進去時 codex 會問,答 yes 就寫回檔案
+
+set -eu
+
+existing=$(cat)
+
+# 1. repo 這邊的權威區塊,逐字輸出。
+cat <<'TOML'
 # ============================================================
 # codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)
 # 這是**預設** provider。API key 由 chezmoi 的 promptStringOnce 提供,不會進公開 repo。
@@ -30,33 +49,13 @@ stream_max_retries = 10          # SSE/WS 重連次數
 stream_idle_timeout_ms = 300000  # 串流閒置 5 分鐘逾時
 
 # ------------------------------------------------------------
-# 以下是 codex 自己會寫入的區段(信任過的專案)。
-# codex 之後新增專案時會直接改 ~/.codex/config.toml,
-# 造成跟這份 source 有落差,用 `chezmoi merge ~/.codex/config.toml` 收回來。
+# 以下都是 codex 自己寫的,這支腳本原封不動帶過,不要手改也不要納管。
 # ------------------------------------------------------------
-[projects."/home/henry/code/teamsync-frontend"]
-trust_level = "trusted"
+TOML
 
-[projects."/home/henry/.local/share/chezmoi"]
-trust_level = "trusted"
-
-[projects."/home/henry/code/work-agent-deploy"]
-trust_level = "trusted"
-
-[projects."/tmp/opencode"]
-trust_level = "trusted"
-
-[projects."/home/henry/code/henry5720"]
-trust_level = "trusted"
-
-[tui.model_availability_nux]
-"gpt-5.6-sol" = 4
-gpt-6-astra = 1
-
-[features]
-hooks = true
-
-[hooks.state]
-
-[hooks.state."/home/henry/.codex/hooks.json:session_start:0:0"]
-trusted_hash = "sha256:8aca2b29e645d25e13f7128bb2a3115ec42b452c4912f9d14cfa9201db4f4c56"
+# 2. 從第一個「不是我方」的 table 開始全部帶過。
+#    第一個 [ 之前的東西一律丟掉 —— 那些都是上面剛輸出過的。
+printf '%s' "$existing" | awk '
+  /^\[/ { keep = ($0 != "[model_providers.codex-lb-gcp]") }
+  keep  { print }
+'

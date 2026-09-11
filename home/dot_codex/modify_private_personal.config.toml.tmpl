@@ -1,0 +1,28 @@
+#!/bin/sh
+# 疊在基底 config.toml 之上。基底走公司的 codex-lb,這裡切回官方 OpenAI provider,
+# 用自己的 ChatGPT 帳號額度: codex -p personal
+#
+# 前置作業(只做一次,會寫 ~/.codex/auth.json —— 該檔不由 chezmoi 管):
+#   codex login
+# 確認: codex login status
+#
+# codex 也會往這個 profile 檔寫自己的狀態(跑 -p personal 時信任的專案、TUI 計數器),
+# 所以跟 config.toml 一樣用 modify_,只重寫 model_provider 這段,其餘帶過。
+# 機制說明見 modify_private_config.toml.tmpl。
+
+set -eu
+
+existing=$(cat)
+
+cat <<'TOML'
+# 這份由 chezmoi 的 modify_ 產生,只有下面這行是 repo 管的。
+# model 沿用基底那個(gpt-6-astra)。自己帳號能用哪些型號看方案,
+# 進 TUI 後用 /model 換,或在這裡改成想要的那個。
+model_provider = "openai"
+
+# ------------------------------------------------------------
+# 以下都是 codex 自己寫的,原封不動帶過,不要手改也不要納管。
+# ------------------------------------------------------------
+TOML
+
+printf '%s' "$existing" | awk '/^\[/ { keep = 1 } keep { print }'

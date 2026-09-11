@@ -548,7 +548,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會�
 
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|
-| `modify_` 納管的檔(`~/.claude.json`、`~/.claude/settings.json`) | 留著 —— 那兩支只釘一個 key,其餘原封帶過 | 不用管,重建清單記一行指令 |
+| `modify_` 納管的檔(`~/.claude.json`、`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
 | chezmoi 整檔部署的檔(`~/.claude/CLAUDE.md`、`~/.config/opencode/opencode.json`) | **apply 會蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
 | 沒被 chezmoi 管的路徑 | 留著,但換機器就沒了 | 判斷「重跑裝法會不會自己回來」,見〈哪些 MCP 設定該進這個 repo〉 |
 

@@ -28,6 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `executable_` | 部署後帶 +x |
 | `symlink_` | 部署成 symlink,檔案內容就是連結目標 |
 | `.tmpl` | 先跑 Go template 再部署 |
+| `modify_` | 部署成腳本的 stdout,現有檔案從 stdin 進來(用於 app 自己會寫的檔) |
 
 ⚠️ **新增要執行的腳本一定要加 `executable_`**,否則部署成 644 不可執行,而且不會報錯。
 `home/dot_config/tmux/` 底下已經有兩支漏加的,見 `docs/tmux-workflow.md` 的「已知的孤兒」。
