@@ -7,9 +7,11 @@
 # 為止,第一個 codex 自己的 table 之後原封不動吐回去。`chezmoi diff` 因此會是空的。
 # 同一招的前例見 home/modify_private_dot_claude.json。
 #
-# ⚠️ 新機器上這份只會產出 header,codex 的區段要自己長回來:
-#   codex features enable hooks    # [features] hooks = true
-#   信任專案第一次進去時 codex 會問,答 yes 就寫回檔案
+# ⚠️ 新機器上這份只會產出 header,下半段要自己長回來:
+#   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
+#   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
+#     這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),重跑 herdr
+#     的 codex 整合會一起回來。不要在這裡 enable,沒有 hooks.json 等於沒開。
 
 set -eu
 
