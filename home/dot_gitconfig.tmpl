@@ -1,0 +1,16 @@
+# git 身分與這台機器的設定。chezmoi 納管,值由 promptStringOnce 帶進來
+# (存在 ~/.config/chezmoi/chezmoi.toml,不進這個公開 repo)。
+#
+# 為什麼身分放這裡而不是 ~/.config/git/config:git 兩份都讀,~/.gitconfig 後讀、
+# 會贏。同一個 key 寫兩邊只會讓人猜哪份生效,所以身分只留這一份。
+# ~/.config/git/config 那份專放不涉及身分的共用設定(hooks 的 includeIf)。
+#
+# ⚠️ `git config --global ...` 會直接改家目錄這份,不會回到 repo。
+# 真的動了就 `chezmoi re-add ~/.gitconfig` 收回來。
+[user]
+	email = {{ .gitUserEmail }}
+	name = {{ .gitUserName }}
+[core]
+	editor = vim
+[safe]
+	directory = /home/share/luanti-server.git

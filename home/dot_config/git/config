@@ -1,8 +1,9 @@
 # ~/.config/git/config —— 走 XDG 這份,不是 ~/.gitconfig。
 #
-# git 兩份都讀(`git config --list --show-origin` 會同時列出兩個檔),所以這份
-# 是純新增,不用改 ~/.gitconfig。~/.gitconfig 留著放 user.email、editor 這類
-# 身分與機器設定,那些不進公開 repo。
+# git 兩份都讀(`git config --list --show-origin` 會同時列出兩個檔),同一個 key
+# 以 ~/.gitconfig 為準(後讀的贏)。所以這份只放不涉及身分的共用設定;
+# user.name / user.email / core.editor 都在 ~/.gitconfig,那份也由 chezmoi
+# 納管(home/dot_gitconfig.tmpl),值走 promptStringOnce,不進這個公開 repo。
 
 # ~/code 底下的 repo 共用一份 git hooks。
 #
