@@ -3,61 +3,158 @@
 # 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
 # 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
 #
-# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只重寫到 [model_providers.codex-lb-gcp]
-# 為止,第一個 codex 自己的 table 之後原封不動吐回去。`chezmoi diff` 因此會是空的。
+# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider 與三個 MCP server;
+# codex 自己的 table 原封不動吐回去。`chezmoi diff` 因此會是空的。
 # 同一招的前例見 home/modify_private_dot_claude.json。
 #
-# ⚠️ 新機器上這份只會產出 header,下半段要自己長回來:
+# ⚠️ 新機器上這份只會產出 repo provider 與 MCP 設定,下半段要自己長回來:
 #   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
 #   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
 #     這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),重跑 herdr
 #     的 codex 整合會一起回來。不要在這裡 enable,沒有 hooks.json 等於沒開。
-
 set -eu
-
 existing=$(cat)
 
-# 1. repo 這邊的權威區塊,逐字輸出。
+input_file=$(mktemp)
+trap 'rm -f "$input_file"' EXIT HUP INT TERM
+printf '%s' "$existing" > "$input_file"
+output_file=$(mktemp)
+context7_file=$(mktemp)
+trap 'rm -f "$input_file" "$output_file" "$context7_file"' EXIT HUP INT TERM
+cat > "$context7_file" <<'CONTEXT7'
+{{- with (index . "context7ApiKey") }}
+[mcp_servers.context7]
+http_headers = { "CONTEXT7_API_KEY" = {{ . | quote }} }
+{{- end }}
+CONTEXT7
+python3 -c '
+import json
+import sys
+import tomllib
+
+managed = {"chrome-devtools", "codegraph", "context7"}
+provider = "codex-lb-gcp"
+markers = {"# 由 chezmoi 管理的 MCP servers。", "# MCP servers managed by chezmoi."}
+out = []
+keep = False
+
+def header_path(line):
+    if not line.lstrip().startswith("["):
+        return None
+    try:
+        parsed = tomllib.loads(line + "\n__codex_header_sentinel = true\n")
+    except tomllib.TOMLDecodeError:
+        return None
+    def find(value, path=()):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key == "__codex_header_sentinel" and child is True:
+                    return path
+                found = find(child, path + (key,))
+                if found is not None:
+                    return found
+        elif isinstance(value, list):
+            for child in value:
+                found = find(child, path)
+                if found is not None:
+                    return found
+        return None
+    return find(parsed)
+
+def comparable(text):
+    value = tomllib.loads(text)
+    for key in ("model", "model_provider", "model_reasoning_effort"):
+        value.pop(key, None)
+    providers = value.get("model_providers", {})
+    providers.pop(provider, None)
+    if not providers:
+        value.pop("model_providers", None)
+    servers = value.get("mcp_servers", {})
+    for name in managed:
+        servers.pop(name, None)
+    if not servers:
+        value.pop("mcp_servers", None)
+    return value
+
+existing = sys.stdin.read()
+for line in existing.splitlines(keepends=True):
+    if line.rstrip("\n") in markers:
+        while out and (not out[-1].strip() or out[-1].startswith("# ===")):
+            out.pop()
+        keep = False
+        continue
+    path = header_path(line.rstrip("\n"))
+    if path is not None:
+        table = ".".join(path)
+        if table == "model_providers." + provider or table.startswith("model_providers." + provider + "."):
+            keep = False
+            continue
+        if table == "mcp_servers." + path[-1] and path[0] == "mcp_servers" and path[-1] in managed:
+            keep = False
+            continue
+        if path[0] == "mcp_servers" and len(path) > 1 and path[1] in managed:
+            keep = False
+            continue
+        keep = True
+    if keep:
+        out.append(line)
+while out and not out[-1].strip():
+    out.pop()
+candidate = "".join(out).rstrip("\n")
+if candidate:
+    candidate += "\n\n"
+candidate += """# ============================================================
+# 由 chezmoi 管理的 MCP servers。
+# ============================================================
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
+enabled = true
+startup_timeout_sec = 60
+
+[mcp_servers.codegraph]
+command = "codegraph"
+args = ["serve", "--mcp"]
+enabled = true
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+enabled = true
+"""
+context7_text = open(sys.argv[1], encoding="utf-8").read()
+if context7_text.strip():
+    context7_data = tomllib.loads(context7_text)
+    headers = context7_data["mcp_servers"]["context7"]["http_headers"]
+    candidate += "http_headers = { \"CONTEXT7_API_KEY\" = " + json.dumps(headers["CONTEXT7_API_KEY"], ensure_ascii=False) + " }\n"
+try:
+    before, after = comparable(existing), comparable(candidate)
+    if before != after:
+        changed = sorted(set(before) | set(after))
+        changed = [key for key in changed if before.get(key) != after.get(key)]
+        raise ValueError("非 managed TOML 設定在重寫後改變: " + ",".join(changed))
+    tomllib.loads(candidate)
+except (tomllib.TOMLDecodeError, ValueError) as error:
+    raise SystemExit("codex config 安全更新失敗: " + str(error))
+sys.stdout.write(candidate)
+' "$context7_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
-# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)
-# 這是**預設** provider。API key 由 chezmoi 的 promptStringOnce 提供,不會進公開 repo。
-#
-# profile = $CODEX_HOME/<名字>.config.toml,疊在這份之上:
-#   codex                → 這份,公司 lb + medium
-#   codex -p codex-gcp   → 公司 lb + xhigh
-#   codex -p personal    → 個人 ChatGPT 帳號(憑證在 ~/.codex/auth.json,不由 chezmoi 管)
+# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與三個 MCP
+# server 是 repo 管理的區塊，其餘 codex 狀態由下方腳本保留。
 # ============================================================
-
-# 預設就走 codex-lb。少了這兩行,不加 --profile 時會退回官方 openai provider。
 model = "gpt-6-astra"
 model_provider = "codex-lb-gcp"
-
-# 不寫的話 codex 不帶這個參數(TUI 顯示 "none"),強度由後端自己決定、看不出來。
-# medium 是日常寫程式的平衡點;難題用 -p codex-gcp 上 xhigh。
 model_reasoning_effort = "medium"
 
 [model_providers.codex-lb-gcp]
-name = "openai"  # 必填且小寫,這樣才會啟用遠端 /responses/compact
+name = "openai"
 base_url = "https://codex.teamsync.com.tw/backend-api/codex"
 wire_api = "responses"
-
-# codex 沒有 api_key 欄位,此欄位會送出 Authorization: Bearer <token>。
 experimental_bearer_token = "{{ .codexLbApiKey }}"
-
-supports_websockets = true       # codex-lb 用 WebSocket 串 /backend-api/codex/responses
-request_max_retries = 4          # HTTP 重試次數
-stream_max_retries = 10          # SSE/WS 重連次數
-stream_idle_timeout_ms = 300000  # 串流閒置 5 分鐘逾時
-
-# ------------------------------------------------------------
-# 以下都是 codex 自己寫的,這支腳本原封不動帶過,不要手改也不要納管。
-# ------------------------------------------------------------
+supports_websockets = true
+request_max_retries = 4
+stream_max_retries = 10
+stream_idle_timeout_ms = 300000
 TOML
-
-# 2. 從第一個「不是我方」的 table 開始全部帶過。
-#    第一個 [ 之前的東西一律丟掉 —— 那些都是上面剛輸出過的。
-printf '%s' "$existing" | awk '
-  /^\[/ { keep = ($0 != "[model_providers.codex-lb-gcp]") }
-  keep  { print }
-'
+cat "$output_file"

@@ -1,5 +1,6 @@
 {{- $codeServerPassword := promptStringOnce . "codeServerPassword" "code-server 密碼" -}}
 {{- $codexLbApiKey := promptStringOnce . "codexLbApiKey" "codex-lb API key" -}}
+{{- $context7ApiKey := promptStringOnce . "context7ApiKey" "Context7 API key（可留空）" -}}
 {{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。 */ -}}
 {{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" "henry" -}}
 {{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" -}}
@@ -7,5 +8,6 @@
 [data]
     codeServerPassword = {{ $codeServerPassword | quote }}
     codexLbApiKey = {{ $codexLbApiKey | quote }}
+    context7ApiKey = {{ $context7ApiKey | quote }}
     gitUserName = {{ $gitUserName | quote }}
     gitUserEmail = {{ $gitUserEmail | quote }}

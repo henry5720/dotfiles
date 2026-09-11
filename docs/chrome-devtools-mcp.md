@@ -64,8 +64,16 @@ script 做三件事,每件都是踩過才加的:
 | [`home/modify_private_dot_claude.json`](../home/modify_private_dot_claude.json) | `~/.claude.json`(600) | Claude Code 的 `mcpServers["chrome-devtools"]` |
 | [`home/dot_claude/modify_settings.json`](../home/dot_claude/modify_settings.json) | `~/.claude/settings.json` | 關掉官方 chrome-devtools plugin |
 | [`home/dot_config/opencode/private_opencode.json.tmpl`](../home/dot_config/opencode/private_opencode.json.tmpl) | `~/.config/opencode/opencode.json`(600) | opencode 的 `mcp["chrome-devtools"]` |
+| [`home/dot_codex/modify_private_config.toml.tmpl`](../home/dot_codex/modify_private_config.toml.tmpl) | `~/.codex/config.toml`(600) | Codex 的 `mcp_servers.chrome-devtools`、`codegraph`、`context7` |
 
-兩邊參數刻意保持一致:
+Codex 的設定由 `modify_` 每次定向更新；它會保留 Codex 自己寫入的 user state 與其他設定。Context7 API key
+可在 `chezmoi init` 時輸入或留空；留空代表匿名使用。之後可用 `chezmoi edit-config` 修改，或用
+`chezmoi init --prompt` 重新回答已有 prompt。可用
+`codex mcp list` / `codex mcp get <name>` 確認配置已啟用；這只驗證設定，不代表 MCP server
+已完成 runtime handshake。Context7 endpoint 是 `https://mcp.context7.com/mcp`，API key 會以明文保存在本機
+chezmoi 設定，部署後也會寫入 Codex 設定的 `CONTEXT7_API_KEY` header，不會進 repo。
+
+三個 client 的 Chrome DevTools 參數刻意保持一致:
 
 `~/.local/bin/chrome-mcp` 是 Windows Chrome 的啟動器，不是 chezmoi hook。需要時手動執行
 `chrome-mcp`；它會先重用現有的 `127.0.0.1:9222` DevTools endpoint，只有 endpoint 不存在時才
