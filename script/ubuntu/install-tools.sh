@@ -9,8 +9,43 @@ INPUT_SRC="${INPUT_SRC:-/dev/tty}"   # 正式走 tty;測試可覆寫為 /dev/std
 TOOLS=(fastfetch btop nvm code-server document-media ai-document-media codex opencode)
 TOOL_LABELS=(fastfetch btop nvm code-server '文件／媒體解析' 'AI 文件／媒體解析' 'codex CLI' 'opencode')
 
+# 「文件／媒體解析」的 apt 套件。選單的 ✅ 與 install_document_media 都讀這一份。
+DOC_MEDIA_PACKAGES=(ffmpeg mupdf-tools pandoc python3-venv)
+
+# AI 解析 venv 的位置。同樣是選單與 install_ai_document_media 共用。
+ai_media_venv() {
+  local data_dir="${AI_DOCUMENT_MEDIA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/ai-document-media}"
+  printf '%s\n' "${AI_DOCUMENT_MEDIA_VENV:-$data_dir/venv}"
+}
+
+# 單一判準:選單印 ✅ 跟各 install_ 函式的「已安裝就跳過」都問這裡,
+# 不然兩套標準遲早會漂移(選單說沒裝、函式說裝了)。
+is_installed() {
+  case "$1" in
+    fastfetch|btop|code-server|codex|opencode)
+      command -v "$1" &>/dev/null
+      ;;
+    nvm)
+      [ -d "$HOME/.nvm" ]
+      ;;
+    document-media)
+      local pkg
+      for pkg in "${DOC_MEDIA_PACKAGES[@]}"; do
+        dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null \
+          | grep -q 'install ok installed' || return 1
+      done
+      ;;
+    ai-document-media)
+      local python="$(ai_media_venv)/bin/python"
+      [ -x "$python" ] || return 1
+      "$python" -c 'import docling, faster_whisper' &>/dev/null
+      ;;
+    *) return 1 ;;
+  esac
+}
+
 install_fastfetch() {
-  command -v fastfetch &>/dev/null && { echo -e "${BLUE}✅ fastfetch 已安裝。${NC}"; return; }
+  is_installed fastfetch && { echo -e "${BLUE}✅ fastfetch 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 fastfetch (GitHub .deb)...${NC}"
   local dpkg_arch asset url deb
   # 檔名用 aarch64/armv7l,包裡的 Architecture 卻是 arm64/armhf,兩套名字要對照
@@ -43,14 +78,14 @@ install_fastfetch() {
 }
 
 install_btop() {
-  command -v btop &>/dev/null && { echo -e "${BLUE}✅ btop 已安裝。${NC}"; return; }
+  is_installed btop && { echo -e "${BLUE}✅ btop 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 btop (apt)...${NC}"
   sudo apt update
   sudo apt install -y btop
 }
 
 install_nvm() {
-  [ -d "$HOME/.nvm" ] && { echo -e "${BLUE}✅ nvm 已安裝。${NC}"; return; }
+  is_installed nvm && { echo -e "${BLUE}✅ nvm 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 nvm 與 Node.js LTS...${NC}"
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
   export NVM_DIR="$HOME/.nvm"
@@ -59,7 +94,7 @@ install_nvm() {
 }
 
 install_code_server() {
-  if command -v code-server &>/dev/null; then
+  if is_installed code-server; then
     echo -e "${BLUE}✅ code-server 已安裝。${NC}"
   else
     echo -e "${GREEN}📦 安裝 code-server (官方安裝腳本)...${NC}"
@@ -77,7 +112,7 @@ EOF
 }
 
 install_document_media() {
-  local packages=(ffmpeg mupdf-tools pandoc python3-venv)
+  local packages=("${DOC_MEDIA_PACKAGES[@]}")
   local missing=()
   local package
 
@@ -99,8 +134,7 @@ install_document_media() {
 
 install_ai_document_media() {
   local backend="${AI_DOCUMENT_MEDIA_BACKEND:-venv}"
-  local data_dir="${AI_DOCUMENT_MEDIA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/ai-document-media}"
-  local venv_dir="${AI_DOCUMENT_MEDIA_VENV:-$data_dir/venv}"
+  local venv_dir; venv_dir=$(ai_media_venv)
   local python
   local packages=()
   local tika_label=''
@@ -118,7 +152,7 @@ install_ai_document_media() {
       fi
       if [ ! -x "$venv_dir/bin/python" ]; then
         echo -e "${GREEN}📦 建立 AI 文件／媒體解析 Python venv: $venv_dir${NC}"
-        mkdir -p "$data_dir"
+        mkdir -p "$(dirname "$venv_dir")"
         python3 -m venv "$venv_dir"
       fi
       python="$venv_dir/bin/python"
@@ -130,7 +164,7 @@ install_ai_document_media() {
       }
       if [ ! -x "$venv_dir/bin/python" ]; then
         echo -e "${GREEN}📦 用 uv 建立 AI 文件／媒體解析 venv: $venv_dir${NC}"
-        mkdir -p "$data_dir"
+        mkdir -p "$(dirname "$venv_dir")"
         uv venv --python python3 "$venv_dir"
       fi
       python="$venv_dir/bin/python"
@@ -168,7 +202,7 @@ EOF
 }
 
 install_codex() {
-  command -v codex &>/dev/null && { echo -e "${BLUE}✅ codex 已安裝。${NC}"; return; }
+  is_installed codex && { echo -e "${BLUE}✅ codex 已安裝。${NC}"; return; }
   # codex 是 npm global,沒有 npm 就先去裝 nvm(本選單第 3 項)
   command -v npm &>/dev/null || {
     echo -e "${BLUE}⚠️ 找不到 npm;先選第 3 項裝 nvm 再回來。${NC}" >&2
@@ -188,7 +222,7 @@ EOF
 }
 
 install_opencode() {
-  command -v opencode &>/dev/null && { echo -e "${BLUE}✅ opencode 已安裝。${NC}"; return; }
+  is_installed opencode && { echo -e "${BLUE}✅ opencode 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 opencode (官方腳本 → ~/.opencode/bin)...${NC}"
   # --no-modify-path 一定要帶:官方腳本預設會往 ~/.zshrc 追加 PATH,
   # 而 ~/.zshrc 是 chezmoi 納管的,被改了下次 apply 會蓋回去、中間還多一段 diff。
@@ -207,8 +241,15 @@ EOF
 # 顯示選單並讀取選擇
 echo "請選擇要安裝的工具 (空格分隔多選,直接 Enter = 全裝):"
 for i in "${!TOOLS[@]}"; do
-  printf "  %d) %s\n" "$((i+1))" "${TOOL_LABELS[$i]}"
+  # ✅ 標在標籤後面、不補空白對齊 —— 標籤有中文,printf 的 %-Ns 是按位元組補的,
+  # 對不齊反而更亂。寧可右邊參差。
+  if is_installed "${TOOLS[$i]}"; then
+    printf "  %d) %s ✅\n" "$((i+1))" "${TOOL_LABELS[$i]}"
+  else
+    printf "  %d) %s\n" "$((i+1))" "${TOOL_LABELS[$i]}"
+  fi
 done
+echo "     (✅ = 已安裝;選到它只會跳過,不會重裝)"
 printf "> "
 picks=()
 read -a picks <"$INPUT_SRC" || true   # EOF/空輸入不因 set -e 中止
