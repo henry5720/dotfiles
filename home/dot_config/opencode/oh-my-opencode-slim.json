@@ -1,11 +1,11 @@
 {
   "$schema": "https://unpkg.com/oh-my-opencode-slim@latest/oh-my-opencode-slim.schema.json",
-  "preset": "teamsync",
+  "preset": "teamsync-astra",
   "presets": {
     "teamsync": {
       "orchestrator": {
         "model": "codex-lb-gcp/gpt-5.6-terra",
-        "variant": "high",
+        "variant": "medium",
         "skills": [
           "*"
         ],
@@ -51,7 +51,61 @@
       },
       "fixer": {
         "model": "codex-lb-gcp/gpt-5.6-luna",
+        "variant": "medium",
+        "skills": [],
+        "mcps": []
+      }
+    },
+    "teamsync-astra": {
+      "orchestrator": {
+        "model": "codex-lb-gcp/gpt-6-astra",
+        "variant": "medium",
+        "skills": [
+          "*"
+        ],
+        "mcps": [
+          "*",
+          "!context7"
+        ]
+      },
+      "oracle": {
+        "model": "codex-lb-gcp/gpt-6-astra",
         "variant": "high",
+        "skills": [
+          "simplify"
+        ],
+        "mcps": []
+      },
+      "council": {
+        "model": "codex-lb-gcp/gpt-5.6-sol",
+        "variant": "high",
+        "skills": [],
+        "mcps": []
+      },
+      "explorer": {
+        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "variant": "low",
+        "skills": [],
+        "mcps": []
+      },
+      "librarian": {
+        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "variant": "low",
+        "skills": [],
+        "mcps": [
+          "context7",
+          "gh_grep"
+        ]
+      },
+      "designer": {
+        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "variant": "medium",
+        "skills": [],
+        "mcps": []
+      },
+      "fixer": {
+        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "variant": "medium",
         "skills": [],
         "mcps": []
       }
