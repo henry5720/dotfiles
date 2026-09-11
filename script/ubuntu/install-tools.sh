@@ -6,8 +6,8 @@ DRY_RUN="${DRY_RUN:-0}"
 INPUT_SRC="${INPUT_SRC:-/dev/tty}"   # 正式走 tty;測試可覆寫為 /dev/stdin
 
 # 工具清單:編號順序即顯示順序
-TOOLS=(fastfetch btop nvm code-server document-media ai-document-media)
-TOOL_LABELS=(fastfetch btop nvm code-server '文件／媒體解析' 'AI 文件／媒體解析')
+TOOLS=(fastfetch btop nvm code-server document-media ai-document-media codex opencode)
+TOOL_LABELS=(fastfetch btop nvm code-server '文件／媒體解析' 'AI 文件／媒體解析' 'codex CLI' 'opencode')
 
 install_fastfetch() {
   command -v fastfetch &>/dev/null && { echo -e "${BLUE}✅ fastfetch 已安裝。${NC}"; return; }
@@ -164,6 +164,43 @@ install_ai_document_media() {
   已管理: Docling、faster-whisper${tika_label}
   安裝器不會下載或初始化任何 AI model。首次使用前，請自行準備本機 model 並以本機路徑指定;
   未準備 model 時，skill 應回報 blocker，不得讓工具連網下載。
+EOF
+}
+
+install_codex() {
+  command -v codex &>/dev/null && { echo -e "${BLUE}✅ codex 已安裝。${NC}"; return; }
+  # codex 是 npm global,沒有 npm 就先去裝 nvm(本選單第 3 項)
+  command -v npm &>/dev/null || {
+    echo -e "${BLUE}⚠️ 找不到 npm;先選第 3 項裝 nvm 再回來。${NC}" >&2
+    return 1
+  }
+  echo -e "${GREEN}📦 安裝 codex (npm -g @openai/codex)...${NC}"
+  npm install -g @openai/codex
+
+  cat <<'EOF'
+
+  設定由 chezmoi 部署,預設走公司的 codex-lb(~/.codex/config.toml)。
+  那兩份 config 是 modify_ 腳本:repo 只管 provider 那段,codex 自己寫的
+  [projects] / [tui...] 原封留著,所以 chezmoi diff 不會被它弄髒。
+  個人帳號要另外登入:codex login   (寫 ~/.codex/auth.json,不由 chezmoi 管)
+  profile:codex -p codex-gcp(xhigh) / codex -p personal(個人額度)
+EOF
+}
+
+install_opencode() {
+  command -v opencode &>/dev/null && { echo -e "${BLUE}✅ opencode 已安裝。${NC}"; return; }
+  echo -e "${GREEN}📦 安裝 opencode (官方腳本 → ~/.opencode/bin)...${NC}"
+  # --no-modify-path 一定要帶:官方腳本預設會往 ~/.zshrc 追加 PATH,
+  # 而 ~/.zshrc 是 chezmoi 納管的,被改了下次 apply 會蓋回去、中間還多一段 diff。
+  # PATH 已經寫在 home/dot_zshrc 裡了。
+  curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+
+  cat <<'EOF'
+
+  設定由 chezmoi 部署(~/.config/opencode/opencode.json,公司 lb 的 provider
+  與 API key;key 在 chezmoi init 時會問一次)。
+  agent 分工走 oh-my-opencode-slim plugin,preset 在
+  ~/.config/opencode/oh-my-opencode-slim.json,TUI 裡用 /preset 可即時切換。
 EOF
 }
 

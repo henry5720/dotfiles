@@ -78,6 +78,11 @@ bash script/ubuntu/setup.sh
 `ffmpeg`、`mupdf-tools`、`pandoc` 的唯一管理者,並提供 Python venv 所需的 `python3-venv`;
 不預裝 LibreOffice、OCR、STT 或 Python AI packages。
 
+兩個 AI CLI 本身也在同一個選單:第 7 項 `codex CLI`(`npm -g @openai/codex`,需要先有
+nvm)、第 8 項 `opencode`(官方腳本裝到 `~/.opencode/bin`,腳本帶 `--no-modify-path`,
+因為 PATH 已經寫在 `home/dot_zshrc` 裡,讓 installer 去改 `~/.zshrc` 會弄出 chezmoi 漂移)。
+兩者的設定都由 chezmoi 部署,裝完直接能跑;codex 的個人帳號要另外 `codex login`。
+
 若確實需要可選的 AI 文件／媒體解析,在同一個選單另選第 6 項「AI 文件／媒體解析」。它會在
 `~/.local/share/ai-document-media/venv` 建立獨立 Python venv,只安裝 `docling` 與
 `faster-whisper`。也可在執行前設定 `AI_DOCUMENT_MEDIA_BACKEND=uv` 改用已自行安裝的 uv

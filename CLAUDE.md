@@ -91,5 +91,6 @@ bash -n script/ubuntu/*.sh script/termux/*.sh   # 腳本語法(shellcheck 未安
 ```bash
 bash script/ubuntu/setup.sh           # = install-base.sh + install-tools.sh
 bash script/ubuntu/install-base.sh    # 強制:zsh/git/curl/vim + zsh 插件 + chezmoi + 預設 shell
-bash script/ubuntu/install-tools.sh   # 可選:編號多選 fastfetch / btop / nvm / code-server / ffmpeg
+bash script/ubuntu/install-tools.sh   # 可選:編號多選 fastfetch / btop / nvm / code-server /
+                                      #      文件媒體解析 / AI 文件媒體解析 / codex / opencode
 ```
