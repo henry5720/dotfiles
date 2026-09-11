@@ -204,46 +204,25 @@ install_opencode() {
 EOF
 }
 
-# 顯示選單並讀取選擇。兩條路:有 tty 就給勾選式,否則退回打數字。
-# 條件掛在 INPUT_SRC 上是刻意的 —— 測試用 INPUT_SRC=/dev/stdin 餵輸入,
-# 那條路必須維持可用,不能被 whiptail 搶走。
-selected=()
-if [ "$INPUT_SRC" = "/dev/tty" ] && [ -r /dev/tty ] && command -v whiptail &>/dev/null; then
-  # whiptail 來自 debconf,Ubuntu 基底就有,不算新依賴。
-  # 3>&1 1>&2 2>&3 是它的慣例:它把 UI 畫到 stdout、結果吐到 stderr,要對調回來。
-  boxes=()
-  for i in "${!TOOLS[@]}"; do
-    # checklist 是「tag 標籤」兩欄,兩者相同時只印 tag,不然會看到 fastfetch fastfetch
-    item="${TOOL_LABELS[$i]}"
-    [ "$item" = "${TOOLS[$i]}" ] && item=''
-    boxes+=("${TOOLS[$i]}" "$item" ON)                # 預設全勾,跟舊的「Enter = 全裝」一致
-  done
-  choice=$(whiptail --title "安裝工具" \
-    --checklist "空白鍵勾選／取消,Tab 移到 <Ok>,Enter 確認" \
-    "$(( ${#TOOLS[@]} + 8 ))" 64 "${#TOOLS[@]}" \
-    "${boxes[@]}" 3>&1 1>&2 2>&3) || {
-      echo -e "${BLUE}已取消,未安裝任何東西。${NC}"; exit 0
-    }
-  # whiptail 回傳的是加了引號的 tag,例如: "btop" "nvm"
-  eval "selected=($choice)"
-else
-  echo "請選擇要安裝的工具 (空格分隔多選,直接 Enter = 全裝):"
-  for i in "${!TOOLS[@]}"; do
-    printf "  %d) %s\n" "$((i+1))" "${TOOL_LABELS[$i]}"
-  done
-  printf "> "
-  picks=()
-  read -a picks <"$INPUT_SRC" || true   # EOF/空輸入不因 set -e 中止
+# 顯示選單並讀取選擇
+echo "請選擇要安裝的工具 (空格分隔多選,直接 Enter = 全裝):"
+for i in "${!TOOLS[@]}"; do
+  printf "  %d) %s\n" "$((i+1))" "${TOOL_LABELS[$i]}"
+done
+printf "> "
+picks=()
+read -a picks <"$INPUT_SRC" || true   # EOF/空輸入不因 set -e 中止
 
-  if [ "${#picks[@]}" -eq 0 ]; then
-    selected=("${TOOLS[@]}")                 # Enter = 全裝
-  else
-    for n in "${picks[@]}"; do
-      if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#TOOLS[@]}" ]; then
-        selected+=("${TOOLS[$((n-1))]}")     # 有效編號
-      fi                                      # 無效編號忽略
-    done
-  fi
+# 決定要裝的清單
+selected=()
+if [ "${#picks[@]}" -eq 0 ]; then
+  selected=("${TOOLS[@]}")                 # Enter = 全裝
+else
+  for n in "${picks[@]}"; do
+    if [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le "${#TOOLS[@]}" ]; then
+      selected+=("${TOOLS[$((n-1))]}")     # 有效編號
+    fi                                      # 無效編號忽略
+  done
 fi
 
 if [ "${#selected[@]}" -eq 0 ]; then
