@@ -67,6 +67,13 @@ script 做三件事,每件都是踩過才加的:
 
 兩邊參數刻意保持一致:
 
+`~/.local/bin/chrome-mcp` 是 Windows Chrome 的啟動器，不是 chezmoi hook。需要時手動執行
+`chrome-mcp`；它會先重用現有的 `127.0.0.1:9222` DevTools endpoint，只有 endpoint 不存在時才
+啟動獨立的 `ChromeDevToolsMCP` profile。這個 profile 不共用日常 Chrome 的 cookies 或密碼。
+
+啟動器只允許 loopback 連線；若 9222 已被其他服務占用會直接失敗，不會終止既有 Chrome。啟動後
+最多等待 15 秒，逾時會回傳非零狀態，方便 shell 或 MCP 啟動流程辨識失敗。
+
 ```
 --browser-url=http://127.0.0.1:9222   連 Windows 那台,不要自己開
 --no-usage-statistics                 不回報使用統計

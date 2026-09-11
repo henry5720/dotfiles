@@ -7,16 +7,58 @@ set -euo pipefail
 
 PORT=9222
 PROFILE_NAME=ChromeDevToolsMCP
+version_response=$(mktemp)
+trap 'rm -f "$version_response"' EXIT
+
+check_devtools_endpoint() {
+  local http_code curl_status
+
+  : >"$version_response"
+  http_code=$(curl -sS --max-time 2 -o "$version_response" -w '%{http_code}' \
+    "http://127.0.0.1:$PORT/json/version") || curl_status=$?
+  curl_status=${curl_status:-0}
+
+  # curl 失敗且沒有收到 HTTP 回應，代表 port 尚未在這裡提供服務。
+  if [ "$curl_status" -ne 0 ] && [ "${http_code:-000}" = 000 ]; then
+    return 2
+  fi
+
+  # 有任何 HTTP 回應都算 port 已被占用；不是 Chrome DevTools endpoint 就立即失敗。
+  if [ "${http_code:-000}" != 200 ] || ! jq -e '
+    type == "object" and
+    (.Browser | type == "string" and length > 0) and
+    (.webSocketDebuggerUrl | type == "string" and startswith("ws://"))
+  ' "$version_response" >/dev/null 2>&1; then
+    return 1
+  fi
+  return 0
+}
 
 # 1. 已經在跑就直接結束。這一步不是禮貌,是必要的:Chrome 已有實例時,再下一次帶參數的啟動
 #    會被轉交給既有實例、新參數整組被忽略、而且不報錯。少了這個檢查,你會看到
 #    「指令跑完、沒有錯誤、MCP 還是連不上」,那是最難查的一種。
-if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/json/version" >/dev/null 2>&1; then
+if check_devtools_endpoint; then
   echo "Chrome 已經在 127.0.0.1:$PORT 上跑了,不用再開。"
   exit 0
+elif [ "$?" -eq 1 ]; then
+  echo "127.0.0.1:$PORT 已有服務,但不是有效的 Chrome DevTools endpoint。" >&2
+  exit 1
 fi
 
-# 2. 找 chrome.exe。64 位元裝在 Program Files,舊的 32 位元在 Program Files (x86)。
+# 2. 先確認 WSL 能呼叫 Windows 的 cmd.exe 和 powershell.exe。
+for windows_command in cmd.exe powershell.exe; do
+  if ! command -v "$windows_command" >/dev/null 2>&1; then
+    echo "找不到 $windows_command,確認 WSL interop 有開。" >&2
+    exit 1
+  fi
+done
+if ! (cd /mnt/c && cmd.exe /c exit 0) >/dev/null 2>&1 || \
+   ! powershell.exe -NoProfile -NonInteractive -Command 'exit 0' >/dev/null 2>&1; then
+  echo "WSL interop 驗證失敗,cmd.exe 或 powershell.exe 無法執行。" >&2
+  exit 1
+fi
+
+# 3. 找 chrome.exe。64 位元裝在 Program Files,舊的 32 位元在 Program Files (x86)。
 chrome=""
 for candidate in \
   "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" \
@@ -29,7 +71,7 @@ if [ -z "$chrome" ]; then
   exit 1
 fi
 
-# 3. 問 Windows 自己的 %LOCALAPPDATA%,不要寫死 C:\Users\henry ——
+# 4. 問 Windows 自己的 %LOCALAPPDATA%,不要寫死 C:\Users\henry ——
 #    --user-data-dir 要的是 Windows 路徑格式,而使用者名稱換台機器就不一樣。
 #    cd /mnt/c 是為了避開 cmd.exe 對 UNC 路徑的警告。
 localappdata=$(cd /mnt/c && cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')
@@ -38,21 +80,31 @@ if [ -z "$localappdata" ]; then
   exit 1
 fi
 profile="${localappdata}\\${PROFILE_NAME}"
+if ! powershell.exe -NoProfile -NonInteractive -Command \
+  '$p = Join-Path $env:LOCALAPPDATA "ChromeDevToolsMCP"; if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null }; if (-not (Test-Path -LiteralPath $p -PathType Container)) { exit 1 }; exit 0' \
+  >/dev/null 2>&1; then
+  echo "無法驗證或建立 Chrome 專用 profile: ${profile}" >&2
+  exit 1
+fi
 
-# 4. 背景啟動。用獨立 profile 而不是你平常那個:平常那個開著的時候 Chrome 不會理
+# 5. 背景啟動。用獨立 profile 而不是你平常那個:平常那個開著的時候 Chrome 不會理
 #    --remote-debugging-port,而且讓 agent 碰你日常瀏覽的 session 也不是好主意。
 echo "啟動 Chrome(profile: ${profile})..."
 nohup "$chrome" \
+  --remote-debugging-address=127.0.0.1 \
   --remote-debugging-port="$PORT" \
   --user-data-dir="$profile" \
   >/dev/null 2>&1 &
 disown
 
-# 5. 等 port 真的起來再回報。不等的話這支 script 會在 Chrome 還沒開完時就說成功。
+# 6. 等 endpoint 真的起來再回報。不等的話這支 script 會在 Chrome 還沒開完時就說成功。
 for _ in $(seq 1 15); do
-  if curl -fsS --max-time 1 "http://127.0.0.1:$PORT/json/version" >/dev/null 2>&1; then
+  if check_devtools_endpoint; then
     echo "好了,127.0.0.1:$PORT 通了。"
     exit 0
+  elif [ "$?" -eq 1 ]; then
+    echo "127.0.0.1:$PORT 已有服務,但不是有效的 Chrome DevTools endpoint。" >&2
+    exit 1
   fi
   sleep 1
 done
