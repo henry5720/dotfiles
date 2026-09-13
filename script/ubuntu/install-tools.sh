@@ -216,8 +216,9 @@ install_codex() {
   設定由 chezmoi 部署,預設走公司的 codex-lb(~/.codex/config.toml)。
   那兩份 config 是 modify_ 腳本:repo 只管 provider 那段,codex 自己寫的
   [projects] / [tui...] 原封留著,所以 chezmoi diff 不會被它弄髒。
-  個人帳號要另外登入:codex login   (寫 ~/.codex/auth.json,不由 chezmoi 管)
-  profile:codex -p codex-gcp(xhigh) / codex -p personal(個人額度)
+  個人入口是 codex-personal,等價於 codex --profile personal;請先執行
+  codex-personal login,再依 docs/ai-profile-routing.md 填妥
+  chezmoi 的 data.aiPersonal.codexModel。未填 model 前,不要把 personal 當成可用。
 EOF
 }
 

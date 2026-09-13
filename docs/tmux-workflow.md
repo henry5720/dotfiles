@@ -17,7 +17,17 @@
 
 `tmux-resurrect` + `tmux-continuum` —— session 持久化,還原 pane 內容與 `lazygit` / `yazi` 等程序。
 
-TPM 本身**不由 chezmoi 部署**,要自己裝,見 README 的依賴一覽。
+TPM 本身**不由 chezmoi 部署**；前置是支援 `terminal-features` / `extended-keys` 的 tmux、Python 3、`jq`、`fzf`，以及可選的
+`wl-copy` / `xclip` / `pbcopy`（剪貼簿依環境擇一）。外部 agent-tracker binary 不在 repo，缺少時
+狀態列相關內容會安靜降級。
+
+第一次初始化 TPM：
+
+```bash
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+```
+
+啟動 tmux 後按 `Ctrl-b`、`I` 安裝設定宣告的外掛（不是更新指令）。
 
 ## 狀態列(`tmux-status/`)
 
@@ -37,12 +47,19 @@ TPM 本身**不由 chezmoi 部署**,要自己裝,見 README 的依賴一覽。
 - **agent 自動化**:agent palette 彈窗、記住並還原 opencode pane 的工作目錄、
   `restore_agent_run_panes.py` 在 resurrect 還原後重啟 Flutter dev server 這類長跑程序
 
-## 依賴
+## 常用按鍵
 
-tmux(較新版)、TPM、Python 3、`jq`、`fzf`。
+```text
+Ctrl-b                 tmux prefix（保留 tmux 預設）
+Alt + ←↑↓→             不用 prefix，切換 pane
+Shift-Alt + ←↑↓→       不用 prefix，將 pane 調整 5 格
+Ctrl-b  I              TPM 安裝外掛
+Ctrl-b  Ctrl-s         resurrect 手動保存
+Ctrl-b  Ctrl-r         resurrect 手動還原
+```
 
-> ⚠️ 狀態列右半與相關 hook 依賴外部 binary `~/.config/agent-tracker/bin/agent`,**未附於本 repo**。
-> 缺了它是**安靜降級**,不會報錯 —— 所以狀態列少東西時,先確認這個而不是先去讀腳本。
+`tmux-continuum` 每 5 分鐘觸發 `tmux-resurrect` 保存 pane 內容與指定程序；`continuum-restore=off` 代表
+**不會在 tmux 啟動時自動還原 session**，不是停用保存；可手動按 `Ctrl-b`、`Ctrl-r` 還原。
 
 ## 已知的孤兒
 

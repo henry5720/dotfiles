@@ -41,16 +41,20 @@ git clone --depth=1 https://github.com/romkatv/powerlevel10k.git        ~/.confi
 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions    ~/.config/zsh/zsh-autosuggestions
 git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.config/zsh/zsh-syntax-highlighting
 
-# 2. 部署 dotfiles(走 https,客人帳號沒有你的 SSH key)
-chezmoi init --apply https://github.com/henry5720/dotfiles.git
+# 2. 初始化並預覽 dotfiles(走 https,客人帳號沒有你的 SSH key)
+chezmoi init https://github.com/henry5720/dotfiles.git
+chezmoi diff
+chezmoi apply
 
 # 3. 預設 shell 換 zsh —— 改自己的帳號不需要 sudo
 chsh -s "$(command -v zsh)"
 ```
 
-第 2 步會**互動問兩個秘密**(定義在 `home/.chezmoi.toml.tmpl`):code-server 密碼、
-codex-lb API key。別人的機器上不想給真的就隨便填,之後 `chezmoi edit-config` 再改。
-值存在 `~/.config/chezmoi/chezmoi.toml`,不進 repo。
+第 2 步會依 `home/.chezmoi.toml.tmpl` 的 `promptStringOnce` 詢問尚未保存的值,不是每次
+都問。欄位分成 3 個憑證(`code-server 密碼`、`codex-lb API key`、可留空的
+`Context7 API key`)與 2 個 Git 身分(`git user.name` 預設 `henry`、`git user.email`)。
+不信任或多人共用的機器不要填入真實憑證；缺少憑證的服務不能視為可用。值存在
+`~/.config/chezmoi/chezmoi.toml`,不進 repo。
 
 ## `chsh` 失敗的退路
 
@@ -67,6 +71,8 @@ grep -q 'exec zsh' ~/.bashrc || echo '[ -z "$ZSH_VERSION" ] && exec zsh -l' >> ~
 
 只有在工具真的缺、又非要不可時才走這條。裝到 `~/.local/bin`
 (`home/dot_zshrc:23` 已經把它加進 PATH,不用再改)。
+
+以下清單只是這台觀測到的情況,不是所有沒有 sudo 的機器都保證相同:
 
 | 工具 | 沒 root 可行嗎 |
 |---|---|

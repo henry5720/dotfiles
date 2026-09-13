@@ -4,24 +4,18 @@ Claude Code 和 opencode 都接了 `chrome-devtools-mcp`,agent 因此能開網�
 console、抓 network、跑 lighthouse。這份記的是**這台機器上為什麼要這樣設**,不是這個 MCP
 的用法(用法看[官方 repo](https://github.com/ChromeDevTools/chrome-devtools-mcp))。
 
-## 架構:WSL 這邊不開瀏覽器
+## 前置與連線
 
 ```
-WSL2                              Windows
-┌──────────────────┐             ┌─────────────────────────┐
-│ Claude / opencode│             │ chrome.exe              │
-│   └─ MCP server  │──9222──────▶│   --remote-debugging-   │
-│      (npx 跑的)  │             │      port=9222          │
-└──────────────────┘             │   獨立 profile          │
-                                 └─────────────────────────┘
+WSL launcher → WSL interop → Windows Chrome（獨立 profile，9222）
+WSL MCP server → mirrored localhost → Windows Chrome:9222
 ```
 
-WSL 裡沒有圖形環境可言,也沒有你登入過的 Google / 公司後台 session。所以不在 WSL 開瀏覽器,
-而是叫 MCP server 用 `--browser-url` **連到 Windows 那台已經在跑的 Chrome**。
-
-能直接打 `127.0.0.1:9222` 是因為 Windows 側 `.wslconfig` 設了
-`networkingMode=mirrored`(見 [`wsl/.wslconfig`](../wsl/.wslconfig) 第 16 行)—— WSL 和 Windows 共用 localhost。
-沒有這一行的話 WSL 連不到 Windows 的 loopback,要改成走 Windows 主機 IP。
+需要 WSL interop 可呼叫 Windows `cmd.exe` / `powershell.exe`、Windows 已安裝 Chrome，且
+`.wslconfig` 使用 `networkingMode=mirrored`（見 [`wsl/.wslconfig`](../wsl/.wslconfig)）。
+launcher 會啟動 Chrome 並等 `127.0.0.1:9222` 可用；`--browser-url` 是 MCP server 的參數，
+用來連該 endpoint，不是 MCP client 的通用參數。
+WSL 不開 Linux Chrome，也不應把 9222 暴露到 LAN。
 
 > ⚠️ **不要在 WSL 裝 Linux Chrome。** `npx puppeteer browsers install chrome` 會抓 80MB 到
 > `~/.cache/puppeteer`,然後你有兩個瀏覽器、agent 連的還是錯的那個。方向就是錯的,設定本來
@@ -36,8 +30,9 @@ chrome-mcp        # 開 Windows Chrome 並開 9222;已經在跑就直接結束
 部署自 [`home/dot_local/bin/executable_chrome-mcp`](../home/dot_local/bin/executable_chrome-mcp),
 落在 `~/.local/bin/chrome-mcp`(那個目錄已經在 PATH 裡,見 `home/dot_zshrc` 第 3 節)。
 
-**Chrome 要先跑起來,agent 才連得上。** 順序錯了就是 MCP 連不上,重開 Chrome 後在 session 裡
-打 `/mcp` 重連即可,不用重開 Claude。
+**Chrome 要先跑起來，MCP client 才連得上。** 重開 Chrome 後，
+Claude Code 可在 session 執行 `/mcp` 重連；其他 client 請用該 client 自己的 reconnect/restart 方法，
+`/mcp` 不是所有 agent 通用指令。
 
 script 做三件事,每件都是踩過才加的:
 

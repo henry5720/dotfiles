@@ -35,11 +35,13 @@ home/dot_claude/CLAUDE.md             ← 真的檔案,只有這份要改
    └── ~/.claude/CLAUDE.md                                 (chezmoi 部署)
 ```
 
-新機器不用為規則另外做事——`chezmoi init --apply`(見 README〈安裝與部署〉)本身就含
-這份規則,會直接部署好 `~/.claude/CLAUDE.md`。
+新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 執行
+`chezmoi init`、`chezmoi diff`、`chezmoi apply` 三步,就會部署好
+`~/.claude/CLAUDE.md`。
 
-> ⚠️ 若這台機器原本已有 `~/.claude/CLAUDE.md` 且有內容,`chezmoi init --apply` 會
-> **直接蓋掉且不留備份**。先 `cp ~/.claude/CLAUDE.md ~/.claude/CLAUDE.md.bak`。
+> ⚠️ 若這台機器原本已有 `~/.claude/CLAUDE.md` 或 `~/.config/opencode/AGENTS.md` 且是
+> 普通檔案,先備份,再執行 `chezmoi diff` 檢查預計變更；確認後才 `chezmoi apply`,不要
+> 把既有內容當成可丟棄或直接改成 symlink。
 
 已經 `chezmoi init` 過的機器,想單獨重新套用規則(例如剛 `git pull` 完):
 
@@ -571,7 +573,7 @@ Runbook 的邊界是:**chezmoi 恢復家目錄設定,各 repo 的 codegraph inde
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改 agent 的行為規則 | 改 `home/dot_claude/CLAUDE.md`,commit |
-| 新機器套用規則 | `chezmoi init --apply henry5720`(規則含在裡面) |
+| 新機器套用規則 | `chezmoi init henry5720` → `chezmoi diff` → `chezmoi apply` |
 | 看現在裝了哪些 skill | `npx skills@latest list -g` |
 | 裝別人的 skill | `npx skills@latest add <帳號>/<repo>` |
 | 裝沒有 CLI 的 skill | clone 下來,再 `ln -sfn <repo>/skills/<名字> ~/.claude/skills/<名字>` |

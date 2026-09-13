@@ -60,16 +60,25 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 
 ### A|SSH tunnel（建議）
 
-`.ssh/config` 的 `Host phone` 已經備好了，**在 pad 上執行**：
+`.ssh/config` 的 `Host phone` 已經備好了。流程是 **phone 跑服務，pad 或 desktop
+發起 SSH，再由發起端的瀏覽器開 localhost**：
+
+```text
+phone code-server ← SSH tunnel ← 發起端瀏覽器 localhost:8080
+```
 
 ```bash
 # phone (Termux):code-server 綁 127.0.0.1,不對外開
 code-server --bind-addr 127.0.0.1:8080
 
-# pad (Termux):
+# pad 或 desktop：
 ssh phone
-# pad 瀏覽器開 http://localhost:8080
+# 同一台發起端的瀏覽器開 http://localhost:8080
 ```
+
+前提是 phone 能跑 code-server，且發起端能以 `Host phone` 連到 phone；目前
+`home/private_dot_ssh/private_config` 的 `LocalForward 8080 localhost:8080`
+會把 phone 的 8080 映射到發起端。
 
 `LocalForward` 左邊在**執行 ssh 的那台**開 port，右邊的 `localhost` 在 **phone 上**解析。
 連線中要臨時加 port：換行後按 `~C`，輸入 `-L 5173:localhost:5173`。
@@ -80,11 +89,15 @@ ssh phone
 
 **全部都能用。B 最省事。**
 
-這台 WSL 因為 `.wslconfig` 設了 `networkingMode=mirrored`（`wsl/.wslconfig:14`），
+作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（`wsl/.wslconfig`），
 eth0 上直接掛著 tailnet IP `100.119.136.27`，WSL 裡的服務綁 `127.0.0.1`，
 Windows 側也看得到，中間不用接任何東西。
 
-注意：**tailscale 指令要在 Windows 那側跑**，WSL 裡的 tailscale 是 `Logged out` 狀態。
+這個 IP、介面與 DNS 行為只是作者機器的觀察值，不保證你現在或其他主機相同；先用
+`tailscale status`、`ip addr`、`tailscale serve status` 查自己的現況。
+
+作者這台的 tailscale CLI 在 Windows；WSL 內曾是 `Logged out`。這不是通用前提，請先查
+`tailscale status`，確認你要用的節點及登入狀態。
 
 ### B|tailscale serve（建議）
 
@@ -110,14 +123,29 @@ tailscale serve status      # 確認,順便看到完整網址
 
 不想多一層 proxy、想讓 code-server 自己講 HTTPS 的話：
 
+```text
+Windows 產生/保存憑證 → WSL /mnt/c/... 路徑 → 修改 source template → chezmoi diff/apply
+```
+
+在 Windows 產生並保存到你選的目錄（以下只是 placeholder，不是固定路徑）：
+
 ```powershell
-# Windows,憑證會寫在當前目錄
+$certDir = "$env:USERPROFILE\certs"
+New-Item -ItemType Directory -Force $certDir
+Set-Location $certDir
 tailscale cert henry-desktop.<你的 tailnet>.ts.net
 ```
 
-然後在 `home/dot_config/private_code-server/private_config.yaml.tmpl` 填 `cert` / `cert-key`
-指向那兩個檔（WSL 從 `/mnt/c/...` 讀得到），改完 `chezmoi apply`。設定檔由 chezmoi 管，
-不要直接改 `~/.config/code-server/config.yaml`——下次 apply 會被蓋掉。
+再把產出的 `.crt` / `.key` 對應成 WSL 可讀的 `/mnt/c/Users/<WindowsUser>/certs/...`，修改
+repo 裡的 `home/dot_config/private_code-server/private_config.yaml.tmpl`（內有示例路徑）中的
+`cert` / `cert-key`，最後檢查並套用：
+
+```bash
+chezmoi diff
+chezmoi apply
+```
+
+不要直接改部署後的 `~/.config/code-server/config.yaml`；憑證私鑰也不要放進 repo。
 
 代價：憑證約 90 天到期，要自己排程重跑 `tailscale cert`，B 沒這問題。
 
@@ -131,16 +159,23 @@ ssh -L 8080:localhost:8080 henry-desktop
 
 ---
 
-## henry-laptop 可以用哪些
+## 其他 Windows/WSL 主機：先查現況再套用
 
-**跟 henry-desktop 同一招(B),但這台多一個轉折:Windows 和 WSL 各有一個 tailscale 節點。**
+下面的節點名稱、IP、介面只是作者機器曾經觀察到的範例，**不可當成通用設定，也不代表目前仍相同**。
+先在對應的 Windows/WSL 端查詢：
 
-| 節點 | 在哪 | tailnet IP | 在 WSL 裡看到的介面 |
-|---|---|---|---|
-| `henry-laptop` | Windows | `100.97.54.0` | `eth1`(mirrored 鏡射進來的) |
-| `henry-laptop-wsl` | WSL | `100.94.73.1` | `tailscale0`(WSL 自己的 tailscaled) |
+```powershell
+tailscale status
+tailscale serve status
+```
 
-**serve 設在 Windows 那個節點**,跟 henry-desktop 一致:
+```bash
+ip addr
+```
+
+確認實際節點、tailnet IP 和介面後，再決定 serve 是設在 Windows 節點或 WSL 節點。
+
+若確認要用 Windows 節點，serve 設在 Windows 那個節點：
 
 ```powershell
 # Windows PowerShell,不需要系統管理員權限
@@ -148,14 +183,14 @@ tailscale serve --bg --https=443 8080
 tailscale serve status
 ```
 
-得到 `https://henry-laptop.<你的 tailnet>.ts.net`,tailnet 內任何裝置的瀏覽器直接開,不用打 port。
+`tailscale serve status` 顯示的網址才是實際網址；tailnet 內瀏覽器直接開，不要套用作者的主機名。
 code-server 設定一行都不用改,`bind-addr` 保持 `127.0.0.1:8080`、`cert: false`。
 
 路徑是這樣接起來的:
 
 ```
-瀏覽器 → https://henry-laptop.<tailnet>.ts.net
-       → Windows tailscaled(聽 100.97.54.0:443,終結 TLS)
+瀏覽器 → tailscale serve status 顯示的 HTTPS 網址
+       → Windows tailscaled(實際 tailnet IP:443,終結 TLS)
        → proxy http://127.0.0.1:8080
        → mirrored networking 跨進 WSL
        → code-server(綁 127.0.0.1:8080)
@@ -172,21 +207,23 @@ code-server 設定一行都不用改,`bind-addr` 保持 `127.0.0.1:8080`、`cert
 
 ### WSL 那個節點要不要留
 
-打算收掉、統一走 Windows 節點的話,先確認 `.ssh/config` 裡這五個 Host 還連得到 ——
-它們都是 tailnet IP,目前靠 **WSL 自己的 tailscaled** 在通:
+打算收掉、統一走 Windows 節點的話，先確認 `.ssh/config` 裡的 Host 還連得到 ——
+作者過去觀測到它們透過 **WSL 自己的 tailscaled**（tailnet IP）連通；這不是普遍現況：
 
-`henry-laptop`、`henry-desktop`、`nettop`、`pad`、`phone`
+不要把本文件的主機名或 IP 當成你的現況；以 `ssh <host>` 和 `tailscale status` 查到的值為準。
 
-`/etc/resolv.conf` 指向 `100.100.100.100`(MagicDNS),那也是 WSL 的 tailscaled 提供的,
-一起會受影響。實測過:把來源位址強制指到 `eth1`(Windows 節點那條)**連不通**,
+作者過去的 `/etc/resolv.conf` 曾指向 `100.100.100.100`(MagicDNS)，也由 WSL tailscaled 提供；
+作者曾實測把來源位址強制指到 `eth1`(Windows 節點那條)**連不通**，
 所以「鏡射進來的介面有路由」不等於「traffic 走得通」。
 
-關掉之前先這樣試:
+不要在依賴這條連線的遠端 session 執行停止；先填好目標資料，並確保本機可恢復，再關掉前這樣試：
 
 ```bash
 sudo systemctl stop tailscaled
-timeout 6 bash -c 'exec 3<>/dev/tcp/100.119.136.27/22 && echo OK'   # 還通得到 henry-desktop?
-getent hosts henry-desktop.tail9b4b9b.ts.net                        # MagicDNS 還解析得了?
+target_ip='<查到的 tailnet IP>'
+magic_dns_name='<查到的 MagicDNS 主機名>'
+timeout 6 bash -c 'exec 3<>/dev/tcp/'"$target_ip"'/22 && echo OK'
+getent hosts "$magic_dns_name"
 ```
 
 `Connection refused` 也算通 —— 代表封包有到對方,只是那個 port 沒服務;`timeout` 才是不通。
