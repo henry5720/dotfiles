@@ -1,0 +1,20 @@
+{{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
+{{- $personal := default dict (index . "aiPersonal") -}}
+{{- $models := default dict (index $personal "models") -}}
+{{- if and (default "" (index $models "astra")) (default "" (index $models "sol")) (default "" (index $models "luna")) -}}
+{{- $agents := deepCopy (index (index $company "presets") "teamsync-astra") -}}
+{{- $_ := set (index $agents "orchestrator") "model" (printf "openai/%s" (index $models "astra")) -}}
+{{- $_ := set (index $agents "oracle") "model" (printf "openai/%s" (index $models "sol")) -}}
+{{- $_ := set (index $agents "council") "model" (printf "openai/%s" (index $models "sol")) -}}
+{{- range $name := list "explorer" "librarian" "designer" "fixer" -}}
+{{- $_ := set (index $agents $name) "model" (printf "openai/%s" (index $models "luna")) -}}
+{{- end -}}
+{{- $council := deepCopy (index (index (index $company "council") "presets") "teamsync") -}}
+{{- $_ := set (index $council "terra") "model" (printf "openai/%s" (index $models "astra")) -}}
+{{- $_ := set (index $council "sol") "model" (printf "openai/%s" (index $models "sol")) -}}
+{{- $_ := set (index $council "luna") "model" (printf "openai/%s" (index $models "luna")) -}}
+{{- $route := dict "$schema" "https://unpkg.com/oh-my-opencode-slim@2.2.18/oh-my-opencode-slim.schema.json" "preset" "personal" "presets" (dict "personal" $agents) "council" (dict "default_preset" "personal" "presets" (dict "personal" $council)) "disabled_tools" (list "acp_run") "fallback" (dict "enabled" false) "autoUpdate" false -}}
+{{ toPrettyJson $route }}
+{{- else -}}
+{{ toPrettyJson (dict "$schema" "https://unpkg.com/oh-my-opencode-slim@2.2.18/oh-my-opencode-slim.schema.json" "disabled_tools" (list "acp_run") "fallback" (dict "enabled" false) "autoUpdate" false) }}
+{{- end -}}

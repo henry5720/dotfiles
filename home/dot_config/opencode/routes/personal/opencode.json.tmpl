@@ -1,0 +1,13 @@
+{{- $personal := default dict (index . "aiPersonal") -}}
+{{- $models := default dict (index $personal "models") -}}
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "skill": {
+      "company-imagegen-fallback": "deny"
+    }
+  },
+  "enabled_providers": ["openai"]{{ with (default "" (index $models "astra")) }},
+  "model": {{ printf "openai/%s" . | quote }}{{ end }}{{ with (default "" (index $models "luna")) }},
+  "small_model": {{ printf "openai/%s" . | quote }}{{ end }}
+}

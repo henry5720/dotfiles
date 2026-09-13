@@ -4,7 +4,7 @@
   "presets": {
     "teamsync": {
       "orchestrator": {
-        "model": "codex-lb-gcp/gpt-5.6-terra",
+        "model": "codex-lb-gcp/gpt-6-astra",
         "variant": "medium",
         "skills": [
           "*"
@@ -116,7 +116,7 @@
     "presets": {
       "teamsync": {
         "terra": {
-          "model": "codex-lb-gcp/gpt-5.6-terra",
+          "model": "codex-lb-gcp/gpt-6-astra",
           "variant": "high"
         },
         "sol": {

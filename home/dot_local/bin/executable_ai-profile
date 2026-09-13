@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""薄 profile wrapper：只切 provider、model 與 OMO route，不建立 runtime 設定。"""
+
+import json
+import os
+import shutil
+import sys
+import tomllib
+from pathlib import Path
+
+
+def fail(message):
+    print(f"ai-profile: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def identity():
+    name = Path(sys.argv[0]).name
+    for tool in ("codex", "opencode"):
+        for role in ("work", "personal"):
+            if name == f"{tool}-{role}":
+                return tool, role
+    fail("請透過四個 ai profile 入口呼叫")
+
+
+def model_ready(tool):
+    home = Path.home()
+    if tool == "codex":
+        root = Path(os.environ.get("CODEX_HOME", home / ".codex")).expanduser()
+        try:
+            data = tomllib.loads((root / "personal.config.toml").read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            return False
+        return bool(data.get("model")) and data.get("model_provider") == "openai"
+    try:
+        root = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")).expanduser() / "opencode/routes/personal"
+        core = json.loads((root / "opencode.json").read_text(encoding="utf-8"))
+        omo = json.loads((root / "oh-my-opencode-slim.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(core.get("model")) and bool(core.get("small_model")) and bool(omo.get("presets"))
+
+
+def overlay_opencode(env, ready):
+    content = env.get("OPENCODE_CONFIG_CONTENT", "")
+    if content:
+        try:
+            base = json.loads(content)
+        except json.JSONDecodeError:
+            fail("OPENCODE_CONFIG_CONTENT 不是合法 JSON")
+        if not isinstance(base, dict):
+            fail("OPENCODE_CONFIG_CONTENT 必須是 JSON object")
+    else:
+        base = {}
+    for key in ("provider", "providers", "model", "small_model", "enabled_providers"):
+        base.pop(key, None)
+    base["enabled_providers"] = ["openai"]
+    if ready:
+        root = Path(env.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "opencode/routes/personal"
+        route = json.loads((root / "opencode.json").read_text(encoding="utf-8"))
+        for key in ("model", "small_model"):
+            if key in route:
+                base[key] = route[key]
+    return base
+
+
+def main():
+    tool, role = identity()
+    args = sys.argv[1:]
+    binary = shutil.which(tool)
+    if not binary:
+        fail(f"找不到 {tool} CLI")
+    env = os.environ.copy()
+    if role == "work":
+        if tool == "opencode":
+            env.pop("OPENCODE_CONFIG_DIR", None)
+            env.pop("OPENCODE_TUI_CONFIG", None)
+            env.pop("OPENCODE_CONFIG_CONTENT", None)
+            env["OH_MY_OPENCODE_SLIM_PRESET"] = "teamsync-astra"
+        os.execvpe(binary, [binary, *args], env)
+    if tool == "opencode" and args[:2] in (["auth", "login"], ["providers", "login"]):
+        for key in ("OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OPENCODE_TUI_CONFIG", "OPENCODE_CONFIG_CONTENT", "OH_MY_OPENCODE_SLIM_PRESET"):
+            env.pop(key, None)
+        os.execvpe(binary, [binary, "--pure", *args], env)
+    if tool == "codex":
+        # Codex 的登入狀態屬於共用 auth，login/logout 也不接受 profile。
+        # 這些指令必須原生轉送，不能被 model ready gate 擋住。
+        if args and args[0] in {"login", "logout"}:
+            os.execvpe(binary, [binary, *args], env)
+        if args and args[0] not in {"help", "login", "logout", "models", "providers", "features", "--help", "-h", "--version", "-V"} and not model_ready(tool):
+            fail("personal Codex 尚未設定 model；請先在 chezmoi data.aiPersonal.codexModel 填寫")
+        os.execvpe(binary, [binary, "--profile", "personal", *args], env)
+    ready = model_ready(tool)
+    env["OPENCODE_CONFIG_DIR"] = str(Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "opencode/routes/personal")
+    env["OH_MY_OPENCODE_SLIM_PRESET"] = "personal"
+    env["OPENCODE_CONFIG_CONTENT"] = json.dumps(overlay_opencode(env, ready))
+    if not args and not ready:
+        fail("personal OpenCode 尚未設定完整 model；請先在 chezmoi data.aiPersonal.models 填寫")
+    if args and args[0] not in {"help", "auth", "providers", "models", "--help", "-h", "--version", "version"} and not ready:
+        fail("personal OpenCode 尚未設定完整 model；請先在 chezmoi data.aiPersonal.models 填寫")
+    os.execvpe(binary, [binary, *args], env)
+
+
+if __name__ == "__main__":
+    main()

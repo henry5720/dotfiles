@@ -9,6 +9,7 @@
 - `home/`: chezmoi source,部署家目錄設定與 templates。
 - `script/ubuntu/`: Ubuntu 基底與工具安裝腳本。
 - AI agent 與 OpenCode config,包含 MCP、plugin 與 agent preset。
+- AI CLI 可用 `codex-work`／`codex-personal` 與 `opencode-work`／`opencode-personal` 切換。
 - Git、tmux、Neovim，以及 WSL／Termux／Windows 的輔助資源。
 
 ## 新機器快速開始
@@ -53,6 +54,7 @@ bash script/ubuntu/setup.sh
 
 - [新機器設定](docs/new-machine-setup.md)：從 WSL 到 AI agent 與各 repo 的完整 runbook。
 - [AI agent setup](docs/ai-agent-setup.md)：規則、skill、MCP、plugin、OpenCode 與 codegraph。
+- [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的 roots 與登入前置作業。
 - [tmux workflow](docs/tmux-workflow.md)：tmux 狀態列、session 與 agent 自動化。
 - [Chrome DevTools MCP](docs/chrome-devtools-mcp.md)：瀏覽器 MCP、`chrome-mcp` 與排錯。
 - [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server。

@@ -1,28 +1,59 @@
+{{- $personal := default dict (index . "aiPersonal") -}}
 #!/bin/sh
-# 疊在基底 config.toml 之上。基底走公司的 codex-lb,這裡切回官方 OpenAI provider,
-# 用自己的 ChatGPT 帳號額度: codex -p personal
-#
-# 前置作業(只做一次,會寫 ~/.codex/auth.json —— 該檔不由 chezmoi 管):
-#   codex login
-# 確認: codex login status
-#
-# codex 也會往這個 profile 檔寫自己的狀態(跑 -p personal 時信任的專案、TUI 計數器),
-# 所以跟 config.toml 一樣用 modify_,只重寫 model_provider 這段,其餘帶過。
-# 機制說明見 modify_private_config.toml.tmpl。
-
+# 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny，不碰 base gateway、credential 或 state。
 set -eu
+python3 -c '
+import json
+import sys
+import tomllib
 
-existing=$(cat)
-
-cat <<'TOML'
-# 這份由 chezmoi 的 modify_ 產生,只有下面這行是 repo 管的。
-# model 沿用基底那個(gpt-6-astra)。自己帳號能用哪些型號看方案,
-# 進 TUI 後用 /model 換,或在這裡改成想要的那個。
-model_provider = "openai"
-
-# ------------------------------------------------------------
-# 以下都是 codex 自己寫的,原封不動帶過,不要手改也不要納管。
-# ------------------------------------------------------------
-TOML
-
-printf '%s' "$existing" | awk '/^\[/ { keep = 1 } keep { print }'
+existing = sys.stdin.read()
+try:
+    value = tomllib.loads(existing) if existing.strip() else {}
+except tomllib.TOMLDecodeError as error:
+    raise SystemExit("personal Codex config 不是合法 TOML: " + str(error))
+model = {{ with (default "" (index $personal "codexModel")) }}{{ . | quote }}{{ else }}""{{ end }}
+skill_path = {{ printf "%s/.codex/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}
+lines = []
+table = ()
+for line in existing.splitlines():
+    stripped = line.strip()
+    if stripped.startswith("["):
+        table = tuple(stripped.strip("[]").split("."))
+    if not table and any(stripped.startswith(key + " ") or stripped.startswith(key + "=") for key in ("model", "model_provider", "forced_login_method")):
+        continue
+    lines.append(line)
+skill_header = "[[skills.config]]"
+skill_blocks = []
+start = None
+for index, line in enumerate(lines + [skill_header]):
+    if line.strip() == skill_header:
+        if start is not None:
+            skill_blocks.append((start, index))
+        start = index
+for start, end in reversed(skill_blocks):
+    block = lines[start:end]
+    if any(line.strip() == "path = " + json.dumps(skill_path) for line in block):
+        enabled = next((index for index, line in enumerate(block) if line.strip().startswith("enabled") and "=" in line), None)
+        if enabled is None:
+            path_index = next(index for index, line in enumerate(block) if line.strip().startswith("path") and "=" in line)
+            lines.insert(start + path_index + 1, "enabled = false")
+        else:
+            lines[start + enabled] = "enabled = false"
+        break
+else:
+    if lines and lines[-1].strip():
+        lines.append("")
+    lines += [skill_header, "path = " + json.dumps(skill_path), "enabled = false"]
+candidate = []
+if model:
+    candidate.append("model = " + json.dumps(model))
+candidate += ["model_provider = \"openai\"", "forced_login_method = \"chatgpt\""]
+candidate += lines
+text = "\n".join(candidate).rstrip() + "\n"
+try:
+    tomllib.loads(text)
+except tomllib.TOMLDecodeError as error:
+    raise SystemExit("personal Codex candidate 不是合法 TOML: " + str(error))
+sys.stdout.write(text)
+'

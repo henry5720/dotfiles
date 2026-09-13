@@ -4,6 +4,8 @@
 {{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。 */ -}}
 {{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" "henry" -}}
 {{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" -}}
+{{- $personal := default dict (index . "aiPersonal") -}}
+{{- $models := default dict (index $personal "models") -}}
 
 [data]
     codeServerPassword = {{ $codeServerPassword | quote }}
@@ -11,3 +13,12 @@
     context7ApiKey = {{ $context7ApiKey | quote }}
     gitUserName = {{ $gitUserName | quote }}
     gitUserEmail = {{ $gitUserEmail | quote }}
+
+    # 非秘密模型資料；留空不會 prompt，也不會讓個人 profile 被視為 ready。
+    [data.aiPersonal]
+    codexModel = {{ default "" (index $personal "codexModel") | quote }}
+
+    [data.aiPersonal.models]
+    astra = {{ default "" (index $models "astra") | quote }}
+    sol = {{ default "" (index $models "sol") | quote }}
+    luna = {{ default "" (index $models "luna") | quote }}
