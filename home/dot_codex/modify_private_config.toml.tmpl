@@ -7,6 +7,12 @@
 # codex 自己的 table 原封不動吐回去。`chezmoi diff` 因此會是空的。
 # 同一招的前例見 home/modify_private_dot_claude.json。
 #
+# ⚠️ codex 會把 key 寫在第一個 table 之前的頂層(例如 approvals_reviewer)。那些 key 只能
+# 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table
+# 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 model_reasoning_effort
+# 與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
+# 解析後的結構,位置變了就是結構變了)。
+#
 # ⚠️ 新機器上這份只會產出 repo provider 與 MCP 設定,下半段要自己長回來:
 #   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
 #   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
@@ -20,7 +26,8 @@ trap 'rm -f "$input_file"' EXIT HUP INT TERM
 printf '%s' "$existing" > "$input_file"
 output_file=$(mktemp)
 context7_file=$(mktemp)
-trap 'rm -f "$input_file" "$output_file" "$context7_file"' EXIT HUP INT TERM
+preamble_file=$(mktemp)
+trap 'rm -f "$input_file" "$output_file" "$context7_file" "$preamble_file"' EXIT HUP INT TERM
 cat > "$context7_file" <<'CONTEXT7'
 {{- with (index . "context7ApiKey") }}
 [mcp_servers.context7]
@@ -28,15 +35,20 @@ http_headers = { "CONTEXT7_API_KEY" = {{ . | quote }} }
 {{- end }}
 CONTEXT7
 python3 -c '
+import glob
 import json
+import os
 import sys
 import tomllib
 
 managed = {"chrome-devtools", "codegraph", "context7"}
+managed_top_keys = ("model", "model_provider", "model_reasoning_effort")
 provider = "codex-lb-gcp"
 markers = {"# 由 chezmoi 管理的 MCP servers。", "# MCP servers managed by chezmoi."}
 out = []
+preamble = []
 keep = False
+seen_table = False
 
 def header_path(line):
     if not line.lstrip().startswith("["):
@@ -74,6 +86,7 @@ def comparable(text):
         servers.pop(name, None)
     if not servers:
         value.pop("mcp_servers", None)
+    value.pop("skills", None)
     return value
 
 existing = sys.stdin.read()
@@ -85,8 +98,12 @@ for line in existing.splitlines(keepends=True):
         continue
     path = header_path(line.rstrip("\n"))
     if path is not None:
+        seen_table = True
         table = ".".join(path)
         if table == "model_providers." + provider or table.startswith("model_providers." + provider + "."):
+            keep = False
+            continue
+        if table == "skills.config":
             keep = False
             continue
         if table == "mcp_servers." + path[-1] and path[0] == "mcp_servers" and path[-1] in managed:
@@ -96,15 +113,40 @@ for line in existing.splitlines(keepends=True):
             keep = False
             continue
         keep = True
+    if not seen_table:
+        # 頂層區。註解與空行是這個樣板自己產生的,會重新長出來;managed_top_keys 也是。
+        # 其餘(codex 自己寫的頂層 key)原樣留著。
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if any(stripped.startswith(key) and stripped[len(key):].lstrip().startswith("=") for key in managed_top_keys):
+            continue
+        preamble.append(line)
+        continue
     if keep:
         out.append(line)
 while out and not out[-1].strip():
     out.pop()
+preamble_text = "".join(preamble).strip("\n")
+open(sys.argv[2], "w", encoding="utf-8").write(preamble_text + "\n" if preamble_text else "")
 candidate = "".join(out).rstrip("\n")
 if candidate:
     candidate += "\n\n"
 candidate += """# ============================================================
 # 由 chezmoi 管理的 MCP servers。
+#
+# 三個都開著。曾經為了省 token 想關掉,實測證明沒有意義,別再試一次:
+#
+#   真實家目錄、同一個極短 prompt、skill 已停用
+#     三個 MCP 全開  15,491 tokens
+#     三個 MCP 全關  15,491 tokens   ← 一模一樣
+#
+# 那 ~15,300 是 codex 的 base system prompt(從空目錄跑是 15,281),不是
+# MCP 造成的。MCP server 的工具定義本身很小 —— 直接對 codegraph 的 MCP
+# server 做 initialize + tools/list,整包只有 ~773 token(instructions 340
+# + 工具定義 433)。
+#
+# (拋棄式 CODEX_HOME 量到「全關剩 194」是那個環境的假象,不要拿來當根據。)
 # ============================================================
 
 [mcp_servers.chrome-devtools]
@@ -127,17 +169,38 @@ if context7_text.strip():
     context7_data = tomllib.loads(context7_text)
     headers = context7_data["mcp_servers"]["context7"]["http_headers"]
     candidate += "http_headers = { \"CONTEXT7_API_KEY\" = " + json.dumps(headers["CONTEXT7_API_KEY"], ensure_ascii=False) + " }\n"
+# obsidian-wiki 那包 skill 在 codex 這側用不到,但 description 每個 request 都要
+# 進 context(實測 ~1,680 tokens,codex 還會印 "descriptions were shortened" 的
+# warning)。用 glob 認而不是寫死清單,wiki 套件增刪 skill 時不用回來改這裡。
+# 要恢復:把這段拿掉,或把該 skill 移出 obsidian-wiki 的安裝目錄。
+disabled_skills = []
+for skill_dir in sorted(glob.glob(os.path.expanduser("~/.codex/skills/*/"))):
+    if "obsidian_wiki" not in os.path.realpath(skill_dir):
+        continue
+    skill_md = os.path.join(skill_dir, "SKILL.md")
+    if os.path.exists(skill_md):
+        disabled_skills.append(skill_md)
+if disabled_skills:
+    candidate += "\n# ============================================================\n"
+    candidate += "# 由 chezmoi 停用的 skill(obsidian-wiki 那包,見上面的 token 實測)。\n"
+    candidate += "# ============================================================\n"
+    for skill_md in disabled_skills:
+        candidate += "\n[[skills.config]]\n"
+        candidate += "path = " + json.dumps(skill_md, ensure_ascii=False) + "\n"
+        candidate += "enabled = false\n"
+# 檢查要比的是完整的最終檔(頂層 key 在前、table 在後),不是 stdout 這半段。
+verified = preamble_text + "\n\n" + candidate if preamble_text else candidate
 try:
-    before, after = comparable(existing), comparable(candidate)
+    before, after = comparable(existing), comparable(verified)
     if before != after:
         changed = sorted(set(before) | set(after))
         changed = [key for key in changed if before.get(key) != after.get(key)]
         raise ValueError("非 managed TOML 設定在重寫後改變: " + ",".join(changed))
-    tomllib.loads(candidate)
+    tomllib.loads(verified)
 except (tomllib.TOMLDecodeError, ValueError) as error:
     raise SystemExit("codex config 安全更新失敗: " + str(error))
 sys.stdout.write(candidate)
-' "$context7_file" < "$input_file" > "$output_file"
+' "$context7_file" "$preamble_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
 # codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與三個 MCP
@@ -146,6 +209,9 @@ cat <<'TOML'
 model = "gpt-6-astra"
 model_provider = "codex-lb-gcp"
 model_reasoning_effort = "medium"
+TOML
+cat "$preamble_file"
+cat <<'TOML'
 
 [model_providers.codex-lb-gcp]
 name = "openai"
