@@ -55,7 +55,7 @@ EnterWorktree --path <那個 path>
 不要全部留到最後，worktree 和分支會越積越多。
 
 **收掉不會弄丟東西** —— 分支 ref 住在主 checkout 的 `.git/refs/heads/`，`worktree remove`
-不刪分支也不刪 commit，換個 session 一樣找得到。所以**不要為了備份去 push 葉子分支**
+不刪分支也不刪 commit，換個 session 一樣找得到。所以**不要為了備份去 push 子分支**
 （推上去就永遠躺在 remote，不會有 PR 也沒人刪）；只有換裝置、換人接手、過夜離開機器才推，
 合併後當天 `git push origin --delete`。
 
