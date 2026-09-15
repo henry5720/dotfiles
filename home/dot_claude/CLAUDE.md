@@ -28,6 +28,20 @@
 - 講風險、講影響範圍時要附檔案路徑、行號或指令輸出。憑印象講的不算數。
 - 回覆裡提到的路徑、檔名、函式名，先確認存在再寫出來。
 
+## Worktree
+
+`HERDR_ENV=1` 時，開 worktree 走 herdr，不要讓 `EnterWorktree` 自己開：
+
+```
+herdr worktree create --cwd <repo> --branch <name> --no-focus   # 回傳 .worktree.path
+EnterWorktree --path <那個 path>
+```
+
+開在 `~/.herdr/worktrees/<repo>/<branch>`，在 repo 外面，不會被 IDE、檔案搜尋、watcher 掃進去。
+代價是順便開一個 herdr workspace，用完 `herdr worktree remove --workspace <id>` 收掉。
+
+沒有 herdr 就用內建的 `EnterWorktree`，它固定開在 `<repo>/.claude/worktrees/`，路徑改不了。
+
 <!-- 以下整段是 `codegraph install` 自己寫進 ~/.claude/CLAUDE.md 的。
      這份檔案由 chezmoi 部署,不收進 repo 的話下次 apply 就會被刪掉,codegraph 就沒人告訴 agent 要用。
      刻意保留英文原文、連 START/END 標記一起留:`codegraph upgrade` 會重寫兩個標記之間的內容,
