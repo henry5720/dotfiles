@@ -89,8 +89,8 @@ bash -n script/ubuntu/*.sh script/termux/*.sh   # 腳本語法(shellcheck 未安
 ## 安裝腳本(chezmoi 不管套件安裝,兩條線獨立)
 
 ```bash
-bash script/ubuntu/setup.sh           # = install-base.sh + install-tools.sh
+bash script/ubuntu/setup.sh           # 選擇 install-base.sh / install-tools.sh / install-tools-ai.sh
 bash script/ubuntu/install-base.sh    # 強制:zsh/git/curl/vim + zsh 插件 + chezmoi + 預設 shell
-bash script/ubuntu/install-tools.sh   # 可選:編號多選 fastfetch / btop / nvm / code-server /
-                                      #      文件媒體解析 / AI 文件媒體解析 / codex / opencode
+bash script/ubuntu/install-tools.sh   # 可選:fastfetch / btop / nvm / code-server / tailscale / wakatime
+bash script/ubuntu/install-tools-ai.sh # Claude Code / Codex / OpenCode / 文件影音 / AI 解析
 ```

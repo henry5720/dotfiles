@@ -15,7 +15,7 @@ description: 處理 PDF、DOCX、PPTX、XLSX、CSV、audio 或 video 時，先�
 - 不自動安裝套件、不使用網路下載、不使用 `sudo`。可執行工具一律用 `command -v` 探測，
   不用 `which` 或猜測路徑；Python module 只能用不改檔的 import probe 確認。
 - AI 解析是可選能力，不是共同前置條件。安裝契約由
-  `script/ubuntu/install-tools.sh` 的 `ai-document-media` 選項管理：預設建立
+  `script/ubuntu/install-tools-ai.sh` 的 `ai-document-media` 選項管理：預設建立
   `~/.local/share/ai-document-media/venv`，也可用 `AI_DOCUMENT_MEDIA_BACKEND=uv` 管理同一個
   venv，並安裝 `docling` 與 `faster-whisper`。skill 不負責安裝或更新它們。
 - Docling 與 faster-whisper 只接受已存在的本機 model/cache；沒有本機 model 就回報 blocker。

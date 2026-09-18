@@ -11,7 +11,7 @@ Claude Code ACP。
 
 ```text
 chezmoi: init → diff → apply ──> 家目錄設定
-安裝:   setup.sh → install-base.sh → install-tools.sh
+安裝:   setup.sh → install-base.sh / install-tools.sh / install-tools-ai.sh
 ```
 
 ## 交給 coding agent
@@ -54,10 +54,10 @@ chezmoi diff
 chezmoi apply
 ```
 
-`home/.chezmoi.toml.tmpl` 以 `promptStringOnce` 管理 3 個憑證與 2 個 Git 身分欄位。
+`home/.chezmoi.toml.tmpl` 以 `promptStringOnce` 管理 4 個憑證與 2 個 Git 身分欄位。
 `chezmoi init` 只會詢問尚未保存的值,不是每次都問:
 
-- 憑證: `code-server 密碼`、`codex-lb API key`、`Context7 API key`(可留空)。
+- 憑證: `code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分: `git user.name`(預設 `henry`)與 `git user.email`(請填自己的身分)。
 
 憑證只在終端機的 chezmoi prompt 輸入,不要交給 coding agent,不要貼到文件或 repo。
@@ -78,23 +78,23 @@ cd ~/.local/share/chezmoi
 bash script/ubuntu/setup.sh
 ```
 
-它會依序跑基底與工具安裝。工具選單直接按 Enter 會選全部工具；需要 Node/npm 的選項
-要先選 `nvm`,或確認機器上已有可用的 Node 與 npm。若只想分開處理,
-可改跑 `bash script/ubuntu/install-base.sh` 與 `bash script/ubuntu/install-tools.sh`,
-詳見 [README 的新機器快速開始](../README.md#新機器快速開始)。
+它會讓你選擇 `install-base.sh`、`install-tools.sh`、`install-tools-ai.sh`；空白 Enter
+不執行。各工具腳本的選單可用空格分隔多選，直接 Enter 會選該腳本的全部工具。
+若只想分開處理，可直接執行上述三支腳本。需要 Node/npm 的工具請先確認 nvm 或既有 Node。
 
-若要讓 OpenCode 的 `local-artifact-intake` 在新機上具備基本 PDF／Office／影音解析能力,執行
-`bash script/ubuntu/install-tools.sh`,在選單選第 5 項「文件／媒體解析」。這個選項是
-`ffmpeg`、`mupdf-tools`、`pandoc` 的唯一管理者,並提供 Python venv 所需的 `python3-venv`;
+若要讓 OpenCode 的 `local-artifact-intake` 在新機上具備基本 PDF／Office／影音解析能力，執行
+`bash script/ubuntu/install-tools-ai.sh`，選擇「文件／影音解析」。這個選項是
+`ffmpeg`、`mupdf-tools`、`pandoc` 的唯一管理者，並提供 Python venv 所需的 `python3-venv`；
 不預裝 LibreOffice、OCR、STT 或 Python AI packages。
 
-兩個 AI CLI 本身也在同一個選單:`codex CLI`(`npm -g @openai/codex`,需要先有
-nvm)、`opencode`(官方腳本裝到 `~/.opencode/bin`,腳本帶 `--no-modify-path`,
+三個 AI CLI 在 `install-tools-ai.sh`：Claude Code、Codex（官方
+`https://chatgpt.com/codex/install.sh`）、OpenCode（官方腳本帶 `--no-modify-path`，
+裝到 `~/.opencode/bin`）；
 因為 PATH 已經寫在 `home/dot_zshrc` 裡,讓 installer 去改 `~/.zshrc` 會弄出 chezmoi 漂移)。
 兩者的 work 設定由 chezmoi 部署;個人入口需另外登入並填妥 personal model,詳見
 [AI profile routing](ai-profile-routing.md),未完成前不要視為可用。
 
-若確實需要可選的 AI 文件／媒體解析,在同一個選單選「AI 文件／媒體解析」。它會在
+若確實需要可選的 AI 文件／媒體解析，在 `install-tools-ai.sh` 選「AI 文件／影音解析」。它會在
 `~/.local/share/ai-document-media/venv` 建立獨立 Python venv,只安裝 `docling` 與
 `faster-whisper`。也可在執行前設定 `AI_DOCUMENT_MEDIA_BACKEND=uv` 改用已自行安裝的 uv
 建立 venv;沒有 uv 時安裝器會停止,不會替你下載 uv。`AI_DOCUMENT_MEDIA_INSTALL_TIKA=1`
@@ -234,7 +234,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 規則、OpenCode core config／既有 MCP、agent preset、`modify_` 設定、`chrome-mcp`、Git 全域 hooks、`codegraph-setup-repo`。 |
-| **需登入或人工選擇** | chezmoi 的 3 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、optional MCP、skills、Claude plugin、Herdr。 |
+| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、optional MCP、skills、Claude plugin、Herdr。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
 SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo。Herdr 只有 live pane

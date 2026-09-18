@@ -2,10 +2,12 @@
 set -euo pipefail
 
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+DRY_RUN="${DRY_RUN:-0}"
 
 ZSH_PLUGINS_DIR="$HOME/.config/zsh"
 
 echo -e "${BLUE}🚀 安裝基底環境 (zsh + 插件 + chezmoi)...${NC}"
+[ "$DRY_RUN" = 1 ] && { echo 'DRY_RUN: 不實際安裝。'; exit 0; }
 
 # 1. apt 基底套件
 echo -e "${GREEN}📦 更新系統並安裝 zsh/git/curl/vim/build-essential...${NC}"
