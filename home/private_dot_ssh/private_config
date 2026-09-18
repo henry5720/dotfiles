@@ -96,3 +96,12 @@ Host openab
 
 # 另一個拿掉的舊 Host:oracle-2 = 129.159.185.160。它也在 tenancy B,是
 # 2026-07-20 前的舊 hermes micro(instance-20260709-1122),不是我的,別終止它。
+
+# ===============================================================
+# 6. 公司 AWS EC2
+# ===============================================================
+Host company-ec2
+    HostName 18.141.90.104
+    User ubuntu
+    IdentityFile ~/.ssh/company-henry.pem
+    IdentitiesOnly yes
