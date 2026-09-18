@@ -100,3 +100,22 @@ bash script/ubuntu/setup-swap.sh      # swapfile；預設 2G，會使用主機�
 `setup.sh` 的 Docker 與 swap 選項預設不執行，直接 Enter 仍會結束；Docker 在 WSL 會保留
 腳本的人工確認。`install-tools.sh` 的 Herdr 是一般工具選項；WakaTime 缺少 `unzip` 時會先
 用 apt 安裝。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in this repository's GitHub Issues; use the `gh` CLI.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, and `wontfix`.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. Read root `CONTEXT.md` and relevant
+`docs/adr/` files when they exist.
+See `docs/agents/domain.md`.
