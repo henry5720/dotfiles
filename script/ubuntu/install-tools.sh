@@ -4,12 +4,12 @@ set -euo pipefail
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 DRY_RUN="${DRY_RUN:-0}"
 INPUT_SRC="${INPUT_SRC:-/dev/tty}"
-TOOLS=(fastfetch btop nvm code-server tailscale wakatime)
-TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking')
+TOOLS=(fastfetch btop nvm code-server tailscale wakatime herdr)
+TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking' herdr)
 
 is_installed() {
   case "$1" in
-    fastfetch|btop|code-server|tailscale) command -v "$1" &>/dev/null ;;
+    fastfetch|btop|code-server|tailscale|herdr) command -v "$1" &>/dev/null ;;
     wakatime) command -v wakatime-cli &>/dev/null ;;
     nvm) [ -d "$HOME/.nvm" ] ;;
     *) return 1 ;;
@@ -45,9 +45,18 @@ install_tailscale() {
   fi
   echo '不會執行 tailscale up；請自行登入與設定。'
 }
+install_herdr() {
+  is_installed herdr && { echo -e "${BLUE}✅ herdr 已安裝。${NC}"; return; }
+  echo -e "${GREEN}📦 安裝 herdr...${NC}"
+  curl -fsSL https://herdr.dev/install.sh | sh
+}
 install_wakatime() {
   command -v wakatime-cli &>/dev/null && echo -e "${BLUE}✅ wakatime-cli 已安裝。${NC}" || {
-    command -v unzip &>/dev/null || { echo '⚠️ 缺少 unzip，無法解壓 WakaTime CLI。' >&2; return 1; }
+    if ! command -v unzip &>/dev/null; then
+      echo '📦 缺少 unzip，先安裝。'
+      sudo apt update
+      sudo apt install -y unzip
+    fi
     local arch asset url tmp; arch=$(uname -m)
     case "$arch" in x86_64|amd64) asset=amd64;; aarch64|arm64) asset=arm64;; *) echo "⚠️ WakaTime CLI 不支援架構 $arch，明確停止。" >&2; return 1;; esac
     url=$(curl -fsSL https://api.github.com/repos/wakatime/wakatime-cli/releases/latest | grep -o 'https://[^"]*wakatime-cli-linux-'"$asset"'\.zip' | head -1)

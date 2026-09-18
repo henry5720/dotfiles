@@ -78,9 +78,12 @@ cd ~/.local/share/chezmoi
 bash script/ubuntu/setup.sh
 ```
 
-它會讓你選擇 `install-base.sh`、`install-tools.sh`、`install-tools-ai.sh`；空白 Enter
-不執行。各工具腳本的選單可用空格分隔多選，直接 Enter 會選該腳本的全部工具。
-若只想分開處理，可直接執行上述三支腳本。需要 Node/npm 的工具請先確認 nvm 或既有 Node。
+它會讓你選擇 `install-base.sh`、`install-tools.sh`、`install-tools-ai.sh`、
+`install-docker.sh`（高風險 Docker）與 `setup-swap.sh`（使用主機資源，預設 2G）；空白
+Enter 不執行。各工具腳本的選單可用空格分隔多選，直接 Enter 會選該腳本的全部工具。
+若只想分開處理，可直接執行上述腳本。需要 Node/npm 的工具請先確認 nvm 或既有 Node。
+Docker 選項仍會保留腳本的人工確認；WSL 通常應優先使用 Docker Desktop + WSL integration。
+Herdr 位於 `install-tools.sh` 的一般工具選單，只有需要 live pane 時才選取。
 
 若要讓 OpenCode 的 `local-artifact-intake` 在新機上具備基本 PDF／Office／影音解析能力，執行
 `bash script/ubuntu/install-tools-ai.sh`，選擇「文件／影音解析」。這個選項是
@@ -132,7 +135,7 @@ npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-
 
 OmO 的 `@claude-code` ACP adapter 由 config 以 `npx` 按需啟動,不需要
 `npm i -g @agentclientprotocol/claude-agent-acp`。Herdr 是選配;只有想要 live pane 才
-自行安裝 Herdr 並執行:
+在 `install-tools.sh` 選取 Herdr，安裝後執行:
 
 ```bash
 herdr integration install opencode
@@ -234,11 +237,13 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 規則、OpenCode core config／既有 MCP、agent preset、`modify_` 設定、`chrome-mcp`、Git 全域 hooks、`codegraph-setup-repo`。 |
-| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、optional MCP、skills、Claude plugin、Herdr。 |
+| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、optional MCP、skills、Claude plugin。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
 SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo。Herdr 只有 live pane
-需求才安裝,不屬於 OmO 的必要背景 agent 設定。
+需求才安裝,不屬於 OmO 的必要背景 agent 設定。Docker 與 swap 不是必要設定：Docker 可能
+移除衝突套件並修改系統，swap 預設建立 2G `/swapfile` 並寫入 `/etc/fstab`，請先確認主機
+資源與用途。
 
 ## 設定驗證
 
