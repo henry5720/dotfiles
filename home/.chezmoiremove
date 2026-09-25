@@ -1,0 +1,2 @@
+# 已搬到 agent-config(#38)。chezmoi 不會刪掉已經部署出去的舊檔,不列在這裡 Codex 會同時看到兩份。
+.codex/skills/company-imagegen-fallback
