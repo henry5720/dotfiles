@@ -169,7 +169,8 @@ opencode
 
 MCP 不歸 chezmoi 管。chrome-devtools、context7、gh_grep、codegraph 四個 server 在
 agent-config 的 `mcp.yaml`,由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。
-skillshare 的 `~/.config/skillshare/config.yaml` 要先指到 agent-config 的 `mcp.yaml`,然後:
+skillshare 的 `~/.config/skillshare/config.yaml` 要有 `sources.mcp: ~/.config/skillshare/mcp.yaml`
+(#35 會改由 chezmoi 放好;在那之前手動加),然後:
 
 ```bash
 skillshare pull              # 已 init 的機器;新機器先 skillshare init,見 agent-config

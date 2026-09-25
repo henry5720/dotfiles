@@ -328,8 +328,9 @@ skillshare 會保留它。
 (`existing entry is not managed`)。分兩種處理:
 
 - **chezmoi 寫的**:`chezmoi apply` 時 `run_once_after_remove-chezmoi-mcp.py` 會自動刪掉,
-  只刪跟舊版內容一字不差的條目(Claude 的 chrome-devtools;Codex 的 chrome-devtools、
-  codegraph、context7;OpenCode 的 chrome-devtools、codegraph)。刪掉時會印出來。
+  範圍是 Claude 的 chrome-devtools;Codex 的 chrome-devtools、codegraph、context7;
+  OpenCode 的 chrome-devtools、codegraph。只刪跟舊版內容一字不差的條目,Codex 的 context7
+  例外:key 是各台自己的值,只比對 url 與欄位。刪掉時會印出來。
 - **手動加的**(`claude mcp add`、`codegraph install` 之類),跑
   `skillshare sync mcp -g --dry-run` 看 conflict 清單,逐一決定:
   - 要照 agent-config 的版本:在 skillshare dashboard 按 **Replace with source**,或直接刪掉
@@ -641,7 +642,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會�
 | `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
 | `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
 | chezmoi 整檔部署的檔(`~/.claude/CLAUDE.md`) | **apply 會蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
-| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他判斷重跑裝法會不會自己回來 |
+| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
 
 ---
 

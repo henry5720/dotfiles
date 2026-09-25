@@ -17,6 +17,15 @@ import tomllib
 
 dest = {{ .chezmoi.destDir | quote }}
 
+
+def write(path, text):
+    # 先寫暫存檔再換名:Claude Code 可能正在寫 ~/.claude.json,中途斷掉也不會留下半個檔。
+    tmp = path + ".chezmoi-tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+
 CHROME_ARGS = [
     "-y",
     "chrome-devtools-mcp@latest",
@@ -67,7 +76,7 @@ def clean_json(rel, section, legacy):
     # 保留原本結尾有沒有換行(Claude Code 寫的 ~/.claude.json 沒有)。
     if text.endswith("\n"):
         out += "\n"
-    open(path, "w", encoding="utf-8").write(out)
+    write(path, out)
     print(f"{rel}: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
 
 
@@ -96,8 +105,12 @@ def clean_codex():
         if not dropping:
             out.append(line)
     result = "".join(out).rstrip("\n") + "\n"
-    tomllib.loads(result)
-    open(path, "w", encoding="utf-8").write(result)
+    # 文字比對只認得不加引號的 header;沒刪到的(例如 [mcp_servers."x"])就不算。
+    left = tomllib.loads(result).get("mcp_servers", {})
+    removed = [name for name in removed if name not in left]
+    if not removed:
+        return
+    write(path, result)
     print(f".codex/config.toml: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
 
 
