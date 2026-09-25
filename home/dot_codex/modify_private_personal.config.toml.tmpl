@@ -13,8 +13,8 @@ try:
 except tomllib.TOMLDecodeError as error:
     raise SystemExit("personal Codex config 不是合法 TOML: " + str(error))
 model = {{ with (default "" (index $personal "codexModel")) }}{{ . | quote }}{{ else }}""{{ end }}
-# 舊位置 ~/.codex/skills 在已部署的機器上不會自動消失,兩個都 deny;skillshare 放在 ~/.agents/skills。
-skill_paths = [{{ printf "%s/.codex/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}, {{ printf "%s/.agents/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}]
+# skillshare 放在 ~/.agents/skills;舊位置 ~/.codex/skills 那份由 .chezmoiremove 刪掉。
+skill_paths = [{{ printf "%s/.agents/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}]
 lines = []
 table = ()
 for line in existing.splitlines():

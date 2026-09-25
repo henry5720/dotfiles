@@ -12,7 +12,7 @@ ai_media_venv() { local d="${AI_DOCUMENT_MEDIA_HOME:-${XDG_DATA_HOME:-$HOME/.loc
 # 非互動 ssh、chezmoi apply 前的 PATH 沒有 installer 的預設目錄,只靠 command -v 會重裝(Codex installer 還會往 .zshrc 追加 PATH)。
 installed() { case "$1" in claude|codex) command -v "$1" &>/dev/null || [ -x "$HOME/.local/bin/$1" ];; opencode) command -v opencode &>/dev/null || [ -x "$HOME/.opencode/bin/opencode" ];; document-media) for p in "${DOC_MEDIA_PACKAGES[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || return 1; done;; ai-document-media) [ -x "$(ai_media_venv)/bin/python" ] && "$(ai_media_venv)/bin/python" -c 'import docling, faster_whisper' &>/dev/null;; codegraph) command -v codegraph &>/dev/null;; agent-config) [ -x "$SKILLSHARE" ] && [ -d "$SKILLSHARE_DIR/.git" ];; *) return 1;; esac; }
 install_claude() { installed claude && { echo '✅ Claude Code 已安裝。'; return; }; curl -fsSL https://claude.ai/install.sh | bash; }
-install_codex() { installed codex && { echo '✅ Codex 已安裝。'; return; }; curl -fsSL https://chatgpt.com/codex/install.sh | bash; }
+install_codex() { installed codex && { echo '✅ Codex 已安裝。'; return; }; curl -fsSL https://chatgpt.com/codex/install.sh | PATH="$HOME/.local/bin:$PATH" bash; }  # ~/.local/bin 已在 PATH,installer 就不往 .zshrc 追加(chezmoi 管的 .zshrc 本來就有)
 install_opencode() { installed opencode && { echo '✅ OpenCode 已安裝。'; return; }; curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path; }
 install_document_media() { local missing=() p; for p in "${DOC_MEDIA_PACKAGES[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing+=("$p"); done; [ "${#missing[@]}" -eq 0 ] || { sudo apt update; sudo apt install -y "${missing[@]}"; }; }
 install_ai_document_media() {

@@ -72,6 +72,14 @@ class AgentConfigItemTest(unittest.TestCase):
             self.assertIn(f"✅ {label} 已安裝。", out)
         self.assertEqual(calls, [])
 
+    def test_codex_installer_sees_local_bin_on_path(self):
+        # Codex installer 只有在 ~/.local/bin 不在 PATH 時才往 shell rc 追加 PATH;先放進去,它就不動 .zshrc。
+        (self.home / "bin/curl").write_text('#!/bin/sh\necho \'echo "installer PATH=$PATH" >> "$HOME/calls"\'\n')
+        (self.home / "bin/curl").chmod(0o755)
+        _, calls = self.run_item(choice="2")
+        self.assertEqual(len(calls), 1)
+        self.assertIn(f"{self.home}/.local/bin", calls[0].split("=", 1)[1].split(":"))
+
     def test_dry_run_prints_without_running(self):
         out, calls = self.run_item(DRY_RUN="1")
         self.assertIn("skillshare init --git-root root --remote REMOTE", out)
