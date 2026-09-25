@@ -48,10 +48,21 @@ class AgentConfigItemTest(unittest.TestCase):
         self.assertIn("agent-config（skills 與 MCP） ✅", out)
         self.assertEqual(calls, ["pull", "sync mcp -g"])
 
+    def test_skillshare_off_path_is_not_reinstalled(self):
+        # 裝在 ~/.local/bin 但這一輪 PATH 沒有它(chezmoi apply 前、從 bash 叫)。
+        local_bin = self.home / ".local/bin"
+        local_bin.mkdir(parents=True)
+        (self.home / "bin/skillshare").rename(local_bin / "skillshare")
+        (self.home / ".config/skillshare/.git").mkdir()
+        out, calls = self.run_item(PATH="/usr/bin:/bin")
+        self.assertIn("agent-config（skills 與 MCP） ✅", out)
+        self.assertNotIn("install.sh", out)
+        self.assertEqual(calls, ["pull", "sync mcp -g"])
+
     def test_dry_run_prints_without_running(self):
         out, calls = self.run_item(DRY_RUN="1")
-        self.assertIn("+ skillshare init --git-root root --remote REMOTE", out)
-        self.assertIn("+ skillshare sync mcp -g", out)
+        self.assertIn("skillshare init --git-root root --remote REMOTE", out)
+        self.assertIn("skillshare sync mcp -g", out)
         self.assertEqual(calls, [])
 
 

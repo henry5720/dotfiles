@@ -99,13 +99,8 @@ Herdr 位於 `install-tools.sh` 的一般工具選單，只有需要 live pane �
 
 skills 與 MCP 在 `install-tools-ai.sh` 的「agent-config」項,**要在 `chezmoi apply` 之後跑**:
 chezmoi 先放好 `~/.config/skillshare/config.yaml`,這一項才會直接從 agent-config 拉下來。
-它會先裝 skillshare(裝到 `~/.local/bin`),然後:
-
-```text
-還沒 init:skillshare init --git-root root --remote git@github.com:henry5720/agent-config.git ...
-          → skillshare install -g → skillshare sync → skillshare sync mcp -g
-已經 init:skillshare pull → skillshare sync mcp -g
-```
+它會先裝 skillshare(裝到 `~/.local/bin`),還沒 init 就 init 並裝好 skills,已經 init 就 pull,
+最後都跑 `skillshare sync mcp -g`。實際參數以 `install_agent_config` 為準。
 
 重跑是安全的,第二次只會 pull 跟 sync,沒有變化。用 `DRY_RUN=1` 可以先看會跑哪些指令。
 agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影音解析」)、`python3`
