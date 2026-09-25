@@ -1,0 +1,17 @@
+# skillshare 的全域設定。skills 與 MCP 的內容在 agent-config repo,這份只告訴 skillshare 去哪找、寫到哪。
+# config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放。
+# 用 create_:skillshare init 會改寫這個檔(加 schema 註解、重排 key),之後 chezmoi 不再動它。
+# 要先放好再 init,init 才會直接從 remote 拉下來(流程見 script/ubuntu/install-tools-ai.sh 的 agent-config)。
+git_root: root
+preserve_tilde_on_save: true
+sources:
+  skills: ~/.config/skillshare/skills
+  agents: ~/.config/skillshare/agents
+  mcp: ~/.config/skillshare/mcp.yaml
+targets:
+  claude:
+    skills:
+      path: ~/.claude/skills
+  codex:
+    skills:
+      path: ~/.agents/skills

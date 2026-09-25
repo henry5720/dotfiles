@@ -97,6 +97,17 @@ Herdr 位於 `install-tools.sh` 的一般工具選單，只有需要 live pane �
 兩者的 work 設定由 chezmoi 部署;個人入口需另外登入並填妥 personal model,詳見
 [AI profile routing](ai-profile-routing.md),未完成前不要視為可用。
 
+skills 與 MCP 在 `install-tools-ai.sh` 的「agent-config」項,**要在 `chezmoi apply` 之後跑**:
+chezmoi 先放好 `~/.config/skillshare/config.yaml`,這一項才會直接從 agent-config 拉下來。
+它會先裝 skillshare(裝到 `~/.local/bin`),還沒 init 就 init 並裝好 skills,已經 init 就 pull,
+最後都跑 `skillshare sync mcp -g`。實際參數以 `install_agent_config` 為準。
+
+重跑是安全的,第二次只會 pull 跟 sync,沒有變化。用 `DRY_RUN=1` 可以先看會跑哪些指令。
+agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影音解析」)、`python3`
+(Ubuntu 內建;slack-list 的 script 用它)、`node`/`npx`
+(`install-tools.sh` 的 nvm)、`codegraph`(「codegraph CLI」,需要先有 npm)、`gh`
+(`install-tools.sh` 的 GitHub CLI,裝完 `gh auth login`)。
+
 若確實需要可選的 AI 文件／媒體解析，在 `install-tools-ai.sh` 選「AI 文件／影音解析」。它會在
 `~/.local/share/ai-document-media/venv` 建立獨立 Python venv,只安裝 `docling` 與
 `faster-whisper`。也可在執行前設定 `AI_DOCUMENT_MEDIA_BACKEND=uv` 改用已自行安裝的 uv
@@ -169,14 +180,13 @@ opencode
 
 MCP 不歸 chezmoi 管。chrome-devtools、context7、gh_grep、codegraph 四個 server 在
 agent-config 的 `mcp.yaml`,由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。
-skillshare 的 `~/.config/skillshare/config.yaml` 要有 `sources.mcp: ~/.config/skillshare/mcp.yaml`
-(#35 會改由 chezmoi 放好;在那之前手動加),然後:
+`~/.config/skillshare/config.yaml` 由 chezmoi 放好(`create_`,init 之後就不再動它)。
+新機器與已 init 的機器都跑同一項:`install-tools-ai.sh` 的「agent-config」(見第 3 步)。
+之後要手動更新也是同樣兩行:
 
 ```bash
-skillshare pull              # 已 init 的機器;新機器先 skillshare init,見 agent-config
+skillshare pull              # 拉 agent-config 最新的 skills
 skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
-npm i -g @colbymchenry/codegraph   # codegraph MCP 要這支指令在 PATH 上
-npx skills@latest list -g
 ```
 
 從舊版 dotfiles 升上來的機器,`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目;手動加過的

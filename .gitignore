@@ -28,3 +28,4 @@ henry5720
 *.bak.*
 *.swp
 .DS_Store
+__pycache__/

@@ -166,10 +166,10 @@ class AiProfileTest(unittest.TestCase):
         parsed = tomllib.loads(first)
         self.assertEqual(parsed["model"], "gpt-6-astra")
         self.assertEqual(parsed["skills"]["state"], "keep")
-        target = str(Path.home() / ".codex/skills/company-imagegen-fallback/SKILL.md")
-        matches = [entry for entry in parsed["skills"]["config"] if entry.get("path") == target]
-        self.assertEqual(len(matches), 1)
-        self.assertFalse(matches[0]["enabled"])
+        for target in (Path.home() / ".codex/skills/company-imagegen-fallback/SKILL.md", Path.home() / ".agents/skills/company-imagegen-fallback/SKILL.md"):
+            matches = [entry for entry in parsed["skills"]["config"] if entry.get("path") == str(target)]
+            self.assertEqual(len(matches), 1)
+            self.assertFalse(matches[0]["enabled"])
 
 
 if __name__ == "__main__": unittest.main()

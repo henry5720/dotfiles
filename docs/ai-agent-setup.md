@@ -348,7 +348,7 @@ skillshare 會保留它。
 `codegraph_explore` 一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。它同時是 CLI、MCP
 server 和背景 daemon。
 
-裝法選 npm(不是官方那條 `curl | sh`):
+裝法選 npm(不是官方那條 `curl | sh`),`install-tools-ai.sh` 的「codegraph CLI」就是跑第一行:
 
 ```bash
 npm i -g @colbymchenry/codegraph      # 主套件只是 shim,真的 binary 走 optionalDependency 帶下來
