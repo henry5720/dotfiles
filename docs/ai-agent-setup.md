@@ -108,7 +108,8 @@ skillshare uninstall <名字>                      # 移除
 skillshare sync && skillshare push              # 同步到各 client,再推回 agent-config
 ```
 
-其他機器 `skillshare pull` 就拿到。
+其他機器 `skillshare pull` 就拿到。裝了什麼、從哪裝的記在 agent-config 的
+`skills/.metadata.json`(`update --all` 讀它);`config.yaml` 不進版控,裡面沒有 skill 清單。
 
 > **這裡不列清單。** 寫死的清單一定會過時 —— 要知道現況就跑 `skillshare list -v`。
 
@@ -289,6 +290,11 @@ skillshare 會保留它。
   - 要收進 agent-config:`skillshare mcp import <名字> --from <client>`,再 push
   - 跟 `mcp.yaml` 一模一樣的條目不會衝突(列為 `unchanged`),但 skillshare 不會認領它,
     之後從 `mcp.yaml` 拿掉也不會刪。要讓它接手就 `skillshare mcp import <名字> --from <client>`
+
+- **OpenCode 的空殼 `opencode.jsonc`**:舊版 OpenCode 初始化時會留一個只有 `$schema` 的
+  `~/.config/opencode/opencode.jsonc`。它跟 chezmoi 的 `opencode.json` 同時存在時,
+  `skillshare sync mcp -g` 直接拒絕(`all exist; consolidate them into one file`)。
+  確認裡面只有 `$schema` 就刪掉。
 
 所以舊機器的順序是:`chezmoi update` → `skillshare sync mcp -g --dry-run` → 處理 conflict →
 `skillshare sync mcp -g`。
