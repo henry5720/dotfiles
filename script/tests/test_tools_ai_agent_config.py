@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """tools-ai 的 agent-config 項(#35):沒 init 走 init,init 過走 pull,最後都要 sync mcp -g。"""
-import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "script/ubuntu/install-tools-ai.sh"
-AGENT_CONFIG = "7"  # 選單第 7 項
+AGENT_CONFIG = str(re.search(r"^TOOLS=\((.*)\)$", SCRIPT.read_text(), re.M).group(1).split().index("agent-config") + 1)  # 選單編號從 1 起
 
 
 class AgentConfigItemTest(unittest.TestCase):

@@ -108,7 +108,8 @@ chezmoi 先放好 `~/.config/skillshare/config.yaml`,這一項才會直接從 ag
 ```
 
 重跑是安全的,第二次只會 pull 跟 sync,沒有變化。用 `DRY_RUN=1` 可以先看會跑哪些指令。
-agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影音解析」)、`node`/`npx`
+agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影音解析」)、`python3`
+(Ubuntu 內建;slack-list 的 script 用它)、`node`/`npx`
 (`install-tools.sh` 的 nvm)、`codegraph`(「codegraph CLI」,需要先有 npm)、`gh`
 (`install-tools.sh` 的 GitHub CLI,裝完 `gh auth login`)。
 

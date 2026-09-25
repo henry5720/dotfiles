@@ -24,7 +24,7 @@ install_ai_document_media() {
   echo "AI 解析 venv：$venv_dir（不下載或初始化 model）"
 }
 install_codegraph() {
-  installed codegraph && { echo '✅ codegraph 已安裝。'; return; }; command -v npm &>/dev/null || { [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"; } || true
+  installed codegraph && { echo '✅ codegraph 已安裝。'; return; }; command -v npm &>/dev/null || { [ -s "$HOME/.nvm/nvm.sh" ] && { set +u; . "$HOME/.nvm/nvm.sh"; set -u; }; } || true
   command -v npm &>/dev/null || { echo '⚠️ 找不到 npm，先在一般工具裝 nvm。' >&2; return 1; }; npm install -g @colbymchenry/codegraph
 }
 # skillshare 把 agent-config 的 skills 裝進 Claude／Codex、MCP 寫進三個 client。config.yaml 由 chezmoi 先放好，init 才會直接從 remote 拉。

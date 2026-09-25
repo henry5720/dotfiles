@@ -26,7 +26,8 @@ install_fastfetch() {
   deb=$(mktemp --suffix=.deb); curl -fsSL "$url" -o "$deb"; sudo dpkg -i "$deb" || sudo apt install -f -y; rm -f "$deb"
 }
 install_btop() { is_installed btop && { echo -e "${BLUE}✅ btop 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y btop; }
-# ponytail: 用 Ubuntu 套件庫的版本，較舊；skills 只用到 gh api／issue，夠用。要新版再換 GitHub 官方 apt 源。
+# daily-worklog、slack-list 兩支 skill 會叫 gh(見 agent-config 的 SKILL.md)。
+# ponytail: 用 Ubuntu 套件庫的版本，較舊；它們只用 gh api 與 issue 指令，夠用。要新版再換 GitHub 官方 apt 源。
 install_gh() { is_installed gh && { echo -e "${BLUE}✅ gh 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y gh; echo '登入：gh auth login'; }
 install_nvm() {
   is_installed nvm && { echo -e "${BLUE}✅ nvm 已安裝。${NC}"; return; }

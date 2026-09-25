@@ -1,6 +1,6 @@
 {{- $personal := default dict (index . "aiPersonal") -}}
 #!/bin/sh
-# 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny(skill 由 skillshare 放在 ~/.agents/skills)，不碰 base gateway、credential 或 state。
+# 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny，不碰 base gateway、credential 或 state。
 set -eu
 python3 -c '
 import json
@@ -13,7 +13,8 @@ try:
 except tomllib.TOMLDecodeError as error:
     raise SystemExit("personal Codex config 不是合法 TOML: " + str(error))
 model = {{ with (default "" (index $personal "codexModel")) }}{{ . | quote }}{{ else }}""{{ end }}
-skill_path = {{ printf "%s/.agents/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}
+# 舊位置 ~/.codex/skills 在已部署的機器上不會自動消失,兩個都 deny;skillshare 放在 ~/.agents/skills。
+skill_paths = [{{ printf "%s/.codex/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}, {{ printf "%s/.agents/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}]
 lines = []
 table = ()
 for line in existing.splitlines():
@@ -24,27 +25,28 @@ for line in existing.splitlines():
         continue
     lines.append(line)
 skill_header = "[[skills.config]]"
-skill_blocks = []
-start = None
-for index, line in enumerate(lines + [skill_header]):
-    if line.strip() == skill_header:
-        if start is not None:
-            skill_blocks.append((start, index))
-        start = index
-for start, end in reversed(skill_blocks):
-    block = lines[start:end]
-    if any(line.strip() == "path = " + json.dumps(skill_path) for line in block):
-        enabled = next((index for index, line in enumerate(block) if line.strip().startswith("enabled") and "=" in line), None)
-        if enabled is None:
-            path_index = next(index for index, line in enumerate(block) if line.strip().startswith("path") and "=" in line)
-            lines.insert(start + path_index + 1, "enabled = false")
-        else:
-            lines[start + enabled] = "enabled = false"
-        break
-else:
-    if lines and lines[-1].strip():
-        lines.append("")
-    lines += [skill_header, "path = " + json.dumps(skill_path), "enabled = false"]
+for skill_path in skill_paths:
+    skill_blocks = []
+    start = None
+    for index, line in enumerate(lines + [skill_header]):
+        if line.strip() == skill_header:
+            if start is not None:
+                skill_blocks.append((start, index))
+            start = index
+    for start, end in reversed(skill_blocks):
+        block = lines[start:end]
+        if any(line.strip() == "path = " + json.dumps(skill_path) for line in block):
+            enabled = next((index for index, line in enumerate(block) if line.strip().startswith("enabled") and "=" in line), None)
+            if enabled is None:
+                path_index = next(index for index, line in enumerate(block) if line.strip().startswith("path") and "=" in line)
+                lines.insert(start + path_index + 1, "enabled = false")
+            else:
+                lines[start + enabled] = "enabled = false"
+            break
+    else:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines += [skill_header, "path = " + json.dumps(skill_path), "enabled = false"]
 candidate = []
 if model:
     candidate.append("model = " + json.dumps(model))
