@@ -3,9 +3,11 @@
 # 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
 # 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
 #
-# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider 與三個 MCP server;
+# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider;
 # codex 自己的 table 原封不動吐回去。`chezmoi diff` 因此會是空的。
-# 同一招的前例見 home/modify_private_dot_claude.json。
+#
+# MCP server 不歸這裡管,由 skillshare 寫(清單在 agent-config 的 mcp.yaml)。
+# 所有 [mcp_servers.*] 都當成別人的 table 原樣保留,不然每次 apply 都會刪掉 skillshare 寫的。
 #
 # ⚠️ codex 會把 key 寫在第一個 table 之前的頂層(例如 approvals_reviewer)。那些 key 只能
 # 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table
@@ -13,7 +15,7 @@
 # 與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
 # 解析後的結構,位置變了就是結構變了)。
 #
-# ⚠️ 新機器上這份只會產出 repo provider 與 MCP 設定,下半段要自己長回來:
+# ⚠️ 新機器上這份只會產出 repo provider,下半段要自己長回來:
 #   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
 #   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
 #     這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),重跑 herdr
@@ -25,15 +27,8 @@ input_file=$(mktemp)
 trap 'rm -f "$input_file"' EXIT HUP INT TERM
 printf '%s' "$existing" > "$input_file"
 output_file=$(mktemp)
-context7_file=$(mktemp)
 preamble_file=$(mktemp)
-trap 'rm -f "$input_file" "$output_file" "$context7_file" "$preamble_file"' EXIT HUP INT TERM
-cat > "$context7_file" <<'CONTEXT7'
-{{- with (index . "context7ApiKey") }}
-[mcp_servers.context7]
-http_headers = { "CONTEXT7_API_KEY" = {{ . | quote }} }
-{{- end }}
-CONTEXT7
+trap 'rm -f "$input_file" "$output_file" "$preamble_file"' EXIT HUP INT TERM
 python3 -c '
 import glob
 import json
@@ -41,11 +36,20 @@ import os
 import sys
 import tomllib
 
-managed = {"chrome-devtools", "codegraph", "context7"}
 managed_top_keys = ("model", "model_provider", "model_reasoning_effort")
 provider = "codex-lb-gcp"
-markers = {"# 由 chezmoi 管理的 MCP servers。", "# MCP servers managed by chezmoi."}
+# 這個樣板自己產生的橫幅。遇到就連同底下的註解一起丟掉,後面再重新長出來。
+# 前兩個是舊版寫 MCP 時的橫幅,只是為了清掉已部署機器上殘留的那段註解;
+# 它底下的 [mcp_servers.*] table 會留著,交給 skillshare 收編(見 docs/ai-agent-setup.md)。
+skills_markers = {
+    "# 由 chezmoi 停用的 skill(obsidian-wiki 那包,見上面的 token 實測)。",
+    "# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。",
+}
+markers = {"# 由 chezmoi 管理的 MCP servers。", "# MCP servers managed by chezmoi."} | skills_markers
 out = []
+# 停用 skill 那段原本在哪,重新產生時就放回哪。skillshare 新增的 MCP table 會接在檔尾,
+# 要是這段每次都搬到最後,sync 完 chezmoi diff 就會多出一次換位。
+skills_at = None
 preamble = []
 keep = False
 seen_table = False
@@ -81,11 +85,6 @@ def comparable(text):
     providers.pop(provider, None)
     if not providers:
         value.pop("model_providers", None)
-    servers = value.get("mcp_servers", {})
-    for name in managed:
-        servers.pop(name, None)
-    if not servers:
-        value.pop("mcp_servers", None)
     value.pop("skills", None)
     return value
 
@@ -94,6 +93,8 @@ for line in existing.splitlines(keepends=True):
     if line.rstrip("\n") in markers:
         while out and (not out[-1].strip() or out[-1].startswith("# ===")):
             out.pop()
+        if line.rstrip("\n") in skills_markers and skills_at is None:
+            skills_at = len(out)
         keep = False
         continue
     path = header_path(line.rstrip("\n"))
@@ -104,12 +105,8 @@ for line in existing.splitlines(keepends=True):
             keep = False
             continue
         if table == "skills.config":
-            keep = False
-            continue
-        if table == "mcp_servers." + path[-1] and path[0] == "mcp_servers" and path[-1] in managed:
-            keep = False
-            continue
-        if path[0] == "mcp_servers" and len(path) > 1 and path[1] in managed:
+            if skills_at is None:
+                skills_at = len(out)
             keep = False
             continue
         keep = True
@@ -128,47 +125,11 @@ for line in existing.splitlines(keepends=True):
 while out and not out[-1].strip():
     out.pop()
 preamble_text = "".join(preamble).strip("\n")
-open(sys.argv[2], "w", encoding="utf-8").write(preamble_text + "\n" if preamble_text else "")
-candidate = "".join(out).rstrip("\n")
-if candidate:
-    candidate += "\n\n"
-candidate += """# ============================================================
-# 由 chezmoi 管理的 MCP servers。
-#
-# 三個都開著。曾經為了省 token 想關掉,實測證明沒有意義,別再試一次:
-#
-#   真實家目錄、同一個極短 prompt、skill 已停用
-#     三個 MCP 全開  15,491 tokens
-#     三個 MCP 全關  15,491 tokens   ← 一模一樣
-#
-# 那 ~15,300 是 codex 的 base system prompt(從空目錄跑是 15,281),不是
-# MCP 造成的。MCP server 的工具定義本身很小 —— 直接對 codegraph 的 MCP
-# server 做 initialize + tools/list,整包只有 ~773 token(instructions 340
-# + 工具定義 433)。
-#
-# (拋棄式 CODEX_HOME 量到「全關剩 194」是那個環境的假象,不要拿來當根據。)
-# ============================================================
-
-[mcp_servers.chrome-devtools]
-command = "npx"
-args = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
-enabled = true
-startup_timeout_sec = 60
-
-[mcp_servers.codegraph]
-command = "codegraph"
-args = ["serve", "--mcp"]
-enabled = true
-
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-enabled = true
-"""
-context7_text = open(sys.argv[1], encoding="utf-8").read()
-if context7_text.strip():
-    context7_data = tomllib.loads(context7_text)
-    headers = context7_data["mcp_servers"]["context7"]["http_headers"]
-    candidate += "http_headers = { \"CONTEXT7_API_KEY\" = " + json.dumps(headers["CONTEXT7_API_KEY"], ensure_ascii=False) + " }\n"
+open(sys.argv[1], "w", encoding="utf-8").write(preamble_text + "\n" if preamble_text else "")
+if skills_at is None:
+    skills_at = len(out)
+head = "".join(out[:skills_at]).rstrip("\n")
+tail = "".join(out[skills_at:]).strip("\n")
 # obsidian-wiki 那包 skill 在 codex 這側用不到,但 description 每個 request 都要
 # 進 context(實測 ~1,680 tokens,codex 還會印 "descriptions were shortened" 的
 # warning)。用 glob 認而不是寫死清單,wiki 套件增刪 skill 時不用回來改這裡。
@@ -180,14 +141,18 @@ for skill_dir in sorted(glob.glob(os.path.expanduser("~/.codex/skills/*/"))):
     skill_md = os.path.join(skill_dir, "SKILL.md")
     if os.path.exists(skill_md):
         disabled_skills.append(skill_md)
+skills_block = ""
 if disabled_skills:
-    candidate += "\n# ============================================================\n"
-    candidate += "# 由 chezmoi 停用的 skill(obsidian-wiki 那包,見上面的 token 實測)。\n"
-    candidate += "# ============================================================\n"
+    skills_block += "# ============================================================\n"
+    skills_block += "# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n"
+    skills_block += "# ============================================================\n"
     for skill_md in disabled_skills:
-        candidate += "\n[[skills.config]]\n"
-        candidate += "path = " + json.dumps(skill_md, ensure_ascii=False) + "\n"
-        candidate += "enabled = false\n"
+        skills_block += "\n[[skills.config]]\n"
+        skills_block += "path = " + json.dumps(skill_md, ensure_ascii=False) + "\n"
+        skills_block += "enabled = false\n"
+candidate = "\n\n".join(part.rstrip("\n") for part in (head, skills_block, tail) if part.strip())
+if candidate:
+    candidate += "\n"
 # 檢查要比的是完整的最終檔(頂層 key 在前、table 在後),不是 stdout 這半段。
 verified = preamble_text + "\n\n" + candidate if preamble_text else candidate
 try:
@@ -200,11 +165,11 @@ try:
 except (tomllib.TOMLDecodeError, ValueError) as error:
     raise SystemExit("codex config 安全更新失敗: " + str(error))
 sys.stdout.write(candidate)
-' "$context7_file" "$preamble_file" < "$input_file" > "$output_file"
+' "$preamble_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
-# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與三個 MCP
-# server 是 repo 管理的區塊，其餘 codex 狀態由下方腳本保留。
+# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 是 repo
+# 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
 # ============================================================
 model = "gpt-6-astra"
 model_provider = "codex-lb-gcp"
@@ -223,4 +188,6 @@ request_max_retries = 4
 stream_max_retries = 10
 stream_idle_timeout_ms = 300000
 TOML
+# provider 與後面的 table 之間空一行。
+if [ -s "$output_file" ]; then echo; fi
 cat "$output_file"
