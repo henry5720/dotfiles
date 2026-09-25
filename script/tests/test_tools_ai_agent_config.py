@@ -27,9 +27,9 @@ class AgentConfigItemTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_item(self, **env):
+    def run_item(self, choice=AGENT_CONFIG, **env):
         pick = self.home / "pick"
-        pick.write_text(AGENT_CONFIG + "\n")
+        pick.write_text(choice + "\n")
         full = {"HOME": str(self.home), "PATH": self.path, "INPUT_SRC": str(pick), "AGENT_CONFIG_REMOTE": "REMOTE", **env}
         out = subprocess.run(["bash", str(SCRIPT)], env=full, capture_output=True, text=True, check=True).stdout
         calls = (self.home / "calls").read_text().splitlines() if (self.home / "calls").exists() else []
@@ -58,6 +58,19 @@ class AgentConfigItemTest(unittest.TestCase):
         self.assertIn("agent-config（skills 與 MCP） ✅", out)
         self.assertNotIn("install.sh", out)
         self.assertEqual(calls, ["pull", "sync mcp -g"])
+
+    def test_clients_off_path_are_not_reinstalled(self):
+        # 非互動 ssh 的 PATH 沒有這些目錄;以前會重跑官方 installer,Codex 那支還會往 .zshrc 追加 PATH(#36)。
+        for rel in (".local/bin/claude", ".local/bin/codex", ".opencode/bin/opencode"):
+            (self.home / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.home / rel).write_text("#!/bin/sh\n")
+            (self.home / rel).chmod(0o755)
+        (self.home / "bin/curl").write_text(f'#!/bin/sh\necho "curl $*" >> {self.home}/calls\n')
+        (self.home / "bin/curl").chmod(0o755)
+        out, calls = self.run_item(choice="1 2 3")
+        for label in ("Claude Code", "Codex", "OpenCode"):
+            self.assertIn(f"✅ {label} 已安裝。", out)
+        self.assertEqual(calls, [])
 
     def test_dry_run_prints_without_running(self):
         out, calls = self.run_item(DRY_RUN="1")

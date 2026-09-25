@@ -110,6 +110,25 @@ Protocol error (Target.setDiscoverTargets): Target closed
 官方裝法(`claude mcp add chrome-devtools npx chrome-devtools-mcp@latest`)也生不出正確設定,
 少的就是 `--browser-url`,所以參數要記在 agent-config 的 `mcp.yaml`,不能靠重跑 installer。
 
+## EC2:用本機的 Windows Chrome
+
+EC2 不裝 Chrome。MCP 設定跟 WSL 那份一樣(`--browser-url=http://127.0.0.1:9222`),把本機的
+9222 用 SSH 反向轉過去就好:
+
+```
+EC2 的 MCP server → EC2 127.0.0.1:9222 → SSH -R → WSL 127.0.0.1:9222 → Windows Chrome
+```
+
+```bash
+chrome-mcp                                                        # 本機先把 Chrome 開起來
+ssh -N -R 127.0.0.1:9222:127.0.0.1:9222 company-ec2               # 開著別關;要常駐就寫進 ~/.ssh/config 的 RemoteForward
+ssh company-ec2 'curl -s 127.0.0.1:9222/json/version | grep User-Agent'  # 要看到 Windows NT
+```
+
+最後那行一定要看 `User-Agent`。看到 `X11; Linux` 就是連到 WSL 裡別的 Chrome 了(見下方排錯)。
+
+2026-09-25 在 company-ec2 實測:`chrome-devtools-mcp@1.10.1` 經這條路開頁、列頁、關頁都正常。
+
 ## 排錯
 
 | 症狀 | 原因 |
@@ -117,6 +136,8 @@ Protocol error (Target.setDiscoverTargets): Target closed
 | `Target closed` / `Target.setDiscoverTargets` | 走到沒有 `--browser-url` 的設定了 —— 官方 plugin 又被開起來(`chezmoi apply` 修回來),或 MCP 條目被改掉(`skillshare sync mcp -g` 修回來) |
 | `chrome-mcp` 跑完沒錯誤但 MCP 連不上 | 9222 沒通。`curl 127.0.0.1:9222/json/version` 確認;不通就查 `.wslconfig` 是不是 mirrored |
 | Chrome 開起來但 9222 不通 | 日常 profile 已經開著,Chrome 忽略了 `--remote-debugging-port`。關掉全部 Chrome 視窗再跑 |
+| 開出來的分頁一直是 `about:blank`,`new_page` 等 30 秒逾時 | 9222 被 WSL 裡別的 Chrome 搶走了(例如 Playwright 起的 `ms-playwright/chromium`)。mirrored 模式下 WSL 裡有人在聽 9222,連 `127.0.0.1:9222` 就先到它,Windows Chrome 被蓋掉,而且不報錯。`ss -ltnp \| grep 9222` 看得到行程就是這個;關掉它 |
+| Windows 的 MCP Chrome 還在跑,9222 卻不通,`chrome-mcp` 等 15 秒失敗 | 9222 被搶過一次之後,Windows Chrome 的 listener 就掉了,不會自己回來;再叫一次 Chrome,新參數也會被轉給舊的 process 然後丟掉。只關 `ChromeDevToolsMCP` profile 那個 Chrome,再跑 `chrome-mcp` |
 | agent 看到的網站沒登入 | 獨立 profile 是新的,手動登入一次 |
 | `claude mcp list` 顯示 Failed | 先確認 Chrome 在跑,再 `/mcp` 重連 |
 

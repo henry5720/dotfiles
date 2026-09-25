@@ -331,6 +331,8 @@ skillshare 會保留它。
   範圍是 Claude 的 chrome-devtools;Codex 的 chrome-devtools、codegraph、context7;
   OpenCode 的 chrome-devtools、codegraph。只刪跟舊版內容一字不差的條目,Codex 的 context7
   例外:key 是各台自己的值,只比對 url 與欄位。刪掉時會印出來。
+- **chezmoi 放過的舊 skill**:`~/.codex/skills/company-imagegen-fallback` 已搬到 agent-config,
+  `home/.chezmoiremove` 讓 `chezmoi apply` 把舊的那份刪掉,不然 Codex 會同時看到兩份。
 - **手動加的**(`claude mcp add`、`codegraph install` 之類),跑
   `skillshare sync mcp -g --dry-run` 看 conflict 清單,逐一決定:
   - 要照 agent-config 的版本:在 skillshare dashboard 按 **Replace with source**,或直接刪掉
