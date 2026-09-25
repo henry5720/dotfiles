@@ -91,8 +91,8 @@ bash -n script/ubuntu/*.sh script/termux/*.sh   # 腳本語法(shellcheck 未安
 ```bash
 bash script/ubuntu/setup.sh           # 選擇基底／一般工具／AI，或高風險 Docker／主機資源 swap
 bash script/ubuntu/install-base.sh    # 強制:zsh/git/curl/vim + zsh 插件 + chezmoi + 預設 shell
-bash script/ubuntu/install-tools.sh   # 可選:fastfetch / btop / nvm / code-server / tailscale / wakatime / herdr
-bash script/ubuntu/install-tools-ai.sh # Claude Code / Codex / OpenCode / 文件影音 / AI 解析
+bash script/ubuntu/install-tools.sh   # 可選:fastfetch / btop / nvm / code-server / tailscale / wakatime / herdr / gh
+bash script/ubuntu/install-tools-ai.sh # Claude Code / Codex / OpenCode / 文件影音 / AI 解析 / codegraph / agent-config(chezmoi apply 之後)
 bash script/ubuntu/install-docker.sh  # Docker Engine；高風險，會移除衝突套件並修改系統
 bash script/ubuntu/setup-swap.sh      # swapfile；預設 2G，會使用主機磁碟與記憶體資源
 ```

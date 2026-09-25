@@ -1,6 +1,6 @@
 {{- $personal := default dict (index . "aiPersonal") -}}
 #!/bin/sh
-# 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny，不碰 base gateway、credential 或 state。
+# 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny(skill 由 skillshare 放在 ~/.agents/skills)，不碰 base gateway、credential 或 state。
 set -eu
 python3 -c '
 import json
@@ -13,7 +13,7 @@ try:
 except tomllib.TOMLDecodeError as error:
     raise SystemExit("personal Codex config 不是合法 TOML: " + str(error))
 model = {{ with (default "" (index $personal "codexModel")) }}{{ . | quote }}{{ else }}""{{ end }}
-skill_path = {{ printf "%s/.codex/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}
+skill_path = {{ printf "%s/.agents/skills/company-imagegen-fallback/SKILL.md" .chezmoi.homeDir | quote }}
 lines = []
 table = ()
 for line in existing.splitlines():

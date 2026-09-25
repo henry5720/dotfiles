@@ -4,12 +4,12 @@ set -euo pipefail
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 DRY_RUN="${DRY_RUN:-0}"
 INPUT_SRC="${INPUT_SRC:-/dev/tty}"
-TOOLS=(fastfetch btop nvm code-server tailscale wakatime herdr)
-TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking' herdr)
+TOOLS=(fastfetch btop nvm code-server tailscale wakatime herdr gh)
+TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking' herdr 'GitHub CLI (gh)')
 
 is_installed() {
   case "$1" in
-    fastfetch|btop|code-server|tailscale|herdr) command -v "$1" &>/dev/null ;;
+    fastfetch|btop|code-server|tailscale|herdr|gh) command -v "$1" &>/dev/null ;;
     wakatime) command -v wakatime-cli &>/dev/null ;;
     nvm) [ -d "$HOME/.nvm" ] ;;
     *) return 1 ;;
@@ -26,6 +26,8 @@ install_fastfetch() {
   deb=$(mktemp --suffix=.deb); curl -fsSL "$url" -o "$deb"; sudo dpkg -i "$deb" || sudo apt install -f -y; rm -f "$deb"
 }
 install_btop() { is_installed btop && { echo -e "${BLUE}✅ btop 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y btop; }
+# ponytail: 用 Ubuntu 套件庫的版本，較舊；skills 只用到 gh api／issue，夠用。要新版再換 GitHub 官方 apt 源。
+install_gh() { is_installed gh && { echo -e "${BLUE}✅ gh 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y gh; echo '登入：gh auth login'; }
 install_nvm() {
   is_installed nvm && { echo -e "${BLUE}✅ nvm 已安裝。${NC}"; return; }
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
