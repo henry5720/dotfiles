@@ -16,8 +16,57 @@
 |---|---|---|---|---|
 | **規則** | 你希望 agent 怎麼做事 | **你** | 本 repo `home/dot_claude/CLAUDE.md` | 改完 commit |
 | **skill** | 一套做某件事的步驟,用到才載入 | 別人 或 **你** | agent-config repo,skillshare 同步到各 client | `skillshare update --all`,見下 |
-| **MCP** | 給 agent 接外部服務的通道 | 別人 | 各 agent 自己的設定檔 | 通常自動抓最新 |
+| **MCP** | 給 agent 接外部服務的通道 | 別人 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見〈3〉 |
 | **plugin** | Claude 的擴充包(可同時含 skill + MCP + 指令) | 別人 | `~/.claude/plugins/` | Claude 裡打 `/plugin` |
+
+## 全貌
+
+chezmoi 管「client 本身怎麼設定」,skills 和 MCP 只有一個來源:private repo
+`henry5720/agent-config`(clone 在 `~/.config/skillshare/`),由 skillshare 分發到三個 client。
+
+```mermaid
+flowchart LR
+  subgraph dotfiles["dotfiles(chezmoi)"]
+    rules["home/dot_claude/CLAUDE.md<br/>規則"]
+    clientcfg["modify_ 設定<br/>provider、權限(不含 MCP)"]
+    sscfg["~/.config/skillshare/config.yaml<br/>create_,只放一次"]
+    toolsai["install-tools-ai.sh<br/>「agent-config」項"]
+  end
+
+  subgraph agentconfig["agent-config(= ~/.config/skillshare/)"]
+    skills["skills/<br/>自己寫的 + 第三方<br/>.metadata.json 記來源"]
+    mcp["mcp.yaml<br/>chrome-devtools、context7<br/>gh_grep、codegraph"]
+  end
+
+  subgraph clients["三個 client"]
+    claude["Claude Code<br/>~/.claude/skills<br/>~/.claude.json"]
+    codex["Codex<br/>~/.agents/skills<br/>~/.codex/config.toml"]
+    opencode["OpenCode<br/>讀上面兩個 skills 目錄<br/>opencode.json"]
+  end
+
+  toolsai -- "init 或 pull" --> agentconfig
+  sscfg -. "告訴 skillshare 去哪拉、寫到哪" .-> agentconfig
+  skills -- "skillshare sync<br/>(symlink)" --> claude
+  skills -- "skillshare sync<br/>(symlink)" --> codex
+  mcp -- "skillshare sync mcp -g<br/>只動自己的條目" --> claude
+  mcp --> codex
+  mcp --> opencode
+  rules --> claude
+  rules --> opencode
+  clientcfg --> codex
+  clientcfg --> opencode
+```
+
+不歸 skillshare 管的例外:`~/.agents/skills/herdr`(`herdr --skill` 產生)、obsidian-wiki 那包
+(pip 套件自己連的)、`~/.claude/skills/synced/`(Claude 自己同步的)、Claude plugin(`/plugin`)。
+
+日常流程:
+
+```
+任一台加東西:skillshare install … 或 mcp add … → skillshare sync → skillshare push
+其他台跟上:  skillshare pull → skillshare sync mcp -g        (pull 不會同步 MCP)
+新機器:      chezmoi apply → install-tools-ai.sh 勾「agent-config」
+```
 
 ---
 
