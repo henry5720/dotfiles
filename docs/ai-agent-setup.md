@@ -15,9 +15,58 @@
 | | 是什麼 | 誰寫的 | 檔案實際在哪 | 怎麼更新 |
 |---|---|---|---|---|
 | **規則** | 你希望 agent 怎麼做事 | **你** | 本 repo `home/dot_claude/CLAUDE.md` | 改完 commit |
-| **skill** | 一套做某件事的步驟,用到才載入 | 別人 或 **你** | 別人的在 `~/.agents/skills/`;自己的在寫它的那個 repo | 看來源,見下 |
-| **MCP** | 給 agent 接外部服務的通道 | 別人 | 各 agent 自己的設定檔 | 通常自動抓最新 |
+| **skill** | 一套做某件事的步驟,用到才載入 | 別人 或 **你** | agent-config repo,skillshare 同步到各 client | `skillshare update --all`,見下 |
+| **MCP** | 給 agent 接外部服務的通道 | 別人 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見〈3〉 |
 | **plugin** | Claude 的擴充包(可同時含 skill + MCP + 指令) | 別人 | `~/.claude/plugins/` | Claude 裡打 `/plugin` |
+
+## 全貌
+
+chezmoi 管「client 本身怎麼設定」,skills 和 MCP 只有一個來源:private repo
+`henry5720/agent-config`(clone 在 `~/.config/skillshare/`),由 skillshare 分發到三個 client。
+
+```mermaid
+flowchart LR
+  subgraph dotfiles["dotfiles(chezmoi)"]
+    rules["home/dot_claude/CLAUDE.md<br/>規則"]
+    clientcfg["modify_ 設定<br/>provider、權限(不含 MCP)"]
+    sscfg["~/.config/skillshare/config.yaml<br/>create_,只放一次"]
+    toolsai["install-tools-ai.sh<br/>「agent-config」項"]
+  end
+
+  subgraph agentconfig["agent-config(= ~/.config/skillshare/)"]
+    skills["skills/<br/>自己寫的 + 第三方<br/>.metadata.json 記來源"]
+    mcp["mcp.yaml<br/>chrome-devtools、context7<br/>gh_grep、codegraph"]
+  end
+
+  subgraph clients["三個 client"]
+    claude["Claude Code<br/>~/.claude/skills<br/>~/.claude.json"]
+    codex["Codex<br/>~/.agents/skills<br/>~/.codex/config.toml"]
+    opencode["OpenCode<br/>讀上面兩個 skills 目錄<br/>opencode.json"]
+  end
+
+  toolsai -- "init 或 pull" --> agentconfig
+  sscfg -. "告訴 skillshare 去哪拉、寫到哪" .-> agentconfig
+  skills -- "skillshare sync<br/>(symlink)" --> claude
+  skills -- "skillshare sync<br/>(symlink)" --> codex
+  mcp -- "skillshare sync mcp -g<br/>只動自己的條目" --> claude
+  mcp --> codex
+  mcp --> opencode
+  rules --> claude
+  rules --> opencode
+  clientcfg --> codex
+  clientcfg --> opencode
+```
+
+不歸 skillshare 管的例外:`~/.agents/skills/herdr`(`herdr --skill` 產生)、obsidian-wiki 那包
+(pip 套件自己連的)、`~/.claude/skills/synced/`(Claude 自己同步的)、Claude plugin(`/plugin`)。
+
+日常流程:
+
+```
+任一台加東西:skillshare install … 或 mcp add … → skillshare sync → skillshare push
+其他台跟上:  skillshare pull → skillshare sync mcp -g        (pull 不會同步 MCP)
+新機器:      chezmoi apply → install-tools-ai.sh 勾「agent-config」
+```
 
 ---
 
@@ -92,55 +141,30 @@ skill 是一套「做某件事的步驟」,本體用到才載入,但它的 descr
 
 **兩件事要分開想:從哪裡來(來源)、裝給誰用(範圍)。**
 
-## 2-1 來源:別人的 vs 自己的
+## 2-1 全部由 skillshare 管
 
-### A. 別人的,而且有 CLI —— 用 `npx skills`
-
-大部分公開 skill 都支援這個裝法:
-
-```bash
-npx skills@latest add <github帳號>/<repo名>
-```
-
-會問你要裝哪幾個、裝給哪些 agent。目前裝了哪些、各自來自哪,查:
+別人的和自己寫的 skill 都由 [skillshare](https://github.com/runkids/skillshare) 管,內容放在
+private repo `henry5720/agent-config`(clone 在 `~/.config/skillshare/`)。skillshare 從
+`~/.config/skillshare/skills/` 同步到 `~/.claude/skills`(Claude)和 `~/.agents/skills`(Codex),
+OpenCode 兩個目錄都會讀,所以不另外設 target。新機器怎麼裝見
+[新機器設定 Runbook](new-machine-setup.md) 的 agent-config 那一步。
 
 ```bash
-npx skills@latest list -g
+skillshare list -v                              # 裝了哪些、各自來自哪
+skillshare install <帳號>/<repo> -s <名字>        # 裝別人的,只挑這幾個
+skillshare update --all                         # 全部更新
+skillshare uninstall <名字>                      # 移除
+skillshare sync && skillshare push              # 同步到各 client,再推回 agent-config
 ```
 
-> **這裡不列清單。** 想裝什麼是你自己的事,而寫死的清單一定會過時 ——
-> 要知道現況就跑上面那行,那才是真的。
+其他機器 `skillshare pull` 就拿到。裝了什麼、從哪裝的記在 agent-config 的
+`skills/.metadata.json`(`update --all` 讀它);`config.yaml` 不進版控,裡面沒有 skill 清單。
 
-裝完的結構:
-
-```
-~/.agents/skills/tdd/          ← 真的檔案(通用 agent 都讀這裡)
-      ↑
-      └── ~/.claude/skills/tdd  ← 捷徑
-```
-
-跟規則是**同一招**,只是這個由工具自動做,你不用管。
-所以不需要再把 skill 搬進 dotfiles 手動拉線 —— 那是把已經自動化的事改回手動。
-
-常用指令:
-
-```bash
-npx skills@latest update -g -y   # 全部更新
-npx skills@latest update tdd     # 只更新一個
-npx skills@latest find <關鍵字>  # 找新的
-npx skills@latest remove <名字>  # 移除
-```
+> **這裡不列清單。** 寫死的清單一定會過時 —— 要知道現況就跑 `skillshare list -v`。
 
 > ⚠️ 更新會**蓋掉你手改過的內容**。想改某個別人的 skill,先另存一份再改。
 
-**同一個 repo 裡的 skill 可以只挑幾個裝。** `-s` 指定名字、`-l` 只列不裝:
-
-```bash
-npx skills@latest add <帳號>/<repo> -l                    # 先看它有哪些
-npx skills@latest add <帳號>/<repo> -g -y -s <名字> -a '*'  # 只裝這個,裝給所有 agent
-```
-
-[caveman](https://github.com/JuliusBrussee/caveman) 是這樣裝的:它 repo 裡有 20 個 skill,
+[caveman](https://github.com/JuliusBrussee/caveman) 是只挑一個的例子:它 repo 裡有 20 個 skill,
 只裝了核心那個 `caveman`(壓縮輸出用詞省 output token)。剩下 19 個沒裝的理由:
 6 個(`caveman-discover` / `-evidence-review` / `-learn` / `-manage` / `-optimize` / `-setup`)
 要 Caveman Cloud 帳號;`investigate-first`、`safe-refactor`、`surgical-patch`、`lean-build`、
@@ -152,31 +176,12 @@ caveman 也提供 proxy(`npm i -g @caveman-ai/cli` 之後用 `caveman claude` �
 和 MCP server 兩條路,**都沒用**:proxy 會改寫送進模型的內容,出問題時分不清是模型的問題
 還是被壓壞了,而且它要換掉 `claude` 的啟動入口 —— 這個 repo 沒有納管 claude 怎麼啟動。
 
-### B. 自己寫的,或只有 git repo 沒有 CLI —— clone 完拉 symlink
+**自己寫的 skill** 直接放在 agent-config 的 `skills/<名字>/`,skill 要呼叫的 script 放同一個
+資料夾(例如 slack-list 的 `scripts/`),裝 skill 就裝到 script;秘密放 `~/.config/<名字>/.env`,
+不進任何 repo。
 
-沒有 CLI 就自己做 CLI 在做的事:把 repo 放到某處,再把要用的 skill 資料夾連過去。
-
-```bash
-git clone <repo網址> ~/code/<名字>
-ln -sfn ~/code/<名字>/skills/<skill名> ~/.claude/skills/<skill名>
-```
-
-一個 skill 就是一個資料夾,裡面有 `SKILL.md`。不用額外註冊;已開啟的 agent 不會重新掃描,
-新增後重啟 client。
-
-**自己寫的 skill 放哪?放在它依賴的東西旁邊。**
-例如 `slack-todo` 會呼叫 `work-helper/bin/` 底下的程式 —— 放同一個 repo,
-路徑是相對的、一次 commit 改完;拆兩個 repo 就得寫死絕對路徑,遲早不同步。
-
-目前自己寫的都在 `~/code/work-helper/`:
-
-```
-~/code/work-helper/
-├── bin/              ← skill 會呼叫的程式
-└── skills/
-    ├── daily-worklog/
-    └── slack-todo/
-```
+**不歸 skillshare 管的例外**:`herdr` skill 是 `herdr --skill` 印出來的,跟著 herdr 版本走;
+obsidian-wiki 那包是 pip 套件自己連進 `~/.agents/skills`、`~/.codex/skills` 的。
 
 ## 2-2 範圍:裝給誰用
 
@@ -187,12 +192,11 @@ ln -sfn ~/code/<名字>/skills/<skill名> ~/.claude/skills/<skill名>
 | **global** | `~/.claude/skills/<名字>/`(Claude)<br>`~/.agents/skills/<名字>/`(其他 agent) | 到處都用得到:查 bug、TDD、寫日誌 |
 | **project** | `<那個repo>/.claude/skills/<名字>/` | 只有這個專案有意義,而且要跟著 repo 給同事 |
 
-`npx skills` 用旗標切:`-g` 是 global,`-p` 是只裝這個專案。
-手動 clone 的話就是 symlink 拉到上表對應的位置。
+skillshare 用旗標切:`-g` 是 global,`-p` 是只裝這個專案。
 
 opencode 會自動掃 `~/.claude/skills/`、`~/.agents/skills/`,以及專案裡對應的兩個目錄。
-所以同一份 skill 不用再寫進 `opencode.json`;目前大部分 `~/.claude/skills/*` 本來就是指向
-`~/.agents/skills/*` 的 symlink。
+所以同一份 skill 不用再寫進 `opencode.json`,也不要給 skillshare 加 OpenCode target,
+不然同一支會出現三份。
 
 project 範圍的好處是**會進版控**,同事 clone 下來就有;
 壞處是換個專案就沒了。判斷方法:**這個 skill 講的事,換個 repo 還成立嗎?**
@@ -205,7 +209,8 @@ project 範圍的好處是**會進版控**,同事 clone 下來就有;
 - 想跟上就得手動比對、手動貼、處理衝突
 - 你的 dotfiles 從「我的設定」變成「我的設定 + 別人好幾個 repo 的快照」
 
-一行指令能更新的事,變成長期的維護負擔。
+一行指令能更新的事,變成長期的維護負擔。agent-config 裡的第三方 skill 是 skillshare 裝的,
+`skillshare update --all` 會照來源更新,不是手抄的快照。
 
 ## 2-4 不用的 skill 怎麼關
 
@@ -253,15 +258,9 @@ plugin 的要用 `/plugin` 或 `enabledPlugins` 關(這個 repo 已經在 `modif
 
 ### 這台實際怎麼關的:移走 symlink
 
-`~/.claude/skills/*` 幾乎都是 symlink,來源有三處:
-
-```
-~/.local/share/obsidian-wiki/venv/.../obsidian_wiki/_data/skills/   ← pip 裝的那包
-~/.agents/skills/                                                  ← npx skills 裝的
-~/code/work-helper/.claude/skills/                                 ← 自己寫的
-```
-
-所以停用 = 把 symlink 移到旁邊,來源套件原封不動:
+pip 裝的 obsidian-wiki 那包是 symlink,來源在
+`~/.local/share/obsidian-wiki/venv/.../obsidian_wiki/_data/skills/`。停用 = 把 symlink 移到旁邊,
+來源套件原封不動:
 
 ```bash
 mkdir -p ~/.claude/skills-disabled
@@ -340,6 +339,11 @@ skillshare 會保留它。
   - 要收進 agent-config:`skillshare mcp import <名字> --from <client>`,再 push
   - 跟 `mcp.yaml` 一模一樣的條目不會衝突(列為 `unchanged`),但 skillshare 不會認領它,
     之後從 `mcp.yaml` 拿掉也不會刪。要讓它接手就 `skillshare mcp import <名字> --from <client>`
+
+- **OpenCode 的空殼 `opencode.jsonc`**:舊版 OpenCode 初始化時會留一個只有 `$schema` 的
+  `~/.config/opencode/opencode.jsonc`。它跟 chezmoi 的 `opencode.json` 同時存在時,
+  `skillshare sync mcp -g` 直接拒絕(`all exist; consolidate them into one file`)。
+  確認裡面只有 `$schema` 就刪掉。
 
 所以舊機器的順序是:`chezmoi update` → `skillshare sync mcp -g --dry-run` → 處理 conflict →
 `skillshare sync mcp -g`。
@@ -589,7 +593,7 @@ fork 這個 repo 時要換掉 provider 的 base URL,並在 `chezmoi init` 輸入
 # 4. plugin
 
 Claude 專屬的擴充包,一個 plugin 裡面可能同時有 skill、MCP、slash 指令。
-**`npx skills update` 完全管不到它們**,這是最容易搞混的地方。
+**`skillshare update` 完全管不到它們**,這是最容易搞混的地方。
 
 ```
 Claude 裡打 /plugin   → 瀏覽、安裝、更新、移除
@@ -600,7 +604,7 @@ Claude 裡打 /plugin   → 瀏覽、安裝、更新、移除
 opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由 opencode 自己管,
 跟 Claude 的 plugin 無關。
 
-> ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供 `npx skills` 和 Claude plugin
+> ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供一般 skill repo 和 Claude plugin
 > 兩條路(例如 mattpocock),兩邊都裝會變成每個 skill 兩份。選一條。
 
 ---
@@ -618,7 +622,7 @@ opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由 o
 caveman 是例子:它 repo 裡 20 個 skill,只裝了核心的 `caveman`。6 個要 Caveman Cloud 帳號;
 `investigate-first`、`safe-refactor`、`surgical-patch`、`lean-build`、`verify-and-stop`、
 `caveman-explore`、`cavecrew` 跟已裝的 mattpocock 那組(`diagnosing-bugs` / `tdd` /
-`prototype`)和內建的 `Explore` agent 重疊。挑裝的指令見〈2-1 A〉。
+`prototype`)和內建的 `Explore` agent 重疊。挑裝的指令見〈2-1〉。
 
 ## 5-2 成本量過了嗎
 
@@ -667,11 +671,11 @@ skill 會全部是開的,照 [2-4](#2-4-不用的-skill-怎麼關) 重跑一次�
 |---|---|
 | 改 agent 的行為規則 | 改 `home/dot_claude/CLAUDE.md`,commit |
 | 新機器套用規則 | `chezmoi init henry5720` → `chezmoi diff` → `chezmoi apply` |
-| 看現在裝了哪些 skill | `npx skills@latest list -g` |
-| 裝別人的 skill | `npx skills@latest add <帳號>/<repo>` |
-| 裝沒有 CLI 的 skill | clone 下來,再 `ln -sfn <repo>/skills/<名字> ~/.claude/skills/<名字>` |
+| 看現在裝了哪些 skill | `skillshare list -v` |
+| 裝別人的 skill | `skillshare install <帳號>/<repo> -s <名字>` → `skillshare sync` → `skillshare push` |
+| 寫自己的 skill | 放 agent-config 的 `skills/<名字>/` → `skillshare sync` → `skillshare push` |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
-| 更新 skill | `npx skills@latest update -g -y` |
+| 更新 skill | `skillshare update --all` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 2-4) |
 | 接一個 MCP(三個 client 都要) | `skillshare mcp add <名字> ...` → `skillshare sync mcp -g` → `skillshare push` |
 | 讓 agent 用瀏覽器 | `chrome-mcp` 開 Windows Chrome,再在 session 裡 `/mcp` 確認連上 |

@@ -192,17 +192,8 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 從舊版 dotfiles 升上來的機器,`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目;手動加過的
 條目要先處理,步驟見 [已部署機器上的舊條目](ai-agent-setup.md#已部署機器上的舊條目)。
 
-別人的 skills 用 `npx skills@latest add <帳號>/<repo>`;目前文件記錄的來源可按需要重跑:
-
-```bash
-npx skills@latest add mattpocock/skills
-npx skills@latest add Leonxlnx/taste-skill
-npx skills@latest add vercel-labs/skills
-npx skills@latest add JuliusBrussee/caveman -g -y -s caveman -a '*'
-```
-
-自己的 skill 依
-[skill 操作說明](ai-agent-setup.md#2-skill) clone 後拉 symlink。Claude plugin 在 Claude
+skills 也在同一項裡裝好:第三方與自己寫的都在 agent-config,`skillshare pull` 一起帶下來,
+不用另外重裝。怎麼新增或更新見 [skill 操作說明](ai-agent-setup.md#2-skill)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新;`chrome-devtools-mcp` 不要啟用,repo 的 `modify_` 會把它
 關掉;其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。MCP、skills、plugin 的範圍與限制見 [ai-agent-setup.md](ai-agent-setup.md) 的
 [MCP](ai-agent-setup.md#3-mcp)、[skill](ai-agent-setup.md#2-skill)、[plugin](ai-agent-setup.md#4-plugin)。
@@ -278,7 +269,7 @@ npx --yes oh-my-opencode-slim@latest doctor
 ```bash
 claude auth status
 skillshare mcp list
-npx skills@latest list -g
+skillshare list -v
 ```
 
 上述檢查只確認工具狀態,不會把憑證寫回文件或 repo。
