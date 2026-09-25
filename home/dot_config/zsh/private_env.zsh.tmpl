@@ -1,0 +1,6 @@
+{{- /* context7ApiKey 留空時整份渲染成空的，chezmoi 就不部署這個檔。 */ -}}
+{{- with .context7ApiKey -}}
+# 由 chezmoi 從 ~/.config/chezmoi/chezmoi.toml 渲染（權限 600），值不進 repo。
+# skillshare 寫進各 client 的 MCP 設定只留 fromEnv 參照，值從這裡來。
+export CONTEXT7_API_KEY={{ . | squote }}
+{{ end -}}

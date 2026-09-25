@@ -54,19 +54,26 @@ script 做三件事,每件都是踩過才加的:
 
 ## 設定放在哪
 
+MCP server 的定義由 [skillshare](https://github.com/runkids/skillshare) 管,清單在
+agent-config repo 的 `mcp.yaml`(chrome-devtools 的版本也釘在那裡)。`skillshare sync mcp -g`
+把它寫進三個 client 各自的設定檔,只動自己寫的那幾個條目:
+
+| client | 寫進哪裡 |
+|---|---|
+| Claude Code | `~/.claude.json` 的 `mcpServers` |
+| Codex | `~/.codex/config.toml` 的 `[mcp_servers.*]` |
+| OpenCode | `~/.config/opencode/opencode.json` 的 `mcp` |
+
+這個 repo 只剩兩件跟 chrome-devtools 有關的事:
+
 | 檔案 | 部署到 | 管什麼 |
 |---|---|---|
-| [`home/modify_private_dot_claude.json`](../home/modify_private_dot_claude.json) | `~/.claude.json`(600) | Claude Code 的 `mcpServers["chrome-devtools"]` |
 | [`home/dot_claude/modify_settings.json`](../home/dot_claude/modify_settings.json) | `~/.claude/settings.json` | 關掉官方 chrome-devtools plugin |
-| [`home/dot_config/opencode/private_opencode.json.tmpl`](../home/dot_config/opencode/private_opencode.json.tmpl) | `~/.config/opencode/opencode.json`(600) | opencode 的 `mcp["chrome-devtools"]` |
-| [`home/dot_codex/modify_private_config.toml.tmpl`](../home/dot_codex/modify_private_config.toml.tmpl) | `~/.codex/config.toml`(600) | Codex 的 `mcp_servers.chrome-devtools`、`codegraph`、`context7` |
+| [`home/dot_local/bin/executable_chrome-mcp`](../home/dot_local/bin/executable_chrome-mcp) | `~/.local/bin/chrome-mcp` | 開 Windows Chrome 的 9222 |
 
-Codex 的設定由 `modify_` 每次定向更新；它會保留 Codex 自己寫入的 user state 與其他設定。Context7 API key
-可在 `chezmoi init` 時輸入或留空；留空代表匿名使用。之後可用 `chezmoi edit-config` 修改，或用
-`chezmoi init --prompt` 重新回答已有 prompt。可用
-`codex mcp list` / `codex mcp get <name>` 確認配置已啟用；這只驗證設定，不代表 MCP server
-已完成 runtime handshake。Context7 endpoint 是 `https://mcp.context7.com/mcp`，API key 會以明文保存在本機
-chezmoi 設定，部署後也會寫入 Codex 設定的 `CONTEXT7_API_KEY` header，不會進 repo。
+Codex 與 OpenCode 那兩份設定檔 chezmoi 還在管 provider 等其他 key,所以它們的 `modify_` 會把
+skillshare 寫的 MCP 條目原樣留著。新增、改參數、升版本都改 agent-config 的 `mcp.yaml`,
+**不要改這個 repo**。
 
 三個 client 的 Chrome DevTools 參數刻意保持一致:
 
@@ -83,24 +90,6 @@ chezmoi 設定，部署後也會寫入 Codex 設定的 `CONTEXT7_API_KEY` header
 --no-performance-crux                 跑效能分析時不去 CrUX API 查別人網站的公開數據
 ```
 
-### 為什麼前兩份要用 `modify_`
-
-`~/.claude.json` 有 2200 行,裡面 99% 是 Claude Code 自己寫的狀態:開過哪些專案的絕對路徑、
-帳號 email、feature flag 快取。**這個 repo 是公開的**,整份納管等於把那些推上 GitHub。
-`~/.claude/settings.json` 同理,裡面有 herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
-一整塊機器描述。
-
-chezmoi 的 [`modify_`](https://www.chezmoi.io/reference/target-types/#modify_-scripts) 正是為這種
-情況設計的:repo 裡存的不是檔案內容,是**一小段改檔案的指令**。apply 時現有檔案從 stdin 進來,
-只改指定的 key,其他原封不動。repo 裡因此只有那一段設定,沒有任何 session 狀態。
-
-沒有選 `run_onchange_`(另一種常見做法)是因為那個只在 script 內容變動時才跑;哪天這個 key
-被弄掉了它不會發現。`modify_` 每次 `chezmoi apply` 都對一遍,會自癒。
-
-一個實作細節:Claude Code 寫出來的 JSON 是 2 空格縮排、**結尾沒有換行**,而 `jq` 會補一個。
-所以 `modify_private_dot_claude.json` 用 `printf '%s' "$(...)"` 砍掉它 —— 不砍的話每次
-`chezmoi diff` 都會多一行雜訊。
-
 ## 為什麼要關掉官方那個 plugin
 
 Claude Code 內建一個 chrome-devtools plugin,設定在:
@@ -116,17 +105,16 @@ WSL 自己開一個 Chrome,然後失敗:
 Protocol error (Target.setDiscoverTargets): Target closed
 ```
 
-不關掉的話它會跟自己加的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
+不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
 
 官方裝法(`claude mcp add chrome-devtools npx chrome-devtools-mcp@latest`)也生不出正確設定,
-少的就是 `--browser-url`。**這就是為什麼這份設定值得進 repo,而 context7 那種一行
-`npx ctx7 setup` 就回來的不值得** —— 判準見 [ai-agent-setup.md 的 MCP 那節](ai-agent-setup.md#3-mcp)。
+少的就是 `--browser-url`,所以參數要記在 agent-config 的 `mcp.yaml`,不能靠重跑 installer。
 
 ## 排錯
 
 | 症狀 | 原因 |
 |---|---|
-| `Target closed` / `Target.setDiscoverTargets` | 走到沒有 `--browser-url` 的設定了 —— 官方 plugin 又被開起來,或設定被蓋掉。`chezmoi apply` 修回來 |
+| `Target closed` / `Target.setDiscoverTargets` | 走到沒有 `--browser-url` 的設定了 —— 官方 plugin 又被開起來(`chezmoi apply` 修回來),或 MCP 條目被改掉(`skillshare sync mcp -g` 修回來) |
 | `chrome-mcp` 跑完沒錯誤但 MCP 連不上 | 9222 沒通。`curl 127.0.0.1:9222/json/version` 確認;不通就查 `.wslconfig` 是不是 mirrored |
 | Chrome 開起來但 9222 不通 | 日常 profile 已經開著,Chrome 忽略了 `--remote-debugging-port`。關掉全部 Chrome 視窗再跑 |
 | agent 看到的網站沒登入 | 獨立 profile 是新的,手動登入一次 |

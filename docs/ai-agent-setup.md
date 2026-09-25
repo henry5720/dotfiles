@@ -295,37 +295,52 @@ MCP 是「讓 agent 連到外部服務」的通道 —— 查文件、開瀏覽�
 也是可選的,想接什麼再裝什麼。
 
 **不同 client 不會共用 MCP 設定。** Claude 裡裝過的 MCP 或 plugin,opencode 不會自動載入;
-同一個 server 要分別寫進兩邊的設定。這跟 skill 不同,不要因為 opencode 讀得到
+同一個 server 要分別寫進各自的設定。這跟 skill 不同,不要因為 opencode 讀得到
 `~/.claude/skills/` 就以為它也會讀 Claude 的 MCP。
 
-## Claude
+## 三個 client 共用的 MCP 由 skillshare 管
+
+chrome-devtools、context7、gh_grep、codegraph 四個 server 定義在 agent-config repo 的
+`mcp.yaml`,由 [skillshare](https://github.com/runkids/skillshare) 寫進 Claude Code、Codex、
+OpenCode 三邊。**這個 repo 不再寫任何 MCP 條目**;chezmoi 只管同一份檔案裡的 provider
+等其他 key,skillshare 只動自己寫的條目,兩邊不搶同一個 key。
 
 ```bash
-claude mcp add <名字> -- npx -y <套件名>       # 預設 local(只有這台的這個專案)
-claude mcp add <名字> -s user -- npx -y <套件名>  # user:所有專案都能用
-claude mcp add <名字> -s project -- ...          # project:寫進 repo 的 .mcp.json,同事也有
-claude mcp list                                  # 看現況
+skillshare mcp add <名字> --url <https://...>        # 或 -- <指令> <參數>
+skillshare sync mcp -g                               # 寫進三個 client
+skillshare push                                      # 其他機器 skillshare pull 後再 sync mcp -g
 ```
 
-`-s user` 的設定存在 `~/.claude.json`;`-s project` 存在該 repo 根目錄的 `.mcp.json`。
-session 裡打 `/mcp` 可以看目前連上了哪些。
+`skillshare pull` 不會同步 MCP,後面一定要自己跑 `skillshare sync mcp -g`。
 
-### 哪些 MCP 設定該進這個 repo
+**API key 不進 agent-config**:`mcp.yaml` 只寫 `fromEnv: CONTEXT7_API_KEY`,各 client 設定裡
+留的也是參照(`${CONTEXT7_API_KEY}` 之類)。值來自 `chezmoi init` 時填的 Context7 API key,
+chezmoi 把它渲染成 `~/.config/zsh/env.zsh`(600),`.zshrc` 載入。key 留空就沒有這個檔,
+context7 走匿名額度。所以 agent 要從 zsh 開起來才讀得到這個變數。
 
-判準只有一句:**重跑一次官方裝法,這個設定會不會自己回來?**
+Codex 的 `startup_timeout_sec` 這類 client 專屬欄位 skillshare 不寫,舊版 chezmoi 給
+chrome-devtools 設的 60 秒也就沒了。啟動逾時的話在 `~/.codex/config.toml` 那個 table 手動補,
+skillshare 會保留它。
 
-| | 會回來 | 不會回來 |
-|---|---|---|
-| 例子 | context7(`npx ctx7 setup` 一行搞定)、promptx | chrome-devtools 那四個參數 |
-| 怎麼辦 | 不進 repo,在[新機器設定 Runbook](new-machine-setup.md)記一行指令 | 進 repo |
+### 已部署機器上的舊條目
 
-會回來的東西抄進 repo 只有壞處:上游改了裝法,你 repo 裡那份就變成凍住的舊版本
-(這跟[為什麼別人的 skill 不進 dotfiles](#2-3-為什麼別人的-skill-不進-dotfiles)是同一個道理)。
+舊版 chezmoi 寫過的 MCP 條目,skillshare 會當成「不是它的」而**整批停下**
+(`existing entry is not managed`)。分兩種處理:
 
-chrome-devtools 是唯一的例外,因為官方裝法
-`claude mcp add chrome-devtools npx chrome-devtools-mcp@latest` 生出來的設定**是壞的** ——
-少了 `--browser-url`,在 WSL 上跑不起來。那份設定裡有四個重跑 installer 不會回來的決定,
-所以用 chezmoi 的 `modify_` 納管:見 [chrome-devtools-mcp.md](chrome-devtools-mcp.md)。
+- **chezmoi 寫的**:`chezmoi apply` 時 `run_once_after_remove-chezmoi-mcp.py` 會自動刪掉,
+  範圍是 Claude 的 chrome-devtools;Codex 的 chrome-devtools、codegraph、context7;
+  OpenCode 的 chrome-devtools、codegraph。只刪跟舊版內容一字不差的條目,Codex 的 context7
+  例外:key 是各台自己的值,只比對 url 與欄位。刪掉時會印出來。
+- **手動加的**(`claude mcp add`、`codegraph install` 之類),跑
+  `skillshare sync mcp -g --dry-run` 看 conflict 清單,逐一決定:
+  - 要照 agent-config 的版本:在 skillshare dashboard 按 **Replace with source**,或直接刪掉
+    那個條目(例如 `claude mcp remove <名字> -s user`)再 sync
+  - 要收進 agent-config:`skillshare mcp import <名字> --from <client>`,再 push
+  - 跟 `mcp.yaml` 一模一樣的條目不會衝突(列為 `unchanged`),但 skillshare 不會認領它,
+    之後從 `mcp.yaml` 拿掉也不會刪。要讓它接手就 `skillshare mcp import <名字> --from <client>`
+
+所以舊機器的順序是:`chezmoi update` → `skillshare sync mcp -g --dry-run` → 處理 conflict →
+`skillshare sync mcp -g`。
 
 ### codegraph:設定會回來,但它塞進 CLAUDE.md 的那段不會
 
@@ -340,8 +355,10 @@ npm i -g @colbymchenry/codegraph      # 主套件只是 shim,真的 binary 走 o
 codegraph install -t claude -l global -y   # 寫 MCP 設定進 Claude Code(user 範圍)
 ```
 
-`-t claude` 是刻意的:opencode 那邊不讓 installer 寫,設定放在 template 裡,理由見
-[opencode](#opencode)。
+它寫進 `~/.claude.json` 的 `mcpServers.codegraph` 跟 agent-config 的定義一樣,skillshare
+不會衝突,但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`
+(見[已部署機器上的舊條目](#已部署機器上的舊條目))。不要再用 `-t opencode`、`-t codex`,
+那兩邊的 MCP 交給 skillshare 寫。
 
 ⚠️ **npm 裝的東西綁在當前 node 版本。** `npm config get prefix` 是
 `~/.nvm/versions/node/<版本>`,`nvm use` 換版本後 `codegraph` 就從 PATH 上消失,而
@@ -352,15 +369,15 @@ codegraph install -t claude -l global -y   # 寫 MCP 設定進 Claude Code(user 
 
 | 它改了什麼 | apply 之後還在嗎 | 為什麼 |
 |---|---|---|
-| `~/.claude.json` 的 `mcpServers.codegraph` | 在 | `modify_private_dot_claude.json` 只釘 chrome-devtools 那個 key,其他原封不動帶過 |
+| `~/.claude.json` 的 `mcpServers.codegraph` | 在 | chezmoi 不管 `~/.claude.json` |
 | `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | 同上,`modify_settings.json` 只釘一個 plugin 開關 |
 | `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | **不在** | 這份是 chezmoi 直接部署的整檔,apply 會把它蓋回 repo 版 |
 
 所以那段收進了 `home/dot_claude/CLAUDE.md`,**保留英文原文和 START/END 標記** ——
 `codegraph upgrade` 會重寫兩個標記之間的內容,翻成中文的話每次升級都跑出 chezmoi diff。
 
-> 裝完跑一次 `chezmoi verify`。實測第一次 `codegraph install` 之後 `~/.claude.json` 的權限
-> 從 600 變成 644(repo 那份是 `modify_private_dot_claude.json`,前綴 `private_` 就是 600)。
+> 裝完跑一次 `stat -c %a ~/.claude.json`。實測第一次 `codegraph install` 之後權限
+> 從 600 變成 644,chezmoi 已經不管這個檔,不會幫你發現。
 > 兇手就是 `codegraph install`。2026-08-20 在一台沒裝過 codegraph 的機器上重量一次:裝前
 > `stat -c %a ~/.claude.json` 是 600,只跑了 `codegraph install -t claude -l global -y`,
 > 裝完立刻變 644。重跑 `codegraph install --refresh` 不會重現,所以只發生在第一次寫入。
@@ -535,18 +552,13 @@ worktree 在別的 branch 上看不到。
 
 ## opencode
 
-寫在 `home/dot_config/opencode/private_opencode.json.tmpl`(部署成權限 600 的
-`~/.config/opencode/opencode.json`)的 `mcp` 欄位,格式是每個 server 一段 `command` 陣列。
+`home/dot_config/opencode/modify_private_opencode.json.tmpl`(部署成權限 600 的
+`~/.config/opencode/opencode.json`)管 provider、agent、plugin(含 `opencode-wakatime`)。
+它是 `modify_`:整份照 repo 的版本輸出,只有 `mcp` 那段換回現有檔案裡的 —— 那段是
+skillshare 寫的,見[上面](#三個-client-共用的-mcp-由-skillshare-管)。
 
-repo 裡有 `chrome-devtools` 和 `codegraph` 兩個 server,外加 `opencode-wakatime` 外掛。
-chrome-devtools 從 WSL 經 mirrored networking 連到 Windows 的 `127.0.0.1:9222`,不會在 WSL
-另開 Chrome —— 啟動方式、獨立 profile、排錯全在
-[chrome-devtools-mcp.md](chrome-devtools-mcp.md)。
-
-**opencode 這邊的 MCP 一律走 template,不要用工具自己的 installer 寫。** 上面那條
-「重跑裝法會不會自己回來」的判準在這裡不成立:`~/.config/opencode/opencode.json` 是 chezmoi
-從 template 渲染出來的整檔,installer(例如 `codegraph install -t opencode`)寫進去的東西
-下次 `chezmoi apply` 就被蓋掉,而且不會有任何提示。改 template 再 apply 才留得住。
+除了 `mcp`,其他 key 仍然是 repo 說了算:installer 或 opencode 自己寫進去的其他設定,
+下次 `chezmoi apply` 會被蓋回 repo 版,而且不會有提示。要留住就改 repo 那份再 apply。
 
 改完驗證(這個檔含明文 API key,不要直接 cat):
 
@@ -556,10 +568,8 @@ chezmoi apply ~/.config/opencode/opencode.json
 opencode mcp list                                             # 看有沒有 connected
 ```
 
-`context7` 和 `sequential-thinking` 以前也寫在這裡,已經拿掉:
-context7 走 `npx ctx7 setup`(官方 CLI,會偵測裝了哪些 agent 讓你選),寫進 repo 只是把舊裝法
-凍住;sequential-thinking 則是 Anthropic 從 2025-12 起建議改用 extended thinking 取代,
-而且長 session 記憶體會漲到 10GB 以上。
+sequential-thinking 以前也寫在這裡,已經拿掉:Anthropic 從 2025-12 起建議改用 extended
+thinking 取代,而且長 session 記憶體會漲到 10GB 以上。
 
 ### provider 與 API key
 
@@ -570,7 +580,7 @@ provider 結構跟著 dotfiles 走,API key 則由 `home/.chezmoi.toml.tmpl` 的 
 fork 這個 repo 時要換掉 provider 的 base URL,並在 `chezmoi init` 輸入自己的 key。不要把
 渲染後的 `~/.config/opencode/opencode.json` 收回 repo,那份含明文 key。
 
-> 大部分 MCP 是用 `npx -y` 跑的,每次啟動抓最新版,不需要手動更新。
+> chrome-devtools 的版本釘在 agent-config 的 `mcp.yaml`,升級就改那裡再 `skillshare sync mcp -g`。
 
 ---
 
@@ -629,9 +639,10 @@ watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會�
 
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|
-| `modify_` 納管的檔(`~/.claude.json`、`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
-| chezmoi 整檔部署的檔(`~/.claude/CLAUDE.md`、`~/.config/opencode/opencode.json`) | **apply 會蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
-| 沒被 chezmoi 管的路徑 | 留著,但換機器就沒了 | 判斷「重跑裝法會不會自己回來」,見〈哪些 MCP 設定該進這個 repo〉 |
+| `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
+| `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
+| chezmoi 整檔部署的檔(`~/.claude/CLAUDE.md`) | **apply 會蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
+| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
 
 ---
 
@@ -660,7 +671,7 @@ skill 會全部是開的,照 [2-4](#2-4-不用的-skill-怎麼關) 重跑一次�
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 更新 skill | `npx skills@latest update -g -y` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 2-4) |
-| 接一個 MCP | `claude mcp add <名字> -s user -- npx -y <套件名>` |
+| 接一個 MCP(三個 client 都要) | `skillshare mcp add <名字> ...` → `skillshare sync mcp -g` → `skillshare push` |
 | 讓 agent 用瀏覽器 | `chrome-mcp` 開 Windows Chrome,再在 session 裡 `/mcp` 確認連上 |
 | 讓 agent 用 symbol 圖查程式碼,不要一直 grep | 在那個專案 `codegraph init`,見 [codegraph](#codegraph設定會回來但它塞進-claudemd-的那段不會) |
 | 換過 node 版本後 codegraph 掛了 | `npm i -g @colbymchenry/codegraph` 再裝一次(npm -g 綁 node 版本) |

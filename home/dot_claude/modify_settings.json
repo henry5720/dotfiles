@@ -6,7 +6,7 @@
 # 釘的是「關掉官方 chrome-devtools plugin」。那個 plugin 的設定在
 # ~/.claude/plugins/cache/claude-plugins-official/chrome-devtools-mcp/*/.claude-plugin/plugin.json,
 # args 只有 ["chrome-devtools-mcp@<版本>"] —— 沒有 --browser-url,在 WSL 上跑不起來。
-# 不關掉的話它會跟自己加的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
+# 不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
 #
 # 只釘這一個 key,不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,
 # 會一直迭代,那種東西記在 docs/ai-agent-setup.md 的重建清單裡就好。

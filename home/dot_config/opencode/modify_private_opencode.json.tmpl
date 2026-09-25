@@ -1,3 +1,16 @@
+#!/bin/sh
+# ~/.config/opencode/opencode.json 兩方共用:provider、agent、plugin 這些由這個 repo 管,
+# `mcp` 由 skillshare 管(清單在 agent-config 的 mcp.yaml,`skillshare sync mcp -g` 寫進來)。
+# 整份部署的話每次 apply 都會把 skillshare 寫的 MCP 蓋掉,所以用 modify_:
+# 下面這份整個照 repo 的版本輸出,只有 `mcp` 換回現有檔案裡的那一段。
+set -eu
+
+# 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,墊一個空物件給 jq。
+existing=$(cat)
+[ -n "$existing" ] || existing='{}'
+
+# 2. repo 的版本。"mcp": {} 只是佔位,讓 key 留在原本的位置。
+printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "codex-lb-gcp/gpt-6-astra",
@@ -66,29 +79,7 @@
       }
     }
   },
-  "mcp": {
-    "chrome-devtools": {
-      "enabled": true,
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp@latest",
-        "--browser-url=http://127.0.0.1:9222",
-        "--no-usage-statistics",
-        "--no-performance-crux"
-      ]
-    },
-    "codegraph": {
-      "enabled": true,
-      "type": "local",
-      "command": [
-        "codegraph",
-        "serve",
-        "--mcp"
-      ]
-    }
-  },
+  "mcp": {},
   "agent": {
     "explore": {
       "disable": true
@@ -103,3 +94,5 @@
     "oh-my-opencode-slim"
   ]
 }
+JSON
+)" '$repo + {mcp: (.mcp // {})}'

@@ -64,8 +64,8 @@ chezmoi apply
 這些值會存在 `~/.config/chezmoi/chezmoi.toml`,不是 git 內容；Git 身分不是憑證,但
 email 仍不應寫死在公開 repo。
 
-這一步會恢復 chezmoi 管理的規則、OpenCode core config 與 MCP、Claude 的 `modify_`
-設定、`chrome-mcp`、全域 Git 設定／hooks、`codegraph-setup-repo` 等。SSH 只會恢復
+這一步會恢復 chezmoi 管理的規則、OpenCode core config、Claude 的 `modify_`
+設定、Context7 key 的 `~/.config/zsh/env.zsh`、`chrome-mcp`、全域 Git 設定／hooks、`codegraph-setup-repo` 等。SSH 只會恢復
 設定檔,**不會恢復 SSH private key**;`~/.ssh/henry5720` 要由你用安全方式放入並
 執行 `chmod 600 ~/.ssh/henry5720`。
 
@@ -167,16 +167,20 @@ opencode
 
 ### 8. MCP、skills 與 Claude plugin
 
-chezmoi 會恢復 OpenCode template 裡的 `chrome-devtools`、`codegraph` MCP 與外掛;
-OpenCode 端不要再用 installer 改整份 config。其他 optional 項目依需要處理:
+MCP 不歸 chezmoi 管。chrome-devtools、context7、gh_grep、codegraph 四個 server 在
+agent-config 的 `mcp.yaml`,由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。
+skillshare 的 `~/.config/skillshare/config.yaml` 要有 `sources.mcp: ~/.config/skillshare/mcp.yaml`
+(#35 會改由 chezmoi 放好;在那之前手動加),然後:
 
 ```bash
-npx ctx7 setup
-claude mcp add promptx -s user -- npx -y @promptx/mcp-server
-npm i -g @colbymchenry/codegraph
-codegraph install -t claude -l global -y
+skillshare pull              # 已 init 的機器;新機器先 skillshare init,見 agent-config
+skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
+npm i -g @colbymchenry/codegraph   # codegraph MCP 要這支指令在 PATH 上
 npx skills@latest list -g
 ```
+
+從舊版 dotfiles 升上來的機器,`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目;手動加過的
+條目要先處理,步驟見 [已部署機器上的舊條目](ai-agent-setup.md#已部署機器上的舊條目)。
 
 別人的 skills 用 `npx skills@latest add <帳號>/<repo>`;目前文件記錄的來源可按需要重跑:
 
@@ -236,8 +240,8 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 規則、OpenCode core config／既有 MCP、agent preset、`modify_` 設定、`chrome-mcp`、Git 全域 hooks、`codegraph-setup-repo`。 |
-| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、optional MCP、skills、Claude plugin。 |
+| **chezmoi 自動恢復** | 規則、OpenCode core config、agent preset、`modify_` 設定、`chrome-mcp`、Git 全域 hooks、`codegraph-setup-repo`。 |
+| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、MCP(skillshare)、skills、Claude plugin。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
 SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo。Herdr 只有 live pane
@@ -263,7 +267,7 @@ npx --yes oh-my-opencode-slim@latest doctor
 
 ```bash
 claude auth status
-claude mcp list
+skillshare mcp list
 npx skills@latest list -g
 ```
 

@@ -27,6 +27,9 @@ export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
 # 啟用 Exa 搜尋
 export OPENCODE_ENABLE_EXA=1
 
+# MCP 用的 API key（CONTEXT7_API_KEY）。chezmoi 從本機 config 渲染，key 沒填就沒有這個檔。
+[ -r "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
+
 # snap 的指令(chezmoi 走 snap)。snapd 是靠 /etc/profile.d/apps-bin-path.sh 加這條,
 # 但 Ubuntu 的 /etc/zsh/zprofile 不 source /etc/profile,所以 zsh 拿不到,得自己加。
 # 用 append:同名工具讓上面那些使用者自己裝的版本優先,不被 snap 蓋掉。
