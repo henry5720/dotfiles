@@ -112,7 +112,7 @@ EC2 不裝 Chrome。MCP 設定跟 WSL 那份一樣(`--browser-url=http://127.0.0
 
 ```bash
 chrome-mcp                                                        # 本機先把 Chrome 開起來
-ssh -N -R 127.0.0.1:9222:127.0.0.1:9222 company-ec2               # 開著別關;要常駐就寫進 ~/.ssh/config 的 RemoteForward
+ssh company-ec2                                                   # ~/.ssh/config 已帶 RemoteForward 9222,連著就通
 ssh company-ec2 'curl -s 127.0.0.1:9222/json/version | grep User-Agent'  # 要看到 Windows NT
 ```
 
