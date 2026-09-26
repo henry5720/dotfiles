@@ -316,7 +316,7 @@ sudo tailscale funnel --bg --https=10000 7681     # 網址 https://<機器>.<tai
 
 # 用完
 sudo tailscale funnel --https=10000 off
-pkill -f 'ttyd -i lo -p 7681'
+pkill -x ttyd                                     # 別用 pkill -f:ssh 遠端下的話會連自己那條 shell 一起砍
 ```
 
 - **Funnel 只能用 443、8443、10000**;`tailscale serve`(tailnet only)沒這限制。第一次跑會給一個
