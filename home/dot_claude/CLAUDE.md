@@ -59,6 +59,15 @@ EnterWorktree --path <那個 path>
 （推上去就永遠躺在 remote，不會有 PR 也沒人刪）；只有換裝置、換人接手、過夜離開機器才推，
 合併後當天 `git push origin --delete`。
 
+## Issue 生命週期
+
+照 issue 做事（`/implement #N`、做一張票）時：
+
+- **接**：票還開著、沒有開著的 blocker、沒有別人的 assignee 才接。接了先 assign 自己，再寫第一行 code；不符合就停下來問。
+- **結**：commit 之後，這份工作會經由帶 `Closes #N` 的 PR 落地就不關，交給 merge；否則留言（commit、怎麼驗的）再關。
+- 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
+- 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
+
 <!-- 以下整段是 `codegraph install` 自己寫進 ~/.claude/CLAUDE.md 的。
      這份檔案由 chezmoi 部署,不收進 repo 的話下次 apply 就會被刪掉,codegraph 就沒人告訴 agent 要用。
      刻意保留英文原文、連 START/END 標記一起留:`codegraph upgrade` 會重寫兩個標記之間的內容,
