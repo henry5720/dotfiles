@@ -303,6 +303,33 @@ sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
 
 ⚠️ WSL 的限制:Windows 重開機後 WSL 不會自己起來,systemd 服務也就不在,手機會連不到。
 
+## 臨時開給沒有 tailscale／ssh key 的人
+
+對方只有瀏覽器。服務一律綁 `127.0.0.1`，用 `tailscale funnel` 開到公網，用完就關。
+2026-09-26 在 company-ec2 實測：ttyd 包 herdr，手機關掉 tailscale 連得到。
+
+```bash
+# terminal（herdr）:ttyd 在本機跑指令、把畫面開成網頁,對方不用 ssh
+pw=$(openssl rand -hex 8); echo "guest / $pw"          # 密碼給對方
+ttyd -i lo -p 7681 -W -c "guest:$pw" herdr session attach default &
+sudo tailscale funnel --bg --https=10000 7681     # 網址 https://<機器>.<tailnet>.ts.net:10000
+
+# 用完
+sudo tailscale funnel --https=10000 off
+pkill -x ttyd                                     # 別用 pkill -f:ssh 遠端下的話會連自己那條 shell 一起砍
+```
+
+- **Funnel 只能用 443、8443、10000**;`tailscale serve`(tailnet only)沒這限制。第一次跑會給一個
+  admin console 連結開 Funnel 權限。
+- **company-ec2 上 `serve`／`funnel` 要 sudo**(不加回 `Access denied`)。`tailscale set --operator=$USER` 能免 sudo,
+  但那是永久放寬,沒設。
+- **`-W` 讓對方能打字**,拿掉就是唯讀。能打字就能在 herdr 開新 pane,等於整台機器的 shell ——
+  擋在前面的只有 `-c` 那組密碼,每次換一組。
+- ttyd 最後面接什麼指令網頁就開什麼(`bash -l`、`tail -f` 都行)。
+- 兩個 client 同時 attach 同一個 herdr session,畫面尺寸不會互相縮。
+- **code-server 不要走 Funnel**:它本身就是網頁版 shell,只靠一組密碼。
+- dev server 要開的話:`VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net`,不然 Vite 回 Blocked request。
+
 ## 一句話結論
 
 - **phone** → A（`ssh phone`，config 已備好）

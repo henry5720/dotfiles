@@ -4,12 +4,12 @@ set -euo pipefail
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 DRY_RUN="${DRY_RUN:-0}"
 INPUT_SRC="${INPUT_SRC:-/dev/tty}"
-TOOLS=(fastfetch btop nvm code-server tailscale wakatime herdr gh)
-TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking' herdr 'GitHub CLI (gh)')
+TOOLS=(fastfetch btop nvm code-server tailscale wakatime herdr gh ttyd)
+TOOL_LABELS=(fastfetch btop nvm code-server tailscale 'WakaTime zsh tracking' herdr 'GitHub CLI (gh)' ttyd)
 
 is_installed() {
   case "$1" in
-    fastfetch|btop|code-server|tailscale|herdr|gh) command -v "$1" &>/dev/null ;;
+    fastfetch|btop|code-server|tailscale|herdr|gh|ttyd) command -v "$1" &>/dev/null ;;
     wakatime) command -v wakatime-cli &>/dev/null ;;
     nvm) [ -d "$HOME/.nvm" ] ;;
     *) return 1 ;;
@@ -52,6 +52,16 @@ install_herdr() {
   is_installed herdr && { echo -e "${BLUE}✅ herdr 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 herdr...${NC}"
   curl -fsSL https://herdr.dev/install.sh | sh
+}
+# 把 terminal 開成網頁，臨時給沒有 tailscale／ssh key 的人用。怎麼開、怎麼收見 docs/code-server-remote.md。
+install_ttyd() {
+  is_installed ttyd && { echo -e "${BLUE}✅ ttyd 已安裝。${NC}"; return; }
+  echo -e "${GREEN}📦 安裝 ttyd...${NC}"
+  local arch; arch=$(uname -m)
+  case "$arch" in x86_64|aarch64) ;; *) echo "⚠️ ttyd 不支援架構 $arch，跳過。"; return;; esac
+  mkdir -p "$HOME/.local/bin"
+  curl -fsSL -o "$HOME/.local/bin/ttyd" "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$arch"
+  chmod +x "$HOME/.local/bin/ttyd"
 }
 install_wakatime() {
   command -v wakatime-cli &>/dev/null && echo -e "${BLUE}✅ wakatime-cli 已安裝。${NC}" || {
