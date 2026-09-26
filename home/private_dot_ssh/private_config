@@ -100,7 +100,18 @@ Host openab
 # ===============================================================
 # 6. 公司 AWS EC2
 # ===============================================================
+# 走 tailnet。RemoteForward 把本機 Windows Chrome 的 9222 帶過去,EC2 上的
+# chrome-devtools MCP 才連得到(見 docs/chrome-devtools-mcp.md)。本機沒開 Chrome
+# 時只會多一行轉發失敗的警告,連線照常。
 Host company-ec2
+    HostName 100.98.146.109
+    User ubuntu
+    IdentityFile ~/.ssh/company-henry.pem
+    IdentitiesOnly yes
+    RemoteForward 127.0.0.1:9222 127.0.0.1:9222
+
+# 備用:EC2 的 tailscale 掛掉時走公網 IP。
+Host company-ec2-public
     HostName 18.141.90.104
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
