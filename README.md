@@ -18,8 +18,8 @@ flowchart LR
 
 | repo | 部署到 | 內容 |
 |---|---|---|
-| `home/dot_zshrc`、`dot_tmux.conf`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.tmux.conf`、`~/.gitconfig` | shell、tmux、git |
-| `home/dot_config/*` | `~/.config/*` | nvim、tmux 腳本、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml` |
+| `home/dot_zshrc`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.gitconfig` | shell、git |
+| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml` |
 | `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
 | `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp` 等） |
 | `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
@@ -81,7 +81,6 @@ chezmoi verify
 - [新機器設定](docs/new-machine-setup.md)：完整的 WSL、AI agent 與各 repo runbook。
 - [AI agent setup](docs/ai-agent-setup.md)：規則、skill、MCP、plugin 與 codegraph。
 - [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
-- [tmux workflow](docs/tmux-workflow.md)：tmux 狀態列、session 與 agent 自動化。
 - [Chrome DevTools MCP](docs/chrome-devtools-mcp.md)：瀏覽器 MCP 與排錯。
 - [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server。
 - [no-sudo setup](docs/no-sudo-setup.md)：沒有 sudo 時的限制與替代做法。

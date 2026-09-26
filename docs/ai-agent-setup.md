@@ -270,7 +270,7 @@ skillshare 會保留它。
   範圍是 Claude 的 chrome-devtools;Codex 的 chrome-devtools、codegraph、context7;
   OpenCode 的 chrome-devtools、codegraph。只刪跟舊版內容一字不差的條目,Codex 的 context7
   例外:key 是各台自己的值,只比對 url 與欄位。刪掉時會印出來。
-- **chezmoi 放過的舊 skill**:`~/.codex/skills/company-imagegen-fallback` 已搬到 agent-config,
+- **chezmoi 放過的舊 skill**:`~/.codex/skills/`、`~/.config/opencode/skills/` 底下的 `company-imagegen-fallback` 已搬到 agent-config,
   `home/.chezmoiremove` 讓 `chezmoi apply` 把舊的那份刪掉,不然 Codex 會同時看到兩份。
 - **手動加的**(`claude mcp add`、`codegraph install` 之類)和 OpenCode 的空殼 `opencode.jsonc`:
   見 [agent-config 的〈sync mcp 撞到衝突〉](https://github.com/henry5720/agent-config#sync-mcp-撞到衝突)。
@@ -343,7 +343,7 @@ codegraph uninit -f # 移除(注意是 -f,不是 -y)
 | 這個 dotfiles repo | **5** | — | — | 400 KB |
 
 後兩個不值得:54 個檔 agent 直接讀還更準。**dotfiles repo 特別不值得** —— 它只索引到
-4 支 tmux 的 `.py`(`scripts/` 3 支、`tmux-status/` 1 支)加 `nvim/lua/config/options.lua`,
+當時的 4 支 tmux `.py`(已移除)加 `nvim/lua/config/options.lua`,
 shell script 和設定檔它不解析,而這個 repo 幾乎只有那兩種。
 
 ⚠️ **峰值記憶體是 2.9 GB。** `.wslconfig` 給 16GB,別讓兩三個 init 同時跑。
