@@ -200,7 +200,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 從舊版 dotfiles 升上來的機器,`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目;手動加過的
 條目要先處理,步驟見 [已部署機器上的舊條目](ai-agent-setup.md#已部署機器上的舊條目)。
 
-skills 怎麼新增或更新見 [skill 操作說明](ai-agent-setup.md#2-skill)。Claude plugin 在 Claude
+skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新;`chrome-devtools-mcp` 不要啟用,repo 的 `modify_` 會把它
 關掉;其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。MCP、skills、plugin 的範圍與限制見 [ai-agent-setup.md](ai-agent-setup.md) 的
 [MCP](ai-agent-setup.md#3-mcp)、[skill](ai-agent-setup.md#2-skill)、[plugin](ai-agent-setup.md#4-plugin)。
