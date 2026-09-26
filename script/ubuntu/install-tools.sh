@@ -36,7 +36,7 @@ install_nvm() {
 }
 install_code_server() {
   is_installed code-server || curl -fsSL https://code-server.dev/install.sh | sh
-  echo '設定檔由 chezmoi 部署；啟動：systemctl --user enable --now code-server'
+  echo '設定檔由 chezmoi 部署；臨時用直接跑 code-server，要常駐見 docs/code-server-remote.md'
 }
 install_tailscale() {
   is_installed tailscale && { echo -e "${BLUE}✅ Tailscale 已安裝。${NC}"; return; }

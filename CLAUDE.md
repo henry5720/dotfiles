@@ -31,7 +31,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `modify_` | 部署成腳本的 stdout,現有檔案從 stdin 進來(用於 app 自己會寫的檔) |
 
 ⚠️ **新增要執行的腳本一定要加 `executable_`**,否則部署成 644 不可執行,而且不會報錯。
-`home/dot_config/tmux/` 底下已經有兩支漏加的,見 `docs/tmux-workflow.md` 的「已知的孤兒」。
 
 完整規則見 [Target types](https://www.chezmoi.io/reference/target-types/)。這張表是刻意留在
 手邊的例外(下面「文件放哪」說不要抄 chezmoi 的通用知識)—— 前綴弄錯是靜默改掉權限,
