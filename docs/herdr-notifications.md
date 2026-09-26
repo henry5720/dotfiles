@@ -16,6 +16,11 @@ Herdr 的通知音由**目前連線的 local client**播放。Linux 版不內建
 
 WSL2 的聲音由 WSLg PulseAudio 提供,所以使用第一順位的 `paplay`:
 
+```mermaid
+flowchart LR
+  H["Herdr local client"] --> P["paplay"] --> W["WSLg PulseAudio"] --> S["Windows 音效"]
+```
+
 ```bash
 sudo apt install pulseaudio-utils
 sudo apt purge mpg123

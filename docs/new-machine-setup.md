@@ -9,10 +9,17 @@ Claude Code ACP。
 它只處理 WSL 裡的使用者環境。Windows 端的 `.wslconfig`、SSH private key、各服務帳號
 登入、秘密與 optional tools 不會由文件代替你決定;需要人工確認的地方會停下來。
 
-```text
-chezmoi: init → diff → apply ──> 家目錄設定
-安裝:   setup.sh → install-base.sh / install-tools.sh / install-tools-ai.sh
+```mermaid
+flowchart LR
+  A[chezmoi apply] --> B[基底與一般工具]
+  B --> C[AI CLI]
+  C --> D[agent-config<br>skills + MCP]
+  D --> E[OmO 與登入]
+  E --> F[驗證]
 ```
+
+chezmoi 要先跑:安裝腳本在它 clone 下來的 repo 裡,agent-config 也要它先放好的
+skillshare 設定。B 到 D 都從第 3 步的 `setup.sh` 進入。
 
 ## 交給 coding agent
 
@@ -92,15 +99,16 @@ Herdr 位於 `install-tools.sh` 的一般工具選單，只有需要 live pane �
 
 三個 AI CLI 在 `install-tools-ai.sh`：Claude Code、Codex（官方
 `https://chatgpt.com/codex/install.sh`）、OpenCode（官方腳本帶 `--no-modify-path`，
-裝到 `~/.opencode/bin`）；
-因為 PATH 已經寫在 `home/dot_zshrc` 裡,讓 installer 去改 `~/.zshrc` 會弄出 chezmoi 漂移)。
-兩者的 work 設定由 chezmoi 部署;個人入口需另外登入並填妥 personal model,詳見
+裝到 `~/.opencode/bin`；PATH 已經寫在 `home/dot_zshrc` 裡,讓 installer 去改 `~/.zshrc`
+會弄出 chezmoi 漂移）。三者的 work 設定由 chezmoi 部署;個人入口需另外登入並填妥 personal model,詳見
 [AI profile routing](ai-profile-routing.md),未完成前不要視為可用。
 
 skills 與 MCP 在 `install-tools-ai.sh` 的「agent-config」項,**要在 `chezmoi apply` 之後跑**:
 chezmoi 先放好 `~/.config/skillshare/config.yaml`,這一項才會直接從 agent-config 拉下來。
 它會先裝 skillshare(裝到 `~/.local/bin`),還沒 init 就 init 並裝好 skills,已經 init 就 pull,
 最後都跑 `skillshare sync mcp -g`。實際參數以 `install_agent_config` 為準。
+remote 預設走 SSH(`AGENT_CONFIG_REMOTE=git@github.com:henry5720/agent-config.git`),
+所以第 2 步的 SSH key 要先放好;還沒有 key 就在執行前把它設成 https URL。
 
 重跑是安全的,第二次只會 pull 跟 sync,沒有變化。用 `DRY_RUN=1` 可以先看會跑哪些指令。
 agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影音解析」)、`python3`
@@ -178,8 +186,8 @@ opencode
 
 ### 8. MCP、skills 與 Claude plugin
 
-MCP 不歸 chezmoi 管。chrome-devtools、context7、gh_grep、codegraph 四個 server 在
-agent-config 的 `mcp.yaml`,由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。
+MCP 不歸 chezmoi 管。server 清單在 agent-config 的 `mcp.yaml`(`skillshare mcp list` 看得到),
+由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。
 `~/.config/skillshare/config.yaml` 由 chezmoi 放好(`create_`,init 之後就不再動它)。
 新機器與已 init 的機器都跑同一項:`install-tools-ai.sh` 的「agent-config」(見第 3 步)。
 之後要手動更新也是同樣兩行:
@@ -192,8 +200,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 從舊版 dotfiles 升上來的機器,`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目;手動加過的
 條目要先處理,步驟見 [已部署機器上的舊條目](ai-agent-setup.md#已部署機器上的舊條目)。
 
-skills 也在同一項裡裝好:第三方與自己寫的都在 agent-config,`skillshare pull` 一起帶下來,
-不用另外重裝。怎麼新增或更新見 [skill 操作說明](ai-agent-setup.md#2-skill)。Claude plugin 在 Claude
+skills 怎麼新增或更新見 [skill 操作說明](ai-agent-setup.md#2-skill)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新;`chrome-devtools-mcp` 不要啟用,repo 的 `modify_` 會把它
 關掉;其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。MCP、skills、plugin 的範圍與限制見 [ai-agent-setup.md](ai-agent-setup.md) 的
 [MCP](ai-agent-setup.md#3-mcp)、[skill](ai-agent-setup.md#2-skill)、[plugin](ai-agent-setup.md#4-plugin)。
@@ -260,8 +267,7 @@ opencode
 npx --yes oh-my-opencode-slim@latest doctor
 ```
 
-在 `opencode` 互動介面輸入 `ping all agents`,必要時再做 `@claude-code` smoke test。
-`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出與本次重建無關的 drift,
+`opencode` 裡的互動驗證同第 7 步。`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出與本次重建無關的 drift,
 先依該檔案所屬 repo 的情況處理,不要為了讓驗證變綠就覆蓋未知的本機修改。
 
 其他現況查詢:

@@ -9,7 +9,7 @@
 # 不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
 #
 # 只釘這一個 key,不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,
-# 會一直迭代,那種東西記在 docs/ai-agent-setup.md 的重建清單裡就好。
+# 會一直迭代,那種東西記在 docs/new-machine-setup.md 的重建清單裡就好。
 
 set -eu
 

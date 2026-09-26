@@ -5,15 +5,28 @@ Windows 內容是輔助資源。
 
 ## 這個 repo 怎麼分工
 
-```text
-home/       ──chezmoi 部署──> $HOME 設定
-script/     ──安裝腳本──────> Ubuntu / Termux（依子目錄）
-docs/       ──操作說明
-wsl/        ──Windows 端 WSL 輔助
-ai-agent/   ──手動使用的 agent persona
-
-預設 source repo: ~/.local/share/chezmoi
+```mermaid
+flowchart LR
+  home["home/"] -- chezmoi apply --> dot["$HOME 設定"]
+  script["script/"] -- 手動執行 --> pkg["裝套件<br/>Ubuntu / Termux"]
 ```
+
+其餘 chezmoi 看不到：`docs/`（說明）、`wsl/`（Windows 端）、`ai-agent/`（手動貼用的 persona）。
+預設 source repo 在 `~/.local/share/chezmoi`。
+
+### `home/` 部署到哪
+
+| repo | 部署到 | 內容 |
+|---|---|---|
+| `home/dot_zshrc`、`dot_tmux.conf`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.tmux.conf`、`~/.gitconfig` | shell、tmux、git |
+| `home/dot_config/*` | `~/.config/*` | nvim、tmux 腳本、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml` |
+| `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
+| `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp` 等） |
+| `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
+| `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證與 Git 身分（`chezmoi init` 時問） |
+
+逐檔清單跑 `chezmoi managed`。skills 和 MCP 不在這裡，見
+[AI agent setup](docs/ai-agent-setup.md)。
 
 chezmoi 是管理家目錄設定檔的工具，會依命名與 template 規則部署 `home/`，不一定原樣複製。完整用法與
 檔名前綴請看 [chezmoi 官方文件](https://www.chezmoi.io/) 及
@@ -39,7 +52,7 @@ chezmoi diff                 # 先檢查，確認後才繼續
 chezmoi apply
 
 cd ~/.local/share/chezmoi
-bash script/ubuntu/setup.sh  # setup → install-base → install-tools
+bash script/ubuntu/setup.sh  # 選單：base / tools / AI / Docker / swap
 ```
 
 `setup.sh` 是 Ubuntu 安裝入口；不要把整段命令盲目貼上後跳過 diff。缺少必要憑證的
@@ -73,6 +86,7 @@ chezmoi verify
 - [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server。
 - [no-sudo setup](docs/no-sudo-setup.md)：沒有 sudo 時的限制與替代做法。
 - [Herdr notifications](docs/herdr-notifications.md)：WSL2 通知音與 PulseAudio 排錯。
+- [EC2 headless Chrome 研究](docs/ec2-headless-chrome-research.md)：研究快照，已決定的做法見 Chrome DevTools MCP。
 
 repo 修改規範與驗證方式見 [`CLAUDE.md`](CLAUDE.md)。`docs/superpowers/` 是歷史
 spec/plan，不是現行文件。

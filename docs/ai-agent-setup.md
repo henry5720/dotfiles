@@ -21,52 +21,37 @@
 
 ## 全貌
 
-chezmoi 管「client 本身怎麼設定」,skills 和 MCP 只有一個來源:private repo
-`henry5720/agent-config`(clone 在 `~/.config/skillshare/`),由 skillshare 分發到三個 client。
+chezmoi 管機器和 client 本身的設定,skillshare 只管 skills 和 MCP:
 
 ```mermaid
 flowchart LR
-  subgraph dotfiles["dotfiles(chezmoi)"]
-    rules["home/dot_claude/CLAUDE.md<br/>規則"]
-    clientcfg["modify_ 設定<br/>provider、權限(不含 MCP)"]
-    sscfg["~/.config/skillshare/config.yaml<br/>create_,只放一次"]
-    toolsai["install-tools-ai.sh<br/>「agent-config」項"]
-  end
+  chezmoi["chezmoi<br/>規則、client 設定"]
+  skillshare["skillshare<br/>skills、MCP<br/>(agent-config repo)"]
+  clients["Claude Code<br/>Codex<br/>OpenCode"]
 
-  subgraph agentconfig["agent-config(= ~/.config/skillshare/)"]
-    skills["skills/<br/>自己寫的 + 第三方<br/>.metadata.json 記來源"]
-    mcp["mcp.yaml<br/>chrome-devtools、context7<br/>gh_grep、codegraph"]
-  end
-
-  subgraph clients["三個 client"]
-    claude["Claude Code<br/>~/.claude/skills<br/>~/.claude.json"]
-    codex["Codex<br/>~/.agents/skills<br/>~/.codex/config.toml"]
-    opencode["OpenCode<br/>讀上面兩個 skills 目錄<br/>opencode.json"]
-  end
-
-  toolsai -- "init 或 pull" --> agentconfig
-  sscfg -. "告訴 skillshare 去哪拉、寫到哪" .-> agentconfig
-  skills -- "skillshare sync<br/>(symlink)" --> claude
-  skills -- "skillshare sync<br/>(symlink)" --> codex
-  mcp -- "skillshare sync mcp -g<br/>只動自己的條目" --> claude
-  mcp --> codex
-  mcp --> opencode
-  rules --> claude
-  rules --> opencode
-  clientcfg --> codex
-  clientcfg --> opencode
+  chezmoi --> clients
+  skillshare --> clients
+  chezmoi -. "放好 config.yaml" .-> skillshare
 ```
 
-不歸 skillshare 管的例外:`~/.agents/skills/herdr`(`herdr --skill` 產生)、obsidian-wiki 那包
-(pip 套件自己連的)、`~/.claude/skills/synced/`(Claude 自己同步的)、Claude plugin(`/plugin`)。
+兩邊唯一的交接:chezmoi 放好 skillshare 的 `config.yaml`,之後就不再碰。
+
+不歸 skillshare 管的例外:`~/.agents/skills/herdr`(`herdr --skill` 產生,跟著 herdr 版本走)、
+obsidian-wiki 那包(pip 套件自己連進 `~/.agents/skills`、`~/.codex/skills`)、`~/.claude/skills/synced/`(Claude 自己同步的)、
+`~/.config/opencode/skills/`(chezmoi 部署的 OpenCode 專用 skill,加上 oh-my-opencode-slim 自己放的)、Claude plugin(`/plugin`)。
+`skillshare status` 的 `N local` 就是其中落在 target 目錄(`~/.claude/skills`、`~/.agents/skills`)裡、
+但不是 skillshare 放的那些,不是錯誤。
 
 日常流程:
 
+```mermaid
+flowchart LR
+  a["任一台<br/>install / mcp add"] -- "sync → push" --> repo["agent-config"]
+  repo -- "pull → sync mcp -g" --> b["其他台"]
 ```
-任一台加東西:skillshare install … 或 mcp add … → skillshare sync → skillshare push
-其他台跟上:  skillshare pull → skillshare sync mcp -g        (pull 不會同步 MCP)
-新機器:      chezmoi apply → install-tools-ai.sh 勾「agent-config」
-```
+
+`pull` 只同步 skill,不會同步 MCP,所以後面那步不能省。新機器則是
+`chezmoi apply` → `install-tools-ai.sh` 勾「agent-config」。
 
 ---
 
@@ -144,9 +129,9 @@ skill 是一套「做某件事的步驟」,本體用到才載入,但它的 descr
 ## 2-1 全部由 skillshare 管
 
 別人的和自己寫的 skill 都由 [skillshare](https://github.com/runkids/skillshare) 管,內容放在
-private repo `henry5720/agent-config`(clone 在 `~/.config/skillshare/`)。skillshare 從
+公開 repo `henry5720/agent-config`(clone 在 `~/.config/skillshare/`)。skillshare 從
 `~/.config/skillshare/skills/` 同步到 `~/.claude/skills`(Claude)和 `~/.agents/skills`(Codex),
-OpenCode 兩個目錄都會讀,所以不另外設 target。新機器怎麼裝見
+OpenCode 為什麼不另設 target 見〈2-2〉。新機器怎麼裝見
 [新機器設定 Runbook](new-machine-setup.md) 的 agent-config 那一步。
 
 ```bash
@@ -169,8 +154,8 @@ skillshare sync && skillshare push              # 同步到各 client,再推回 
 6 個(`caveman-discover` / `-evidence-review` / `-learn` / `-manage` / `-optimize` / `-setup`)
 要 Caveman Cloud 帳號;`investigate-first`、`safe-refactor`、`surgical-patch`、`lean-build`、
 `verify-and-stop`、`caveman-explore`、`cavecrew` 跟已經裝的 mattpocock 那組
-(`diagnosing-bugs` / `tdd` / `prototype`)和內建的 `Explore` agent 職責重疊。
-**skill 每多一個,每個 session 就多一段 description 常駐在 context 裡**,重疊的不要裝兩份。
+(`diagnosing-bugs` / `tdd` / `prototype`)和內建的 `Explore` agent 職責重疊,重疊的不要裝兩份
+(理由見〈5-1〉)。
 
 caveman 也提供 proxy(`npm i -g @caveman-ai/cli` 之後用 `caveman claude` 取代 `claude`)
 和 MCP server 兩條路,**都沒用**:proxy 會改寫送進模型的內容,出問題時分不清是模型的問題
@@ -180,8 +165,7 @@ caveman 也提供 proxy(`npm i -g @caveman-ai/cli` 之後用 `caveman claude` �
 資料夾(例如 slack-list 的 `scripts/`),裝 skill 就裝到 script;秘密放 `~/.config/<名字>/.env`,
 不進任何 repo。
 
-**不歸 skillshare 管的例外**:`herdr` skill 是 `herdr --skill` 印出來的,跟著 herdr 版本走;
-obsidian-wiki 那包是 pip 套件自己連進 `~/.agents/skills`、`~/.codex/skills` 的。
+不歸 skillshare 管的例外見本文開頭的架構圖下方。
 
 ## 2-2 範圍:裝給誰用
 
@@ -194,7 +178,8 @@ obsidian-wiki 那包是 pip 套件自己連進 `~/.agents/skills`、`~/.codex/sk
 
 skillshare 用旗標切:`-g` 是 global,`-p` 是只裝這個專案。
 
-opencode 會自動掃 `~/.claude/skills/`、`~/.agents/skills/`,以及專案裡對應的兩個目錄。
+opencode 會自動掃 `~/.claude/skills/`、`~/.agents/skills/`、自己的 `~/.config/opencode/skills/`,
+以及專案裡對應的目錄。
 所以同一份 skill 不用再寫進 `opencode.json`,也不要給 skillshare 加 OpenCode target,
 不然同一支會出現三份。
 
@@ -275,12 +260,14 @@ done
 用 symlink 目標判斷、不寫死名字 —— 套件增刪 skill 時不用回來改(跟 codex 那支同一個理由)。
 要還原就 `mv ~/.claude/skills-disabled/<名字> ~/.claude/skills/`,重開 client 生效。
 
-**移 symlink 會同時關掉 OpenCode**,因為 OpenCode 的六個掃描目錄裡就有 `~/.claude/skills`
-和 `~/.agents/skills`。Codex 不受影響,它讀自己的 `~/.codex/skills`,走 config.toml 那條。
+⚠️ **只移 `~/.claude/skills` 那份關不掉 OpenCode。** obsidian-wiki 也連進了 `~/.agents/skills`
+(skillshare 的 codex target,OpenCode 同樣會掃),上面那段 loop 沒碰它。要連 OpenCode 一起關,
+`~/.agents/skills` 也要跑一次同樣的 loop。Codex 的 config.toml 只停用 `~/.codex/skills/*` 那份,
+`~/.agents/skills` 那份 Codex 看不看得到還沒實測。
 
 ### 挑哪個做法
 
-- **整包不要了** —— 移 symlink。一次關 Claude + OpenCode,而且不用逐條列名。
+- **整包不要了** —— 移 symlink(`~/.claude/skills` 和 `~/.agents/skills` 都要),不用逐條列名。
 - **想留著偶爾自己叫** —— `skillOverrides` 設 `user-invocable-only`。
 - **plugin 帶的** —— 只能 `/plugin` 或 `enabledPlugins`,上面兩招都管不到。
 
@@ -299,8 +286,7 @@ MCP 是「讓 agent 連到外部服務」的通道 —— 查文件、開瀏覽�
 
 ## 三個 client 共用的 MCP 由 skillshare 管
 
-chrome-devtools、context7、gh_grep、codegraph 四個 server 定義在 agent-config repo 的
-`mcp.yaml`,由 [skillshare](https://github.com/runkids/skillshare) 寫進 Claude Code、Codex、
+server 清單定義在 agent-config repo 的 `mcp.yaml`(`skillshare mcp list` 看得到),由 [skillshare](https://github.com/runkids/skillshare) 寫進 Claude Code、Codex、
 OpenCode 三邊。**這個 repo 不再寫任何 MCP 條目**;chezmoi 只管同一份檔案裡的 provider
 等其他 key,skillshare 只動自己寫的條目,兩邊不搶同一個 key。
 
@@ -310,7 +296,7 @@ skillshare sync mcp -g                               # 寫進三個 client
 skillshare push                                      # 其他機器 skillshare pull 後再 sync mcp -g
 ```
 
-`skillshare pull` 不會同步 MCP,後面一定要自己跑 `skillshare sync mcp -g`。
+`mcp add` 非互動時預設只存進 `mcp.yaml`,加 `--sync` 才會順便寫進 client。
 
 **API key 不進 agent-config**:`mcp.yaml` 只寫 `fromEnv: CONTEXT7_API_KEY`,各 client 設定裡
 留的也是參照(`${CONTEXT7_API_KEY}` 之類)。值來自 `chezmoi init` 時填的 Context7 API key,
@@ -324,9 +310,9 @@ skillshare 會保留它。
 ### 已部署機器上的舊條目
 
 舊版 chezmoi 寫過的 MCP 條目,skillshare 會當成「不是它的」而**整批停下**
-(`existing entry is not managed`)。分兩種處理:
+(`existing entry is not managed`)。依來源處理:
 
-- **chezmoi 寫的**:`chezmoi apply` 時 `run_once_after_remove-chezmoi-mcp.py` 會自動刪掉,
+- **chezmoi 寫的**:`chezmoi apply` 時 `home/run_once_after_remove-chezmoi-mcp.py.tmpl` 會自動刪掉,
   範圍是 Claude 的 chrome-devtools;Codex 的 chrome-devtools、codegraph、context7;
   OpenCode 的 chrome-devtools、codegraph。只刪跟舊版內容一字不差的條目,Codex 的 context7
   例外:key 是各台自己的值,只比對 url 與欄位。刪掉時會印出來。
@@ -413,7 +399,7 @@ codegraph uninit -f # 移除(注意是 -f,不是 -y)
 | 這個 dotfiles repo | **5** | — | — | 400 KB |
 
 後兩個不值得:54 個檔 agent 直接讀還更準。**dotfiles repo 特別不值得** —— 它只索引到
-4 支 `home/dot_config/tmux/scripts/*.py` 加 `nvim/lua/config/options.lua`,
+4 支 tmux 的 `.py`(`scripts/` 3 支、`tmux-status/` 1 支)加 `nvim/lua/config/options.lua`,
 shell script 和設定檔它不解析,而這個 repo 幾乎只有那兩種。
 
 ⚠️ **峰值記憶體是 2.9 GB。** `.wslconfig` 給 16GB,別讓兩三個 init 同時跑。
@@ -619,10 +605,7 @@ opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由 o
 重疊的不要裝第二份。**skill 每多一個,每個 session 就多一段 description 常駐在 context 裡**,
 而重複的指令本身會讓 agent 更難遵守(跟〈不要把本體放在 dotfiles/.claude/CLAUDE.md〉同一個道理)。
 
-caveman 是例子:它 repo 裡 20 個 skill,只裝了核心的 `caveman`。6 個要 Caveman Cloud 帳號;
-`investigate-first`、`safe-refactor`、`surgical-patch`、`lean-build`、`verify-and-stop`、
-`caveman-explore`、`cavecrew` 跟已裝的 mattpocock 那組(`diagnosing-bugs` / `tdd` /
-`prototype`)和內建的 `Explore` agent 重疊。挑裝的指令見〈2-1〉。
+caveman 只挑一個裝的例子見〈2-1〉。
 
 ## 5-2 成本量過了嗎
 
@@ -641,7 +624,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會�
 
 ## 5-4 它自己寫的設定,chezmoi 會不會蓋掉
 
-裝完跑 `chezmoi verify`。三種情況:
+裝完跑 `chezmoi verify`。四種情況:
 
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|
