@@ -17,8 +17,8 @@
 
 `tmux-resurrect` + `tmux-continuum` —— session 持久化,還原 pane 內容與 `lazygit` / `yazi` 等程序。
 
-TPM 本身**不由 chezmoi 部署**；前置是支援 `terminal-features` / `extended-keys` 的 tmux、Python 3、`jq`、`fzf`，以及可選的
-`wl-copy` / `xclip` / `pbcopy`（剪貼簿依環境擇一）。外部 agent-tracker binary 不在 repo，缺少時
+TPM 本身**不由 chezmoi 部署**；前置是支援 `terminal-features` / `extended-keys` 的 tmux、Python 3、`jq`、`fzf`。copy-mode 的 `y` 走
+`set-clipboard on`(OSC 52),不需要 `wl-copy` / `xclip`。外部 agent-tracker binary 不在 repo，缺少時
 狀態列相關內容會安靜降級。
 
 第一次初始化 TPM：
@@ -35,12 +35,17 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 |---|---|
 | `left.sh` | 編號 session 標籤,寬度不足時自動收窄 |
 | `right.sh` | agent 狀態,資料來自 `agent-tracker` |
-| `mem_usage.sh` + `mem_usage_cache.py` | 每 pane / window 記憶體,走 cache 不每次重算 |
-| `notes_count.sh` | 待辦數 |
-| `session_task_icon.sh` / `window_task_icon.sh` | 任務狀態圖示 |
+| `mem_usage.sh` + `mem_usage_cache.py` | 每 pane / window 記憶體,走 cache 不每次重算(**沒接進狀態列**) |
+| `notes_count.sh` | 待辦數(**沒接進狀態列**) |
+| `window_task_icon.sh` | window 標籤上的任務狀態圖示;`session_task_icon.sh` 同類但**沒接上** |
 | `tracker_cache.sh` | 把 agent-tracker 的輸出快取到 `/tmp/tmux-tracker-cache.json` |
 
 ## 腳本(`scripts/`)
+
+`.tmux.conf` 只從 hook、`run-shell` 和 pane 標題格式叫其中幾支(`session_created`、`check_and_run_on_activate`、
+`post_resurrect_restore`、`update_theme_color`、`pane_starship_title`)。**沒有任何綁鍵**,
+所以下面 session 管理、剪貼簿、agent palette 這幾類部署了但按不到;fzf pane 選擇器也只有
+MRU 紀錄在跑。
 
 - **session 管理**:編號 session 的新增 / 重命名 / 排序 / 搬移、版面建構(`layout_builder.sh`)、依位置聚焦 pane
 - **剪貼簿**:`copy_to_clipboard.sh` / `paste_from_clipboard.sh`,依環境挑 `wl-copy` / `xclip` / `pbcopy`

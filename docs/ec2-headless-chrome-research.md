@@ -1,5 +1,7 @@
 # Ubuntu 24.04 EC2：Chrome for Testing／headless 研究
 
+> **研究快照，不是現況。** 後來決定 EC2 不裝 Chrome，改用 SSH `-R` 連 Windows 的 Chrome，做法見 [chrome-devtools-mcp.md](chrome-devtools-mcp.md)。
+
 本文件針對 issue「研究 EC2 headless Chrome 的安裝與版本策略」。查詢時間為 2026-09-21；目前執行環境不是目標 Ubuntu 24.04 EC2，因此沒有把本機結果當成目標驗證。
 
 ## 已由官方來源確認的事實

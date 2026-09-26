@@ -188,12 +188,10 @@ code-server 設定一行都不用改,`bind-addr` 保持 `127.0.0.1:8080`、`cert
 
 路徑是這樣接起來的:
 
-```
-瀏覽器 → tailscale serve status 顯示的 HTTPS 網址
-       → Windows tailscaled(實際 tailnet IP:443,終結 TLS)
-       → proxy http://127.0.0.1:8080
-       → mirrored networking 跨進 WSL
-       → code-server(綁 127.0.0.1:8080)
+```mermaid
+flowchart LR
+  B["tailnet 裡的瀏覽器"] -- "https :443" --> T["Windows tailscaled<br/>(終結 TLS)"]
+  T -- "proxy 127.0.0.1:8080<br/>mirrored 跨進 WSL" --> C["WSL code-server"]
 ```
 
 > ⚠️ **從 WSL 裡打那個網址會 timeout,那是正常的,不是設定壞了。**
@@ -208,9 +206,7 @@ code-server 設定一行都不用改,`bind-addr` 保持 `127.0.0.1:8080`、`cert
 ### WSL 那個節點要不要留
 
 打算收掉、統一走 Windows 節點的話，先確認 `.ssh/config` 裡的 Host 還連得到 ——
-作者過去觀測到它們透過 **WSL 自己的 tailscaled**（tailnet IP）連通；這不是普遍現況：
-
-不要把本文件的主機名或 IP 當成你的現況；以 `ssh <host>` 和 `tailscale status` 查到的值為準。
+作者過去觀測到它們透過 **WSL 自己的 tailscaled**（tailnet IP）連通，這不是普遍現況，以 `ssh <host>` 和 `tailscale status` 查到的為準。
 
 作者過去的 `/etc/resolv.conf` 曾指向 `100.100.100.100`(MagicDNS)，也由 WSL tailscaled 提供；
 作者曾實測把來源位址強制指到 `eth1`(Windows 節點那條)**連不通**，

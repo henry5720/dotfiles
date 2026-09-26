@@ -1,21 +1,22 @@
 # chrome-devtools MCP:讓 agent 開你的瀏覽器
 
-Claude Code 和 opencode 都接了 `chrome-devtools-mcp`,agent 因此能開網頁、點按鈕、看
+Claude Code、Codex、OpenCode 都接了 `chrome-devtools-mcp`,agent 因此能開網頁、點按鈕、看
 console、抓 network、跑 lighthouse。這份記的是**這台機器上為什麼要這樣設**,不是這個 MCP
 的用法(用法看[官方 repo](https://github.com/ChromeDevTools/chrome-devtools-mcp))。
 
 ## 前置與連線
 
-```
-WSL launcher → WSL interop → Windows Chrome（獨立 profile，9222）
-WSL MCP server → mirrored localhost → Windows Chrome:9222
+```mermaid
+flowchart LR
+  W["WSL: agent + MCP server"] --> P["127.0.0.1:9222"]
+  E["EC2: agent + MCP server"] -- "ssh -R" --> P
+  P -- "mirrored localhost" --> C["Windows Chrome<br/>(獨立 profile)"]
+  L["chrome-mcp"] -. "WSL interop 啟動" .-> C
 ```
 
 需要 WSL interop 可呼叫 Windows `cmd.exe` / `powershell.exe`、Windows 已安裝 Chrome，且
 `.wslconfig` 使用 `networkingMode=mirrored`（見 [`wsl/.wslconfig`](../wsl/.wslconfig)）。
-launcher 會啟動 Chrome 並等 `127.0.0.1:9222` 可用；`--browser-url` 是 MCP server 的參數，
-用來連該 endpoint，不是 MCP client 的通用參數。
-WSL 不開 Linux Chrome，也不應把 9222 暴露到 LAN。
+9222 只綁 localhost，不要暴露到 LAN。
 
 > ⚠️ **不要在 WSL 裝 Linux Chrome。** `npx puppeteer browsers install chrome` 會抓 80MB 到
 > `~/.cache/puppeteer`,然後你有兩個瀏覽器、agent 連的還是錯的那個。方向就是錯的,設定本來
@@ -38,8 +39,9 @@ script 做三件事,每件都是踩過才加的:
 
 1. **先檢查 9222 通不通。** Chrome 已有實例時,再下一次帶參數的啟動會被**轉交給既有實例、
    新參數整組丟掉、而且不報錯**。沒這個檢查就會看到「指令跑完、沒紅字、MCP 還是連不上」。
+   9222 上是別的服務(不是 DevTools endpoint)就直接失敗,不會去關既有的 Chrome。
 2. **問 Windows 自己的 `%LOCALAPPDATA%`**,不寫死 `C:\Users\henry`。
-3. **等 9222 真的通了才回報成功**,最多等 15 秒。
+3. **等 9222 真的通了才回報成功**,最多等 15 秒,逾時回傳非零。
 
 ## 第一次要手動登入
 
@@ -77,13 +79,6 @@ skillshare 寫的 MCP 條目原樣留著。新增、改參數、升版本都改 
 
 三個 client 的 Chrome DevTools 參數刻意保持一致:
 
-`~/.local/bin/chrome-mcp` 是 Windows Chrome 的啟動器，不是 chezmoi hook。需要時手動執行
-`chrome-mcp`；它會先重用現有的 `127.0.0.1:9222` DevTools endpoint，只有 endpoint 不存在時才
-啟動獨立的 `ChromeDevToolsMCP` profile。這個 profile 不共用日常 Chrome 的 cookies 或密碼。
-
-啟動器只允許 loopback 連線；若 9222 已被其他服務占用會直接失敗，不會終止既有 Chrome。啟動後
-最多等待 15 秒，逾時會回傳非零狀態，方便 shell 或 MCP 啟動流程辨識失敗。
-
 ```
 --browser-url=http://127.0.0.1:9222   連 Windows 那台,不要自己開
 --no-usage-statistics                 不回報使用統計
@@ -113,11 +108,7 @@ Protocol error (Target.setDiscoverTargets): Target closed
 ## EC2:用本機的 Windows Chrome
 
 EC2 不裝 Chrome。MCP 設定跟 WSL 那份一樣(`--browser-url=http://127.0.0.1:9222`),把本機的
-9222 用 SSH 反向轉過去就好:
-
-```
-EC2 的 MCP server → EC2 127.0.0.1:9222 → SSH -R → WSL 127.0.0.1:9222 → Windows Chrome
-```
+9222 用 SSH 反向轉過去就好(上面圖裡 `ssh -R` 那條):
 
 ```bash
 chrome-mcp                                                        # 本機先把 Chrome 開起來

@@ -16,10 +16,10 @@ wheel:x:10:alan                              # root 是 alan,henry 不在 wheel
 
 兩個獨立的原因,缺一個都跑不起來:
 
-1. **那些腳本只寫給 apt + snap。** `install-base.sh:12` 第一行就是 `sudo apt update`,
-   Fedora 上直接 command not found。`install-base.sh:23` 的 `snap install chezmoi` 同理。
-2. **套件安裝那段全要 root。** `install-base.sh` 的 12、13、23、43 行和 `install-tools.sh`
-   的 23、30-31、64-65 行都是 `sudo`。`sudo -n true` 在 nettop 回 `a password is required`。
+1. **那些腳本只寫給 apt + snap。** `install-base.sh` 一開頭就是 `sudo apt update`,
+   Fedora 上直接 command not found。後面的 `snap install chezmoi` 同理。
+2. **套件安裝那段全要 root。** `install-base.sh` 和 `install-tools.sh` 裝套件的步驟
+   都是 `sudo`(`grep -n sudo script/ubuntu/install-*.sh` 看得到全部)。`sudo -n true` 在 nettop 回 `a password is required`。
 
 真正的好消息是:這類機器通常已經被管理員裝好常用工具了,根本不用裝。nettop 上
 `zsh`、`git`、`curl`、`chezmoi`、`ffmpeg`、`btop`、`fastfetch` 全都在 `/usr/bin`。
@@ -51,8 +51,7 @@ chsh -s "$(command -v zsh)"
 ```
 
 第 2 步會依 `home/.chezmoi.toml.tmpl` 的 `promptStringOnce` 詢問尚未保存的值,不是每次
-都問。欄位分成 3 個憑證(`code-server 密碼`、`codex-lb API key`、可留空的
-`Context7 API key`)與 2 個 Git 身分(`git user.name` 預設 `henry`、`git user.email`)。
+都問。欄位清單見[新機器設定](new-machine-setup.md)第 2 步。
 不信任或多人共用的機器不要填入真實憑證；缺少憑證的服務不能視為可用。值存在
 `~/.config/chezmoi/chezmoi.toml`,不進 repo。
 
@@ -70,7 +69,7 @@ grep -q 'exec zsh' ~/.bashrc || echo '[ -z "$ZSH_VERSION" ] && exec zsh -l' >> ~
 ## 什麼東西沒 root 也裝得起來
 
 只有在工具真的缺、又非要不可時才走這條。裝到 `~/.local/bin`
-(`home/dot_zshrc:23` 已經把它加進 PATH,不用再改)。
+(`home/dot_zshrc` 已經把它加進 PATH,不用再改)。
 
 以下清單只是這台觀測到的情況,不是所有沒有 sudo 的機器都保證相同:
 
