@@ -202,10 +202,20 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新;`chrome-devtools-mcp` 不要啟用,repo 的 `modify_` 會把它
-關掉;其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。claude-hud 裝完要再跑
-`/claude-hud:setup` 寫 `statusLine`;顯示偏好 `~/.claude/plugins/claude-hud/config.json` 由 chezmoi
-放好,用 `/claude-hud:configure` 改過之後要 `chezmoi re-add` 收回來。MCP、skills、plugin 的範圍與限制見 [ai-agent-setup.md](ai-agent-setup.md) 的
+關掉;其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。MCP、skills、plugin 的範圍與限制見 [ai-agent-setup.md](ai-agent-setup.md) 的
 [MCP](ai-agent-setup.md#3-mcp)、[skill](ai-agent-setup.md#2-skill)、[plugin](ai-agent-setup.md#4-plugin)。
+
+claude-hud 不在官方 marketplace,要先加它自己的:
+
+```bash
+claude plugin marketplace add jarrodwatts/claude-hud
+claude plugin install claude-hud@claude-hud
+```
+
+裝完在 Claude 裡跑 `/claude-hud:setup` 寫 `statusLine`。它會把 node 的**絕對路徑**寫進去
+(nvm 就是 `~/.nvm/versions/node/<版本>/bin/node`),之後 nvm 換版本、刪掉舊版,HUD 就會消失,
+重跑 `/claude-hud:setup` 即可。顯示偏好 `~/.claude/plugins/claude-hud/config.json` 由 chezmoi
+放好,用 `/claude-hud:configure` 改過之後要 `chezmoi re-add` 收回來。
 
 ### 9. 各 repo 的 codegraph setup
 
