@@ -1,0 +1,21 @@
+{
+  "lineLayout": "expanded",
+  "showSeparators": false,
+  "display": {
+    "showTools": false,
+    "showAgents": false,
+    "showTodos": true,
+    "showSessionName": true,
+    "showAddedDirs": false,
+    "showConfigCounts": false,
+    "showCost": false,
+    "showSessionTokens": false,
+    "showTokenBreakdown": false,
+    "showDuration": false,
+    "showSpeed": false,
+    "showMemoryUsage": true,
+    "usageCompact": false,
+    "usageBarEnabled": true,
+    "sevenDayThreshold": 0
+  }
+}
