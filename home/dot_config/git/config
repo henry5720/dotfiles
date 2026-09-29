@@ -12,3 +12,8 @@
 # path 是相對路徑,相對於這個檔案所在的目錄。
 [includeIf "gitdir:~/code/"]
 	path = config-code
+
+# 新 repo 預設分支叫 main,跟 GitHub 一致。沒設的話 `git init`(包括 skillshare init
+# 建 ~/.config/skillshare 那次)會開出 master,追蹤 origin/main 時名字對不上。
+[init]
+	defaultBranch = main
