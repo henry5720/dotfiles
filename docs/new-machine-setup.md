@@ -72,7 +72,7 @@ chezmoi apply
 email 仍不應寫死在公開 repo。
 
 這一步會恢復 chezmoi 管理的規則、OpenCode core config、Claude 的 `modify_`
-設定、Context7 key 的 `~/.config/zsh/env.zsh`、`chrome-mcp`、全域 Git 設定／hooks、`codegraph-setup-repo` 等。SSH 只會恢復
+設定、Context7 key 的 `~/.config/zsh/env.zsh`、`chrome-mcp` 的 symlink(本體在 skillshare)、全域 Git 設定／hooks、`codegraph-setup-repo` 等。SSH 只會恢復
 設定檔,**不會恢復 SSH private key**;`~/.ssh/henry5720` 要由你用安全方式放入並
 執行 `chmod 600 ~/.ssh/henry5720`。
 
@@ -260,8 +260,8 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 規則、OpenCode core config、agent preset、`modify_` 設定、`chrome-mcp`、Git 全域 hooks、`codegraph-setup-repo`。 |
-| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、MCP(skillshare)、skills、Claude plugin。 |
+| **chezmoi 自動恢復** | 規則、OpenCode core config、agent preset、`modify_` 設定、`chrome-mcp` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`。 |
+| **需登入或人工選擇** | chezmoi 的 4 個憑證與 2 個 Git 身分欄位、Claude OAuth、SSH private key、MCP(skillshare)、skills(含 `chrome-mcp` 本體)、Claude plugin。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
 SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo。Herdr 只有 live pane

@@ -28,8 +28,11 @@ flowchart LR
 chrome-mcp        # 開 Windows Chrome 並開 9222;已經在跑就直接結束
 ```
 
-部署自 [`home/dot_local/bin/executable_chrome-mcp`](../home/dot_local/bin/executable_chrome-mcp),
-落在 `~/.local/bin/chrome-mcp`(那個目錄已經在 PATH 裡,見 `home/dot_zshrc` 第 3 節)。
+script 本體在 agent-config 的 `skills/chrome-mcp/scripts/chrome-mcp`,跟教 agent 怎麼用的
+`SKILL.md` 放一起,所以 EC2 的 agent 也知道要請你在桌機跑它。chezmoi 只放一個 symlink
+[`home/dot_local/bin/symlink_chrome-mcp.tmpl`](../home/dot_local/bin/symlink_chrome-mcp.tmpl),
+讓 `~/.local/bin/chrome-mcp` 指過去(那個目錄已經在 PATH 裡,見 `home/dot_zshrc` 第 3 節)。
+新機器要等 skillshare 裝好、`skillshare pull` 之後這個 symlink 才有目標。
 
 **Chrome 要先跑起來，MCP client 才連得上。** 重開 Chrome 後，
 Claude Code 可在 session 執行 `/mcp` 重連；其他 client 請用該 client 自己的 reconnect/restart 方法，
@@ -71,7 +74,7 @@ agent-config repo 的 `mcp.yaml`(chrome-devtools 的版本也釘在那裡)。`sk
 | 檔案 | 部署到 | 管什麼 |
 |---|---|---|
 | [`home/dot_claude/modify_settings.json`](../home/dot_claude/modify_settings.json) | `~/.claude/settings.json` | 關掉官方 chrome-devtools plugin |
-| [`home/dot_local/bin/executable_chrome-mcp`](../home/dot_local/bin/executable_chrome-mcp) | `~/.local/bin/chrome-mcp` | 開 Windows Chrome 的 9222 |
+| [`home/dot_local/bin/symlink_chrome-mcp.tmpl`](../home/dot_local/bin/symlink_chrome-mcp.tmpl) | `~/.local/bin/chrome-mcp` | 指到 agent-config 裡的 script |
 
 Codex 與 OpenCode 那兩份設定檔 chezmoi 還在管 provider 等其他 key,所以它們的 `modify_` 會把
 skillshare 寫的 MCP 條目原樣留著。新增、改參數、升版本都改 agent-config 的 `mcp.yaml`,
