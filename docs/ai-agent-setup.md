@@ -36,8 +36,10 @@ flowchart LR
 
 兩邊唯一的交接:chezmoi 放好 skillshare 的 `config.yaml`,之後就不再碰。
 
-不歸 skillshare 管的例外:`~/.agents/skills/herdr`(`herdr --skill` 產生,跟著 herdr 版本走)、
-obsidian-wiki 那包(pip 套件自己連進 `~/.agents/skills`、`~/.codex/skills`)、`~/.claude/skills/synced/`(Claude 自己同步的)、
+herdr 的 skill 也走 skillshare,但釘在跟本機 herdr 同一版(skill 裡的指令要對得上 binary),
+升 herdr 後要手動跟:`skillshare install herdrdev/herdr/skills/herdr --branch v<新版> --force && skillshare sync`。
+
+不歸 skillshare 管的例外:obsidian-wiki 那包(pip 套件自己連進 `~/.agents/skills`、`~/.codex/skills`)、`~/.claude/skills/synced/`(Claude 自己同步的)、
 `~/.config/opencode/skills/`(chezmoi 部署的 OpenCode 專用 skill,加上 oh-my-opencode-slim 自己放的)、Claude plugin(`/plugin`)。
 `skillshare status` 的 `N local` 就是其中落在 target 目錄(`~/.claude/skills`、`~/.agents/skills`)裡、
 但不是 skillshare 放的那些,不是錯誤。
