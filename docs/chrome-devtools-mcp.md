@@ -115,9 +115,16 @@ EC2 不裝 Chrome。MCP 設定跟 WSL 那份一樣(`--browser-url=http://127.0.0
 
 ```bash
 chrome-mcp                                                        # 本機先把 Chrome 開起來
-ssh company-ec2                                                   # ~/.ssh/config 已帶 RemoteForward 9222,連著就通
+herdr machine add company-ec2                                     # 只要做一次;之後 herdr 連著就有轉發
 ssh company-ec2 'curl -s 127.0.0.1:9222/json/version | grep User-Agent'  # 要看到 Windows NT
 ```
+
+轉發靠的是桌機連到 EC2 的那條 ssh 連線。herdr 的 saved machine 自己開的 ssh 用
+`-F` 一份暫存設定,裡面第一行 `Include ~/.ssh/config`,所以 `RemoteForward` 會跟著帶上;
+不用 herdr 時開一條普通的 `ssh company-ec2` 也一樣。兩條同時開的話,後開的那條綁不到
+EC2 的 9222(只有一行警告),關掉先開的那條之後,後開的也不會自己補綁,要讓它重連。
+saved machine 存在 `~/.local/state/herdr/client/endpoints.json`,是 state 不是設定,
+不進 chezmoi;新機器重跑上面那行 `herdr machine add` 就回來了。
 
 最後那行一定要看 `User-Agent`。看到 `X11; Linux` 就是連到 WSL 裡別的 Chrome 了(見下方排錯)。
 
