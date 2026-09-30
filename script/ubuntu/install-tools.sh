@@ -27,8 +27,24 @@ install_fastfetch() {
 }
 install_btop() { is_installed btop && { echo -e "${BLUE}✅ btop 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y btop; }
 # daily-worklog、slack-list 兩支 skill 會叫 gh(見 agent-config 的 SKILL.md)。
-# ponytail: 用 Ubuntu 套件庫的版本，較舊；它們只用 gh api 與 issue 指令，夠用。要新版再換 GitHub 官方 apt 源。
-install_gh() { is_installed gh && { echo -e "${BLUE}✅ gh 已安裝。${NC}"; return; }; sudo apt update; sudo apt install -y gh; echo '登入：gh auth login'; }
+# 走 GitHub 官方 apt 源，不用 Ubuntu 套件庫：那版太舊，GitHub 停掉 Projects (classic) 後
+# gh pr edit / gh issue view 會直接報棄用錯誤(cli/cli#12320)。
+# 步驟照官方 docs/install_linux.md(cli/cli)。另加 pin：Ubuntu 26.04 的 apt 會優先挑
+# amd64v3 變體的 Ubuntu 版，即使官方源的版本號比較新。
+# 判斷已裝要連 pin 一起看，否則舊機器上的 Ubuntu 版 gh 會被當成已裝而跳過。
+install_gh() {
+  local list=/etc/apt/sources.list.d/github-cli.list key=/etc/apt/keyrings/githubcli-archive-keyring.gpg
+  local pin=/etc/apt/preferences.d/github-cli
+  is_installed gh && [ -f "$pin" ] && { echo -e "${BLUE}✅ gh 已安裝(官方 apt 源)。${NC}"; return; }
+  echo -e "${GREEN}📦 安裝 gh(GitHub 官方 apt 源)...${NC}"
+  sudo mkdir -p -m 755 /etc/apt/keyrings
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee "$key" > /dev/null
+  sudo chmod go+r "$key"
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=$key] https://cli.github.com/packages stable main" | sudo tee "$list" > /dev/null
+  printf 'Package: gh\nPin: origin cli.github.com\nPin-Priority: 600\n' | sudo tee "$pin" > /dev/null
+  sudo apt update; sudo apt install -y gh
+  echo '登入：gh auth login'
+}
 install_nvm() {
   is_installed nvm && { echo -e "${BLUE}✅ nvm 已安裝。${NC}"; return; }
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
