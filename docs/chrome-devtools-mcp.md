@@ -114,17 +114,22 @@ EC2 不裝 Chrome。MCP 設定跟 WSL 那份一樣(`--browser-url=http://127.0.0
 9222 用 SSH 反向轉過去就好(上面圖裡 `ssh -R` 那條):
 
 ```bash
-chrome-mcp                                                        # 本機先把 Chrome 開起來
-herdr machine add company-ec2                                     # 只要做一次;之後 herdr 連著就有轉發
+chrome-mcp                                                        # 開 Chrome,再起 ssh -f -N company-ec2-chrome
 ssh company-ec2 'curl -s 127.0.0.1:9222/json/version | grep User-Agent'  # 要看到 Windows NT
 ```
 
-轉發靠的是桌機連到 EC2 的那條 ssh 連線。herdr 的 saved machine 自己開的 ssh 用
-`-F` 一份暫存設定,裡面第一行 `Include ~/.ssh/config`,所以 `RemoteForward` 會跟著帶上;
-不用 herdr 時開一條普通的 `ssh company-ec2` 也一樣。兩條同時開的話,後開的那條綁不到
-EC2 的 9222(只有一行警告),關掉先開的那條之後,後開的也不會自己補綁,要讓它重連。
-saved machine 存在 `~/.local/state/herdr/client/endpoints.json`,是 state 不是設定,
-不進 chezmoi;新機器重跑上面那行 `herdr machine add` 就回來了。
+轉發只放在 `Host company-ec2-chrome`(帶 `ExitOnForwardFailure yes`),一般的
+`ssh company-ec2` 和 herdr 的 saved machine 都不帶。原因:EC2 的 9222 只有一個位子。
+以前 `Host company-ec2` 本身帶 RemoteForward,每條連線(每個終端機、herdr、Windows 端的
+ssh)都去搶,先連的搶到、後連的只在 EC2 的 sshd log 留一行
+`error: bind [127.0.0.1]:9222: Address already in use`,連線照常。搶到的那條常常是
+另一頭沒開 Chrome 的連線;它一斷,位子就空著,已經失敗的連線不會補綁
+(2026-09-30 在 laptop 上就是這樣,EC2 那邊 Connection refused)。
+
+現在位子由 `chrome-mcp` 那條拿:Chrome 開在哪台,轉發就從哪台起。已經被別台拿走時
+`chrome-mcp` 會直接說,要換台就在原本那台 `pkill -f -- '-N .*company-ec2-chrome'`
+再到新的那台重跑 `chrome-mcp`。Windows 端的 `C:\Users\henry\.ssh\config` 不歸 chezmoi 管,
+兩個 Host 要手動保持跟這份一樣。
 
 最後那行一定要看 `User-Agent`。看到 `X11; Linux` 就是連到 WSL 裡別的 Chrome 了(見下方排錯)。
 
