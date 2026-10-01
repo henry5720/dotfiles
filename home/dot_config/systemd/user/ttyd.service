@@ -1,0 +1,27 @@
+# ttyd:把 login zsh 開成網頁,跟 ssh 進來看到的一樣。
+#
+# 只綁 127.0.0.1,本身不對外。要給外面連得另外開 tailscale funnel(要 sudo、每台各自開),
+# 做法見 docs/code-server-remote.md。
+#
+# 每台都會部署這個檔,但只有 enable 過的那台會跑:
+#   systemctl --user enable --now ttyd
+#   sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
+#
+# 密碼不進這個公開 repo,放在 ~/.config/ttyd/credential(一行 `帳號:密碼`,權限 600)。
+# 改完要 `systemctl --user restart ttyd`,ttyd 只在啟動時讀一次。
+# 檔案不在或是空的,service 會直接起不來 —— 寧可連不上,也不要變成免密碼。
+
+[Unit]
+Description=ttyd web terminal (login zsh)
+After=network.target
+
+[Service]
+WorkingDirectory=%h
+# -W 讓對方能打字(ttyd 1.7 起預設唯讀)。
+# 字型是瀏覽器那端畫的,要裝在連進來的那台裝置上;沒裝就照順序往後退。
+ExecStart=/bin/sh -c 'cred=$(cat %h/.config/ttyd/credential) && [ -n "$$cred" ] && exec %h/.local/bin/ttyd -i lo -p 7681 -W -c "$$cred" -t titleFixed=henry -t "fontFamily=Hack, \\"Hack Nerd Font\\", Menlo, Consolas, monospace" zsh -l'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
