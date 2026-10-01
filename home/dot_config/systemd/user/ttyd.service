@@ -3,9 +3,10 @@
 # 只綁 127.0.0.1,本身不對外。要給外面連得另外開 tailscale funnel(要 sudo、每台各自開),
 # 做法見 docs/code-server-remote.md。
 #
-# 每台都會部署這個檔,但只有 enable 過的那台會跑:
-#   systemctl --user enable --now ttyd
-#   sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
+# 刻意只手動起、不開機自動跑 —— 能打字的網頁 shell 不該一直開著。所以沒有 [Install],
+# `systemctl --user enable` 會被拒絕。用的時候:
+#   systemctl --user start ttyd
+#   systemctl --user stop ttyd
 #
 # 密碼不進這個公開 repo,放在 ~/.config/ttyd/credential(一行 `帳號:密碼`,權限 600)。
 # 改完要 `systemctl --user restart ttyd`,ttyd 只在啟動時讀一次。
@@ -22,6 +23,3 @@ WorkingDirectory=%h
 ExecStart=/bin/sh -c 'cred=$(cat %h/.config/ttyd/credential) && [ -n "$$cred" ] && exec %h/.local/bin/ttyd -i lo -p 7681 -W -c "$$cred" -t titleFixed=henry -t "fontFamily=Hack, \\"Hack Nerd Font\\", Menlo, Consolas, monospace" zsh -l'
 Restart=on-failure
 RestartSec=5
-
-[Install]
-WantedBy=default.target

@@ -326,8 +326,8 @@ pkill -x ttyd                                     # 別用 pkill -f:ssh 遠端�
 - **`-W` 讓對方能打字**,拿掉就是唯讀。能打字就能在 herdr 開新 pane,等於整台機器的 shell ——
   擋在前面的只有 `-c` 那組密碼,每次換一組。
 - ttyd 最後面接什麼指令網頁就開什麼(`bash -l`、`tail -f` 都行)。
-- **要常駐給自己用**就別手動起,改用 `~/.config/systemd/user/ttyd.service`(開 login zsh、
-  密碼讀 `~/.config/ttyd/credential`),啟用方式寫在那個檔的註解裡。funnel 一樣照上面手動開。
+- **給自己用**可以改用 `systemctl --user start ttyd`(`~/.config/systemd/user/ttyd.service`:
+  開 login zsh、密碼讀 `~/.config/ttyd/credential`、只手動起不開機自動跑)。funnel 一樣照上面手動開。
 - 從 herdr 裡面手動起 ttyd 再 `herdr session attach` 會被擋(nested herdr is disabled),
   因為繼承了 `HERDR_ENV`。用 systemd 起就沒有這問題。
 - 兩個 client 同時 attach 同一個 herdr session,畫面尺寸不會互相縮。
