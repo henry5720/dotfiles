@@ -25,8 +25,8 @@ flowchart LR
 | `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
 | `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證與 Git 身分（`chezmoi init` 時問） |
 
-逐檔清單跑 `chezmoi managed`。skills 和 MCP 不在這裡，見
-[AI agent setup](docs/ai-agent-setup.md)。
+逐檔清單跑 `chezmoi managed`。skills 和 MCP 不在這裡，見 agent-config 的
+[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 
 chezmoi 是管理家目錄設定檔的工具，會依命名與 template 規則部署 `home/`，不一定原樣複製。完整用法與
 檔名前綴請看 [chezmoi 官方文件](https://www.chezmoi.io/) 及
@@ -79,7 +79,7 @@ chezmoi verify
 ## 文件索引
 
 - [新機器設定](docs/new-machine-setup.md)：完整的 WSL、AI agent 與各 repo runbook。
-- [AI agent setup](docs/ai-agent-setup.md)：規則、skill、MCP、plugin 與 codegraph。
+- [AI agent setup](docs/ai-agent-setup.md)：規則、plugin、codegraph 與 opencode；skill 與 MCP 指到 agent-config。
 - [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
 - [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config）：瀏覽器 MCP、轉發到 EC2 與排錯。
 - [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server。
