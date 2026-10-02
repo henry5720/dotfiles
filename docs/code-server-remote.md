@@ -355,8 +355,16 @@ flowchart LR
 - **從 herdr 的 pane 裡跑也能 attach herdr。** ttyd 會繼承 `HERDR_ENV`,網頁裡再
   `herdr session attach` 會被當成巢狀擋掉(nested herdr is disabled);script 起 ttyd 前先拿掉它。
 - **code-server 不要走 Funnel**:它本身就是網頁版 shell,只靠一組密碼。
-- **dev server 要給別人看**:不用 script,`sudo tailscale funnel --https=10000 5173` 一行(一樣不加
-  `--bg`,Ctrl+C 就收),再設 `VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net`,不然 Vite 回 Blocked request。
+- **dev server 要給別人看**:不用 script,一樣兩個終端機、都不加 `--bg`,Ctrl+C 就收:
+
+  ```bash
+  VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net pnpm dev      # 不設的話 Vite 回 Blocked request
+  sudo tailscale funnel --https=10000 <dev server 的 port>
+  ```
+
+  port 看 dev server 啟動時印的那行。teamsync-frontend 是 3000(`vite.config.js` 的 `server.port`),
+  而且 `strictPort: false`,3000 被佔了會往後跳。`VITE_ALLOWED_HOSTS` 是那個 repo 的
+  `vite.config.js` 自己讀的(逗號分隔),不是 Vite 內建的環境變數,別的專案不一定有。
 
 ## 一句話結論
 
