@@ -81,11 +81,10 @@ chezmoi verify
 - [新機器設定](docs/new-machine-setup.md)：完整的 WSL、AI agent 與各 repo runbook。
 - [AI agent setup](docs/ai-agent-setup.md)：規則、skill、MCP、plugin 與 codegraph。
 - [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
-- [Chrome DevTools MCP](docs/chrome-devtools-mcp.md)：瀏覽器 MCP 與排錯。
+- [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config）：瀏覽器 MCP、轉發到 EC2 與排錯。
 - [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server。
 - [no-sudo setup](docs/no-sudo-setup.md)：沒有 sudo 時的限制與替代做法。
 - [Herdr notifications](docs/herdr-notifications.md)：WSL2 通知音與 PulseAudio 排錯。
-- [EC2 headless Chrome 研究](docs/ec2-headless-chrome-research.md)：研究快照，已決定的做法見 Chrome DevTools MCP。
 
 repo 修改規範與驗證方式見 [`CLAUDE.md`](CLAUDE.md)。`docs/superpowers/` 是歷史
 spec/plan，不是現行文件。

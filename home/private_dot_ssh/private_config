@@ -109,8 +109,8 @@ Host company-ec2
     IdentitiesOnly yes
 
 # 專門把本機 Windows Chrome 的 9222 帶到 EC2,給那邊的 chrome-devtools MCP 用
-# (見 docs/chrome-devtools-mcp.md)。由 chrome-mcp 開 Chrome 後自動起一條
-# `ssh -f -N company-ec2-chrome`;位子被別台占著就直接失敗,不再默默連上。
+# (見 agent-config 的 docs/skills/chrome-mcp.md)。chrome-mcp 開 Chrome 後在前景跑
+# `ssh -N company-ec2-chrome`,Ctrl+C 就放掉;位子被別台占著就直接失敗,不再默默連上。
 Host company-ec2-chrome
     HostName 100.98.146.109
     User ubuntu
