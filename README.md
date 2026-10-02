@@ -82,7 +82,8 @@ chezmoi verify
 - [AI agent setup](docs/ai-agent-setup.md)：規則、plugin、codegraph 與 opencode；skill 與 MCP 指到 agent-config。
 - [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
 - [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config）：瀏覽器 MCP、轉發到 EC2 與排錯。
-- [code-server remote](docs/code-server-remote.md)：從其他裝置連線 code-server；臨時把 shell 開給沒有 tailscale 的人看（`share-shell`）。
+- [code-server remote](docs/code-server-remote.md)：自己從其他裝置連線 code-server。
+- [開給訪客看](docs/share-with-guest.md)：用 tailscale funnel 把 shell（`share-shell`）或 dev server 臨時開給沒有 tailscale 的人。
 - [no-sudo setup](docs/no-sudo-setup.md)：沒有 sudo 時的限制與替代做法。
 - [Herdr notifications](docs/herdr-notifications.md)：WSL2 通知音與 PulseAudio 排錯。
 

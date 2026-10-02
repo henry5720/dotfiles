@@ -10,7 +10,7 @@
 # (2026-10-02 在 company-ec2 發現開了 21 小時)。
 #
 # 密碼每次隨機：這是公網上能打字的 shell,固定密碼等於給過的人永遠有效。
-# 說明與流程圖：dotfiles 的 docs/code-server-remote.md〈臨時開給沒有 tailscale／ssh key 的人〉。
+# 說明與流程圖：dotfiles 的 docs/share-with-guest.md。
 
 set -euo pipefail
 

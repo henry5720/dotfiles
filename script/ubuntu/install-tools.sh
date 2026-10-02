@@ -69,7 +69,7 @@ install_herdr() {
   echo -e "${GREEN}📦 安裝 herdr...${NC}"
   curl -fsSL https://herdr.dev/install.sh | sh
 }
-# 把 terminal 開成網頁，臨時給沒有 tailscale／ssh key 的人用。怎麼開、怎麼收見 docs/code-server-remote.md。
+# 把 terminal 開成網頁，臨時給沒有 tailscale／ssh key 的人用。怎麼開、怎麼收見 docs/share-with-guest.md(用 share-shell)。
 install_ttyd() {
   is_installed ttyd && { echo -e "${BLUE}✅ ttyd 已安裝。${NC}"; return; }
   echo -e "${GREEN}📦 安裝 ttyd...${NC}"
