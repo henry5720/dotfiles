@@ -3,6 +3,9 @@
 從別台裝置（pad、phone、筆電）連自己的 code-server，卡點永遠是同一個：**憑證**。
 這份列出所有可行做法和各自代價，phone 和 desktop 各自選一個就好。
 
+> 只是想臨時讓沒有 tailscale／ssh key 的人看一下這台的畫面？跳到
+> [臨時開給沒有 tailscale／ssh key 的人](#臨時開給沒有-tailscalessh-key-的人)，一行 `share-shell`。
+
 ---
 
 ## 先把它裝起來
