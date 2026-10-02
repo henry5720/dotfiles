@@ -19,9 +19,9 @@ flowchart LR
 | repo | 部署到 | 內容 |
 |---|---|---|
 | `home/dot_zshrc`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.gitconfig` | shell、git |
-| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml`，ttyd 的 systemd user service |
+| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml` |
 | `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
-| `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp` 等） |
+| `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp`、`share-shell` 等） |
 | `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
 | `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證與 Git 身分（`chezmoi init` 時問） |
 

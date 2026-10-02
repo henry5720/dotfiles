@@ -305,34 +305,55 @@ sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
 
 ## 臨時開給沒有 tailscale／ssh key 的人
 
-對方只有瀏覽器。服務一律綁 `127.0.0.1`，用 `tailscale funnel` 開到公網，用完就關。
-2026-09-26 在 company-ec2 實測：ttyd 包 herdr，手機關掉 tailscale 連得到。
+對方只有瀏覽器，想讓他看一下這台的畫面。一行：
 
 ```bash
-# terminal（herdr）:ttyd 在本機跑指令、把畫面開成網頁,對方不用 ssh
-pw=$(openssl rand -hex 8); echo "guest / $pw"          # 密碼給對方
-ttyd -i lo -p 7681 -W -c "guest:$pw" herdr session attach default &
-sudo tailscale funnel --bg --https=10000 7681     # 網址 https://<機器>.<tailnet>.ts.net:10000
-
-# 用完
-sudo tailscale funnel --https=10000 off
-pkill -x ttyd                                     # 別用 pkill -f:ssh 遠端下的話會連自己那條 shell 一起砍
+share-shell                                   # 開 login zsh
+share-shell herdr session attach default      # 最後面接什麼，網頁就開什麼(tail -f 也行)
 ```
 
-- **Funnel 只能用 443、8443、10000**;`tailscale serve`(tailnet only)沒這限制。第一次跑會給一個
-  admin console 連結開 Funnel 權限。
-- **company-ec2 上 `serve`／`funnel` 要 sudo**(不加回 `Access denied`)。`tailscale set --operator=$USER` 能免 sudo,
-  但那是永久放寬,沒設。
-- **`-W` 讓對方能打字**,拿掉就是唯讀。能打字就能在 herdr 開新 pane,等於整台機器的 shell ——
-  擋在前面的只有 `-c` 那組密碼,每次換一組。
-- ttyd 最後面接什麼指令網頁就開什麼(`bash -l`、`tail -f` 都行)。
-- **給自己用**可以改用 `systemctl --user start ttyd`(`~/.config/systemd/user/ttyd.service`:
-  開 login zsh、密碼讀 `~/.config/ttyd/credential`、只手動起不開機自動跑)。funnel 一樣照上面手動開。
-- 從 herdr 裡面手動起 ttyd 再 `herdr session attach` 會被擋(nested herdr is disabled),
-  因為繼承了 `HERDR_ENV`。用 systemd 起就沒有這問題。
-- 兩個 client 同時 attach 同一個 herdr session,畫面尺寸不會互相縮。
+```
+  https://company-ec2.tail9b4b9b.ts.net:10000
+  帳號 guest  密碼 25366d70a2a3dd50
+  (Ctrl+C 關閉，關了就失效)
+```
+
+整段複製給對方。用完 Ctrl+C,或直接關掉那個終端機。
+
+```mermaid
+flowchart LR
+  S["share-shell"] --> T["ttyd<br/>127.0.0.1:7681<br/>隨機密碼"]
+  S --> F["tailscale funnel :10000<br/>前景，不加 --bg"]
+  F -- 公網 --> G["對方的瀏覽器"]
+  G -.-> T
+  X["Ctrl+C／關終端機"] -- "funnel 撤掉<br/>ttyd 跟著死" --> S
+```
+
+它像 server 一樣停在前景，**開著就是在用，關掉就整組消失**。以前 funnel 用 `--bg` 開、ttyd
+用 systemd 起，兩個都要記得手動關；2026-10-02 發現 company-ec2 的公網 shell 開了 21 小時沒關。
+
+2026-10-02 在 company-ec2 實測收尾：
+
+| 怎麼結束的 | funnel | ttyd |
+|---|---|---|
+| Ctrl+C(SIGINT) | 撤掉 | 被 trap 收掉 |
+| 整個 process group 被 SIGKILL(例如 herdr 關 pane) | 撤掉，公網連過去 connection refused | 跟著死 |
+
+為什麼這樣設：
+
+- **密碼每次隨機。** 這是公網上能打字的 shell(`-W`),擋在前面的只有這組密碼。固定密碼等於
+  每個拿過的人永遠有效，貼在聊天室也收不回來。反正網址也要傳給對方，順便帶上密碼不多一步。
+- **funnel 不加 `--bg` 就是前景模式**:不寫進 `tailscale serve status` 的持久設定，行程結束就撤掉，
+  不會動到同一台已經在跑的其他 serve(company-ec2 的 code-server)。
+- **Funnel 只能用 443、8443、10000。** company-ec2 的 443 給 code-server 的 tailnet serve 用了，
+  所以固定 10000。第一次開 Funnel 會給一個 admin console 連結開權限。
+- **company-ec2 上要 sudo**(沒有 sudo 回 `Access denied`)。script 看 `tailscale debug prefs` 的
+  `OperatorUser`:是你就不加 sudo。`tailscale set --operator=$USER` 能免 sudo,但那是永久放寬，沒設。
+- **從 herdr 的 pane 裡跑也能 attach herdr。** ttyd 會繼承 `HERDR_ENV`,網頁裡再
+  `herdr session attach` 會被當成巢狀擋掉(nested herdr is disabled);script 起 ttyd 前先拿掉它。
 - **code-server 不要走 Funnel**:它本身就是網頁版 shell,只靠一組密碼。
-- dev server 要開的話:`VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net`,不然 Vite 回 Blocked request。
+- **dev server 要給別人看**:不用 script,`sudo tailscale funnel --https=10000 5173` 一行(一樣不加
+  `--bg`,Ctrl+C 就收),再設 `VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net`,不然 Vite 回 Blocked request。
 
 ## 一句話結論
 

@@ -4,3 +4,6 @@
 # tmux 已改用 herdr,當初從別人 repo 抄來的設定整包拿掉。
 .tmux.conf
 .config/tmux
+# ttyd 改由 share-shell 臨時起(前景、隨機密碼),不再有常駐 service 和固定密碼。
+.config/systemd/user/ttyd.service
+.config/ttyd

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# 臨時把這台的 shell 開成公網網頁，給沒有 ssh key、沒有 tailscale 的人看一下。
+#
+#   share-shell                                    # 開 login zsh
+#   share-shell herdr session attach default       # 最後面接什麼，網頁就開什麼
+#
+# 像 server 一樣停在前景：印出網址和密碼後等著，Ctrl+C 或關掉終端機就整組收掉 ——
+# funnel 不加 --bg,結束時 tailscale 自己撤掉;ttyd 是這支的子行程，跟著被收。
+# 以前 funnel 用 --bg 開、ttyd 用 systemd 起，兩個都要記得手動關，忘了就一直開在公網上
+# (2026-10-02 在 company-ec2 發現開了 21 小時)。
+#
+# 密碼每次隨機：這是公網上能打字的 shell,固定密碼等於給過的人永遠有效。
+# 說明與流程圖：dotfiles 的 docs/code-server-remote.md〈臨時開給沒有 tailscale／ssh key 的人〉。
+
+set -euo pipefail
+
+TTYD_PORT=7681
+# Funnel 只開放 443、8443、10000。443 在 company-ec2 已經給 code-server 的 tailnet serve 用了。
+FUNNEL_PORT=10000
+
+command -v ttyd >/dev/null || { echo "找不到 ttyd。跑 dotfiles 的 script/ubuntu/install-tools.sh 勾 ttyd。" >&2; exit 1; }
+command -v tailscale >/dev/null || { echo "找不到 tailscale。" >&2; exit 1; }
+command -v jq >/dev/null || { echo "找不到 jq。" >&2; exit 1; }
+
+host=$(tailscale status --json 2>/dev/null | jq -r '.Self.DNSName // empty' | sed 's/\.$//')
+[ -n "$host" ] || { echo "tailscale 沒登入(tailscale status 看看)。" >&2; exit 1; }
+
+if ss -ltn "sport = :$TTYD_PORT" | grep -q LISTEN; then
+  echo "127.0.0.1:$TTYD_PORT 已經有東西在聽(另一個 share-shell?)。" >&2
+  exit 1
+fi
+
+# 改 serve/funnel 設定要 sudo,除非 tailscale 把這個使用者設成 operator(tailscale set --operator=$USER)。
+ts=(tailscale)
+[ "$(tailscale debug prefs 2>/dev/null | jq -r '.OperatorUser // empty')" = "$USER" ] || ts=(sudo tailscale)
+
+cmd=("$@")
+[ ${#cmd[@]} -gt 0 ] || cmd=(zsh -l)
+pw=$(openssl rand -hex 8)
+
+# 從 herdr 的 pane 裡起時會繼承 HERDR_ENV,網頁裡再 attach herdr 就被當成巢狀而擋掉。
+# 字型是瀏覽器那端畫的，對方沒裝 Nerd Font 就照順序往後退(提示字元的圖示會變方框，不影響使用)。
+env -u HERDR_ENV ttyd -i lo -p "$TTYD_PORT" -W -c "guest:$pw" \
+  -t 'fontFamily=Hack, "Hack Nerd Font", Menlo, Consolas, monospace' \
+  "${cmd[@]}" >/dev/null 2>&1 &
+ttyd_pid=$!
+trap 'kill "$ttyd_pid" 2>/dev/null || true' EXIT
+trap 'exit 130' INT TERM HUP
+
+sleep 1
+kill -0 "$ttyd_pid" 2>/dev/null || { echo "ttyd 沒起來。" >&2; exit 1; }
+
+cat <<EOF
+
+  https://$host:$FUNNEL_PORT
+  帳號 guest  密碼 $pw
+  (Ctrl+C 關閉，關了就失效)
+
+EOF
+
+# sudo 第一次會問密碼，問完才開始 funnel。
+"${ts[@]}" funnel --https="$FUNNEL_PORT" "$TTYD_PORT" >/dev/null
