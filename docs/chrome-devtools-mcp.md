@@ -49,9 +49,15 @@ script 做四件事,每件都是踩過才加的:
 4. **轉發跑在前景,結束時收掉 Chrome。** 以前 `ssh -f` 丟背景、沒人收,換台或重開機後
    EC2 的 9222 還被舊連線佔著(2026-10-02,重開機前的死連線佔了兩小時)。結束時一律關
    `ChromeDevToolsMCP` profile 那個 Chrome,不管是不是這次開的 —— 那個 profile 只有它在用。
-   收不到的情況:斷電/重開機(EC2 那頭靠 sshd 的 `ClientAliveInterval`,見下方 EC2 一節)、
-   herdr 關 pane(HUP 後整棵 process 立刻被砍,`setsid` 出去的也一樣;轉發會斷,Chrome
-   留著,下次跑沿用、結束時一起關)。
+
+怎麼結束,決定誰收尾:
+
+| 怎麼結束的 | 轉發(EC2 的 9222) | MCP Chrome |
+|---|---|---|
+| Ctrl+C | trap 收掉 | 關掉 |
+| 9222 被別台佔著 | ssh 自己退出 | 關掉 |
+| 關 herdr pane | 終端機一關 ssh 就斷 | **留著** —— HUP 後整棵 process 立刻被砍,trap 跑不完(`setsid`、double fork 出去的也活不了)。下次跑沿用,結束時一起關 |
+| 斷電、重開機 | **沒人收**,要靠 EC2 sshd 的 `ClientAliveInterval` 約 90 秒清掉(見下方 EC2 一節) | 跟著電腦一起沒了 |
 
 ## 第一次要手動登入
 
@@ -134,8 +140,15 @@ ssh)都去搶,先連的搶到、後連的只在 EC2 的 sshd log 留一行
 (2026-09-30 在 laptop 上就是這樣,EC2 那邊 Connection refused)。
 
 現在位子由 `chrome-mcp` 那條拿:Chrome 開在哪台,轉發就從哪台起,`chrome-mcp` 關掉位子
-就空出來。已經被別台拿走時 `chrome-mcp` 會印「轉發斷了」並關掉自己開的 Chrome;要換台就到
-原本那台 Ctrl+C,再到新的那台重跑。
+就空出來。換台(例如 desktop 開著,要改用 laptop):
+
+```
+laptop 跑 chrome-mcp → 「轉發斷了」→ laptop 的 Chrome 也關掉、exit 1
+  → 去 desktop 按 Ctrl+C → 回 laptop 重跑 → 通
+```
+
+不要「連線前先把 EC2 的 9222 清掉」:EC2 分不出佔著的是死連線還是另一台正在用的,
+一律清掉會把正在用的那台砍斷。
 
 原本那台沒正常關(斷電、重開機、筆電闔上斷網),EC2 不知道 client 不在了,位子會一直被
 死連線佔著。EC2 的 sshd 要開 `ClientAliveInterval`,讓它約 90 秒後自己清掉:
@@ -143,7 +156,9 @@ ssh)都去搶,先連的搶到、後連的只在 EC2 的 sshd log 留一行
 ```bash
 echo -e 'ClientAliveInterval 30\nClientAliveCountMax 3' | sudo tee /etc/ssh/sshd_config.d/70-client-alive.conf
 sudo sshd -t && sudo systemctl reload ssh
-```Windows 端的 `C:\Users\henry\.ssh\config` 不歸 chezmoi 管,
+```
+
+Windows 端的 `C:\Users\henry\.ssh\config` 不歸 chezmoi 管,
 兩個 Host 要手動保持跟這份一樣。
 
 最後那行一定要看 `User-Agent`。看到 `X11; Linux` 就是連到 WSL 裡別的 Chrome 了(見下方排錯)。
