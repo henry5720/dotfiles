@@ -14,7 +14,7 @@ if is_ssh then
       ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
     },
   }
-else
+elseif vim.fn.executable('termux-clipboard-set') == 1 then
   -- 如果是手機本機操作，使用 Termux 專用指令
   vim.g.clipboard = {
     name = 'termux-clipboard',
@@ -29,6 +29,7 @@ else
     cache_enabled = 0,
   }
 end
+-- 其他情況(WSL、桌面 Linux 本機)不設 vim.g.clipboard,讓 nvim 自己找可用的剪貼簿工具
 
 -- 最後統一開啟同步功能
 vim.opt.clipboard = "unnamedplus"

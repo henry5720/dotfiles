@@ -2,8 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-個人 dotfiles,目標平台是 WSL2 上的 Ubuntu 24.04(純 zsh,無 Oh My Zsh)。家目錄設定檔由
-[chezmoi](https://www.chezmoi.io) 部署,另含 Termux(Android)桌面腳本與 Windows 側的 WSL 設定。
+個人 dotfiles,以 Ubuntu + 純 zsh(無 Oh My Zsh)為主,日常用在 WSL2,也用在雲端主機。
+家目錄設定檔由 [chezmoi](https://www.chezmoi.io) 部署,另含 Termux(Android)桌面腳本與
+Windows 側的 WSL 設定。
+
+`home/` 要在一般 Linux 都能用 —— WSL 專屬的東西(`/mnt/c`、Windows 程式)不在 WSL 時必須
+安靜略過,不能報錯。`script/ubuntu/` 只保證 Ubuntu,需要分 WSL／非 WSL 時用
+`grep -qi microsoft /proc/version` 判斷。
 
 文件、註解、commit message 一律用**繁體中文**。
 

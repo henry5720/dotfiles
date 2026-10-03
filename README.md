@@ -1,7 +1,15 @@
 # dotfiles
 
-個人公開設定，主要給 **WSL2 的 Ubuntu 24.04 + 純 zsh** 使用；Termux/Android 與
-Windows 內容是輔助資源。
+個人公開設定，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，也用在雲端主機。
+
+## 支援哪些環境
+
+| 部分 | 能用在 | 說明 |
+|---|---|---|
+| `home/`（chezmoi 部署） | 一般 Linux | WSL 專屬的設定（Windows 字型）不在 WSL 時自動略過 |
+| `script/ubuntu/` | Ubuntu／Debian 系 | 用 apt、snap；會判斷是不是 WSL，自動調整（例如 WSL 不裝 headless Chrome） |
+| `script/termux/` | Android 的 Termux | 把平板設定成 xfce 桌面，用 `pkg` 裝套件，不經 chezmoi |
+| `wsl/` | Windows 主機 | WSL 那一側的設定，手動套用 |
 
 ## 這個 repo 怎麼分工
 

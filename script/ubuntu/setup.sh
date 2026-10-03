@@ -8,7 +8,7 @@ INPUT_SRC="${INPUT_SRC:-/dev/tty}"
 SCRIPTS=(install-base.sh install-tools.sh install-tools-ai.sh install-docker.sh setup-swap.sh)
 LABELS=('基底環境' '一般工具' 'AI／文件工具' 'Docker（高風險）' 'swap（使用主機資源）')
 
-echo -e "${BLUE}=== 開發環境安裝 (WSL Ubuntu) ===${NC}"
+echo -e "${BLUE}=== 開發環境安裝 (Ubuntu) ===${NC}"
 echo '請選擇要執行的安裝腳本（空格分隔多選，直接 Enter 不執行）：'
 for i in "${!SCRIPTS[@]}"; do printf '  %d) %s (%s)\n' "$((i+1))" "${LABELS[$i]}" "${SCRIPTS[$i]}"; done
 printf '> '; picks=(); read -a picks <"$INPUT_SRC" || true
