@@ -115,6 +115,6 @@ See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-This is a single-context repository. Read root `CONTEXT.md` and relevant
+This is a single-context repository. Read root `GLOSSARY.md` and relevant
 `docs/adr/` files when they exist.
 See `docs/agents/domain.md`.

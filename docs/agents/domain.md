@@ -4,7 +4,7 @@
 
 ## 探索前先讀
 
-- 根目錄 `CONTEXT.md`（如果存在）
+- 根目錄 `GLOSSARY.md`（如果存在）
 - `docs/adr/` 中與目前工作相關的 ADR（如果存在）
 
 檔案不存在時直接繼續，不要因為缺少它們而阻塞工作。
@@ -12,7 +12,7 @@
 ## 詞彙
 
 issue title、refactor proposal、hypothesis、test name 使用
-`CONTEXT.md` 已定義的 domain vocabulary；如果需要的新概念不存在，
+`GLOSSARY.md` 已定義的 domain vocabulary；如果需要的新概念不存在，
 交給 domain modeling 再決定，不要自行創造同義詞。
 
 ## ADR 衝突
