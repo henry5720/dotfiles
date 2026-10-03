@@ -116,6 +116,11 @@ agent-config 的 skill 與 MCP 會用到的系統工具:`ffmpeg`(「文件／影
 (`install-tools.sh` 的 nvm)、`codegraph`(「codegraph CLI」,需要先有 npm)、`gh`
 (`install-tools.sh` 的 GitHub CLI,裝完 `gh auth login`)。
 
+遠端主機（例如 company-ec2）要讓 agent 不靠桌機轉發、自己開瀏覽器（看不到畫面，要看就截圖），選
+「headless Chrome」。它裝的是 Google 官方的 `.deb`，外加中文和 emoji 字型（沒裝的話截圖會是方框）。
+怎麼開、跟桌機的 `chrome-mcp` 怎麼輪流使用 9222，見 agent-config 的 chrome-mcp skill。
+桌機 WSL 會跳過這一項，那邊用的是 Windows 的 Chrome。
+
 若確實需要可選的 AI 文件／媒體解析，在 `install-tools-ai.sh` 選「AI 文件／影音解析」。它會在
 `~/.local/share/ai-document-media/venv` 建立獨立 Python venv,只安裝 `docling` 與
 `faster-whisper`。也可在執行前設定 `AI_DOCUMENT_MEDIA_BACKEND=uv` 改用已自行安裝的 uv

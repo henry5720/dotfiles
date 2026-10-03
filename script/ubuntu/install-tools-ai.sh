@@ -3,14 +3,15 @@ set -euo pipefail
 
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 DRY_RUN="${DRY_RUN:-0}"; INPUT_SRC="${INPUT_SRC:-/dev/tty}"
-TOOLS=(claude codex opencode document-media ai-document-media codegraph agent-config)
-LABELS=('Claude Code' 'Codex' 'OpenCode' '文件／影音解析' 'AI 文件／影音解析' 'codegraph CLI' 'agent-config（skills 與 MCP）')
+TOOLS=(claude codex opencode document-media ai-document-media codegraph headless-chrome agent-config)
+LABELS=('Claude Code' 'Codex' 'OpenCode' '文件／影音解析' 'AI 文件／影音解析' 'codegraph CLI' 'headless Chrome（遠端主機用）' 'agent-config（skills 與 MCP）')
 DOC_MEDIA_PACKAGES=(ffmpeg mupdf-tools pandoc python3-venv)
+CHROME_FONT_PACKAGES=(fonts-noto-cjk fonts-noto-color-emoji)
 SKILLSHARE_DIR="$HOME/.config/skillshare"; SKILLSHARE="$(command -v skillshare || echo "$HOME/.local/bin/skillshare")"; AGENT_CONFIG_REMOTE="${AGENT_CONFIG_REMOTE:-git@github.com:henry5720/agent-config.git}"
 run() { echo "+ $*"; [ "$DRY_RUN" = 1 ] || "$@"; }
 ai_media_venv() { local d="${AI_DOCUMENT_MEDIA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/ai-document-media}"; printf '%s\n' "${AI_DOCUMENT_MEDIA_VENV:-$d/venv}"; }
 # 非互動 ssh、chezmoi apply 前的 PATH 沒有 installer 的預設目錄,只靠 command -v 會重裝(Codex installer 還會往 .zshrc 追加 PATH)。
-installed() { case "$1" in claude|codex) command -v "$1" &>/dev/null || [ -x "$HOME/.local/bin/$1" ];; opencode) command -v opencode &>/dev/null || [ -x "$HOME/.opencode/bin/opencode" ];; document-media) for p in "${DOC_MEDIA_PACKAGES[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || return 1; done;; ai-document-media) [ -x "$(ai_media_venv)/bin/python" ] && "$(ai_media_venv)/bin/python" -c 'import docling, faster_whisper' &>/dev/null;; codegraph) command -v codegraph &>/dev/null;; agent-config) [ -x "$SKILLSHARE" ] && [ -d "$SKILLSHARE_DIR/.git" ];; *) return 1;; esac; }
+installed() { case "$1" in claude|codex) command -v "$1" &>/dev/null || [ -x "$HOME/.local/bin/$1" ];; opencode) command -v opencode &>/dev/null || [ -x "$HOME/.opencode/bin/opencode" ];; document-media) for p in "${DOC_MEDIA_PACKAGES[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || return 1; done;; ai-document-media) [ -x "$(ai_media_venv)/bin/python" ] && "$(ai_media_venv)/bin/python" -c 'import docling, faster_whisper' &>/dev/null;; codegraph) command -v codegraph &>/dev/null;; headless-chrome) command -v google-chrome &>/dev/null && for p in "${CHROME_FONT_PACKAGES[@]}"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || return 1; done;; agent-config) [ -x "$SKILLSHARE" ] && [ -d "$SKILLSHARE_DIR/.git" ];; *) return 1;; esac; }
 install_claude() { installed claude && { echo '✅ Claude Code 已安裝。'; return; }; curl -fsSL https://claude.ai/install.sh | bash; }
 install_codex() { installed codex && { echo '✅ Codex 已安裝。'; return; }; curl -fsSL https://chatgpt.com/codex/install.sh | PATH="$HOME/.local/bin:$PATH" bash; }  # ~/.local/bin 已在 PATH,installer 就不往 .zshrc 追加(chezmoi 管的 .zshrc 本來就有)
 install_opencode() { installed opencode && { echo '✅ OpenCode 已安裝。'; return; }; curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path; }
@@ -27,6 +28,15 @@ install_ai_document_media() {
 install_codegraph() {
   installed codegraph && { echo '✅ codegraph 已安裝。'; return; }; command -v npm &>/dev/null || { [ -s "$HOME/.nvm/nvm.sh" ] && { set +u; . "$HOME/.nvm/nvm.sh"; set -u; }; } || true
   command -v npm &>/dev/null || { echo '⚠️ 找不到 npm，先在一般工具裝 nvm。' >&2; return 1; }; npm install -g @colbymchenry/codegraph
+}
+# 給 chrome-mcp skill 的 chrome-headless 用:EC2 自己開 Chrome 佔 9222,不必靠桌機轉發。
+# 桌機 WSL 跳過 —— 那邊連的是 Windows Chrome。Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap),沒字型的話中文和 emoji 截圖全是方框。
+install_headless_chrome() {
+  grep -qi microsoft /proc/version 2>/dev/null && { echo '⏭️ WSL 用 Windows 的 Chrome(chrome-mcp),不裝 headless Chrome。'; return; }
+  installed headless-chrome && { echo '✅ headless Chrome 已安裝。'; return; }
+  local deb; deb="$(mktemp -d)/google-chrome-stable_current_amd64.deb"
+  curl -fsSL -o "$deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  sudo apt update; sudo apt install -y "$deb" "${CHROME_FONT_PACKAGES[@]}"; rm -rf "$(dirname "$deb")"
 }
 # skillshare 把 agent-config 的 skills 裝進 Claude／Codex、MCP 寫進三個 client。config.yaml 由 chezmoi 先放好，init 才會直接從 remote 拉。
 # pull 不會同步 MCP，最後的 sync mcp -g 不能省。
