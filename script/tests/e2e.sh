@@ -112,6 +112,54 @@ DOCKERFILE
 # ===============================================================
 # 檢查清單
 # ===============================================================
+# zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
+ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-syntax-highlighting)
+
+check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
+  check "預設 shell 是 zsh" "[ \"\$($1)\" = \"\$(command -v zsh)\" ]"
+  for d in "${ZSH_EXTERNALS[@]}"; do
+    check "~/.config/zsh/$d 是 git clone" "git -C ~/.config/zsh/$d rev-parse --is-inside-work-tree"
+  done
+  check "~/.p10k.zsh 已部署" "grep -q POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ~/.p10k.zsh"
+  # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
+  # termux-docker 沒有 Android 系統 library,.zshrc 開頭的 fastfetch 一定 link 失敗(真機不會),
+  # 只濾掉這一種訊息,其他 stderr 照樣算錯。
+  check "zsh -i -c exit 不出錯、p10k 與兩個插件有載入、設定檔有讀到" \
+    "if ! err=\$(zsh -i -c '(( \${+functions[p10k]} && \${+functions[_zsh_autosuggest_start]} && \${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n \$POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
+  # wizard 是在第一次畫 prompt 時跳出來,`zsh -i -c` 不畫 prompt,所以要真的開互動 shell:
+  # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
+  # wizard 會吃掉那個 exit 繼續等輸入,30 秒後砍掉,輸出裡有 wizard 字樣就算失敗。
+  check "互動 zsh(有 tty)不跳 p10k wizard、正常 exit" \
+    "out=\$(python3 - <<'PY'
+import os, pty, select, signal, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp('zsh', ['zsh', '-i'])
+out, sent, end = b'', False, time.time() + 30
+while time.time() < end:
+    if select.select([fd], [], [], 1)[0]:
+        try:
+            d = os.read(fd, 4096)
+        except OSError:
+            break
+        if not d:
+            break
+        out += d
+    elif not sent:
+        os.write(fd, b'exit\n')
+        sent = True
+for _ in range(30):
+    if os.waitpid(pid, os.WNOHANG)[0]:
+        break
+    time.sleep(0.1)
+else:
+    os.kill(pid, signal.SIGKILL)
+    out += b'[ZSH-DID-NOT-EXIT]'
+sys.stdout.write(out.decode(errors='replace'))
+PY
+); echo \"\$out\" | tail -n 15; ! grep -qiE 'configuration wizard|ZSH-DID-NOT-EXIT' <<<\"\$out\""
+}
+
 # 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
@@ -200,11 +248,14 @@ scenario_ubuntu() {
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
+  check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"document-media\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
+  check "換 shell 腳本已記為跑過、第二次不會再跑" \
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、apt 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
@@ -300,9 +351,13 @@ scenario_termux() {
   check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
   check "選裝工具的腳本一支都沒跑" \
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
+  # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
+  check_zsh_env "readlink -f ~/.termux/shell"
 
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
+  check "換 shell 腳本已記為跑過、第二次不會再跑" \
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、pkg 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
