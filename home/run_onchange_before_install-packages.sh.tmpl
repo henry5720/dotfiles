@@ -1,0 +1,24 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!{{ lookPath "sh" }}
+# 裝 .chezmoidata/packages.yaml 列的系統套件。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)
+missing=""
+for pkg in {{ .packages.ubuntu | join " " }}; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才 update + install
+echo "安裝缺少的套件:$missing"
+sudo apt-get update
+# shellcheck disable=SC2086 # 要拆成多個參數
+sudo apt-get install -y $missing
+{{ end -}}

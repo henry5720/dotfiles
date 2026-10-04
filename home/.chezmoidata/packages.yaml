@@ -1,0 +1,16 @@
+# 系統套件清單,run_onchange_before_install-packages.sh.tmpl 會讀它。
+# 依平台分開列,這份本身就是對照表(同一個工具在兩邊名字不同就各寫各的)。
+# 加套件只改這裡;改了之後下一次 chezmoi apply 只會裝缺的那幾個。
+packages:
+  # Ubuntu(WSL、雲端主機、proot Ubuntu),apt 的套件名
+  ubuntu:
+    - zsh
+    - git
+    - curl
+    - vim
+    - build-essential
+    - unzip
+    # 下面兩個是 home/ 的 modify_ 與 run_ 腳本自己要用的(jq 改 JSON、python3 改 TOML)。
+    # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
+    - jq
+    - python3
