@@ -40,7 +40,7 @@ flowchart LR
 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
 
 skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作),
-這份不重寫。新機器則是 `chezmoi apply` → `install-tools-ai.sh` 勾「agent-config」。
+這份不重寫。新機器則是 chezmoi 選裝工具選單勾 `agent-config`,apply 時自動 init。
 
 ---
 
@@ -58,9 +58,8 @@ home/dot_claude/CLAUDE.md             ← 真的檔案,只有這份要改
    └── ~/.claude/CLAUDE.md                                 (chezmoi 部署)
 ```
 
-新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 執行
-`chezmoi init`、`chezmoi diff`、`chezmoi apply` 三步,就會部署好
-`~/.claude/CLAUDE.md`。
+新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完
+bootstrap(最後一關是 `chezmoi init --apply`),就會部署好 `~/.claude/CLAUDE.md`。
 
 > ⚠️ 若這台機器原本已有 `~/.claude/CLAUDE.md` 或 `~/.config/opencode/AGENTS.md` 且是
 > 普通檔案,先備份,再執行 `chezmoi diff` 檢查預計變更；確認後才 `chezmoi apply`,不要
@@ -128,7 +127,7 @@ skill 由 skillshare 管,說明在 agent-config:從哪來、裝給誰(global／p
 `codegraph_explore` 一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。它同時是 CLI、MCP
 server 和背景 daemon。
 
-裝法選 npm(不是官方那條 `curl | sh`),`install-tools-ai.sh` 的「codegraph CLI」就是跑第一行:
+裝法選 npm(不是官方那條 `curl | sh`),chezmoi 選裝工具的 `codegraph` 就是跑第一行:
 
 ```bash
 npm i -g @colbymchenry/codegraph      # 主套件只是 shim,真的 binary 走 optionalDependency 帶下來
@@ -441,7 +440,7 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改 agent 的行為規則 | 改 `home/dot_claude/CLAUDE.md`,commit |
-| 新機器套用規則 | `chezmoi init henry5720` → `chezmoi diff` → `chezmoi apply` |
+| 新機器套用規則 | 跑 bootstrap,見[新機器設定 Runbook](new-machine-setup.md) |
 | 裝／更新 skill、寫自己的 skill | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |
