@@ -118,9 +118,25 @@ UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
-# 第一次 init 只勾這些;ttyd、wakatime 故意不勾,之後用 --prompt 補勾 wakatime。
-TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr
+# 第一次 init 只勾這些;ttyd、wakatime、opencode、ai-document-media 故意不勾,之後用 --prompt 補勾 wakatime。
+# ai-document-media(docling + faster-whisper,venv 好幾 GB)不在這裡實裝,只做下面的渲染檢查;
+# 實裝在一次性容器手動驗過(見 #65 的回報)。
+TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/document-media/codegraph/headless-chrome/agent-config
 TOOLS_SECOND=$TOOLS_FIRST/wakatime
+
+# agent-config 的 remote 是 git@github.com(SSH),容器裡沒有 key。
+# 測試用 AGENT_CONFIG_REMOTE 換成容器裡的本機 bare repo(內容是假的一個 skill + 一個 MCP server),
+# skillshare 本身照樣從網路裝、照樣 init/install/sync。真的 git@ clone 只在有 key 的機器上會走到。
+AGENT_CONFIG_FIXTURE=/tmp/agent-config.git
+make_agent_config_fixture() {
+  step "建 agent-config 的假 remote(本機 bare repo)" "set -e
+    rm -rf /tmp/agent-config-src $AGENT_CONFIG_FIXTURE
+    mkdir -p /tmp/agent-config-src/skills/e2e-hello && cd /tmp/agent-config-src
+    printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > skills/e2e-hello/SKILL.md
+    printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > mcp.yaml
+    git init -q -b main && git add -A && git -c user.name=e2e -c user.email=e2e@example.com commit -qm init
+    git clone -q --bare . $AGENT_CONFIG_FIXTURE"
+}
 
 # 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
 declare -A TOOL_CHECK=(
@@ -134,6 +150,17 @@ declare -A TOOL_CHECK=(
   [herdr]="command -v herdr"
   [ttyd]="command -v ttyd"
   [wakatime]="command -v wakatime-cli && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
+  [claude]="command -v claude && claude --version"
+  [codex]="command -v codex && codex --version"
+  [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
+  [document-media]="[ \$(dpkg-query -W -f='\${Status}\\n' ffmpeg mupdf-tools pandoc 2>/dev/null | grep -c 'install ok installed') = 3 ]"
+  [ai-document-media]="~/.local/share/ai-document-media/venv/bin/python -c 'import docling, faster_whisper'"
+  # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
+  [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
+  # 真的能 headless 開頁,而且中文／emoji 字型在
+  [headless-chrome]="google-chrome --headless --no-sandbox --disable-gpu --dump-dom 'data:text/html,<p>e2e-ok</p>' 2>/dev/null | grep -q e2e-ok && [ \$(dpkg-query -W -f='\${Status}\\n' fonts-noto-cjk fonts-noto-color-emoji 2>/dev/null | grep -c 'install ok installed') = 2 ]"
+  # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定
+  [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json"
 )
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
@@ -145,8 +172,9 @@ check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; 
 # - nvm／code-server／herdr／fastfetch／wakatime 都會連網抓上游 installer 或 release;
 #   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
+  make_agent_config_fixture
   step "從零 chezmoi init --apply(選單只勾一部分)" \
-    "set -o pipefail; chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST") 2>&1 | tee ~/e2e-init.log"
+    "set -o pipefail; AGENT_CONFIG_REMOTE=$AGENT_CONFIG_FIXTURE chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST") 2>&1 | tee ~/e2e-init.log"
 
   bold "▶ 第一次 apply 之後"
   for p in "${UBUNTU_BASE[@]}"; do
@@ -155,6 +183,12 @@ scenario_ubuntu() {
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
   check_no_tool ttyd
   check_no_tool wakatime
+  check_no_tool opencode
+  check_no_tool ai-document-media
+  # skillshare 的設定(create_config.yaml)是一般檔案,所有 after_ 腳本都在檔案部署之後跑。
+  # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
+  check "agent-config 用的是 chezmoi 放的 skillshare 設定(targets 有 claude、codex)" \
+    "grep -q 'path: ~/.claude/skills' ~/.config/skillshare/config.yaml && [ -e ~/.agents/skills/e2e-hello ]"
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
@@ -163,7 +197,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
-  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"document-media\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "第二次 apply exit 0、apt 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
@@ -192,11 +226,32 @@ scenario_ubuntu() {
   local android='{"chezmoi":{"os":"android"}}'
   check "android 的 config 樣板不問選單,tools 是空的" \
     "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qx '    tools = \[\]' /tmp/android.toml"
+  # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
-    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q install-fastfetch"
+    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/install-fastfetch'"
   check "android 上沒有任何選裝工具的腳本會跑" \
-    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E 'install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime)'"
+    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/(npm-)?install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
+
+  # WSL 用 Windows 的 Chrome(chrome-mcp),選單不列 headless Chrome。
+  # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
+  # promptMultichoiceOnce 才會真的問(--no-tty 沒給旗標 = 用預設值,也就是全部列出來的選項)。
+  bold "▶ (渲染)WSL 選單不列 headless Chrome"
+  local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
+  local tmpl=~/.local/share/chezmoi/home
+  check "(對照)非 WSL 的選單有 headless-chrome" \
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"headless-chrome\"'"
+  check "WSL 的選單沒有 headless-chrome(其他 AI 工具照常列)" \
+    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/wsl.toml && grep -q '\"agent-config\"' /tmp/wsl.toml && ! grep -q headless-chrome /tmp/wsl.toml"
+  check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $tmpl/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
+
+  # ai-document-media 的 venv(docling 會拉 torch)太大,不在 e2e 實裝;只驗勾了才有內容、而且語法對。
+  bold "▶ (渲染)ai-document-media"
+  check "沒勾時安裝腳本是空的" \
+    "[ -z \"\$(chezmoi execute-template < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "勾了會渲染出可執行的 sh 腳本" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"ai-document-media\"]}' < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl > /tmp/aidm.sh && grep -q docling /tmp/aidm.sh && sh -n /tmp/aidm.sh"
 }
 
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
@@ -223,7 +278,7 @@ scenario_termux() {
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
   check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
   check "選裝工具的腳本一支都沒跑" \
-    "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime)'"
+    "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
 
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"

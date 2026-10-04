@@ -1,0 +1,14 @@
+{{- if has "opencode" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 OpenCode(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+set -eu
+
+# 1. 已經有就不重裝
+if command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ]; then
+  echo "OpenCode 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 安裝。--no-modify-path:不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
+curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+{{ end -}}
