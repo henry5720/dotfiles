@@ -1,0 +1,26 @@
+# 外部 repo:chezmoi apply 時下載,不收進這個 repo。
+# git-repo 類型要外部 git,由 run_onchange_before_install-packages 先裝好。
+#
+# git-repo 的目錄已經存在就不會重新 clone,所以舊機器用 install-base.sh clone 的那份
+# 會直接被接手。沒設 refreshPeriod:平常 apply 不連網更新,要更新就 `chezmoi apply -R`。
+
+# ===============================================================
+# 1. zsh 主題與插件(home/dot_zshrc 從這些路徑 source)
+# ===============================================================
+[".config/zsh/powerlevel10k"]
+    type = "git-repo"
+    url = "https://github.com/romkatv/powerlevel10k.git"
+    clone.args = ["--depth", "1"]
+    pull.args = ["--ff-only"]
+
+[".config/zsh/zsh-autosuggestions"]
+    type = "git-repo"
+    url = "https://github.com/zsh-users/zsh-autosuggestions.git"
+    clone.args = ["--depth", "1"]
+    pull.args = ["--ff-only"]
+
+[".config/zsh/zsh-syntax-highlighting"]
+    type = "git-repo"
+    url = "https://github.com/zsh-users/zsh-syntax-highlighting.git"
+    clone.args = ["--depth", "1"]
+    pull.args = ["--ff-only"]
