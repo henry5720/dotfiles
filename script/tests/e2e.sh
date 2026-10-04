@@ -164,19 +164,61 @@ PY
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
+# 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
+TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
+# 第一次 init 只勾這些;ttyd、wakatime 故意不勾,之後用 --prompt 補勾 wakatime。
+TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr
+TOOLS_SECOND=$TOOLS_FIRST/wakatime
+
+# 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
+declare -A TOOL_CHECK=(
+  [fastfetch]="command -v fastfetch"
+  [btop]="dpkg-query -W -f='\${Status}' btop | grep -q 'install ok installed'"
+  # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
+  [gh]="command -v gh && [ -f /etc/apt/preferences.d/github-cli ] && apt-cache policy gh | grep -A1 '^ \*\*\*' | grep -q cli.github.com"
+  [nvm]=". ~/.nvm/nvm.sh && node --version"
+  [code-server]="command -v code-server"
+  [tailscale]="command -v tailscale"
+  [herdr]="command -v herdr"
+  [ttyd]="command -v ttyd"
+  [wakatime]="command -v wakatime-cli && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
+)
+check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
+check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
+
+# 容器裡做不到、刻意不驗的事:
+# - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
+#   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
+#   真的啟用 tailscaled 要在有 systemd 的機器上人工確認。
+# - nvm／code-server／herdr／fastfetch／wakatime 都會連網抓上游 installer 或 release;
+#   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
-  step "從零 chezmoi init --apply" "chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}")"
+  step "從零 chezmoi init --apply(選單只勾一部分)" \
+    "set -o pipefail; chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST") 2>&1 | tee ~/e2e-init.log"
 
   bold "▶ 第一次 apply 之後"
   for p in "${UBUNTU_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
+  for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
+  check_no_tool ttyd
+  check_no_tool wakatime
+  check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
+  check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"remove-chezmoi-mcp.py\")'"
+  # Termux 字型三件套只給 android;Ubuntu 上什麼都不多。
+  check "沒有 ~/.termux/font.ttf" "[ ! -e ~/.termux/font.ttf ] && [ ! -L ~/.termux/font.ttf ]"
+  # 全新容器原本沒有這個目錄,chezmoi 也不該為了 android 的 symlink 建出空目錄。
+  check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
+  check "reload 腳本沒跑(渲染成空的)" \
+    "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
 
-  bold "▶ 第二次 apply"
+  bold "▶ 第二次 init／apply"
+  check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
+  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -184,21 +226,48 @@ scenario_ubuntu() {
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
+  bold "▶ init --prompt 多勾 wakatime"
+  check "init --prompt exit 0" \
+    "chezmoi init --prompt --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_SECOND")"
+  check "只有 wakatime 的安裝腳本待跑" \
+    "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check_tool wakatime
+  check_no_tool ttyd
+  check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+
   bold "▶ 套件清單加一個套件"
-  step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^  ubuntu:\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
+  step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
   check "套件腳本待跑(chezmoi status 有 R)" "chezmoi status | grep -E '^.?R.*install-packages'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check "只裝了 tree" "tail -n 20 /var/log/apt/history.log | grep '^Commandline:' | tail -n 1 | grep -qx 'Commandline: apt-get install -y tree'"
   check "tree 已安裝" "dpkg-query -W -f='\${Status}' tree | grep -q 'install ok installed'"
+
+  # 原生 Termux 不出選單、不跑選裝腳本。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
+  # 真的在 termux 容器跑 init 由 termux 目標負責。
+  bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
+  local android='{"chezmoi":{"os":"android"}}'
+  check "android 的 config 樣板不問選單,tools 是空的" \
+    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qx '    tools = \[\]' /tmp/android.toml"
+  # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
+  check "(對照)linux 用同一招看得到選裝腳本" \
+    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q install-fastfetch"
+  check "android 上沒有任何選裝工具的腳本會跑" \
+    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E 'install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime)'"
 }
 
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
 # 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3)。
 TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
+# nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
+# (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。
+HACK_SHA256=8cba545f0ab36d8f313a448676df9988d6c679a014ffed863e52305844e7b113
 
 scenario_termux() {
-  step "從零 chezmoi init --apply" "chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}")"
+  # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
+  step "從零 chezmoi init --apply" \
+    "set -o pipefail; chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") 2>&1 | tee ~/e2e-init.log"
 
   bold "▶ 第一次 apply 之後"
   for p in "${TERMUX_BASE[@]}"; do
@@ -213,6 +282,20 @@ scenario_termux() {
   check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
     "jq -e '.model == \"codex-lb-gcp/gpt-6-astra\" and .mcp == {}' ~/.config/opencode/opencode.json"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
+  check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
+    "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
+  check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
+    "[ \"\$(readlink ~/.local/share/fonts/HackNerdFont-Regular.ttf)\" = \"\$HOME/.termux/font.ttf\" ] && [ -f ~/.local/share/fonts/HackNerdFont-Regular.ttf ]"
+  # 容器裡有 termux-reload-settings(termux-tools),但它呼叫的 am 要 /system/bin/app_process,
+  # 沒有 Android 就失敗。腳本設計成失敗只警告、不讓 apply 失敗;這裡確認它真的跑了、走的是警告那條路。
+  check "reload 腳本有跑(scriptState 有記錄)" \
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
+  check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
+    "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
+  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
+  check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
+  check "選裝工具的腳本一支都沒跑" \
+    "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime)'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
   check_zsh_env "readlink -f ~/.termux/shell"
 

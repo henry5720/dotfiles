@@ -24,3 +24,18 @@
     url = "https://github.com/zsh-users/zsh-syntax-highlighting.git"
     clone.args = ["--depth", "1"]
     pull.args = ["--ff-only"]
+
+# ===============================================================
+# 2. Termux 終端機字型(只有 android)
+# ===============================================================
+{{- if eq .chezmoi.os "android" }}
+# 原生 Termux app 的終端機字型:Hack Nerd Font Regular(p10k 是 nerdfont-v3,任何 Nerd Font v3 都相容)。
+# v3.5.1 的 repo 沒有單一 ttf,從 release asset 的壓縮檔取一個檔案。
+# URL 釘 release tag,不設 refreshPeriod;要換字型或版本就改 url／path,
+# 同時改 run_onchange_after_termux-reload-settings.sh.tmpl 註解裡的 URL,讓它重跑 reload。
+# 不裝 Termux:Styling(它換字型會覆蓋這個檔),colors.properties 也不收,用 Termux 預設配色。
+[".termux/font.ttf"]
+type = "archive-file"
+url  = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.tar.xz"
+path = "HackNerdFont-Regular.ttf"
+{{- end }}
