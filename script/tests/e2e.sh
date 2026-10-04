@@ -194,6 +194,12 @@ scenario_ubuntu() {
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"remove-chezmoi-mcp.py\")'"
+  # Termux 字型三件套只給 android;Ubuntu 上什麼都不多。
+  check "沒有 ~/.termux/font.ttf" "[ ! -e ~/.termux/font.ttf ] && [ ! -L ~/.termux/font.ttf ]"
+  # 全新容器原本沒有這個目錄,chezmoi 也不該為了 android 的 symlink 建出空目錄。
+  check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
+  check "reload 腳本沒跑(渲染成空的)" \
+    "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -258,9 +264,14 @@ scenario_ubuntu() {
 # 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3)。
 TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
+# nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
+# (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。
+HACK_SHA256=8cba545f0ab36d8f313a448676df9988d6c679a014ffed863e52305844e7b113
 
 scenario_termux() {
-  step "從零 chezmoi init --apply" "chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}")"
+  # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
+  step "從零 chezmoi init --apply" \
+    "set -o pipefail; chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") 2>&1 | tee ~/e2e-init.log"
 
   bold "▶ 第一次 apply 之後"
   for p in "${TERMUX_BASE[@]}"; do
@@ -275,6 +286,16 @@ scenario_termux() {
   check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
     "jq -e '.model == \"codex-lb-gcp/gpt-6-astra\" and .mcp == {}' ~/.config/opencode/opencode.json"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
+  check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
+    "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
+  check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
+    "[ \"\$(readlink ~/.local/share/fonts/HackNerdFont-Regular.ttf)\" = \"\$HOME/.termux/font.ttf\" ] && [ -f ~/.local/share/fonts/HackNerdFont-Regular.ttf ]"
+  # 容器裡有 termux-reload-settings(termux-tools),但它呼叫的 am 要 /system/bin/app_process,
+  # 沒有 Android 就失敗。腳本設計成失敗只警告、不讓 apply 失敗;這裡確認它真的跑了、走的是警告那條路。
+  check "reload 腳本有跑(scriptState 有記錄)" \
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
+  check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
+    "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
   check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
   check "選裝工具的腳本一支都沒跑" \
