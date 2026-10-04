@@ -65,6 +65,8 @@ EnterWorktree --path <那個 path>
 
 - **接**：票還開著、沒有開著的 blocker、沒有別人的 assignee 才接。接了先 assign 自己，再寫第一行 code；不符合就停下來問。
 - **結**：commit 之後，這份工作會經由帶 `Closes #N` 的 PR 落地就不關，交給 merge；否則留言（commit、怎麼驗的）再關。
+  例外：多張票合進同一條**整合分支**、最後一個 PR 進 main 時，子票在合進整合分支當下就留言再關，
+  PR 只 `Closes` 母票（spec）。否則 blocker 要等整條分支進 main 才關，GitHub 上後面的票會一直顯示被擋住。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
 - 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
