@@ -1,4 +1,5 @@
-#!/bin/sh
+#!{{ lookPath "sh" }}
+# shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.config/opencode/opencode.json 兩方共用:provider、agent、plugin 這些由這個 repo 管,
 # `mcp` 由 skillshare 管(清單在 agent-config 的 mcp.yaml,`skillshare sync mcp -g` 寫進來)。
 # 整份部署的話每次 apply 都會把 skillshare 寫的 MCP 蓋掉,所以用 modify_:

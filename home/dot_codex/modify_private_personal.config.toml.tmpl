@@ -1,5 +1,6 @@
 {{- $personal := default dict (index . "aiPersonal") -}}
-#!/bin/sh
+#!{{ lookPath "sh" }}
+# shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # 共用 ~/.codex 的 personal profile；只管理 model/provider/login 與個人 skill deny，不碰 base gateway、credential 或 state。
 set -eu
 python3 -c '

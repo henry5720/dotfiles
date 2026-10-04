@@ -1,4 +1,5 @@
-#!/bin/sh
+#!{{ lookPath "sh" }}
+# shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.claude/settings.json 這份大部分不該納管:herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
 # autoMode.environment 一整塊機器描述,都是工具自己寫進去、而且會一直變的東西。
 # 所以同樣走 modify_,只釘一個 key。
