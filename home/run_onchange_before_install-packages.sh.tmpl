@@ -15,7 +15,7 @@ missing=""
 {{- range $tool, $toolPkgs := .toolPackages.ubuntu }}
 {{-   if and (ne $.chezmoi.os "android") (has $tool (index $ "tools")) }}{{ $pkgs = concat $pkgs $toolPkgs }}{{ end }}
 {{- end }}
-for pkg in {{ $pkgs | join " " }}; do
+for pkg in {{ $pkgs | uniq | join " " }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

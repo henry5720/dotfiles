@@ -33,3 +33,17 @@ toolPackages:
   ubuntu:
     btop:
       - btop
+    # 文件／影音:轉檔、讀 PDF、轉文件格式。python3-venv 給要自己建 venv 的人用
+    document-media:
+      - ffmpeg
+      - mupdf-tools
+      - pandoc
+      - python3-venv
+    # AI 文件解析的 venv 要 python3 -m venv(venv 本身在 run_onchange_after_install-ai-document-media)
+    ai-document-media:
+      - python3-venv
+    # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
+    # 沒這兩個字型,中文和 emoji 截圖全是方框
+    headless-chrome:
+      - fonts-noto-cjk
+      - fonts-noto-color-emoji

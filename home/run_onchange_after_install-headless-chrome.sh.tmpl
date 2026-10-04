@@ -1,0 +1,24 @@
+{{- /* 跟 .chezmoi.toml.tmpl 的選單過濾同一套條件:WSL 或非 amd64 就算 tools 裡有也不裝 */ -}}
+{{- $wsl := contains "microsoft" (lower (dig "kernel" "osrelease" "" .chezmoi)) -}}
+{{- if and (has "headless-chrome" (index . "tools")) (not $wsl) (eq .chezmoi.arch "amd64") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 給 chrome-mcp skill 的 chrome-headless 用:遠端主機自己開 Chrome 佔 9222,不必靠桌機轉發。
+# Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(toolPackages)。
+set -eu
+
+# 1. 已經有就不重裝
+if command -v google-chrome >/dev/null 2>&1; then
+  echo "headless Chrome 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 下載官方 .deb 再交給 apt 裝(apt 會一起裝依賴,也會加 Google 的 apt 來源讓之後跟著更新)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+deb=$tmp/google-chrome-stable_current_amd64.deb
+curl -fsSL -o "$deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+chmod 644 "$deb"
+sudo apt-get update
+sudo apt-get install -y "$deb"
+{{ end -}}
