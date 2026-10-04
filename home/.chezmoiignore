@@ -1,0 +1,6 @@
+# 依機器種類排除。路徑是 target 名稱(去掉 dot_、run_once_after_ 這類前綴與 .tmpl)。
+{{ if eq .chezmoi.os "android" }}
+# 原生 Termux:移除舊 chezmoi MCP 條目的一次性遷移只對已經部署過舊版的 Ubuntu 機器有意義,
+# 而且要 python3;Termux 是新機器,排除掉。
+remove-chezmoi-mcp.py
+{{ end }}

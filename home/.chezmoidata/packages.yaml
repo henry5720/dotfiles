@@ -14,6 +14,17 @@ packages:
     # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
     - jq
     - python3
+  # 原生 Termux,pkg 的套件名
+  termux:
+    - zsh
+    - git
+    - curl
+    - vim
+    - openssh
+    - fastfetch
+    # 同上,modify_ 要用。Termux 的 python 套件提供 python3 指令。
+    - jq
+    - python
 
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理。
