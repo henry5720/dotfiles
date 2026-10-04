@@ -19,15 +19,16 @@ if ! proot-distro login ubuntu -- true >/dev/null 2>&1; then
   proot-distro install ubuntu
 fi
 
-# 3. 在 proot Ubuntu 裡以 root 建使用者、裝 sudo、設密碼
+# 3. 在 proot Ubuntu 裡以 root 建使用者、裝 sudo 與 curl、設密碼
 #    密碼已經設過就不再問，重跑不會改到現有密碼
 proot-distro login ubuntu -- bash -c '
   set -euo pipefail
   name="$1"
-  # sudo 會拉進 tzdata，不設 noninteractive 會卡在時區選單
-  if ! command -v sudo >/dev/null; then
+  # sudo 會拉進 tzdata，不設 noninteractive 會卡在時區選單。
+  # curl、ca-certificates：下一步的 bootstrap 指令要用 curl 抓 https，rootfs 預設沒有
+  if ! command -v sudo >/dev/null || ! command -v curl >/dev/null || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo
+    DEBIAN_FRONTEND=noninteractive apt-get install -y sudo curl ca-certificates
   fi
   if id -u "$name" >/dev/null 2>&1; then
     usermod -aG sudo "$name"

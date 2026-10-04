@@ -1,5 +1,6 @@
 #!/bin/bash
-# 容器 e2e:在全新容器裡從本機 repo 跑 `chezmoi init --apply`,檢查機器上看得到的結果。
+# 容器 e2e:在全新容器裡從本機 repo 跑 bootstrap wizard(script/bootstrap.sh,
+# 最後一關就是 `chezmoi init --apply`),檢查機器上看得到的結果。
 #
 # 用法:
 #   bash script/tests/e2e.sh [ubuntu|termux]     # 預設 ubuntu
@@ -8,7 +9,9 @@
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
 #
-# 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub。
+# 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub:
+# 工作目錄在主機上包成一個暫時的 git repo 放進容器,wizard 用 BOOTSTRAP_REPO 從那裡 clone。
+# SSH key 是主機上現產的假 key,從 stdin 餵給 wizard;連 GitHub 驗證那關跳過(要人工驗)。
 # 秘密類 prompt 用 --promptString 給假值。
 #
 # 要加檢查項目:改下面「檢查清單」那一段的 scenario_<目標>,其他地方不用動。
@@ -66,13 +69,83 @@ cleanup() {
   fi
 }
 
-# 把 repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)複製到容器的 chezmoi source 位置。
-copy_repo() {  # copy_repo <容器內目錄>
-  docker exec -u "$CTR_USER" "$CTR" mkdir -p "$1"
+# 測試要的東西都在主機上做好再放進容器的 $FIX:容器在 bootstrap 之前連 git、ssh-keygen 都沒有。
+# 放在家目錄底下,因為 Termux 容器沒有 /tmp(在 Termux 裡是 $PREFIX/tmp)。
+#   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo
+#   $FIX/key、key.pub     假的 henry5720 key
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server)
+make_fixtures() {
+  FIX=$CTR_HOME/e2e-fixtures
+  local tmp
+  tmp=$(mktemp -d)
+  mkdir -p "$tmp/dotfiles"
   (cd "$REPO" && git ls-files -co --exclude-standard -z \
     | while IFS= read -r -d '' f; do [ -e "$f" ] && printf '%s\0' "$f"; done \
-    | tar --null -T - -cf -) \
-    | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$1" -xf -
+    | tar --null -T - -cf -) | tar -C "$tmp/dotfiles" -xf -
+  git -C "$tmp/dotfiles" init -q -b main
+  git -C "$tmp/dotfiles" add -A
+  git -C "$tmp/dotfiles" -c user.name=e2e -c user.email=e2e@example.com commit -qm e2e
+  ssh-keygen -q -t ed25519 -N '' -C e2e -f "$tmp/key"
+  mkdir -p "$tmp/ac/skills/e2e-hello"
+  printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
+  printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
+  git -C "$tmp/ac" init -q -b main
+  git -C "$tmp/ac" add -A
+  git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init
+  git clone -q --bare "$tmp/ac" "$tmp/agent-config.git"
+  rm -rf "$tmp/ac"
+  docker exec -u "$CTR_USER" "$CTR" mkdir -p "$FIX"
+  tar -C "$tmp" -cf - . | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$FIX" -xf -
+  rm -rf "$tmp"
+}
+
+# 印出「跑 bootstrap wizard」的容器內指令,交給 step／check 執行。多給的參數轉給 chezmoi init。
+# Termux 容器沒有 app 設的 TERMUX_VERSION,由這裡補上。
+# EXTRA_ENV 可以再加環境變數、蓋掉上面的預設(例如 HOME=… 換一個空的家目錄)。
+bootstrap() {  # bootstrap <輸出 log> <stdin 檔案> [chezmoi init 參數...]
+  local log=$1 stdin=$2; shift 2
+  local env="BOOTSTRAP_SKIP_GITHUB=1 BOOTSTRAP_REPO=$FIX/dotfiles AGENT_CONFIG_REMOTE=$FIX/agent-config.git ${EXTRA_ENV:-}"
+  [ "$TARGET" = termux ] && env="$env TERMUX_VERSION=e2e"
+  echo "set -o pipefail; $env bash $FIX/dotfiles/script/bootstrap.sh $(printf '%q ' "$@") < $stdin 2>&1 | tee $log"
+}
+
+# wizard 第一次跑完之後,兩個目標共用的檢查。
+check_bootstrap() {  # check_bootstrap <ubuntu|termux>
+  check "判斷出機器種類是 $1" "grep -q '偵測到 $1' ~/e2e-init.log"
+  check "第 2 關:git、ssh、curl 都有" "command -v git && command -v ssh && command -v curl"
+  check "第 3 關:貼上的 key 原封不動放在 ~/.ssh/henry5720,權限 600" \
+    "cmp ~/.ssh/henry5720 $FIX/key && [ \"\$(stat -c %a ~/.ssh/henry5720)\" = 600 ]"
+  check "第 3 關:產生的 .pub 跟原本的公鑰是同一把" \
+    "[ \"\$(awk '{print \$2}' ~/.ssh/henry5720.pub)\" = \"\$(awk '{print \$2}' $FIX/key.pub)\" ]"
+}
+
+# 重跑整支 wizard、貼錯 key。放在第一次 apply 的檢查之後。
+check_bootstrap_rerun() {  # check_bootstrap_rerun <ubuntu|termux>
+  bold "▶ 重跑 bootstrap wizard"
+  # stdin 給空的:如果第 3 關沒跳過、又去讀 key,會讀到空內容而失敗
+  check "重跑 exit 0(不用再貼 key、不用再給 prompt 旗標)" "$(bootstrap '~/e2e-rerun.log' /dev/null --no-tty)"
+  check "第 2 關跳過" "grep -q '都裝了，跳過' ~/e2e-rerun.log"
+  check "第 3 關跳過" "grep -q '已存在，跳過貼上' ~/e2e-rerun.log"
+  check "第 5 關不重裝 chezmoi" "grep -q 'chezmoi 已安裝' ~/e2e-rerun.log"
+  if [ "$1" = termux ]; then
+    check "authorized_keys 沒有重複加" \
+      "grep -q 'authorized_keys 已有這把 key' ~/e2e-rerun.log && [ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
+  fi
+
+  bold "▶ bootstrap wizard 貼錯 key(換一個空的家目錄)"
+  step "建一個空的家目錄與一段不是 key 的輸入" "rm -rf $FIX/badhome && mkdir $FIX/badhome && echo 'not a key' > $FIX/badkey"
+  check "貼錯時 wizard 失敗" "! { $(EXTRA_ENV="HOME=$FIX/badhome BOOTSTRAP_SKIP_UPGRADE=1" bootstrap '~/e2e-badkey.log' "$FIX/badkey" --no-tty); }"
+  check "說明是 key 格式不對" "grep -q '不是 OpenSSH 私鑰' ~/e2e-badkey.log"
+  check "沒留下 key 檔" "[ -z \"\$(ls -A $FIX/badhome/.ssh)\" ]"
+  check "停在第 3 關,沒有往下跑" "! grep -q '4/5' ~/e2e-badkey.log"
+  check "BOOTSTRAP_SKIP_UPGRADE=1 時第 1 關只看不升級" "grep -qE '只模擬 upgrade|只列出可升級的套件' ~/e2e-badkey.log"
+
+  # 真的連 GitHub(要能連外的 22 port):假 key 一定被拒。驗的是「被拒就停、不往下 init」;
+  # 被接受的那條路要用真的 key,只能人工驗。
+  bold "▶ bootstrap wizard 連 GitHub 驗證假 key"
+  check "GitHub 拒絕時 wizard 失敗" "! { $(EXTRA_ENV="BOOTSTRAP_SKIP_GITHUB=0 BOOTSTRAP_SKIP_UPGRADE=1" bootstrap '~/e2e-github.log' /dev/null --no-tty); }"
+  check "說明是 GitHub 不接受這把 key、停在第 4 關" \
+    "grep -q 'GitHub 不接受這把 key' ~/e2e-github.log && grep -q 'Permission denied (publickey)' ~/e2e-github.log && ! grep -q '5/5' ~/e2e-github.log"
 }
 
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
@@ -89,24 +162,21 @@ INIT_FLAGS=(
 # ===============================================================
 # 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
 # ===============================================================
-# 映像模擬「bootstrap 跑完、還沒 chezmoi init」的機器:一般使用者 + sudo 免密碼,
-# 已有 bootstrap 會裝的 git／curl／openssh-client 與 ~/.local/bin/chezmoi。
-# apt 清單刪掉,所以套件腳本一定要自己 apt-get update。
+# 映像模擬一台全新的 Ubuntu:只有一般使用者 + sudo 免密碼,沒有 git／curl／ssh／chezmoi,
+# 全部由 bootstrap wizard 裝。apt 清單刪掉,所以 wizard 一定要自己 apt-get update。
 setup_ubuntu() {
   CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
   CTR_HOME=/home/ubuntu
   docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
 FROM ubuntu:24.04
 RUN apt-get update \
- && apt-get install -y --no-install-recommends sudo ca-certificates git curl openssh-client \
+ && apt-get install -y --no-install-recommends sudo \
  && rm -rf /var/lib/apt/lists/* \
  && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
-USER ubuntu
-RUN sh -c "$(curl -fsSL https://get.chezmoi.io)" -- -b /home/ubuntu/.local/bin
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
   docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  copy_repo "$CTR_HOME/.local/share/chezmoi"
+  make_fixtures
 }
 
 # ===============================================================
@@ -172,19 +242,9 @@ TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/document-media/codegraph/headless-chrome/agent-config
 TOOLS_SECOND=$TOOLS_FIRST/wakatime
 
-# agent-config 的 remote 是 git@github.com(SSH),容器裡沒有 key。
-# 測試用 AGENT_CONFIG_REMOTE 換成容器裡的本機 bare repo(內容是假的一個 skill + 一個 MCP server),
+# agent-config 的 remote 是 git@github.com(SSH),容器裡沒有能用的 key。
+# 測試用 AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),
 # skillshare 本身照樣從網路裝、照樣 init/install/sync。真的 git@ clone 只在有 key 的機器上會走到。
-AGENT_CONFIG_FIXTURE=/tmp/agent-config.git
-make_agent_config_fixture() {
-  step "建 agent-config 的假 remote(本機 bare repo)" "set -e
-    rm -rf /tmp/agent-config-src $AGENT_CONFIG_FIXTURE
-    mkdir -p /tmp/agent-config-src/skills/e2e-hello && cd /tmp/agent-config-src
-    printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > skills/e2e-hello/SKILL.md
-    printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > mcp.yaml
-    git init -q -b main && git add -A && git -c user.name=e2e -c user.email=e2e@example.com commit -qm init
-    git clone -q --bare . $AGENT_CONFIG_FIXTURE"
-}
 
 # 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
 declare -A TOOL_CHECK=(
@@ -220,9 +280,11 @@ check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; 
 # - nvm／code-server／herdr／fastfetch／wakatime 都會連網抓上游 installer 或 release;
 #   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
-  make_agent_config_fixture
-  step "從零 chezmoi init --apply(選單只勾一部分)" \
-    "set -o pipefail; AGENT_CONFIG_REMOTE=$AGENT_CONFIG_FIXTURE chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST") 2>&1 | tee ~/e2e-init.log"
+  step "全新機器跑 bootstrap wizard,最後 init --apply(選單只勾一部分)" \
+    "$(bootstrap '~/e2e-init.log' "$FIX/key" --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST")"
+  check_bootstrap ubuntu
+  check "第 1 關有升級:沒有可升級的套件" "apt-get -s upgrade | grep -q '^0 upgraded'"
+  check "第 5 關 chezmoi 裝在 ~/.local/bin" "[ -x ~/.local/bin/chezmoi ]"
 
   bold "▶ 第一次 apply 之後"
   for p in "${UBUNTU_BASE[@]}"; do
@@ -249,6 +311,7 @@ scenario_ubuntu() {
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
+  check_bootstrap_rerun ubuntu
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -320,9 +383,18 @@ APT_LOG='$PREFIX/var/log/apt/history.log'
 HACK_SHA256=8cba545f0ab36d8f313a448676df9988d6c679a014ffed863e52305844e7b113
 
 scenario_termux() {
+  # termux-change-repo 是全螢幕選單,容器裡沒辦法操作;先放好它選完會留下的 symlink,
+  # 讓 wizard 走「已選過」那條路。真的選 mirror 要在真機上人工驗。
+  step "模擬已選過 mirror" "ln -sfn \$PREFIX/etc/termux/mirrors/default \$PREFIX/etc/termux/chosen_mirrors"
   # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
-  step "從零 chezmoi init --apply" \
-    "set -o pipefail; chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") 2>&1 | tee ~/e2e-init.log"
+  step "全新 Termux 跑 bootstrap wizard,最後 init --apply" \
+    "$(bootstrap '~/e2e-init.log' "$FIX/key" --no-tty "${INIT_FLAGS[@]}")"
+  check_bootstrap termux
+  check "第 1 關有升級:沒有可升級的套件" "[ -z \"\$(apt list --upgradable 2>/dev/null | grep -v '^Listing')\" ]"
+  check "第 1 關跳過 termux-change-repo" "grep -q '已選過 mirror' ~/e2e-init.log"
+  check "第 1 關 termux-setup-storage 失敗只警告(容器沒有 Android)" "grep -q 'termux-setup-storage 失敗' ~/e2e-init.log"
+  check "第 4 關把公鑰加進 authorized_keys" "[ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
+  check "第 5 關 chezmoi 用 pkg 裝" "dpkg-query -W -f='\${Status}' chezmoi | grep -q 'install ok installed'"
 
   bold "▶ 第一次 apply 之後"
   for p in "${TERMUX_BASE[@]}"; do
@@ -353,6 +425,7 @@ scenario_termux() {
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
   check_zsh_env "readlink -f ~/.termux/shell"
+  check_bootstrap_rerun termux
 
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
@@ -366,8 +439,8 @@ scenario_termux() {
 # ===============================================================
 # 目標:termux(代表原生 Termux)
 # ===============================================================
-# 映像模擬「pkg install chezmoi 之後、還沒 init」的 Termux:只有 chezmoi,
-# 沒有 git、python、jq、zsh,全部要靠套件腳本裝。
+# 映像模擬一台剛裝好的 Termux:什麼都沒裝。git／openssh／chezmoi 由 bootstrap wizard 裝,
+# python、jq、zsh 等由 chezmoi 的套件腳本裝。
 # 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
 # bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
 # 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
@@ -377,11 +450,11 @@ setup_termux() {
   docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
 FROM termux/termux-docker:x86_64
 ENV SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
-RUN /entrypoint.sh bash -lc 'pkg install -y chezmoi'
+RUN /entrypoint.sh bash -lc true
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
   docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  copy_repo "$CTR_HOME/.local/share/chezmoi"
+  make_fixtures
 }
 
 # ===============================================================
