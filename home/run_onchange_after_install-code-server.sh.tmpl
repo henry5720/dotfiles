@@ -1,0 +1,13 @@
+{{- if has "code-server" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 code-server(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 設定檔由 chezmoi 部署(dot_config/private_code-server);臨時用直接跑 code-server,
+# 要常駐見 docs/code-server-remote.md。
+set -eu
+
+if command -v code-server >/dev/null 2>&1; then
+  echo "code-server 已安裝,跳過"
+  exit 0
+fi
+curl -fsSL https://code-server.dev/install.sh | sh
+{{ end -}}

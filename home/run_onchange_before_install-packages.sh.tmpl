@@ -1,6 +1,6 @@
 {{- if eq .chezmoi.os "linux" -}}
 #!{{ lookPath "sh" }}
-# 裝 .chezmoidata/packages.yaml 列的系統套件。
+# 裝 .chezmoidata/packages.yaml 列的系統套件,加上選單有勾、走 apt 的選裝工具(toolPackages)。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
@@ -10,7 +10,11 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)
 missing=""
-for pkg in {{ .packages.ubuntu | join " " }}; do
+{{- $pkgs := .packages.ubuntu }}
+{{- range $tool, $toolPkgs := .toolPackages.ubuntu }}
+{{-   if has $tool (index $ "tools") }}{{ $pkgs = concat $pkgs $toolPkgs }}{{ end }}
+{{- end }}
+for pkg in {{ $pkgs | join " " }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

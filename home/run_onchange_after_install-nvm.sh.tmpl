@@ -1,0 +1,17 @@
+{{- if has "nvm" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 nvm + Node LTS(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
+# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
+set -eu
+
+# 1. 已經有就不重裝
+if [ -d "$HOME/.nvm" ]; then
+  echo "nvm 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | PROFILE=/dev/null bash
+bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
+{{ end -}}

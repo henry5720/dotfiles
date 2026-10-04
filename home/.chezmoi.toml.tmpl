@@ -5,6 +5,15 @@
 {{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。 */ -}}
 {{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" "henry" -}}
 {{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" -}}
+{{- /* 選裝工具:只在 Ubuntu 問一次,預設全選。原生 Termux 不出選單(開發環境放 proot Ubuntu)。
+       重選用 `chezmoi init --prompt`;新勾的下次 apply 會裝,取消勾選不會解除安裝。
+       清單以後加了新工具,已經 init 過的機器不會自動問,也要 --prompt。
+       每個工具對應 run_onchange_after_install-<工具>.sh.tmpl,或 .chezmoidata/packages.yaml 的 toolPackages。 */ -}}
+{{- $tools := list -}}
+{{- if ne .chezmoi.os "android" -}}
+{{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
+{{-   $tools = promptMultichoiceOnce . "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolChoices -}}
+{{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 {{- $models := default dict (index $personal "models") -}}
 
@@ -15,6 +24,7 @@
     wakatimeApiKey = {{ $wakatimeApiKey | quote }}
     gitUserName = {{ $gitUserName | quote }}
     gitUserEmail = {{ $gitUserEmail | quote }}
+    tools = {{ $tools | toToml }}
 
     # 非秘密模型資料；留空不會 prompt，也不會讓個人 profile 被視為 ready。
     [data.aiPersonal]

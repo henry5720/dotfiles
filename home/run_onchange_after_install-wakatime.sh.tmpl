@@ -1,0 +1,31 @@
+{{- if has "wakatime" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
+# wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
+set -eu
+
+# 1. wakatime-cli
+if command -v wakatime-cli >/dev/null 2>&1; then
+  echo "wakatime-cli 已安裝,跳過"
+else
+  case "$(uname -m)" in
+    x86_64|amd64) asset=amd64 ;;
+    aarch64|arm64) asset=arm64 ;;
+    *) echo "WakaTime CLI 不支援架構 $(uname -m)" >&2; exit 1 ;;
+  esac
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/wakatime.zip" \
+    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-linux-$asset.zip"
+  unzip -q "$tmp/wakatime.zip" -d "$tmp"
+  mkdir -p "$HOME/.local/bin"
+  install -m 755 "$tmp/wakatime-cli-linux-$asset" "$HOME/.local/bin/wakatime-cli"
+fi
+
+# 2. zsh 外掛
+plugin="$HOME/.config/zsh/wakatime-zsh-plugin"
+if [ ! -d "$plugin" ]; then
+  git clone --depth=1 https://github.com/sobolevn/wakatime-zsh-plugin.git "$plugin"
+fi
+{{ end -}}
