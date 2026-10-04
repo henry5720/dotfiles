@@ -1,24 +1,32 @@
-{{- if eq .chezmoi.os "linux" -}}
+{{- if or (eq .chezmoi.os "linux") (eq .chezmoi.os "android") -}}
 #!{{ lookPath "sh" }}
-# 裝 .chezmoidata/packages.yaml 列的系統套件。
+# 裝 .chezmoidata/packages.yaml 列的系統套件。Ubuntu 走 apt-get,原生 Termux(os 是 android)走 pkg。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
 # run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
-# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
 set -eu
 
-# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in {{ .packages.ubuntu | join " " }}; do
+for pkg in {{ if eq .chezmoi.os "android" }}{{ .packages.termux | join " " }}{{ else }}{{ .packages.ubuntu | join " " }}{{ end }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done
 [ -n "$missing" ] || exit 0
 
-# 2. 有缺才 update + install
+# 2. 有缺才裝
 echo "安裝缺少的套件:$missing"
+{{ if eq .chezmoi.os "android" -}}
+# Termux 不支援部分升級(新套件可能連到比已裝的更新的 library),所以先整台 upgrade。
+# --force-confold:遇到改過的設定檔保留現有的,不跳互動提示。
+pkg upgrade -y -o Dpkg::Options::=--force-confold
+# shellcheck disable=SC2086 # 要拆成多個參數
+pkg install -y $missing
+{{- else -}}
+# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
 sudo apt-get update
 # shellcheck disable=SC2086 # 要拆成多個參數
 sudo apt-get install -y $missing
+{{- end }}
 {{ end -}}

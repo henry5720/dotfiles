@@ -31,9 +31,9 @@ green() { printf '\033[32m%s\033[0m\n' "$*"; }
 bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
 
 # 在容器裡以一般使用者執行(login shell,~/.local/bin 會在 PATH 上)。
-# 輸出存進 $OUT,呼叫端決定要不要印。
+# 輸出存進 $OUT,呼叫端決定要不要印。CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 in_ctr() {
-  OUT=$(docker exec -u "$CTR_USER" -w "/home/$CTR_USER" "$CTR" bash -lc "$1" 2>&1)
+  OUT=$(docker exec -u "$CTR_USER" -w "$CTR_HOME" "$CTR" bash -lc "$1" 2>&1)
 }
 
 step() {  # step <描述> <容器內指令>
@@ -94,6 +94,7 @@ INIT_FLAGS=(
 # apt 清單刪掉,所以套件腳本一定要自己 apt-get update。
 setup_ubuntu() {
   CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
+  CTR_HOME=/home/ubuntu
   docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
 FROM ubuntu:24.04
 RUN apt-get update \
@@ -105,7 +106,7 @@ RUN sh -c "$(curl -fsSL https://get.chezmoi.io)" -- -b /home/ubuntu/.local/bin
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
   docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  copy_repo "/home/$CTR_USER/.local/share/chezmoi"
+  copy_repo "$CTR_HOME/.local/share/chezmoi"
 }
 
 # ===============================================================
@@ -122,6 +123,9 @@ scenario_ubuntu() {
   for p in "${UBUNTU_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
+  # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
+  check "移除 chezmoi MCP 的 python 腳本有跑" \
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"remove-chezmoi-mcp.py\")'"
 
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
@@ -130,21 +134,62 @@ scenario_ubuntu() {
   check "chezmoi verify 通過" "chezmoi verify"
 
   bold "▶ 套件清單加一個套件"
-  step "yaml 加上 tree" "printf '    - tree\n' >> ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
+  step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^  ubuntu:\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
   check "套件腳本待跑(chezmoi status 有 R)" "chezmoi status | grep -E '^.?R.*install-packages'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check "只裝了 tree" "tail -n 20 /var/log/apt/history.log | grep '^Commandline:' | tail -n 1 | grep -qx 'Commandline: apt-get install -y tree'"
   check "tree 已安裝" "dpkg-query -W -f='\${Status}' tree | grep -q 'install ok installed'"
 }
 
+# Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
+# 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3)。
+TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python)
+APT_LOG='$PREFIX/var/log/apt/history.log'
+
+scenario_termux() {
+  step "從零 chezmoi init --apply" "chezmoi init --apply --no-tty $(printf '%q ' "${INIT_FLAGS[@]}")"
+
+  bold "▶ 第一次 apply 之後"
+  for p in "${TERMUX_BASE[@]}"; do
+    check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
+  done
+  check "modify_ 產物:~/.claude/settings.json 關掉 chrome-devtools plugin" \
+    "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
+  check "modify_ 產物:~/.codex/config.toml 有 codex-lb provider" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"model_provider\"]==\"codex-lb-gcp\" and \"codex-lb-gcp\" in c[\"model_providers\"]' ~/.codex/config.toml"
+  check "modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"forced_login_method\"]==\"chatgpt\"' ~/.codex/personal.config.toml"
+  check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
+    "jq -e '.model == \"codex-lb-gcp/gpt-6-astra\" and .mcp == {}' ~/.config/opencode/opencode.json"
+  check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
+
+  bold "▶ 第二次 apply"
+  check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
+  check "第二次 apply exit 0、pkg 沒被呼叫" \
+    "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
+  check "chezmoi verify 通過" "chezmoi verify"
+}
+
 # ===============================================================
 # 目標:termux(代表原生 Termux)
 # ===============================================================
+# 映像模擬「pkg install chezmoi 之後、還沒 init」的 Termux:只有 chezmoi,
+# 沒有 git、python、jq、zsh,全部要靠套件腳本裝。
+# 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
+# bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
+# 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
 setup_termux() {
-  red "termux 目標還沒實作(之後的票會補 setup_termux 與 scenario_termux)"
-  exit 2
+  CTR_USER=system
+  CTR_HOME=/data/data/com.termux/files/home
+  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
+FROM termux/termux-docker:x86_64
+ENV SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
+RUN /entrypoint.sh bash -lc 'pkg install -y chezmoi'
+DOCKERFILE
+  docker rm -f "$CTR" >/dev/null 2>&1 || true
+  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
+  copy_repo "$CTR_HOME/.local/share/chezmoi"
 }
-scenario_termux() { :; }
 
 # ===============================================================
 # 主流程

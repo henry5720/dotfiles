@@ -1,4 +1,5 @@
-#!/bin/sh
+#!{{ lookPath "sh" }}
+# shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.codex/config.toml 是兩方共用的檔案:上半段是這個 repo 的設定,下半段全是 codex
 # 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
 # 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
