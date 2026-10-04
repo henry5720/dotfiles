@@ -1,0 +1,24 @@
+{{- if has "codegraph" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 codegraph CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+#
+# 檔名刻意不叫 install-codegraph:chezmoi 依檔名字母順序跑腳本,它要 npm,
+# 必須排在 install-nvm 之後,第一次 apply 同時勾了兩個才裝得起來。
+set -eu
+
+# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
+if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
+  set +u; . "$NVM_DIR/nvm.sh"; set -u
+fi
+
+# 2. 已經有就不重裝
+if command -v codegraph >/dev/null 2>&1; then
+  echo "codegraph 已安裝,跳過"
+  exit 0
+fi
+
+# 3. 安裝
+command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:選單一起勾 nvm(chezmoi init --prompt)" >&2; exit 1; }
+npm install -g @colbymchenry/codegraph
+{{ end -}}
