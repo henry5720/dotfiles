@@ -63,8 +63,8 @@ chezmoi diff                                    # 輸出空的 = 家目錄與 re
 chezmoi verify                                  # 同上,只看 exit code
 chezmoi --no-tty execute-template --init \
   < home/.chezmoi.toml.tmpl                     # config 樣板能不能渲染
-bash -n script/ubuntu/*.sh script/termux/*.sh   # 腳本語法(shellcheck 未安裝)
-bash script/tests/e2e.sh ubuntu                # 全新容器從零 init --apply(要 docker;檢查清單在腳本裡)
+bash -n script/*.sh script/ubuntu/*.sh script/termux/*.sh  # 腳本語法(shellcheck 未安裝)
+bash script/tests/e2e.sh ubuntu                # 全新容器跑 bootstrap wizard 到 init --apply(要 docker;檢查清單在腳本裡)
 ```
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
