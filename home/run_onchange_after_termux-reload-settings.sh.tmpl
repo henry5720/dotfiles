@@ -1,0 +1,10 @@
+{{- if eq .chezmoi.os "android" -}}
+#!{{ lookPath "sh" }}
+# 讓 Termux app 重新讀 ~/.termux/font.ttf。非 android 渲染成空檔,chezmoi 不會跑。
+#
+# run_onchange_:內容變了才重跑。字型來源寫在這裡,換字型時要跟 .chezmoiexternal.toml.tmpl 一起改:
+# 字型:https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.tar.xz (HackNerdFont-Regular.ttf)
+#
+# reload 失敗(例如沒有 Termux app 的容器)只警告,不讓 apply 失敗;下次開 Termux 一樣會讀到新字型。
+termux-reload-settings || echo "警告:termux-reload-settings 失敗,重開 Termux 後字型才會生效" >&2
+{{ end -}}
