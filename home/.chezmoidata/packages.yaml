@@ -25,3 +25,11 @@ packages:
     # 同上,modify_ 要用。Termux 的 python 套件提供 python3 指令。
     - jq
     - python
+
+# 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
+# 有勾才裝,跟上面的清單一起由同一支套件腳本處理。
+# 要加 apt 來源、curl installer 的工具不放這裡,各自一支 run_onchange_after_install-<工具>.sh.tmpl。
+toolPackages:
+  ubuntu:
+    btop:
+      - btop

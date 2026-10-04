@@ -1,0 +1,25 @@
+{{- if has "fastfetch" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 fastfetch(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 抓 GitHub release 的 .deb:Ubuntu 24.04 的套件庫沒有 fastfetch。chezmoi 不負責更新它。
+set -eu
+
+# 1. 已經有就不重裝(舊機器以前用 install-tools.sh 裝過)
+if command -v fastfetch >/dev/null 2>&1; then
+  echo "fastfetch 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 依架構下載 .deb 安裝(apt-get 裝本機 .deb 會順便補依賴)
+case "$(dpkg --print-architecture)" in
+  amd64) asset=amd64 ;;
+  arm64) asset=aarch64 ;;
+  armhf) asset=armv7l ;;
+  *) echo "fastfetch 不支援架構 $(dpkg --print-architecture),跳過"; exit 0 ;;
+esac
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/fastfetch.deb" \
+  "https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-$asset.deb"
+sudo apt-get install -y "$tmp/fastfetch.deb"
+{{ end -}}
