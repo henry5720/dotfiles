@@ -251,8 +251,9 @@ check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
 # 選裝腳本在 chezmoi 裡的名字(scriptState 的 name、dry-run 的 diff 標頭)。從 TOOL_CHECK 產生,
-# 加工具時不用再改這裡。codegraph 的腳本叫 npm-install-codegraph,所以前綴是 (npm-)?install-。
-TOOL_SCRIPT_RE="(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK[*]}"))"
+# 加工具時不用再改這裡。名字帶腳本所在的 .chezmoiscripts/;codegraph 的腳本叫 npm-install-codegraph,
+# 所以檔名前綴是 (npm-)?install-。
+TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK[*]}"))"
 
 # ===============================================================
 # 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
@@ -309,13 +310,13 @@ scenario_ubuntu() {
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
-    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"remove-chezmoi-mcp.py\")'"
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/remove-chezmoi-mcp.py\")'"
   # Termux 字型三件套只給 android;Ubuntu 上什麼都不多。
   check "沒有 ~/.termux/font.ttf" "[ ! -e ~/.termux/font.ttf ] && [ ! -L ~/.termux/font.ttf ]"
   # 全新容器原本沒有這個目錄,chezmoi 也不該為了 android 的 symlink 建出空目錄。
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
-    "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
+    "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check_bootstrap_rerun ubuntu
 
@@ -324,7 +325,7 @@ scenario_ubuntu() {
   check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
-    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、apt 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
@@ -371,7 +372,7 @@ scenario_ubuntu() {
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
-    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/install-fastfetch'"
+    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/\.chezmoiscripts/install-fastfetch'"
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
@@ -380,13 +381,13 @@ scenario_ubuntu() {
   # promptMultichoiceOnce 才會真的問(--no-tty 沒給旗標 = 用預設值,也就是全部列出來的選項)。
   bold "▶ (渲染)WSL 選單不列 headless Chrome"
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
-  local tmpl=~/.local/share/chezmoi/home
+  local tmpl=~/.local/share/chezmoi/home scripts=~/.local/share/chezmoi/home/.chezmoiscripts
   check "(對照)非 WSL 的選單有 headless-chrome" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"headless-chrome\"'"
   check "WSL 的選單沒有 headless-chrome(其他 AI 工具照常列)" \
     "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/wsl.toml && grep -q '\"agent-config\"' /tmp/wsl.toml && ! grep -q headless-chrome /tmp/wsl.toml"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $tmpl/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
 
   # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
@@ -398,7 +399,7 @@ scenario_ubuntu() {
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome; do
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
-      "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $tmpl/$f.sh.tmpl | tr -d '[:space:]')\" ]"
+      "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
@@ -406,15 +407,15 @@ scenario_ubuntu() {
   # 文件解析兩項不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才有內容、而且語法對。
   bold "▶ (渲染)document-media"
   check "沒勾時套件腳本不含 ffmpeg" \
-    "! chezmoi execute-template < $tmpl/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
+    "! chezmoi execute-template < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
   check "勾了套件腳本會裝 ffmpeg、mupdf-tools、pandoc" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"document-media\"]}' < $tmpl/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+    "chezmoi execute-template --override-data '{\"tools\":[\"document-media\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
 
   bold "▶ (渲染)ai-document-media"
   check "沒勾時安裝腳本是空的" \
-    "[ -z \"\$(chezmoi execute-template < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
+    "[ -z \"\$(chezmoi execute-template < $scripts/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
   check "勾了會渲染出可執行的 sh 腳本" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"ai-document-media\"]}' < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl > /tmp/aidm.sh && grep -q docling /tmp/aidm.sh && sh -n /tmp/aidm.sh"
+    "chezmoi execute-template --override-data '{\"tools\":[\"ai-document-media\"]}' < $scripts/run_onchange_after_install-ai-document-media.sh.tmpl > /tmp/aidm.sh && grep -q docling /tmp/aidm.sh && sh -n /tmp/aidm.sh"
 }
 
 # ===============================================================
@@ -480,7 +481,7 @@ scenario_termux() {
   # 容器裡有 termux-reload-settings(termux-tools),但它呼叫的 am 要 /system/bin/app_process,
   # 沒有 Android 就失敗。腳本設計成失敗只警告、不讓 apply 失敗;這裡確認它真的跑了、走的是警告那條路。
   check "reload 腳本有跑(scriptState 有記錄)" \
-    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"termux-reload-settings.sh\")'"
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
@@ -494,7 +495,7 @@ scenario_termux() {
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
-    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
+    "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、pkg 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"

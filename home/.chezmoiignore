@@ -1,8 +1,9 @@
 # 依機器種類排除。路徑是 target 名稱(去掉 dot_、run_once_after_ 這類前綴與 .tmpl)。
+# 腳本放在 .chezmoiscripts/,target 名稱要帶這層目錄,只寫檔名會擋不到。
 {{ if eq .chezmoi.os "android" }}
 # 原生 Termux:移除舊 chezmoi MCP 條目的一次性遷移只對已經部署過舊版的 Ubuntu 機器有意義,
 # 而且要 python3;Termux 是新機器,排除掉。
-remove-chezmoi-mcp.py
+.chezmoiscripts/remove-chezmoi-mcp.py
 {{ else }}
 # 只有原生 Termux 要的:給 xfce 終端機(fontconfig)看的字型 symlink。
 # 排除整個目錄,不然 chezmoi 會在其他機器建出空的 ~/.local/share/fonts。
