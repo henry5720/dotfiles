@@ -5,8 +5,9 @@
 # 用法（repo 是公開的；不要用 `curl | bash`，那樣 stdin 被吃掉，wizard 讀不到你貼的 key）：
 #   bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
 #
-# 每一關都能重跑，已經做過的會跳過。多給的參數原樣轉給 `chezmoi init`
-# （例如 `--prompt` 重新選選裝工具）。
+# 每一關都能重跑，已經做過的會跳過。多給的參數原樣轉給 `chezmoi init`。
+# 之後要改選裝工具用 `chezmoi edit-config` 改 tools 再 `chezmoi apply`，不必重跑這支
+# （`--prompt` 也能重選，但會重問憑證、直接 Enter 會清空，見 README）。
 #
 # 測試用的環境變數（平常不用設，見 script/tests/e2e.sh）：
 #   BOOTSTRAP_SKIP_UPGRADE=1  第 1 關只更新套件清單、模擬 upgrade，不真的升級

@@ -213,11 +213,10 @@ PY
 
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
-# 第一次 init 只勾這些;ttyd、wakatime、opencode、ai-document-media 故意不勾,之後用 --prompt 補勾 wakatime。
+# 第一次 init 只勾這些;ttyd、wakatime、opencode、ai-document-media 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ai-document-media(docling + faster-whisper,venv 好幾 GB)不在這裡實裝,只做下面的渲染檢查;
 # 實裝在一次性容器手動驗過(見 #65 的回報)。
 TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/document-media/codegraph/headless-chrome/agent-config
-TOOLS_SECOND=$TOOLS_FIRST/wakatime
 
 # agent-config 的 remote 是 git@github.com(SSH),容器裡沒有能用的 key。
 # 測試用 AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),
@@ -328,15 +327,31 @@ scenario_ubuntu() {
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  bold "▶ init --prompt 多勾 wakatime"
-  check "init --prompt exit 0" \
-    "chezmoi init --prompt --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_SECOND")"
+  # --prompt 會重問所有問題:非秘密欄位(git 身分)與選單預設帶現值,直接 Enter 保留;
+  # 憑證不帶現值(不想明文顯示在提示上),這裡照樣用旗標給。--promptDefaults = 每題都直接 Enter
+  # (沒有預設值的題目它還是會去讀 stdin,所以四個憑證都要給)。
+  bold "▶ init --prompt 直接 Enter,git 身分與選單保留原值"
+  step "記下現在的 tools" "grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml > /tmp/tools-before"
+  check "init --prompt --promptDefaults(只給憑證旗標)exit 0" \
+    "chezmoi init --prompt --promptDefaults --no-tty $(printf '%q ' "${INIT_FLAGS[@]:0:8}") </dev/null"
+  check "gitUserName 保留 e2e" "grep -qx '    gitUserName = \"e2e\"' ~/.config/chezmoi/chezmoi.toml"
+  check "gitUserEmail 保留 e2e@example.com" "grep -qx '    gitUserEmail = \"e2e@example.com\"' ~/.config/chezmoi/chezmoi.toml"
+  check "tools 保留原本的勾選" "grep -qxFf /tmp/tools-before ~/.config/chezmoi/chezmoi.toml"
+  check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+
+  # 改選裝工具的正規做法:chezmoi edit-config 改 [data] tools 那一行,再 apply。
+  # edit-config 只是開編輯器,這裡直接 sed config 模擬。
+  bold "▶ edit-config 在 tools 多加 wakatime"
+  step "config 的 tools 加上 wakatime" \
+    "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check_tool wakatime
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+  check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
+    "chezmoi init --no-tty </dev/null && grep -q '^    tools = .*\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml && grep -qF '\"agent-config\", \"wakatime\"]' ~/.config/chezmoi/chezmoi.toml"
 
   bold "▶ 套件清單加一個套件"
   step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"

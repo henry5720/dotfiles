@@ -26,7 +26,8 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 遇到 sudo 密碼或權限、任何秘密/API key/password、Claude OAuth、SSH key、需要瀏覽器
 登入、或 optional choice 時,請先暫停並詢問我,不要猜測或代替我選擇。不要讀取、列印、
 儲存、複製或提交任何憑證;不要把 Claude OAuth 或 SSH private key 寫進 repo。
-不要執行 chezmoi init --prompt(它會重問所有憑證)。
+不要執行 chezmoi init --prompt(它會重問所有憑證,直接 Enter 會清空)。
+要改選裝工具就請我自己用 chezmoi edit-config 改。
 
 完成後只回報每一步的結果與尚未處理的人工項目。
 ```

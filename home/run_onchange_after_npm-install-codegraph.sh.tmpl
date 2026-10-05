@@ -19,6 +19,6 @@ if command -v codegraph >/dev/null 2>&1; then
 fi
 
 # 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:選單一起勾 nvm(chezmoi init --prompt)" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:tools 一起勾 nvm(chezmoi edit-config 改 tools 再 apply)" >&2; exit 1; }
 npm install -g @colbymchenry/codegraph
 {{ end -}}
