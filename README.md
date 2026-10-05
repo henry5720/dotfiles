@@ -38,9 +38,10 @@ flowchart LR
 | `home/.chezmoiexternal.toml.tmpl` | `~/.config/zsh/*`、Termux 的 `~/.termux/font.ttf` | p10k、zsh 插件、Termux 字型（apply 時下載） |
 | `home/.chezmoidata/packages.yaml` | （不部署） | 基底套件與走 apt 的選裝工具清單 |
 | `home/run_*` | （不部署，apply 時執行） | 裝套件、裝選裝工具、換預設 shell |
-| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、code-server、opencode、skillshare 的 `config.yaml` |
+| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、fontconfig（WSL 借用 Windows 字型）、code-server、opencode、skillshare 的 `config.yaml` |
 | `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
 | `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp`、`share-shell` 等） |
+| `home/dot_local/share/fonts/` | `~/.local/share/fonts/` | Termux 字型的 symlink，給 xfce 終端機用（只部署在原生 Termux） |
 | `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
 | `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證、Git 身分、選裝工具的選擇（`chezmoi init` 時問） |
 
@@ -61,23 +62,12 @@ chezmoi 會依命名與 template 規則部署 `home/`，不一定原樣複製。
 
 ## 新機器
 
-先做腳本做不到的前置，再跑同一行 bootstrap：
-
-| 機器 | 前置（手動） |
-|---|---|
-| WSL2 | Windows 裝好 WSL Ubuntu；終端機字型裝在 Windows 那側，見 [wsl/command.md](wsl/command.md#終端機字型hack-nerd-font) |
-| 雲端主機 | 能 SSH 進去、帳號能 sudo |
-| 原生 Termux | 從 **F-Droid** 裝 Termux；要桌面再從 GitHub 裝 Termux:X11 app（見[新機器設定](docs/new-machine-setup.md#平板原生-termux-與-proot-ubuntu)） |
-| proot Ubuntu | 先在原生 Termux 跑完 bootstrap，再跑 `script/termux/setup-proot-ubuntu.sh` 建使用者並登入 |
-
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
 ```
 
-要用 `bash <(...)`，不要 `curl | bash`：wizard 要從終端機讀你貼上的 SSH key。它依序做系統更新、
-裝 git／ssh／curl、放 `~/.ssh/henry5720`、驗證 GitHub、裝 chezmoi，最後
-`chezmoi init --apply`。每一關都能重跑。逐步說明、平板流程、裝完之後的 AI 工具設定見
-[新機器設定](docs/new-machine-setup.md)。
+跑之前要先做腳本做不到的前置，每種機器（WSL、雲端主機、原生 Termux、proot Ubuntu）不同。
+前置、每一關做什麼、裝完之後的 AI 工具設定見[新機器設定](docs/new-machine-setup.md)。
 
 ## 之後想加減工具
 
