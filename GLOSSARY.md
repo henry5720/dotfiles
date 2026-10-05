@@ -25,5 +25,19 @@ _Avoid_: 子票、子單、子任務
 _Avoid_: 接、認領、claim、貼 agent-in-progress
 
 **整合分支**:
-一份 spec 的所有 sub-issue 先合進去、全部完成後才一次進預設分支的分支。順序做時 sub-issue 直接 commit 在上面；平行做時各自另開 worktree，做完再合回來。
+用 `/implement-spec` 一次做完一份 spec 時，所有 sub-issue 先合進去、全部完成後才一次進預設分支的分支。sub-issue 一張一張做的（`/implement`、runner）不走整合分支，各自開 PR。順序做時 sub-issue 直接 commit 在上面；平行做時各自另開 worktree，做完再合回來。
 _Avoid_: feature branch、母分支、spec 分支
+
+## Runner
+
+**Runner**:
+agent-runner：人不在時自己接 issue、在 sandbox 裡做、開 draft PR 的程式。只接帶 agent-runner label 的 issue，一次一張，不管 issue 是怎麼來的。
+_Avoid_: bot、機器人、AFK agent
+
+**ready-for-agent**:
+issue 寫清楚了，agent 不必問人就能做。只是 triage 狀態，不代表誰會去接。
+_Avoid_: 可以接了、交給 runner
+
+**agent-runner label**:
+人決定把一張 issue 交給 runner 時貼的 label；runner 只接帶這個 label 的 issue。spec 本身不貼，它的 sub-issue 要交給 runner 就一張一張貼。
+_Avoid_: 用 ready-for-agent 表示交給 runner
