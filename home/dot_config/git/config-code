@@ -1,7 +1,7 @@
 # 只對 ~/code 底下的 repo 生效,由 config 的 includeIf 帶進來。
 
-# 共用 hooks 目錄。目前只有一支 post-checkout:新開的 worktree 自動帶上
-# codegraph 索引。
+# 共用 hooks 目錄。目前兩支,都是 codegraph 索引:post-checkout 讓新開的 worktree
+# 自動帶上索引,post-merge 在 git pull / merge 之後把索引補上。
 #
 # 改 hooksPath 會讓 repo 自己的 .git/hooks/ 整個失效。設定當時清過一遍:
 # ~/code 的 12 個 repo 加 8 個子 repo,.git/hooks/ 全部只有 .sample,沒有真 hook,

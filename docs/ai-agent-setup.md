@@ -131,11 +131,18 @@ server 和背景 daemon。
 
 ```bash
 npm i -g @colbymchenry/codegraph      # 主套件只是 shim,真的 binary 走 optionalDependency 帶下來
-codegraph install -t claude -l global -y   # 寫 MCP 設定進 Claude Code(user 範圍)
+codegraph install -t claude -l global -y   # 只為了 Claude 的 prompt hook 和權限,MCP 不靠它
 ```
 
-它寫進 `~/.claude.json` 的 `mcpServers.codegraph` 跟 agent-config 的定義一樣,skillshare
-不會衝突,但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`
+**MCP 不靠 `codegraph install`。** codegraph 這台 MCP server 定義在 agent-config 的
+`mcp.yaml`,由 skillshare 寫進 Claude、Codex、OpenCode 三邊。`codegraph install` 現在只剩
+一件事是別人不做的:在 `~/.claude/settings.json` 加 `codegraph prompt-hook` 和
+`permissions.allow`。它塞進 `~/.claude/CLAUDE.md` 的那段已經收進 repo(見下),不用靠它寫。
+不跑這行,MCP 照樣能用,只是少了 prompt hook 提醒、呼叫工具時要多按幾次允許。
+
+它沒有「只裝 hook、不寫 MCP」的選項,所以還是會順手寫一份 `~/.claude.json` 的
+`mcpServers.codegraph`。內容跟 `mcp.yaml` 一字不差時 skillshare 列為 `unchanged`,不會衝突,
+但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`
 (見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#從舊版-dotfiles-升上來的機器))。不要再用 `-t opencode`、`-t codex`,
 那兩邊的 MCP 交給 skillshare 寫。
 
@@ -149,7 +156,7 @@ codegraph install -t claude -l global -y   # 寫 MCP 設定進 Claude Code(user 
 | 它改了什麼 | apply 之後還在嗎 | 為什麼 |
 |---|---|---|
 | `~/.claude.json` 的 `mcpServers.codegraph` | 在 | chezmoi 不管 `~/.claude.json` |
-| `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | 同上,`modify_settings.json` 只釘一個 plugin 開關 |
+| `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | 同上,`modify_settings.json.tmpl` 只釘一個 plugin 開關 |
 | `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | **不在** | 這份是 chezmoi 直接部署的整檔,apply 會把它蓋回 repo 版 |
 
 所以那段收進了 `home/dot_claude/CLAUDE.md`,**保留英文原文和 START/END 標記** ——
@@ -445,7 +452,7 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |
 | 接一個 MCP(三個 client 都要) | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
-| 讓 agent 用瀏覽器 | `chrome-mcp` 開 Windows Chrome,再在 session 裡 `/mcp` 確認連上 |
+| 讓 agent 用瀏覽器 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(amd64 限定,要勾選裝工具 `headless-chrome`,見[新機器設定 4.2](new-machine-setup.md#42-headless-chrome選了-headless-chrome-才有))。再在 session 裡 `/mcp` 確認連上 |
 | 讓 agent 用 symbol 圖查程式碼,不要一直 grep | 在那個專案 `codegraph init`,見 [codegraph](#codegraph設定會回來但它塞進-claudemd-的那段不會) |
 | 換過 node 版本後 codegraph 掛了 | `npm i -g @colbymchenry/codegraph` 再裝一次(npm -g 綁 node 版本) |
 | 新 worktree 要有 codegraph 索引 | 什麼都不用做,共用 `post-checkout` hook 會複製主索引(約 1 秒) |

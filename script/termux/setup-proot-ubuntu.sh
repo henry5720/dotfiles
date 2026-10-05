@@ -2,7 +2,7 @@
 # 在原生 Termux 跑：把 proot Ubuntu 準備成「一台有一般使用者、能 sudo 的 Ubuntu」，
 # 之後進去跑同一支 bootstrap。可以重複執行，已經做過的步驟會跳過。
 #
-# 用法：bash setup-proot-ubuntu.sh [使用者名稱]    # 預設 henry（跟 ssh config 的 User 一致）
+# 用法：bash setup-proot-ubuntu.sh [使用者名稱]    # 預設 henry（跟 henry-desktop 等自家 Linux 主機的 User 一致）
 set -euo pipefail
 
 name="${1:-henry}"
