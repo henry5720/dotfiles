@@ -99,8 +99,10 @@ chezmoi apply           # 新勾的工具這時才裝
 
 以前用 `script/ubuntu/` 舊安裝腳本裝的機器，拉新版之後：
 
-1. `chezmoi diff` 只會多出兩支腳本：裝基底套件（不缺就直接結束）、換預設 shell（已經是
+1. `chezmoi diff` 會多出兩支腳本：裝基底套件（不缺就直接結束）、換預設 shell（已經是
    zsh 就直接結束）。p10k、zsh 插件目錄已經存在，chezmoi 直接接手，不會重新 clone。
+   另外 `~/.p10k.zsh` 會被 repo 那份**覆蓋**：以前自己跑 `p10k configure` 產的那份如果跟
+   repo 不一樣，diff 會列出來，apply 前要留的先備份（內容相同就沒有 diff）。
 2. chezmoi 會提示 `config file template has changed`。跑 `chezmoi init` 時會出選裝工具選單，
    **預設全選，直接 Enter 會裝原本沒裝的工具**（例如 AI 文件解析的 venv，好幾 GB）。先取消
    不要的再 Enter。

@@ -5,17 +5,17 @@
 # 怎麼開、怎麼收見 docs/share-with-guest.md(用 share-shell)。
 # 抓 GitHub release 的單一執行檔,chezmoi 不負責更新它。
 set -eu
-
+{{ template "sh-arch" . }}
 if command -v ttyd >/dev/null 2>&1; then
   echo "ttyd 已安裝,跳過"
   exit 0
 fi
-arch=$(uname -m)
-case "$arch" in
-  x86_64|aarch64) ;;
-  *) echo "ttyd 不支援架構 $arch,跳過"; exit 0 ;;
+case "$(uname -m)" in
+  x86_64) asset=x86_64 ;;
+  aarch64) asset=aarch64 ;;
+  *) skip_arch ttyd ;;
 esac
 mkdir -p "$HOME/.local/bin"
-curl -fsSL -o "$HOME/.local/bin/ttyd" "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$arch"
+curl -fsSL -o "$HOME/.local/bin/ttyd" "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.$asset"
 chmod +x "$HOME/.local/bin/ttyd"
 {{ end -}}

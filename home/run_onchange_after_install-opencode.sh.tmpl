@@ -10,5 +10,9 @@ if command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ];
 fi
 
 # 2. 安裝。--no-modify-path:不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
-curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://opencode.ai/install
+bash "$tmp/install.sh" --no-modify-path
 {{ end -}}

@@ -1,0 +1,5 @@
+{{- /* 是 Debian 系 Linux(能用 apt)就輸出 true,否則空字串。用法:{{ if includeTemplate "is-debian" . }}
+       看 /etc/os-release 的 ID 與 ID_LIKE(Ubuntu 是 ID=ubuntu、ID_LIKE=debian)。
+       android(原生 Termux)不算:它雖然也是 dpkg,但走 pkg,由各腳本自己分支。 */ -}}
+{{- $os := dig "osRelease" dict .chezmoi -}}
+{{- if and (eq .chezmoi.os "linux") (or (eq (dig "id" "" $os) "debian") (has "debian" (splitList " " (dig "idLike" "" $os)))) }}true{{ end -}}

@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 [chezmoi](https://www.chezmoi.io) 部署,另含新機器的 bootstrap、手動腳本與 Windows 側的 WSL 設定。
 
 `home/` 要在一般 Linux 和原生 Termux 都能用 —— WSL 專屬的東西(`/mnt/c`、Windows 程式)不在
-WSL 時必須安靜略過,不能報錯。chezmoi 自己執行的 sh 腳本(`run_`、`modify_`)一律是 `.tmpl`,
+WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝工具選單)在非 Debian 系 Linux 也一樣。
+樣板裡判斷 WSL、Debian 系用 `home/.chezmoitemplates/` 的 `is-wsl`、`is-debian`,不要各寫一份。chezmoi 自己執行的 sh 腳本(`run_`、`modify_`)一律是 `.tmpl`,
 shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`script/ubuntu/` 只保證 Ubuntu,需要分 WSL／非 WSL 時用
 `grep -qi microsoft /proc/version` 判斷。
 
@@ -96,6 +97,8 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
   用 `# ===` 橫幅 + 編號當目錄
 - **流程腳本**(`script/` 底下的 `.sh`、`home/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。
   橫幅會讓步驟看起來像可以各自獨立看的模組,但這裡順序就是全部
+- **例外:測試**(`script/tests/`)—— 雖然放在 `script/`,但是一堆檢查並排、要找某一項時是跳著讀,
+  用 `# ===` 橫幅
 
 判準不是長度,是「跳著讀」還是「一路讀到底」。
 
@@ -105,9 +108,11 @@ chezmoi 管家目錄**和套件**:
 
 - 基底套件:`home/.chezmoidata/packages.yaml` 依平台列,`run_onchange_before_install-packages`
   只裝缺的。名字一定要帶 `before_`,才會在 externals(要外部 git)與 `modify_`(要 jq、python3)之前跑。
-- 選裝工具(只有 Ubuntu):`home/.chezmoi.toml.tmpl` 的 `promptMultichoiceOnce` 選單,存成
+- 選裝工具(只有 Debian 系 Linux):`home/.chezmoi.toml.tmpl` 的 `promptMultichoiceOnce` 選單,存成
   `.tools`。走 apt 的放 `packages.yaml` 的 `toolPackages`;其他每個工具一支
   `run_onchange_after_install-<工具>.sh.tmpl`,整段包在 `{{ if has "<工具>" .tools }}`,已經裝了就跳過。
+  例外是 codegraph:叫 `run_onchange_after_npm-install-codegraph`。chezmoi 依檔名字母順序跑腳本,
+  它要 npm,檔名要排在 `install-nvm` 之後,第一次 apply 同時勾兩個才裝得起來。
   加新工具 = 選單加一項 + 對應的腳本或 `toolPackages`;舊機器要 `chezmoi init --prompt` 才會看到。
 - p10k、zsh 插件、Termux 字型:`home/.chezmoiexternal.toml.tmpl`。預設 shell:`run_once_after_set-default-shell`。
 

@@ -8,5 +8,9 @@ if command -v herdr >/dev/null 2>&1; then
   echo "herdr 已安裝,跳過"
   exit 0
 fi
-curl -fsSL https://herdr.dev/install.sh | sh
+# 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://herdr.dev/install.sh
+sh "$tmp/install.sh"
 {{ end -}}

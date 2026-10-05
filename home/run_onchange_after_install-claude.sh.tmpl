@@ -10,6 +10,9 @@ if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
   exit 0
 fi
 
-# 2. 安裝
-curl -fsSL https://claude.ai/install.sh | bash
+# 2. 安裝。先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://claude.ai/install.sh
+bash "$tmp/install.sh"
 {{ end -}}

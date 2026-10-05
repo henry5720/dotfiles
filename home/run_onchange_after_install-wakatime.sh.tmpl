@@ -4,15 +4,15 @@
 # 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
 set -eu
-
+{{ template "sh-arch" . }}
 # 1. wakatime-cli
 if command -v wakatime-cli >/dev/null 2>&1; then
   echo "wakatime-cli 已安裝,跳過"
 else
   case "$(uname -m)" in
-    x86_64|amd64) asset=amd64 ;;
-    aarch64|arm64) asset=arm64 ;;
-    *) echo "WakaTime CLI 不支援架構 $(uname -m)" >&2; exit 1 ;;
+    x86_64) asset=amd64 ;;
+    aarch64) asset=arm64 ;;
+    *) skip_arch wakatime-cli ;;
   esac
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT

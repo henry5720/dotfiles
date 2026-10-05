@@ -1,0 +1,3 @@
+{{ template "sh-sudo" . -}}
+# 不設 noninteractive,tzdata 這類套件會卡在設定選單。sudo 會清掉環境變數,所以用 env 帶進去。
+apt_get() { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get "$@"; }

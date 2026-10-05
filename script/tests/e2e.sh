@@ -14,7 +14,8 @@
 # SSH key 是主機上現產的假 key,從 stdin 餵給 wizard;連 GitHub 驗證那關跳過(要人工驗)。
 # 秘密類 prompt 用 --promptString 給假值。
 #
-# 要加檢查項目:改下面「檢查清單」那一段的 scenario_<目標>,其他地方不用動。
+# 要加檢查項目:改下面「目標:<目標>」那一段的 scenario_<目標>,其他地方不用動。
+# 要加選裝工具:TOOL_CHECK 加一行,再決定 scenario_ubuntu 裡勾不勾(TOOLS_FIRST／check_no_tool)。
 # step  = 前提步驟,失敗就整個停(後面的檢查沒有意義)
 # check = 檢查項目,失敗會記下來、印出輸出,繼續跑下一項
 set -uo pipefail
@@ -160,27 +161,7 @@ INIT_FLAGS=(
 )
 
 # ===============================================================
-# 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
-# ===============================================================
-# 映像模擬一台全新的 Ubuntu:只有一般使用者 + sudo 免密碼,沒有 git／curl／ssh／chezmoi,
-# 全部由 bootstrap wizard 裝。apt 清單刪掉,所以 wizard 一定要自己 apt-get update。
-setup_ubuntu() {
-  CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
-  CTR_HOME=/home/ubuntu
-  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
-FROM ubuntu:24.04
-RUN apt-get update \
- && apt-get install -y --no-install-recommends sudo \
- && rm -rf /var/lib/apt/lists/* \
- && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
-DOCKERFILE
-  docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  make_fixtures
-}
-
-# ===============================================================
-# 檢查清單
+# 共用檢查
 # ===============================================================
 # zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
 ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-syntax-highlighting)
@@ -230,10 +211,6 @@ PY
 ); echo \"\$out\" | tail -n 15; ! grep -qiE 'configuration wizard|ZSH-DID-NOT-EXIT' <<<\"\$out\""
 }
 
-# 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
-# 不然 yaml 少列一個測試也照樣過。
-UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
-
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 # 第一次 init 只勾這些;ttyd、wakatime、opencode、ai-document-media 故意不勾,之後用 --prompt 補勾 wakatime。
@@ -272,6 +249,34 @@ declare -A TOOL_CHECK=(
 )
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
+
+# 選裝腳本在 chezmoi 裡的名字(scriptState 的 name、dry-run 的 diff 標頭)。從 TOOL_CHECK 產生,
+# 加工具時不用再改這裡。codegraph 的腳本叫 npm-install-codegraph,所以前綴是 (npm-)?install-。
+TOOL_SCRIPT_RE="(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK[*]}"))"
+
+# ===============================================================
+# 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
+# ===============================================================
+# 映像模擬一台全新的 Ubuntu:只有一般使用者 + sudo 免密碼,沒有 git／curl／ssh／chezmoi,
+# 全部由 bootstrap wizard 裝。apt 清單刪掉,所以 wizard 一定要自己 apt-get update。
+setup_ubuntu() {
+  CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
+  CTR_HOME=/home/ubuntu
+  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
+FROM ubuntu:24.04
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends sudo \
+ && rm -rf /var/lib/apt/lists/* \
+ && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
+DOCKERFILE
+  docker rm -f "$CTR" >/dev/null 2>&1 || true
+  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
+  make_fixtures
+}
+
+# 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
+# 不然 yaml 少列一個測試也照樣過。
+UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
@@ -351,7 +356,7 @@ scenario_ubuntu() {
   check "(對照)linux 用同一招看得到選裝腳本" \
     "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/install-fastfetch'"
   check "android 上沒有任何選裝工具的腳本會跑" \
-    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/(npm-)?install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
+    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
   # WSL 用 Windows 的 Chrome(chrome-mcp),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
@@ -366,12 +371,48 @@ scenario_ubuntu() {
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $tmpl/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
 
+  # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
+  # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
+  bold "▶ (渲染)非 Debian 系 Linux 不出選單、apt 腳本渲染成空的"
+  local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
+  check "非 Debian 系的 config 樣板不問選單,tools 是空的" \
+    "chezmoi --config /tmp/fresh-fedora.toml execute-template --init --no-tty --override-data '$fedora' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/fedora.toml && grep -qx '    tools = \[\]' /tmp/fedora.toml"
+  local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","btop"]}'
+  for f in run_onchange_before_install-packages run_once_after_set-default-shell \
+           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome; do
+    check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
+      "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $tmpl/$f.sh.tmpl | tr -d '[:space:]')\" ]"
+  done
+  check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
+    "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
+
   # ai-document-media 的 venv(docling 會拉 torch)太大,不在 e2e 實裝;只驗勾了才有內容、而且語法對。
   bold "▶ (渲染)ai-document-media"
   check "沒勾時安裝腳本是空的" \
     "[ -z \"\$(chezmoi execute-template < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
   check "勾了會渲染出可執行的 sh 腳本" \
     "chezmoi execute-template --override-data '{\"tools\":[\"ai-document-media\"]}' < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl > /tmp/aidm.sh && grep -q docling /tmp/aidm.sh && sh -n /tmp/aidm.sh"
+}
+
+# ===============================================================
+# 目標:termux(代表原生 Termux)
+# ===============================================================
+# 映像模擬一台剛裝好的 Termux:什麼都沒裝。git／openssh／chezmoi 由 bootstrap wizard 裝,
+# python、jq、zsh 等由 chezmoi 的套件腳本裝。
+# 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
+# bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
+# 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
+setup_termux() {
+  CTR_USER=system
+  CTR_HOME=/data/data/com.termux/files/home
+  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
+FROM termux/termux-docker:x86_64
+ENV SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
+RUN /entrypoint.sh bash -lc true
+DOCKERFILE
+  docker rm -f "$CTR" >/dev/null 2>&1 || true
+  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
+  make_fixtures
 }
 
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
@@ -422,7 +463,7 @@ scenario_termux() {
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
   check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
   check "選裝工具的腳本一支都沒跑" \
-    "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^install-(fastfetch|btop|gh|nvm|code-server|tailscale|herdr|ttyd|wakatime|claude|codex|opencode|document-media|ai-document-media|codegraph|headless-chrome|agent-config)'"
+    "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
   check_zsh_env "readlink -f ~/.termux/shell"
   check_bootstrap_rerun termux
@@ -434,27 +475,6 @@ scenario_termux() {
   check "第二次 apply exit 0、pkg 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
-}
-
-# ===============================================================
-# 目標:termux(代表原生 Termux)
-# ===============================================================
-# 映像模擬一台剛裝好的 Termux:什麼都沒裝。git／openssh／chezmoi 由 bootstrap wizard 裝,
-# python、jq、zsh 等由 chezmoi 的套件腳本裝。
-# 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
-# bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
-# 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
-setup_termux() {
-  CTR_USER=system
-  CTR_HOME=/data/data/com.termux/files/home
-  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
-FROM termux/termux-docker:x86_64
-ENV SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
-RUN /entrypoint.sh bash -lc true
-DOCKERFILE
-  docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  make_fixtures
 }
 
 # ===============================================================

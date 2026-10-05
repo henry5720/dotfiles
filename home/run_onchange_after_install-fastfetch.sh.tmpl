@@ -1,9 +1,10 @@
-{{- if has "fastfetch" (index . "tools") -}}
+{{- if and (has "fastfetch" (index . "tools")) (includeTemplate "is-debian" .) -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 fastfetch(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 選裝工具 fastfetch(選單見 .chezmoi.toml.tmpl)。沒勾、或不是 Debian 系就渲染成空的,chezmoi 不跑。
 # 抓 GitHub release 的 .deb:Ubuntu 24.04 的套件庫沒有 fastfetch。chezmoi 不負責更新它。
 set -eu
-
+{{ template "sh-apt" . }}
+{{ template "sh-arch" . }}
 # 1. 已經有就不重裝(舊機器以前用安裝腳本裝過)
 if command -v fastfetch >/dev/null 2>&1; then
   echo "fastfetch 已安裝,跳過"
@@ -11,15 +12,15 @@ if command -v fastfetch >/dev/null 2>&1; then
 fi
 
 # 2. 依架構下載 .deb 安裝(apt-get 裝本機 .deb 會順便補依賴)
-case "$(dpkg --print-architecture)" in
-  amd64) asset=amd64 ;;
-  arm64) asset=aarch64 ;;
-  armhf) asset=armv7l ;;
-  *) echo "fastfetch 不支援架構 $(dpkg --print-architecture),跳過"; exit 0 ;;
+case "$(uname -m)" in
+  x86_64) asset=amd64 ;;
+  aarch64) asset=aarch64 ;;
+  armv7l) asset=armv7l ;;
+  *) skip_arch fastfetch ;;
 esac
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 curl -fsSL -o "$tmp/fastfetch.deb" \
   "https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-$asset.deb"
-sudo apt-get install -y "$tmp/fastfetch.deb"
+apt_get install -y "$tmp/fastfetch.deb"
 {{ end -}}

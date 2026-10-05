@@ -80,6 +80,8 @@ if [ "$PLATFORM" = termux ]; then
 else
   pkgs=(git openssh-client curl ca-certificates)  # ca-certificates：get.chezmoi.io 走 https
 fi
+# 算缺哪些套件:home/run_onchange_before_install-packages.sh.tmpl 有同一段。
+# 這裡在 chezmoi 之前跑、用不到 chezmoi 的樣板,所以兩份各自維護。
 missing=()
 for p in "${pkgs[@]}"; do
   dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing+=("$p")
@@ -167,7 +169,11 @@ elif [ "$PLATFORM" = termux ]; then
   pkg_q install -y chezmoi
 else
   # 不用 snap：/snap/bin 的 PATH 問題，而且 proot／容器沒有 snapd
-  sh -c "$(curl -fsSL https://get.chezmoi.io)" -- -b ~/.local/bin
+  # 先下載再跑:寫成 sh -c "$(curl …)" 的話 curl 失敗會變成跑一段空字串、exit 0
+  installer=$(mktemp)
+  curl -fsSL -o "$installer" https://get.chezmoi.io
+  sh "$installer" -b ~/.local/bin
+  rm -f "$installer"
 fi
 # ssh config 還沒部署，clone 要明確指定 key。source 已經存在時 chezmoi 不會再 clone，重跑沒事。
 if [ -n "${BOOTSTRAP_REPO:-}" ]; then
