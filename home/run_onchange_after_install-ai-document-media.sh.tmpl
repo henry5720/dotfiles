@@ -2,7 +2,8 @@
 #!{{ lookPath "sh" }}
 # 選裝工具「AI 文件解析」(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 獨立的 Python venv,只裝 docling 與 faster-whisper,不下載或初始化 model。
-# docling 會拉 torch,venv 好幾 GB。
+# docling 會拉 torch。PyPI 的 torch 帶 CUDA(nvidia-* 好幾 GB),這裡只要 CPU,
+# 所以加 PyTorch 的 CPU index:同版本的 +cpu wheel 版本號比較大,pip／uv 會挑它。
 #
 # 路徑與環境變數跟 local-artifact-intake skill 讀的一致(home/dot_config/opencode/skills/local-artifact-intake/SKILL.md):
 #   AI_DOCUMENT_MEDIA_HOME   預設 ${XDG_DATA_HOME:-~/.local/share}/ai-document-media
@@ -32,15 +33,16 @@ case $backend in
 esac
 
 # 3. 裝缺的套件
+cpu_index=https://download.pytorch.org/whl/cpu
 pkgs=""
 "$python" -c 'import docling' >/dev/null 2>&1 || pkgs="$pkgs docling"
 "$python" -c 'import faster_whisper' >/dev/null 2>&1 || pkgs="$pkgs faster-whisper"
 if [ "$backend" = uv ]; then
   # shellcheck disable=SC2086 # 要拆成多個參數
-  uv pip install --python "$python" $pkgs
+  uv pip install --python "$python" --extra-index-url "$cpu_index" $pkgs
 else
   # shellcheck disable=SC2086
-  "$python" -m pip install $pkgs
+  "$python" -m pip install --extra-index-url "$cpu_index" $pkgs
 fi
 echo "AI 文件解析 venv:$venv(不下載或初始化 model)"
 {{ end -}}
