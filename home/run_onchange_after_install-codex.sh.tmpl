@@ -1,0 +1,19 @@
+{{- if has "codex" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 Codex CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+set -eu
+
+# 1. 已經有就不重裝。chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案
+if command -v codex >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; then
+  echo "Codex 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 安裝。~/.local/bin 已經在 PATH 上,installer 就不會往 ~/.zshrc 追加 PATH
+#    (chezmoi 管的 .zshrc 本來就有,被追加之後 chezmoi diff/verify 會一直有差異)
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://chatgpt.com/codex/install.sh
+PATH="$HOME/.local/bin:$PATH" bash "$tmp/install.sh"
+{{ end -}}

@@ -10,7 +10,7 @@
 
 ## 先把它裝起來
 
-`script/ubuntu/install-tools.sh` 的選單裡選 `code-server`,會用官方腳本裝 binary。
+chezmoi 選裝工具選單勾 `code-server`(見 [README](../README.md#之後想加減工具)),apply 時會用官方腳本裝 binary。
 設定檔不用自己弄,由 chezmoi 從 `home/dot_config/private_code-server/private_config.yaml.tmpl`
 部署(權限與密碼見[密碼放哪](#密碼放哪))。
 
@@ -61,17 +61,24 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 得跑 `--tun=userspace-networking`——它會變成 tailnet 裡的**第二個節點**（跟 app 那個不同 IP、
 不同名字），加上 Android 會殺背景 process，還要 `termux-wake-lock` 和 Termux:Boot 才活得久。
 
+code-server 本身也**不是裝在原生 Termux**：選裝工具選單只在 Debian 系出現
+（`home/.chezmoi.toml.tmpl`），原生 Termux 不出選單。要在 phone 跑，先照
+[新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
+裝好 proot Ubuntu，在裡面勾 `code-server`。proot 跟 Termux 共用網路，proot 裡綁的
+`127.0.0.1:8080`，從 Termux 的 sshd（`Host phone`，port 8022）轉出去一樣連得到。
+
 ### A|SSH tunnel（建議）
 
-`.ssh/config` 的 `Host phone` 已經備好了。流程是 **phone 跑服務，pad 或 desktop
-發起 SSH，再由發起端的瀏覽器開 localhost**：
+`.ssh/config` 的 `Host phone` 已經備好了。流程是 **phone 的 proot Ubuntu 跑服務，pad 或
+desktop SSH 進 phone 的 Termux，再由發起端的瀏覽器開 localhost**：
 
 ```text
-phone code-server ← SSH tunnel ← 發起端瀏覽器 localhost:8080
+phone（proot Ubuntu）code-server ← SSH tunnel（Termux sshd）← 發起端瀏覽器 localhost:8080
 ```
 
 ```bash
-# phone (Termux):code-server 綁 127.0.0.1,不對外開
+# phone:先從 Termux 進 proot Ubuntu,code-server 綁 127.0.0.1,不對外開
+proot-distro login ubuntu --user henry
 code-server --bind-addr 127.0.0.1:8080
 
 # pad 或 desktop：
@@ -79,7 +86,7 @@ ssh phone
 # 同一台發起端的瀏覽器開 http://localhost:8080
 ```
 
-前提是 phone 能跑 code-server，且發起端能以 `Host phone` 連到 phone；目前
+前提是 phone 的 proot Ubuntu 裝了 code-server，且發起端能以 `Host phone` 連到 phone 的 Termux；目前
 `home/private_dot_ssh/private_config` 的 `LocalForward 8080 localhost:8080`
 會把 phone 的 8080 映射到發起端。
 

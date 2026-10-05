@@ -1,0 +1,42 @@
+{{- if or (includeTemplate "is-debian" .) (eq .chezmoi.os "android") -}}
+#!{{ lookPath "sh" }}
+# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
+# Ubuntu 另外加上選單有勾、走 apt 的選裝工具(toolPackages);Termux 沒有選單。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
+#    script/bootstrap.sh 第 2 關有同一段邏輯:它在 chezmoi 之前跑、用不到樣板,所以兩份各自維護。
+missing=""
+{{- $pkgs := .packages.ubuntu }}
+{{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ end }}
+{{- range $tool, $toolPkgs := .toolPackages.ubuntu }}
+{{-   if and (ne $.chezmoi.os "android") (has $tool (index $ "tools")) }}{{ $pkgs = concat $pkgs $toolPkgs }}{{ end }}
+{{- end }}
+for pkg in {{ $pkgs | uniq | join " " }}; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才裝
+echo "安裝缺少的套件:$missing"
+{{ if eq .chezmoi.os "android" -}}
+# Termux 不支援部分升級(新套件可能連到比已裝的更新的 library),所以先整台 upgrade。
+# --force-confold:遇到改過的設定檔保留現有的,不跳互動提示。
+# DEBIAN_FRONTEND 跟 script/bootstrap.sh 一致。
+DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confold
+# shellcheck disable=SC2086 # 要拆成多個參數
+DEBIAN_FRONTEND=noninteractive pkg install -y $missing
+{{- else }}
+{{ template "sh-apt" . }}
+# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
+apt_get update
+# shellcheck disable=SC2086 # 要拆成多個參數
+apt_get install -y $missing
+{{- end }}
+{{ end -}}

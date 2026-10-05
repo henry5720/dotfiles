@@ -1,0 +1,25 @@
+{{- if has "tailscale" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 不會執行 tailscale up,登入與設定自己來。
+set -eu
+{{ template "sh-sudo" . }}
+# 1. 裝(官方 installer 會加 apt 來源)
+if command -v tailscale >/dev/null 2>&1; then
+  echo "tailscale 已安裝,跳過安裝"
+else
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://tailscale.com/install.sh
+  sh "$tmp/install.sh"
+fi
+
+# 2. 開機自動啟動 tailscaled。PID 1 不是 systemd(沒開 systemd 的 WSL、容器)就跳過,不算失敗
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl enable --now tailscaled
+else
+  echo "PID 1 不是 systemd,已安裝但未啟動 tailscaled;WSL 請在 /etc/wsl.conf 開 systemd 後再 apply 一次或手動啟動"
+fi
+echo "不會執行 tailscale up;請自行登入與設定。"
+{{ end -}}

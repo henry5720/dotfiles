@@ -18,7 +18,7 @@ TTYD_PORT=7681
 # Funnel 只開放 443、8443、10000。443 在 company-ec2 已經給 code-server 的 tailnet serve 用了。
 FUNNEL_PORT=10000
 
-command -v ttyd >/dev/null || { echo "找不到 ttyd。跑 dotfiles 的 script/ubuntu/install-tools.sh 勾 ttyd。" >&2; exit 1; }
+command -v ttyd >/dev/null || { echo "找不到 ttyd。chezmoi edit-config 在 tools 加 ttyd,再 chezmoi apply。" >&2; exit 1; }
 command -v tailscale >/dev/null || { echo "找不到 tailscale。" >&2; exit 1; }
 command -v jq >/dev/null || { echo "找不到 jq。" >&2; exit 1; }
 

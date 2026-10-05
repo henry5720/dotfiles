@@ -99,9 +99,9 @@ class AiProfileTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             cfg = Path(d) / "data.toml"; cfg.write_text("", encoding="utf-8")
             for relative in ("home/dot_config/opencode/routes/personal/opencode.json.tmpl", "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl"):
-                subprocess.run(["chezmoi", "--config", str(cfg), "execute-template"], input=(ROOT / relative).read_bytes(), check=True, stdout=subprocess.DEVNULL)
+                subprocess.run(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / relative).read_bytes(), check=True, stdout=subprocess.DEVNULL)
             cfg.write_text('[data]\ncodeServerPassword="x"\ncodexLbApiKey="x"\ncontext7ApiKey=""\ngitUserName="x"\ngitUserEmail="x@y.invalid"\n[data.aiPersonal]\ncodexModel="keep-codex"\n[data.aiPersonal.models]\nastra="keep-astra"\nsol="keep-sol"\nluna="keep-luna"\n', encoding="utf-8")
-            output = subprocess.check_output(["chezmoi", "--no-tty", "--config", str(cfg), "execute-template", "--init"], input=(ROOT / "home/.chezmoi.toml.tmpl").read_bytes()).decode()
+            output = subprocess.check_output(["chezmoi", "--source", str(ROOT), "--no-tty", "--config", str(cfg), "execute-template", "--init"], input=(ROOT / "home/.chezmoi.toml.tmpl").read_bytes()).decode()
             self.assertTrue(all(value in output for value in ("keep-codex", "keep-astra", "keep-sol", "keep-luna")))
 
     def test_personal_route_names_and_tui_pin(self):
@@ -115,7 +115,7 @@ class AiProfileTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             cfg = Path(d) / "data.toml"
             cfg.write_text('[data.aiPersonal.models]\nastra="astra"\nsol="sol"\nluna="luna"\n', encoding="utf-8")
-            rendered = json.loads(subprocess.check_output(["chezmoi", "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
+            rendered = json.loads(subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
         roles = rendered["presets"]["personal"]
         self.assertEqual(set(roles), {"orchestrator", "oracle", "council", "explorer", "librarian", "designer", "fixer"})
         self.assertTrue(all(role["model"].startswith("openai/") for role in roles.values()))
@@ -150,7 +150,7 @@ class AiProfileTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             cfg = Path(d) / "data.toml"
             cfg.write_text('[data.aiPersonal.models]\nastra="astra"\nluna="luna"\n', encoding="utf-8")
-            rendered = json.loads(subprocess.check_output(["chezmoi", "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl").read_bytes()))
+            rendered = json.loads(subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl").read_bytes()))
         self.assertEqual(rendered["permission"]["skill"]["company-imagegen-fallback"], "deny")
 
     def test_personal_codex_skill_deny_renders_valid_and_idempotent_toml(self):

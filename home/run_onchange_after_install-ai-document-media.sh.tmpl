@@ -1,0 +1,48 @@
+{{- if has "ai-document-media" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具「AI 文件解析」(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 獨立的 Python venv,只裝 docling 與 faster-whisper,不下載或初始化 model。
+# docling 會拉 torch。PyPI 的 torch 帶 CUDA(nvidia-* 好幾 GB),這裡只要 CPU,
+# 所以加 PyTorch 的 CPU index:同版本的 +cpu wheel 版本號比較大,pip／uv 會挑它。
+#
+# 路徑與環境變數跟 local-artifact-intake skill 讀的一致(home/dot_config/opencode/skills/local-artifact-intake/SKILL.md):
+#   AI_DOCUMENT_MEDIA_HOME   預設 ${XDG_DATA_HOME:-~/.local/share}/ai-document-media
+#   AI_DOCUMENT_MEDIA_VENV   預設 $AI_DOCUMENT_MEDIA_HOME/venv
+#   AI_DOCUMENT_MEDIA_BACKEND=uv  改用已經自己裝好的 uv 建 venv;沒有 uv 就停,不替你下載
+# python3-venv 由套件腳本先裝(.chezmoidata/packages.yaml 的 toolPackages)。
+set -eu
+
+home_dir=${AI_DOCUMENT_MEDIA_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/ai-document-media}
+venv=${AI_DOCUMENT_MEDIA_VENV:-$home_dir/venv}
+backend=${AI_DOCUMENT_MEDIA_BACKEND:-venv}
+python=$venv/bin/python
+
+# 1. 已經裝好就跳過
+if [ -x "$python" ] && "$python" -c 'import docling, faster_whisper' >/dev/null 2>&1; then
+  echo "AI 文件解析 venv 已安裝($venv),跳過"
+  exit 0
+fi
+
+# 2. 建 venv
+case $backend in
+  venv) [ -x "$python" ] || { mkdir -p "$(dirname "$venv")"; python3 -m venv "$venv"; } ;;
+  uv)
+    command -v uv >/dev/null 2>&1 || { echo "找不到 uv(AI_DOCUMENT_MEDIA_BACKEND=uv)" >&2; exit 1; }
+    [ -x "$python" ] || { mkdir -p "$(dirname "$venv")"; uv venv --python python3 "$venv"; } ;;
+  *) echo "AI_DOCUMENT_MEDIA_BACKEND 只能是 venv 或 uv" >&2; exit 1 ;;
+esac
+
+# 3. 裝缺的套件
+cpu_index=https://download.pytorch.org/whl/cpu
+pkgs=""
+"$python" -c 'import docling' >/dev/null 2>&1 || pkgs="$pkgs docling"
+"$python" -c 'import faster_whisper' >/dev/null 2>&1 || pkgs="$pkgs faster-whisper"
+if [ "$backend" = uv ]; then
+  # shellcheck disable=SC2086 # 要拆成多個參數
+  uv pip install --python "$python" --extra-index-url "$cpu_index" $pkgs
+else
+  # shellcheck disable=SC2086
+  "$python" -m pip install --extra-index-url "$cpu_index" $pkgs
+fi
+echo "AI 文件解析 venv:$venv(不下載或初始化 model)"
+{{ end -}}

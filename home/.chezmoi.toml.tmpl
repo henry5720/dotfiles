@@ -2,9 +2,41 @@
 {{- $codexLbApiKey := promptStringOnce . "codexLbApiKey" "codex-lb API key" -}}
 {{- $context7ApiKey := promptStringOnce . "context7ApiKey" "Context7 API key（可留空）" -}}
 {{- $wakatimeApiKey := promptStringOnce . "wakatimeApiKey" "WakaTime API key（可留空）" -}}
-{{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。 */ -}}
-{{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" "henry" -}}
-{{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" -}}
+{{- /* 上面四個憑證刻意不帶現值當預設:預設值會明文印在提示上。
+       所以 `chezmoi init --prompt` 時憑證要重填,直接 Enter 會存成空的。 */ -}}
+{{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。
+       預設帶現值,`--prompt` 時直接 Enter 保留。 */ -}}
+{{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" (default "henry" (index . "gitUserName")) -}}
+{{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" (default "" (index . "gitUserEmail")) -}}
+{{- /* 選裝工具:只在 Debian 系 Linux(Ubuntu、WSL、proot Ubuntu)問一次,第一次預設全選。
+       原生 Termux 不出選單(開發環境放 proot Ubuntu);其他 Linux 也不出,選單裡大半要 apt。
+       之後要改:`chezmoi edit-config` 改 [data] tools 那一行再 apply;新勾的會裝,取消勾選不會解除安裝。
+       `--prompt` 也會重問選單,預設帶現在的勾選(不在這台選單裡的會被濾掉)。
+       每個工具對應 run_onchange_after_install-<工具>.sh.tmpl,或 .chezmoidata/packages.yaml 的 toolPackages
+       (codegraph 例外,叫 npm-install-codegraph,見那支腳本開頭)。 */ -}}
+{{- $tools := list -}}
+{{- if includeTemplate "is-debian" . -}}
+{{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
+{{- /* AI 相關。codegraph 用 npm 裝,要一起勾 nvm(或機器上本來就有 npm)。 */ -}}
+{{-   $toolChoices = concat $toolChoices (list "claude" "codex" "opencode" "document-media" "ai-document-media" "codegraph") -}}
+{{- /* headless Chrome 給 chrome-mcp 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
+         Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。 */ -}}
+{{-   $wsl := eq (includeTemplate "is-wsl" .) "true" -}}
+{{-   if and (not $wsl) (eq .chezmoi.arch "amd64") -}}
+{{-     $toolChoices = append $toolChoices "headless-chrome" -}}
+{{-   end -}}
+{{-   $toolChoices = append $toolChoices "agent-config" -}}
+{{-   $toolDefaults := $toolChoices -}}
+{{-   if hasKey . "tools" -}}
+{{-     $toolDefaults = list -}}
+{{-     range .tools -}}
+{{-       if has . $toolChoices -}}
+{{-         $toolDefaults = append $toolDefaults . -}}
+{{-       end -}}
+{{-     end -}}
+{{-   end -}}
+{{-   $tools = promptMultichoiceOnce . "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
+{{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 {{- $models := default dict (index $personal "models") -}}
 
@@ -15,6 +47,7 @@
     wakatimeApiKey = {{ $wakatimeApiKey | quote }}
     gitUserName = {{ $gitUserName | quote }}
     gitUserEmail = {{ $gitUserEmail | quote }}
+    tools = {{ $tools | toToml }}
 
     # 非秘密模型資料；留空不會 prompt，也不會讓個人 profile 被視為 ready。
     [data.aiPersonal]

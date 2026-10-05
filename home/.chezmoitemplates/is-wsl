@@ -1,0 +1,3 @@
+{{- /* 是 WSL 就輸出 true,否則空字串。用法:{{ $wsl := eq (includeTemplate "is-wsl" .) "true" }}
+       看 kernel 版本字串有沒有 microsoft;非 linux(android)沒有這個欄位,dig 給空字串。 */ -}}
+{{- if contains "microsoft" (lower (dig "kernel" "osrelease" "" .chezmoi)) }}true{{ end -}}
