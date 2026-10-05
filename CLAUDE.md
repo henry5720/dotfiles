@@ -113,7 +113,7 @@ chezmoi 管家目錄**和套件**:
   `run_onchange_after_install-<工具>.sh.tmpl`,整段包在 `{{ if has "<工具>" .tools }}`,已經裝了就跳過。
   例外是 codegraph:叫 `run_onchange_after_npm-install-codegraph`。chezmoi 依檔名字母順序跑腳本,
   它要 npm,檔名要排在 `install-nvm` 之後,第一次 apply 同時勾兩個才裝得起來。
-  加新工具 = 選單加一項 + 對應的腳本或 `toolPackages`;舊機器要 `chezmoi init --prompt` 才會看到。
+  加新工具 = 選單加一項 + 對應的腳本或 `toolPackages`;舊機器要 `chezmoi edit-config` 把它加進 `tools` 才會裝。
 - p10k、zsh 插件、Termux 字型:`home/.chezmoiexternal.toml.tmpl`。預設 shell:`run_once_after_set-default-shell`。
 
 `script/` 只放 chezmoi 之前或之外的事:

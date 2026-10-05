@@ -82,17 +82,19 @@ bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/scri
 ## 之後想加減工具
 
 Ubuntu 機器第一次 `chezmoi init` 會出一個勾選選單，**預設全選**，直接 Enter 就全部裝。之後
-的 `chezmoi apply` 不再問。要改選擇：
+的 `chezmoi apply` 不再問。要改選擇，直接改存下來的設定：
 
 ```bash
-chezmoi init --prompt   # 重問一次
-chezmoi apply           # 新勾的工具這時才裝
+chezmoi edit-config   # 改 [data] 底下的 tools = [...] 那一行
+chezmoi apply         # 新勾的工具這時才裝
 ```
 
-- ⚠️ `--prompt` 會把**所有**問題重問一遍，包括憑證與 Git 身分，而且預設值**不是**你現在存的
-  值：憑證直接 Enter 會被存成空的。先準備好要重填的值。
 - **取消勾選不會解除安裝**，只是之後不再管它；要移除自己手動移。
-- **選單以後加了新工具，舊機器不會自動問**，也要 `chezmoi init --prompt` 才會出現。
+- 可選的名稱就是 `home/.chezmoi.toml.tmpl` 裡 `$toolChoices` 列的那些。**選單以後加了新工具，
+  舊機器不會自動問**，一樣用 `edit-config` 加進去。
+- ⚠️ 也可以 `chezmoi init --prompt` 重出選單，但它會把**所有**問題重問一遍。選單與 Git 身分的
+  預設是現在存的值，直接 Enter 會保留；**憑證的預設是空的**（刻意不帶現值，免得明文印在
+  提示上），直接 Enter 會把憑證清空。用之前先準備好要重填的值。
 - 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
 
 ## 既有機器升級到這個流程
