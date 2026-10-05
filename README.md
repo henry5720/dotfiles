@@ -94,6 +94,7 @@ chezmoi verify
 - [開給訪客看](docs/share-with-guest.md)：用 tailscale funnel 把 shell（`share-shell`）或 dev server 臨時開給沒有 tailscale 的人。
 - [no-sudo setup](docs/no-sudo-setup.md)：沒有 sudo 時的限制與替代做法。
 - [Herdr notifications](docs/herdr-notifications.md)：WSL2 通知音與 PulseAudio 排錯。
+- [Issue 生命週期](docs/issue-lifecycle.md)：一張票從接到關的流程圖，含整合分支的情況。
 
 repo 修改規範與驗證方式見 [`CLAUDE.md`](CLAUDE.md)。`docs/superpowers/` 是歷史
 spec/plan，不是現行文件。
