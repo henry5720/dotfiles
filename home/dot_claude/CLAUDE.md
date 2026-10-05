@@ -61,14 +61,13 @@ EnterWorktree --path <那個 path>
 
 ## Issue 生命週期
 
-照 issue 做事（`/implement #N`、做一張票）時：
+照 issue 做事（`/implement #N`）時：
 
-- **接**：票還開著、沒有開著的 blocker、沒有別人的 assignee 才接。接了先 assign 自己，再寫第一行 code；不符合就停下來問。
-- **結**：看這份工作怎麼進 main：
-  - 開 PR（預設）→ PR 寫 `Closes #N`，不手動關，merge 時自動關
-  - 沒開 PR、直接 commit → 留言（commit、怎麼驗的）再關
-  - 子票（spec 底下的 sub-issue）先合進同一條整合分支 → 合進該分支時就留言再關；進 main 的 PR 只 `Closes` spec。
-    不然要等整條分支進 main 才關，GitHub 上被它擋的票會一直顯示 blocked
+- **Assign**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
+- **Close**：commit 之後，這份工作會經由帶 `Closes #N` 的 PR 落地就不關，交給 merge；否則留言（commit、怎麼驗的）再關。
+  spec 的 PR 只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）；sub-issue 進了 spec 分支
+  （一個 worktree 就是 commit 完，多個 worktree 就是合進整合分支）就照上一句留言關。預設一個 worktree 順序做，
+  sub-issue 真的互相獨立才開多個平行做。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
 - 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
