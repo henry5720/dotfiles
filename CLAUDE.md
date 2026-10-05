@@ -108,7 +108,6 @@ chezmoi 管家目錄**和套件**:
 
 - 要 apply 時執行的 `run_` 腳本一律放 `home/.chezmoiscripts/` 第一層,**不要再分子資料夾**:
   chezmoi 照完整路徑的字母序跑腳本,分了資料夾,下面靠檔名排的順序就亂掉。
-  `.chezmoiignore` 排除腳本時要寫 `.chezmoiscripts/<檔名>`。
 - 基底套件:`home/.chezmoidata/packages.yaml` 依平台列,`run_onchange_before_install-packages`
   只裝缺的。名字一定要帶 `before_`,才會在 externals(要外部 git)與 `modify_`(要 jq、python3)之前跑。
 - 選裝工具(只有 Debian 系 Linux):`home/.chezmoi.toml.tmpl` 的 `promptMultichoiceOnce` 選單,存成
