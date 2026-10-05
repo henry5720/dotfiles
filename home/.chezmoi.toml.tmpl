@@ -5,19 +5,20 @@
 {{- /* git 身分。不是秘密,但這個 repo 是公開的,email 不想直接寫進去。 */ -}}
 {{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" "henry" -}}
 {{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" -}}
-{{- /* 選裝工具:只在 Ubuntu 問一次,預設全選。原生 Termux 不出選單(開發環境放 proot Ubuntu)。
+{{- /* 選裝工具:只在 Debian 系 Linux(Ubuntu、WSL、proot Ubuntu)問一次,預設全選。
+       原生 Termux 不出選單(開發環境放 proot Ubuntu);其他 Linux 也不出,選單裡大半要 apt。
        重選用 `chezmoi init --prompt`;新勾的下次 apply 會裝,取消勾選不會解除安裝。
        清單以後加了新工具,已經 init 過的機器不會自動問,也要 --prompt。
        每個工具對應 run_onchange_after_install-<工具>.sh.tmpl,或 .chezmoidata/packages.yaml 的 toolPackages
        (codegraph 例外,叫 npm-install-codegraph,見那支腳本開頭)。 */ -}}
 {{- $tools := list -}}
-{{- if ne .chezmoi.os "android" -}}
+{{- if includeTemplate "is-debian" . -}}
 {{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
 {{- /* AI 相關。codegraph 用 npm 裝,要一起勾 nvm(或機器上本來就有 npm)。 */ -}}
 {{-   $toolChoices = concat $toolChoices (list "claude" "codex" "opencode" "document-media" "ai-document-media" "codegraph") -}}
 {{- /* headless Chrome 給 chrome-mcp 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
          Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。 */ -}}
-{{-   $wsl := contains "microsoft" (lower (dig "kernel" "osrelease" "" .chezmoi)) -}}
+{{-   $wsl := eq (includeTemplate "is-wsl" .) "true" -}}
 {{-   if and (not $wsl) (eq .chezmoi.arch "amd64") -}}
 {{-     $toolChoices = append $toolChoices "headless-chrome" -}}
 {{-   end -}}

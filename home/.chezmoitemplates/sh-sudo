@@ -1,0 +1,2 @@
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi

@@ -1,6 +1,6 @@
-{{- if has "gh" (index . "tools") -}}
+{{- if and (has "gh" (index . "tools")) (includeTemplate "is-debian" .) -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾、或不是 Debian 系就渲染成空的,chezmoi 不跑。
 #
 # daily-worklog、slack-list 兩支 skill 會叫 gh(見 agent-config 的 SKILL.md)。
 # 走 GitHub 官方 apt 源,不用 Ubuntu 套件庫:那版太舊,GitHub 停掉 Projects (classic) 後
@@ -8,7 +8,7 @@
 # 步驟照官方 docs/install_linux.md(cli/cli)。另加 pin:Ubuntu 26.04 的 apt 會優先挑
 # amd64v3 變體的 Ubuntu 版,即使官方源的版本號比較新。
 set -eu
-
+{{ template "sh-apt" . }}
 key=/etc/apt/keyrings/githubcli-archive-keyring.gpg
 list=/etc/apt/sources.list.d/github-cli.list
 pin=/etc/apt/preferences.d/github-cli
@@ -20,15 +20,18 @@ if command -v gh >/dev/null 2>&1 && [ -f "$pin" ]; then
 fi
 
 # 2. 加 apt 來源與 pin
-sudo mkdir -p -m 755 /etc/apt/keyrings
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee "$key" >/dev/null
-sudo chmod go+r "$key"
+#    key 先下載到暫存檔:接 pipe 的話 curl 失敗會被吞掉,留下空的 keyring
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/keyring.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+$SUDO mkdir -p -m 755 /etc/apt/keyrings
+$SUDO install -m 644 "$tmp/keyring.gpg" "$key"
 echo "deb [arch=$(dpkg --print-architecture) signed-by=$key] https://cli.github.com/packages stable main" \
-  | sudo tee "$list" >/dev/null
-printf 'Package: gh\nPin: origin cli.github.com\nPin-Priority: 600\n' | sudo tee "$pin" >/dev/null
+  | $SUDO tee "$list" >/dev/null
+printf 'Package: gh\nPin: origin cli.github.com\nPin-Priority: 600\n' | $SUDO tee "$pin" >/dev/null
 
 # 3. 安裝
-sudo apt-get update
-sudo apt-get install -y gh
+apt_get update
+apt_get install -y gh
 echo "gh 已安裝。登入:gh auth login"
 {{ end -}}

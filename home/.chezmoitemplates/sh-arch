@@ -1,0 +1,2 @@
+# 架構不支援就印訊息、exit 0 跳過:不讓整個 apply 失敗。架構一律用 uname -m 判斷。
+skip_arch() { echo "$1 不支援架構 $(uname -m),跳過"; exit 0; }
