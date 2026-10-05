@@ -31,7 +31,7 @@ _Avoid_: feature branch、母分支、spec 分支
 ## Runner
 
 **Runner**:
-agent-runner：人不在時自己接 issue、在 sandbox 裡做、開 draft PR 的程式。一次接一張 issue；接到 spec 的 sub-issue 時會把 spec 一起讀進來當背景，不跑 `/implement-spec`。
+agent-runner：人不在時自己接 issue、在 sandbox 裡做、開 draft PR 的程式。只接帶 agent-runner label 的 issue，一次一張，不管 issue 是怎麼來的。
 _Avoid_: bot、機器人、AFK agent
 
 **ready-for-agent**:
