@@ -11,5 +11,9 @@ fi
 
 # 2. 安裝。~/.local/bin 已經在 PATH 上,installer 就不會往 ~/.zshrc 追加 PATH
 #    (chezmoi 管的 .zshrc 本來就有,被追加之後 chezmoi diff/verify 會一直有差異)
-curl -fsSL https://chatgpt.com/codex/install.sh | PATH="$HOME/.local/bin:$PATH" bash
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://chatgpt.com/codex/install.sh
+PATH="$HOME/.local/bin:$PATH" bash "$tmp/install.sh"
 {{ end -}}

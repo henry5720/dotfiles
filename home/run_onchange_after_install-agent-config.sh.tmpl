@@ -21,7 +21,11 @@ fi
 # 2. 裝 skillshare
 ss=$HOME/.local/bin/skillshare
 if [ ! -x "$ss" ]; then
-  curl -fsSL https://raw.githubusercontent.com/runkids/skillshare/main/install.sh | INSTALL_DIR="$HOME/.local/bin" sh
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh
+  INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"
 fi
 
 # 3. 從 remote init,再把 skills 與 MCP 裝進各個 client。pull/install 不會同步 MCP,最後的 sync mcp -g 不能省
