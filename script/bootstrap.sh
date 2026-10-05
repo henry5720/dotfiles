@@ -81,7 +81,7 @@ if [ "$PLATFORM" = termux ]; then
 else
   pkgs=(git openssh-client curl ca-certificates)  # ca-certificates：get.chezmoi.io 走 https
 fi
-# 算缺哪些套件:home/run_onchange_before_install-packages.sh.tmpl 有同一段。
+# 算缺哪些套件:home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl 有同一段。
 # 這裡在 chezmoi 之前跑、用不到 chezmoi 的樣板,所以兩份各自維護。
 missing=()
 for p in "${pkgs[@]}"; do

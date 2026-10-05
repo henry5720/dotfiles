@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
-CLEANUP = ROOT / "home/run_once_after_remove-chezmoi-mcp.py.tmpl"
+CLEANUP = ROOT / "home/.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl"
 LEGACY_CHROME = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
 
 

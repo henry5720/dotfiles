@@ -37,7 +37,7 @@ flowchart LR
 | `home/dot_zshrc`、`dot_p10k.zsh`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.p10k.zsh`、`~/.gitconfig` | shell、p10k 設定、git |
 | `home/.chezmoiexternal.toml.tmpl` | `~/.config/zsh/*`、Termux 的 `~/.termux/font.ttf` | p10k、zsh 插件、Termux 字型（apply 時下載） |
 | `home/.chezmoidata/packages.yaml` | （不部署） | 基底套件與走 apt 的選裝工具清單 |
-| `home/run_*` | （不部署，apply 時執行） | 裝套件、裝選裝工具、換預設 shell |
+| `home/.chezmoiscripts/run_*` | （不部署，apply 時執行） | 裝套件、裝選裝工具、換預設 shell |
 | `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、fontconfig（WSL 借用 Windows 字型）、code-server、opencode、skillshare 的 `config.yaml` |
 | `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
 | `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp`、`share-shell` 等） |

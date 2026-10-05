@@ -95,7 +95,7 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 - **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config`、
   `private_config.yaml.tmpl`)—— 一堆彼此無關的設定並排、會跳著找,
   用 `# ===` 橫幅 + 編號當目錄
-- **流程腳本**(`script/` 底下的 `.sh`、`home/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。
+- **流程腳本**(`script/` 底下的 `.sh`、`home/.chezmoiscripts/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。
   橫幅會讓步驟看起來像可以各自獨立看的模組,但這裡順序就是全部
 - **例外:測試**(`script/tests/`)—— 雖然放在 `script/`,但是一堆檢查並排、要找某一項時是跳著讀,
   用 `# ===` 橫幅
@@ -106,6 +106,9 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 
 chezmoi 管家目錄**和套件**:
 
+- 要 apply 時執行的 `run_` 腳本一律放 `home/.chezmoiscripts/` 第一層,**不要再分子資料夾**:
+  chezmoi 照完整路徑的字母序跑腳本,分了資料夾,下面靠檔名排的順序就亂掉。
+  `.chezmoiignore` 排除腳本時要寫 `.chezmoiscripts/<檔名>`。
 - 基底套件:`home/.chezmoidata/packages.yaml` 依平台列,`run_onchange_before_install-packages`
   只裝缺的。名字一定要帶 `before_`,才會在 externals(要外部 git)與 `modify_`(要 jq、python3)之前跑。
 - 選裝工具(只有 Debian 系 Linux):`home/.chezmoi.toml.tmpl` 的 `promptMultichoiceOnce` 選單,存成
