@@ -19,14 +19,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  S["spec"] --> BR["開 spec 分支"]
+  S["spec"] --> BR["開整合分支"]
   BR --> DR["第一個 commit 後開 draft PR<br/>只寫 Closes spec，不列 sub-issue"]
   DR --> Q{"sub-issue 互相獨立、要平行做？"}
-  Q -- "否（預設）：一個 worktree 順序做" --> ONE["做一張 sub-issue<br/>commit 進 spec 分支"]
+  Q -- "否（預設）：一個 worktree 順序做" --> ONE["做一張 sub-issue<br/>commit 進整合分支"]
   ONE --> C1["留言：commit、怎麼驗的<br/>關 sub-issue"]
   C1 --> N1{"還有 sub-issue？"}
   N1 -- "有（被它擋的那張解鎖了）" --> ONE
-  Q -- "是：多個 worktree" --> MANY["每張 sub-issue 從 spec 分支切 worktree<br/>做完合回 spec 分支（整合分支）"]
+  Q -- "是：多個 worktree" --> MANY["每張 sub-issue 從整合分支切 worktree<br/>做完合回整合分支"]
   MANY --> C2["合進去時留言<br/>關 sub-issue"]
   C2 --> N2{"還有 sub-issue？"}
   N2 -- "有" --> MANY
