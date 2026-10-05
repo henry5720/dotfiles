@@ -21,5 +21,5 @@ _Avoid_: 母票、需求單、PRD
 _Avoid_: 子票、子單、子任務
 
 **整合分支**:
-一份 spec 的所有 sub-issue 先合進去、全部完成後才一次進 main 的分支。
-_Avoid_: feature branch、母分支
+一份 spec 的所有 sub-issue 先合進去、全部完成後才一次進預設分支的分支。順序做時 sub-issue 直接 commit 在上面；平行做時各自另開 worktree，做完再合回來。
+_Avoid_: feature branch、母分支、spec 分支
