@@ -213,10 +213,11 @@ PY
 
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
-# 第一次 init 只勾這些;ttyd、wakatime、opencode、ai-document-media 故意不勾,之後模擬 edit-config 補勾 wakatime。
-# ai-document-media(docling + faster-whisper,venv 好幾 GB)不在這裡實裝,只做下面的渲染檢查;
-# 實裝在一次性容器手動驗過(見 #65 的回報)。
-TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/document-media/codegraph/headless-chrome/agent-config
+# 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
+# 文件解析兩項一般用不到又重,不在這裡實裝,只做下面的渲染檢查:
+# - document-media:apt 裝 ffmpeg、mupdf-tools、pandoc,相依套件一大串
+# - ai-document-media:docling + faster-whisper 的 venv,好幾 GB(實裝在一次性容器手動驗過,見 #65)
+TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/agent-config
 
 # agent-config 的 remote 是 git@github.com(SSH),容器裡沒有能用的 key。
 # 測試用 AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),
@@ -298,6 +299,7 @@ scenario_ubuntu() {
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
+  check_no_tool document-media
   check_no_tool ai-document-media
   # skillshare 的設定(create_config.yaml)是一般檔案,所有 after_ 腳本都在檔案部署之後跑。
   # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
@@ -319,7 +321,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
-  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"document-media\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\"set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -401,7 +403,13 @@ scenario_ubuntu() {
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
-  # ai-document-media 的 venv(docling 會拉 torch)太大,不在 e2e 實裝;只驗勾了才有內容、而且語法對。
+  # 文件解析兩項不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才有內容、而且語法對。
+  bold "▶ (渲染)document-media"
+  check "沒勾時套件腳本不含 ffmpeg" \
+    "! chezmoi execute-template < $tmpl/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
+  check "勾了套件腳本會裝 ffmpeg、mupdf-tools、pandoc" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"document-media\"]}' < $tmpl/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+
   bold "▶ (渲染)ai-document-media"
   check "沒勾時安裝腳本是空的" \
     "[ -z \"\$(chezmoi execute-template < $tmpl/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
