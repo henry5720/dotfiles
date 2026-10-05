@@ -64,10 +64,11 @@ EnterWorktree --path <那個 path>
 照 issue 做事（`/implement #N`）時：
 
 - **Assign**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
-- **Close**：commit 之後，這份工作會經由帶 `Closes #N` 的 PR 落地就不關，交給 merge；否則留言（commit、怎麼驗的）再關。
-  spec 的 PR 只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）；sub-issue 進了 spec 分支
-  （一個 worktree 就是 commit 完，多個 worktree 就是合進整合分支）就照上一句留言關。預設一個 worktree 順序做，
-  sub-issue 真的互相獨立才開多個平行做。
+- **Close**：PR 進預設分支、body 寫 `Closes #N` 的，交給 merge 關；其他情況（沒開 PR、PR 進的不是預設分支）
+  commit 之後留言（commit、怎麼驗的）再關。
+  spec：第一個 commit 後就開 draft PR，只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）。
+  sub-issue 進了 spec 分支（一個 worktree 就是 commit 完，多個 worktree 就是合進整合分支）就留言再關。
+  預設一個 worktree 順序做，sub-issue 真的互相獨立才開多個平行做。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
 - 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。

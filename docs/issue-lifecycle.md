@@ -11,28 +11,29 @@ flowchart TD
   B --> C["開 worktree、commit"]
   C --> D{"有開 PR？"}
   D -- "有（預設）" --> E["PR 寫 Closes #N<br/>--assignee @me"]
-  E --> F["merge 進 main<br/>GitHub 自動關 issue"]
-  D -- "沒有，直接 commit 進 main" --> G["留言：commit、怎麼驗的<br/>手動關 issue"]
+  E --> F["merge 進預設分支<br/>GitHub 自動關 issue"]
+  D -- "沒有 PR，或 PR 不是進預設分支" --> G["留言：commit、怎麼驗的<br/>關 issue"]
 ```
 
 ## spec（底下有 sub-issue）
 
 ```mermaid
 flowchart TD
-  S["spec"] --> BR["開 spec 分支<br/>PR 只寫 Closes spec，不列 sub-issue"]
-  BR --> Q{"sub-issue 互相獨立、要平行做？"}
+  S["spec"] --> BR["開 spec 分支"]
+  BR --> DR["第一個 commit 後開 draft PR<br/>只寫 Closes spec，不列 sub-issue"]
+  DR --> Q{"sub-issue 互相獨立、要平行做？"}
   Q -- "否（預設）：一個 worktree 順序做" --> ONE["做一張 sub-issue<br/>commit 進 spec 分支"]
-  ONE --> C1["留言：commit、怎麼驗的<br/>手動關 sub-issue"]
+  ONE --> C1["留言：commit、怎麼驗的<br/>關 sub-issue"]
   C1 --> N1{"還有 sub-issue？"}
   N1 -- "有（被它擋的那張解鎖了）" --> ONE
   Q -- "是：多個 worktree" --> MANY["每張 sub-issue 從 spec 分支切 worktree<br/>做完合回 spec 分支（整合分支）"]
-  MANY --> C2["合進去時留言<br/>手動關 sub-issue"]
+  MANY --> C2["合進去時留言<br/>關 sub-issue"]
   C2 --> N2{"還有 sub-issue？"}
   N2 -- "有" --> MANY
   N1 -- "沒有" --> RV["code review、修完"]
   N2 -- "沒有" --> RV
-  RV --> M["merge 進 main<br/>GitHub 自動關 spec"]
+  RV --> M["draft 轉 ready、merge 進預設分支<br/>GitHub 自動關 spec"]
 ```
 
-sub-issue 不列進 PR 的 `Closes`：`Closes` 只在 PR 進 main 時生效，列了就要等整條分支進 main 才關，
-被它擋的 sub-issue 會一直顯示 blocked。spec 要等 merge 才關，所以 **spec 開著＝這份還沒進 main**。
+sub-issue 不列進 PR 的 `Closes`：`Closes` 只在 PR 進預設分支時生效，列了就要等整條分支 merge 才關，
+被它擋的 sub-issue 會一直顯示 blocked。spec 要等 merge 才關，所以 **spec 開著＝這份還沒進預設分支**。
