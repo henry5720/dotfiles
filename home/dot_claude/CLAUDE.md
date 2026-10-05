@@ -22,6 +22,18 @@
 - 一次只問一個問題。skill 明確要求成批提問時（例如 `grilling` 一輪問完整個 frontier）照 skill 走。
 - 講流程用文字箭頭（`讀設定 → 掃 repo → 產出`）。要畫圖前先確認那個地方渲染得出來 —— 終端機和 Slack 都不會渲染 mermaid。
 
+## 人看的文件
+
+以圖為主（mermaid、檔案樹、呼叫樹、diff、表格），畫不出來才寫文字。agent 看的（CLAUDE.md、SKILL.md）維持精簡文字。
+
+- 一張圖只講一件事；收尾、例外寫成表格或圖下一行註記。timeout／crash 不畫成邊。
+- 圖型照內容選：一條路徑 `flowchart LR`；做選擇 `flowchart TD` + 菱形；狀態轉換 `stateDiagram`；多方照時間 `sequenceDiagram`。
+- 「什麼放在哪」、有孤立節點 → 表格；旁邊已有表格就刪圖。
+- 最多約 7 個節點、節點文字最多兩行（放不下的指令移到圖下）；edge label 一行，寫實際的指令或 port。
+- 實線 = 資料或呼叫；虛線只表示「一次性設定」且一定有 label。一直線超過約 5 格改 TD 或編號清單；LR 不放巢狀 subgraph。
+- 同一個東西全 repo 同一個名字（「dotfiles（chezmoi）」「agent-config（skillshare）」）；用全形括號。
+- commit 前看過渲染結果：有 Chrome 用 `mmdc`，沒有就看 GitHub PR 的 diff 預覽。
+
 ## 誠實
 
 - 不要說「看起來沒問題」「應該可以」。有疑慮直說「可以跑，但…」。
