@@ -20,6 +20,10 @@ _Avoid_: 母票、需求單、PRD
 用 GitHub 原生 sub-issue 掛在 map 或 spec 底下的 issue。
 _Avoid_: 子票、子單、子任務
 
+**Assign**:
+把自己設成一個 issue 的 assignee，表示有人在做。放棄就是 unassign。上游 wayfinder 說的 claim 就是這個動作。
+_Avoid_: 接、認領、claim、貼 agent-in-progress
+
 **整合分支**:
 一份 spec 的所有 sub-issue 先合進去、全部完成後才一次進預設分支的分支。順序做時 sub-issue 直接 commit 在上面；平行做時各自另開 worktree，做完再合回來。
 _Avoid_: feature branch、母分支、spec 分支

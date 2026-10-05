@@ -64,6 +64,7 @@ EnterWorktree --path <那個 path>
 照 issue 做事（`/implement #N`）時：
 
 - **Assign**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
+  做不下去就留言卡在哪、unassign；`--bg` 派出去的 `state` 是失敗時，由派它的人 unassign。
 - **Close**：PR 進預設分支、body 寫 `Closes #N` 的，交給 merge 關；其他情況（沒開 PR、PR 進的不是預設分支）
   commit 之後留言（commit、怎麼驗的）再關。
   spec：第一個 commit 後就開 draft PR，只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）。
