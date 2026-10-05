@@ -1,5 +1,22 @@
 # 常用指令
 
+## 終端機字型（Hack Nerd Font）
+
+WSL 的畫面是 Windows Terminal 畫的，字型要裝在 Windows 那側，chezmoi 不管。沒裝的話 p10k
+的圖示會變方框或問號（`~/.p10k.zsh` 用 `nerdfont-v3`，任何 Nerd Font v3 都行，這裡跟
+Termux 一樣用 Hack）。每台 Windows 做一次：
+
+1. 下載 nerd-fonts v3.5.1 的
+   [`Hack.zip`](https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.zip)，解壓縮。
+2. 在 `HackNerdFont-Regular.ttf` 按右鍵 →「安裝」（要粗體、斜體也正常，就把
+   `HackNerdFont-Bold`、`-Italic`、`-BoldItalic` 一起裝）。不要裝 `HackNerdFontMono-*`、
+   `HackNerdFontPropo-*`，那是另外兩種字寬。
+3. Windows Terminal：設定 → 設定檔「預設值」→ 外觀 → 字體，選 `Hack Nerd Font` → 儲存。
+   只想改 Ubuntu 那個設定檔就改在它底下。
+4. 開一個新的 WSL 分頁，p10k 提示列的圖示應該正常顯示。
+
+雲端主機不用裝：畫面是你連線那端的終端機畫的，字型裝在那一端。
+
 ## mirrored 模式（目前預設）
 
 優先使用 `networkingMode=mirrored`；Windows 與 WSL 共用 localhost，不要同時套用下方 NAT

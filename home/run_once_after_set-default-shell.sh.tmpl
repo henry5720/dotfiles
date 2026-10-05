@@ -1,0 +1,21 @@
+{{- if or (includeTemplate "is-debian" .) (eq .chezmoi.os "android") -}}
+#!{{ lookPath "sh" }}
+# 把預設 shell 換成 zsh。zsh 由 run_onchange_before_install-packages 先裝好。
+# 其他 Linux 沒有套件腳本、不保證有 zsh,渲染成空的,自己 chsh。
+# run_once_:跑成功一次就不再跑;已經是 zsh 的機器直接結束,不叫 sudo。
+set -eu
+
+zsh_path=$(command -v zsh)
+{{ if eq .chezmoi.os "android" -}}
+# Termux 沒有 passwd,chsh 改的是 ~/.termux/shell 這個 symlink,不需要 sudo、不互動。
+[ "$(readlink -f "$HOME/.termux/shell" 2>/dev/null)" = "$(readlink -f "$zsh_path")" ] && exit 0
+chsh -s zsh
+{{- else }}
+{{ template "sh-sudo" . }}
+# 比 readlink -f 後的路徑:merged /usr 的機器上 /bin/zsh 和 /usr/bin/zsh 是同一個,不用再 chsh。
+current=$(getent passwd "$(id -un)" | cut -d: -f7)
+[ "$(readlink -f "$current")" = "$(readlink -f "$zsh_path")" ] && exit 0
+echo "預設 shell 換成 $zsh_path"
+$SUDO chsh -s "$zsh_path" "$(id -un)"
+{{- end }}
+{{ end -}}

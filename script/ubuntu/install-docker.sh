@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 用途:在雲端主機 / 純 Linux server 安裝 Docker Engine(官方 apt repo)。
-# 這是 native Engine,非 Docker Desktop。請「手動」執行,不掛進 setup.sh。
+# 這是 native Engine,非 Docker Desktop。請「手動」執行,不交給 chezmoi(會移除衝突套件、改系統設定)。
 # 參考:https://docs.docker.com/engine/install/ubuntu/
 
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'

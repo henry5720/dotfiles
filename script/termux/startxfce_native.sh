@@ -1,4 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# 原生 Termux 的 xfce 桌面啟動腳本（套件由 install-desktop.sh 裝）
+# 改自 LinuxDroidMaster/Termux-Desktops 的 scripts/termux_native/startxfce4_termux.sh：
+#   https://github.com/LinuxDroidMaster/Termux-Desktops/blob/main/scripts/termux_native/startxfce4_termux.sh
+# 下面的清理、llvmpipe 與 Chromium 相關數值是平板上實測過的，改之前先確認。
+# xfce 跑在 proot 裡的版本沒有收進來，要用就看上游：
+#   https://github.com/LinuxDroidMaster/Termux-Desktops/blob/main/scripts/proot_debian/startxfce4_debian.sh
 
 ## 1. 環境清理
 pkill -9 termux-x11
