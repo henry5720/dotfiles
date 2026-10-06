@@ -2,7 +2,7 @@
 
 這份只列事實，不做推薦。每格的來源用 `[代號]` 標示，代號對到文末「來源清單」的永久連結。
 
-根據這份對照做的決定見 [ADR 0001](adr/0001-browser-debug-playwright-cli.md)。
+根據這份對照做的決定見 [ADR 0001](adr/0001-browser-tools-drive-vs-debug.md)。
 
 ## 查證日期與版本
 
