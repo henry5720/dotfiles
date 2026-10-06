@@ -1,6 +1,6 @@
-# Triage Labels
+# Triage labels
 
-The engineering skills use these canonical triage roles and GitHub labels:
+engineering skills 用的 canonical triage role 和對應的 GitHub label：
 
 | Canonical role | GitHub label | 用途 |
 |---|---|---|

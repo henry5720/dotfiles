@@ -1,11 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-個人 dotfiles,以 Ubuntu + 純 zsh(無 Oh My Zsh)為主,日常用在 WSL2,也用在雲端主機與平板
-(原生 Termux、Termux 裡的 proot Ubuntu)。家目錄設定檔、套件、選裝工具都由
-[chezmoi](https://www.chezmoi.io) 部署,另含新機器的 bootstrap、手動腳本與 Windows 側的 WSL 設定。
-
 `home/` 要在一般 Linux 和原生 Termux 都能用 —— WSL 專屬的東西(`/mnt/c`、Windows 程式)不在
 WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝工具選單)在非 Debian 系 Linux 也一樣。
 樣板裡判斷 WSL、Debian 系用 `home/.chezmoitemplates/` 的 `is-wsl`、`is-debian`,不要各寫一份。chezmoi 自己執行的 sh 腳本(`run_`、`modify_`)一律是 `.tmpl`,
@@ -23,6 +17,14 @@ shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`scri
   `ai-agent/`(手動貼用的 persona),以及這個 CLAUDE.md
 
 改 `home/` 底下 = 改會部署到家目錄的設定;改其他地方 = 只是 repo 內容,不影響任何機器。
+
+Docker、swap、平板桌面刻意放 `script/`、不交給 chezmoi:它們會改系統設定或移除套件,不該在
+`chezmoi apply` 時默默發生。不要把它們搬進 `run_` 腳本。
+
+要 apply 時執行的 `run_` 腳本一律放 `home/.chezmoiscripts/` 第一層,**不要再分子資料夾**:
+chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順序就亂掉。
+
+加選裝工具要動哪幾處,寫在 `home/.chezmoi.toml.tmpl` 選單上方的註解。
 
 ## 檔名前綴是語意,不是命名風格
 
@@ -102,51 +104,20 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 
 判準不是長度,是「跳著讀」還是「一路讀到底」。
 
-## 安裝分工
-
-chezmoi 管家目錄**和套件**:
-
-- 要 apply 時執行的 `run_` 腳本一律放 `home/.chezmoiscripts/` 第一層,**不要再分子資料夾**:
-  chezmoi 照完整路徑的字母序跑腳本,分了資料夾,下面靠檔名排的順序就亂掉。
-- 基底套件:`home/.chezmoidata/packages.yaml` 依平台列,`run_onchange_before_install-packages`
-  只裝缺的。名字一定要帶 `before_`,才會在 externals(要外部 git)與 `modify_`(要 jq、python3)之前跑。
-- 選裝工具(只有 Debian 系 Linux):`home/.chezmoi.toml.tmpl` 的 `promptMultichoiceOnce` 選單,存成
-  `.tools`。走 apt 的放 `packages.yaml` 的 `toolPackages`;其他每個工具一支
-  `run_onchange_after_install-<工具>.sh.tmpl`,整段包在 `{{ if has "<工具>" .tools }}`,已經裝了就跳過。
-  例外是 codegraph:叫 `run_onchange_after_npm-install-codegraph`。chezmoi 依檔名字母順序跑腳本,
-  它要 npm,檔名要排在 `install-nvm` 之後,第一次 apply 同時勾兩個才裝得起來。
-  加新工具 = 選單加一項 + 對應的腳本或 `toolPackages`;舊機器要 `chezmoi edit-config` 把它加進 `tools` 才會裝。
-- p10k、zsh 插件、Termux 字型:`home/.chezmoiexternal.toml.tmpl`。預設 shell:`run_once_after_set-default-shell`。
-
-`script/` 只放 chezmoi 之前或之外的事:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
-                                        # 新機器:系統更新 → git/ssh/curl → SSH key → 裝 chezmoi → init --apply
-bash script/ubuntu/install-docker.sh    # Docker Engine;高風險,會移除衝突套件並修改系統
-bash script/ubuntu/setup-swap.sh        # swapfile;預設 2G,會寫 /etc/fstab
-bash script/termux/install-desktop.sh   # 平板 xfce 桌面套件(原生 Termux)
-bash script/termux/setup-proot-ubuntu.sh # 在 proot Ubuntu 建一般使用者(原生 Termux)
-```
-
-Docker、swap、平板桌面刻意不交給 chezmoi:它們會改系統設定或移除套件,不該在 `chezmoi apply`
-時默默發生。Docker 在 WSL 會保留腳本的人工確認。
-
 ## Agent skills
 
 ### Issue tracker
 
-Issues and specs live in this repository's GitHub Issues; use the `gh` CLI.
-See `docs/agents/issue-tracker.md`.
+issue 和 spec 放在這個 repo 的 GitHub Issues,用 `gh` CLI。
+細節見 `docs/agents/issue-tracker.md`。
 
 ### Triage labels
 
-Use the default labels: `needs-triage`, `needs-info`, `ready-for-agent`,
-`ready-for-human`, and `wontfix`.
-See `docs/agents/triage-labels.md`.
+用預設 label:`needs-triage`、`needs-info`、`ready-for-agent`、
+`ready-for-human`、`wontfix`。
+細節見 `docs/agents/triage-labels.md`。
 
 ### Domain docs
 
-This is a single-context repository. Read root `GLOSSARY.md` and relevant
-`docs/adr/` files when they exist.
-See `docs/agents/domain.md`.
+這是 single-context repository。有根目錄 `GLOSSARY.md` 和相關的 `docs/adr/` 就先讀。
+細節見 `docs/agents/domain.md`。
