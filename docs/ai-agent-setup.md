@@ -25,16 +25,16 @@ chezmoi 管機器和 client 本身的設定,skillshare 只管 skills 和 MCP:
 
 ```mermaid
 flowchart LR
-  chezmoi["chezmoi<br/>規則、client 設定"]
-  skillshare["skillshare<br/>skills、MCP<br/>(agent-config repo)"]
+  dotfiles["dotfiles（chezmoi）<br/>規則、client 設定"]
+  agentconfig["agent-config（skillshare）<br/>skills、MCP"]
   clients["Claude Code<br/>Codex<br/>OpenCode"]
 
-  chezmoi --> clients
-  skillshare --> clients
-  chezmoi -. "放好 config.yaml" .-> skillshare
+  dotfiles --> clients
+  agentconfig --> clients
+  dotfiles -. "裝 skillshare、放 config.yaml" .-> agentconfig
 ```
 
-兩邊唯一的交接:chezmoi 放好 skillshare 的 `config.yaml`,之後就不再碰。
+兩邊唯一的交接:chezmoi 裝好 skillshare、放好它的 `config.yaml`,之後就不再碰。
 
 不歸 skillshare 管的例外(obsidian-wiki、plugin…)和 herdr skill 要跟版本的事,見
 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
