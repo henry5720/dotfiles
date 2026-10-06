@@ -12,8 +12,13 @@
        原生 Termux 不出選單(開發環境放 proot Ubuntu);其他 Linux 也不出,選單裡大半要 apt。
        之後要改:`chezmoi edit-config` 改 [data] tools 那一行再 apply;新勾的會裝,取消勾選不會解除安裝。
        `--prompt` 也會重問選單,預設帶現在的勾選(不在這台選單裡的會被濾掉)。
-       每個工具對應 run_onchange_after_install-<工具>.sh.tmpl,或 .chezmoidata/packages.yaml 的 toolPackages
-       (codegraph 例外,叫 npm-install-codegraph,見那支腳本開頭)。 */ -}}
+       加一個新工具要動三處:
+         1. 下面的 $toolChoices 加一項。
+         2. 走 apt 的放 .chezmoidata/packages.yaml 的 toolPackages;其他的寫一支
+            .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
+            {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
+            (codegraph 例外,叫 npm-install-codegraph,見那支腳本開頭)。
+         3. 已經 init 過的機器不會重問選單,要 `chezmoi edit-config` 把它加進 tools 才會裝。 */ -}}
 {{- $tools := list -}}
 {{- if includeTemplate "is-debian" . -}}
 {{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
