@@ -15,7 +15,7 @@ printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "codex-lb-gcp/gpt-6-astra",
-  "small_model": "codex-lb-gcp/gpt-5.6-luna",
+  "small_model": "codex-lb-gcp/gpt-6-luna",
   "permission": {
     "external_directory": {
       "*": "ask",
@@ -33,39 +33,6 @@ printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
         "apiKey": "{{ .codexLbApiKey }}"
       },
       "models": {
-        "gpt-5.6-sol": {
-          "name": "GPT-5.6 Sol",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        },
-        "gpt-5.6-terra": {
-          "name": "GPT-5.6 Terra",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        },
-        "gpt-5.6-luna": {
-          "name": "GPT-5.6 Luna",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        },
         "gpt-6-astra": {
           "name": "GPT-6 Astra",
           "reasoning": true,
@@ -73,7 +40,29 @@ printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
           "attachment": true,
           "modalities": { "input": ["text", "image"], "output": ["text"] },
           "limit": {
-            "context": 1050000,
+            "context": 272000,
+            "output": 128000
+          }
+        },
+        "gpt-6.1-sol": {
+          "name": "GPT-6.1 Sol",
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": true,
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          }
+        },
+        "gpt-6-luna": {
+          "name": "GPT-6 Luna",
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": true,
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
+          "limit": {
+            "context": 272000,
             "output": 128000
           }
         }
