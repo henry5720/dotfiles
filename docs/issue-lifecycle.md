@@ -17,23 +17,19 @@ flowchart TD
 
 ## spec（底下有 sub-issue）
 
+照上游 `/implement-spec`。
+
 ```mermaid
 flowchart TD
   S["spec"] --> BR["開整合分支"]
-  BR --> DR["第一個 commit 後開 draft PR<br/>只寫 Closes spec，不列 sub-issue"]
-  DR --> Q{"sub-issue 互相獨立、要平行做？"}
-  Q -- "否（預設）：一個 worktree 順序做" --> ONE["做一張 sub-issue<br/>commit 進整合分支"]
-  ONE --> C1["留言：commit、怎麼驗的<br/>關 sub-issue"]
-  C1 --> N1{"還有 sub-issue？"}
-  N1 -- "有（被它擋的那張解鎖了）" --> ONE
-  Q -- "是：多個 worktree" --> MANY["每張 sub-issue 從整合分支切 worktree<br/>做完合回整合分支"]
-  MANY --> C2["合進去時留言<br/>關 sub-issue"]
-  C2 --> N2{"還有 sub-issue？"}
-  N2 -- "有" --> MANY
-  N1 -- "沒有" --> RV["code review、修完"]
-  N2 -- "沒有" --> RV
-  RV --> M["draft 轉 ready、merge 進預設分支<br/>GitHub 自動關 spec"]
+  BR --> W["每張可做的 sub-issue<br/>各開 worktree 和分支"]
+  W --> IM["做完後先合入<br/>整合分支最新 commit"]
+  IM --> MG["merger 合回<br/>整合分支"]
+  MG --> F{"第一次合回？"}
+  F -- "是" --> DR["開 draft PR<br/>Closes spec 和所有 sub-issue"]
+  F -- "否" --> N{"還有 sub-issue？"}
+  DR --> N
+  N -- "有（擋它的已合回）" --> W
+  N -- "沒有" --> RV["跑 code-review<br/>修完"]
+  RV --> M["draft 轉 ready、merge<br/>GitHub 關 spec 和所有 sub-issue"]
 ```
-
-sub-issue 不列進 PR 的 `Closes`：`Closes` 只在 PR 進預設分支時生效，列了就要等整條分支 merge 才關，
-被它擋的 sub-issue 會一直顯示 blocked。spec 要等 merge 才關，所以 **spec 開著＝這份還沒進預設分支**。

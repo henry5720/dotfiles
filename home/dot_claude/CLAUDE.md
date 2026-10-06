@@ -72,9 +72,6 @@ EnterWorktree --path <那個 path>
   做不下去就留言卡在哪、unassign；`--bg` 派出去的 `state` 是失敗時，由派它的人 unassign。
 - **Close**：PR 進預設分支、body 寫 `Closes #N` 的，交給 merge 關；其他情況（沒開 PR、PR 進的不是預設分支）
   commit 之後留言（commit、怎麼驗的）再關。
-  用 `/implement-spec` 做 spec 時：第一個 commit 後就開 draft PR，只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）。
-  sub-issue 進了整合分支（順序做就是 commit 完，平行做就是從自己的 worktree 合回來）就留言再關。
-  預設一個 worktree 順序做，sub-issue 真的互相獨立才開多個平行做。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
 - **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
