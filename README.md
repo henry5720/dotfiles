@@ -15,18 +15,13 @@
 
 ## 這個 repo 怎麼分工
 
-```mermaid
-flowchart LR
-  boot["script/bootstrap.sh"] -- 新機器跑一次 --> init["chezmoi init --apply"]
-  home["home/"] -- chezmoi apply --> dot["$HOME 設定 + 套件 + 選裝工具 + zsh"]
-  manual["script/ubuntu/、script/termux/"] -- 手動執行 --> sys["Docker、swap、平板桌面"]
-```
+| 東西 | 誰跑、什麼時候 | 管什麼 |
+|---|---|---|
+| `script/bootstrap.sh` | 自己，新機器跑一次 | 裝好 git、ssh、chezmoi，最後跑 `chezmoi init --apply` |
+| `home/` | `chezmoi apply`，每次改完 | 設定檔、基底套件、選裝工具、p10k 與 zsh 插件、預設 shell |
+| `script/ubuntu/`、`script/termux/` | 自己，要用時手動跑 | 會改系統的東西：Docker（`install-docker.sh`，會移除衝突套件）、swap（`setup-swap.sh`，改 `/etc/fstab`）、平板桌面 |
 
-- **chezmoi 管家目錄和套件**：設定檔、基底套件、選裝工具、p10k 與 zsh 插件、預設 shell 都由
-  `chezmoi apply` 處理。
-- **手動腳本只剩會改系統的東西**：`script/ubuntu/install-docker.sh`（會移除衝突套件）、
-  `script/ubuntu/setup-swap.sh`（改 `/etc/fstab`）、`script/termux/` 的平板桌面。
-- 其餘 chezmoi 看不到：`docs/`（說明）、`wsl/`（Windows 端）、`ai-agent/`（手動貼用的 persona）。
+其餘 chezmoi 看不到：`docs/`（說明）、`wsl/`（Windows 端）、`ai-agent/`（手動貼用的 persona）。
 
 預設 source repo 在 `~/.local/share/chezmoi`。
 

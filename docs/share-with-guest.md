@@ -5,26 +5,8 @@
 
 ## 兩層分開想
 
-要給人看的東西都是 **web server**，只綁在本機；「開給誰」是另外一層：
-
-```mermaid
-flowchart LR
-  subgraph server["web server（自己用 CLI 前景起，只綁 127.0.0.1）"]
-    D["dev server<br/>:3000"]
-    T["ttyd（shell 包成網頁）<br/>:7681"]
-    C["code-server<br/>:8080"]
-  end
-  subgraph who["開給誰"]
-    ME["自己<br/>ssh -L／tailscale serve（tailnet）"]
-    G["訪客<br/>tailscale funnel（公網）"]
-  end
-  D --> ME
-  T --> ME
-  C --> ME
-  D --> G
-  T --> G
-  C -. "不要" .-> G
-```
+要給人看的東西都是 **web server**，自己用 CLI 前景起、只綁 127.0.0.1；「開給誰」是另外一層：
+開給自己用 `ssh -L`／`tailscale serve`，訪客用 `tailscale funnel`。
 
 | server | 誰擋陌生人 | 能開給訪客嗎 |
 |---|---|---|
@@ -64,12 +46,10 @@ share-shell herdr session attach default      # 最後面接什麼，網頁就�
 
 ```mermaid
 flowchart LR
-  S["share-shell"] --> T["ttyd<br/>127.0.0.1:7681<br/>隨機密碼"]
-  S --> F["tailscale funnel :10000<br/>前景"]
-  F -- 公網 --> G["對方的瀏覽器"]
-  G -.-> T
-  X["Ctrl+C／關終端機"] -- "funnel 撤掉<br/>ttyd 跟著死" --> S
+  G["對方的瀏覽器"] -- 公網 --> F["funnel :10000"] --> T["ttyd 127.0.0.1:7681"]
 ```
+
+`share-shell` 同時起這兩個，Ctrl+C 一起關。
 
 script 在 [`home/dot_local/bin/executable_share-shell`](../home/dot_local/bin/executable_share-shell)。
 它比另外兩種多做的只有一件：**幫 ttyd 產密碼**。
