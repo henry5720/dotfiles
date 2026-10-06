@@ -119,7 +119,8 @@ skill 由 skillshare 管,說明在 agent-config:從哪來、裝給誰(global／p
 三個 client 共用的 MCP 也由 skillshare 管:誰寫哪一段、API key、從舊版 dotfiles 升上來
 怎麼清舊條目,見 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。**這個 repo 不寫任何 MCP 條目。**
 
-下面兩節是 dotfiles 自己部署、跟 MCP 有關的東西:codegraph(CLI、索引、git hook)和 opencode 的設定檔。
+下面幾節是 dotfiles 自己部署、跟 MCP 有關的東西:codegraph(CLI、索引、git hook)、
+playwright-cli(操作瀏覽器時代替 MCP)和 opencode 的設定檔。
 
 ## codegraph:設定會回來,但它塞進 CLAUDE.md 的那段不會
 
@@ -336,6 +337,22 @@ worktree 在別的 branch 上看不到。
 `husky - post-checkout script failed (code 1)`。同理,共用那支 hook 裡全部用 `if` 包、
 最後明確 `exit 0` —— 它是被 `sh -e` 執行的。
 
+## playwright-cli:操作瀏覽器用,瀏覽器借 headless-chrome 那支
+
+agent 要點、填表、跑流程、截圖時用 `playwright-cli`,查原因才用 chrome-devtools-mcp,
+分工見 [ADR 0001](adr/0001-browser-tools-drive-vs-debug.md)。勾選裝工具 `playwright-cli`,
+chezmoi 就跑 `npm install -g @playwright/cli`(要一起勾 `nvm`,同 codegraph)。
+
+| 問題 | 答案 |
+|---|---|
+| 瀏覽器從哪來 | 預設用系統的 `/opt/google/chrome/chrome`,也就是選裝工具 `headless-chrome` 裝的那支 |
+| 沒有那支 Chrome 會怎樣 | `open` 直接報錯 `Chromium distribution 'chrome' is not found`,**不會自己下載**(2026-10-06 在 `node:22-bookworm-slim` 容器實測 0.1.22) |
+| 那為什麼不讓它自己抓 | `playwright-cli install-browser` 不給參數會把 chromium、firefox、webkit 全抓下來,系統函式庫還要另外 apt |
+| 哪些機器出現在選單 | 跟 `headless-chrome` 同一個條件:非 WSL 的 amd64。WSL 用 Windows 的 Chrome,ARM 沒有 Google 的 `.deb` |
+| skill 在哪 | 不在這個 repo。`playwright-cli install --skills` 那份由 agent-config 用 skillshare 發 |
+
+跟 codegraph 一樣,npm 全域套件綁在當下的 node 版本,`nvm use` 換版本後要重裝一次。
+
 ## opencode
 
 `home/dot_config/opencode/modify_private_opencode.json.tmpl`(部署成權限 600 的
@@ -453,6 +470,8 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |
 | 接一個 MCP(三個 client 都要) | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 讓 agent 用瀏覽器 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(amd64 限定,要勾選裝工具 `headless-chrome`,見[新機器設定 4.2](new-machine-setup.md#42-headless-chrome選了-headless-chrome-才有))。再在 session 裡 `/mcp` 確認連上 |
+| 讓 agent 點、跑流程、截圖(不查原因) | 遠端主機勾 `playwright-cli`,見 [playwright-cli](#playwright-cli操作瀏覽器用瀏覽器借-headless-chrome-那支) |
+| 換過 node 版本後 playwright-cli 不見了 | `npm i -g @playwright/cli` 再裝一次 |
 | 讓 agent 用 symbol 圖查程式碼,不要一直 grep | 在那個專案 `codegraph init`,見 [codegraph](#codegraph設定會回來但它塞進-claudemd-的那段不會) |
 | 換過 node 版本後 codegraph 掛了 | `npm i -g @colbymchenry/codegraph` 再裝一次(npm -g 綁 node 版本) |
 | 新 worktree 要有 codegraph 索引 | 什麼都不用做,共用 `post-checkout` hook 會複製主索引(約 1 秒) |

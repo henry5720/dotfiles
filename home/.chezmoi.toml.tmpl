@@ -17,18 +17,19 @@
          2. 走 apt 的放 .chezmoidata/packages.yaml 的 toolPackages;其他的寫一支
             .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
             {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
-            (codegraph 例外,叫 npm-install-codegraph,見那支腳本開頭)。
+            (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
          3. 已經 init 過的機器不會重問選單,要 `chezmoi edit-config` 把它加進 tools 才會裝。 */ -}}
 {{- $tools := list -}}
 {{- if includeTemplate "is-debian" . -}}
 {{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
-{{- /* AI 相關。codegraph 用 npm 裝,要一起勾 nvm(或機器上本來就有 npm)。 */ -}}
+{{- /* AI 相關。codegraph、playwright-cli 用 npm 裝,要一起勾 nvm(或機器上本來就有 npm)。 */ -}}
 {{-   $toolChoices = concat $toolChoices (list "claude" "codex" "opencode" "document-media" "ai-document-media" "codegraph") -}}
 {{- /* headless Chrome 給 chrome-mcp 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
-         Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。 */ -}}
+         Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。
+         playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
 {{-   $wsl := eq (includeTemplate "is-wsl" .) "true" -}}
 {{-   if and (not $wsl) (eq .chezmoi.arch "amd64") -}}
-{{-     $toolChoices = append $toolChoices "headless-chrome" -}}
+{{-     $toolChoices = concat $toolChoices (list "headless-chrome" "playwright-cli") -}}
 {{-   end -}}
 {{-   $toolChoices = append $toolChoices "agent-config" -}}
 {{-   $toolDefaults := $toolChoices -}}

@@ -100,13 +100,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/scri
 | 工具 | 說明 |
 |---|---|
 | `fastfetch`、`btop`、`gh` | 系統資訊、監控、GitHub CLI（官方 apt 源；裝完 `gh auth login`） |
-| `nvm` | Node／npm；`codegraph`、OmO 都要它 |
+| `nvm` | Node／npm；`codegraph`、`playwright-cli`、OmO 都要它 |
 | `code-server`、`tailscale`、`ttyd`、`herdr`、`wakatime` | 遠端編輯、VPN、`share-shell` 用的 web terminal、agent 多工、計時 |
 | `claude`、`codex`、`opencode` | 三個 AI CLI，work 設定由 chezmoi 部署 |
 | `document-media` | `ffmpeg`、`mupdf-tools`、`pandoc`、`python3-venv`，給 `local-artifact-intake` skill |
 | `ai-document-media` | 獨立 venv 裝 `docling`、`faster-whisper`，**好幾 GB**，見第 4 步 |
 | `codegraph` | 用 npm 裝，要一起勾 `nvm`（或機器上本來就有 npm） |
 | `headless-chrome` | 遠端主機給 agent 自己開瀏覽器；WSL 和非 amd64 不列 |
+| `playwright-cli` | agent 操作瀏覽器用，借 `headless-chrome` 那支 Chrome，條件同上；用 npm 裝，要一起勾 `nvm` |
 | `agent-config` | skillshare 把 agent-config 的 skills、MCP 裝進各 client |
 
 之後要改選擇、選單加了新工具時怎麼辦，見 [README](../README.md#之後想加減工具)。

@@ -7,8 +7,8 @@
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、zsh、選裝工具選單（不列 headless Chrome） |
-| 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome |
+| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、zsh、選裝工具選單（不列 headless Chrome、playwright-cli） |
+| 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、終端機字型；**沒有**選單（開發環境放 proot Ubuntu） |
 
 機器種類自動判斷，不用回答。Windows 那一側（`wsl/`）是手動套用的參考檔。
@@ -113,7 +113,7 @@ chezmoi verify
 ## 文件索引
 
 - [新機器設定](docs/new-machine-setup.md)：bootstrap 每一關、平板與 proot、裝完之後的 AI agent 與各 repo 設定。
-- [AI agent setup](docs/ai-agent-setup.md)：規則、plugin、codegraph 與 opencode；skill 與 MCP 指到 agent-config。
+- [AI agent setup](docs/ai-agent-setup.md)：規則、plugin、codegraph、playwright-cli 與 opencode；skill 與 MCP 指到 agent-config。
 - [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
 - [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config）：瀏覽器 MCP、轉發到 EC2 與排錯。
 - [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md)：Playwright（`@playwright/mcp`、test MCP）與 chrome-devtools-mcp 各能做什麼，逐項附來源。
