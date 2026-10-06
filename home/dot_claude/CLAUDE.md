@@ -75,8 +75,8 @@ EnterWorktree --path <那個 path>
   用 `/implement-spec` 做 spec 時：第一個 commit 後就開 draft PR，只 `Closes` spec，不列 sub-issue（上游 `implement-spec` 會全列，這裡覆寫）。
   sub-issue 進了整合分支（順序做就是 commit 完，平行做就是從自己的 worktree 合回來）就留言再關。
   預設一個 worktree 順序做，sub-issue 真的互相獨立才開多個平行做。
-  sub-issue 用 `/implement` 一張一張做的，照上面一般 issue 的規則，各自開 PR。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
+- **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
 - 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
 
