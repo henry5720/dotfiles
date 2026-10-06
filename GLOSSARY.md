@@ -25,7 +25,7 @@ _Avoid_: 子票、子單、子任務
 _Avoid_: 接、認領、claim、貼 agent-in-progress
 
 **整合分支**:
-做一份 spec 時，sub-issue 先合進去、全部完成後才一次進預設分支的分支。`/implement-spec` 和 runner 都走這條；用 `/implement` 一張一張做的不走，各自開 PR。sub-issue 進了整合分支就關。
+做一份 spec 時，sub-issue 先合進去、全部完成後才一次進預設分支的分支。`/implement-spec` 和 runner 都走這條；用 `/implement` 一張一張做的不走。sub-issue 進了整合分支就關。
 _Avoid_: feature branch、母分支、spec 分支
 
 ## Runner
