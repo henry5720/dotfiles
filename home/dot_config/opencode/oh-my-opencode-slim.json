@@ -15,7 +15,7 @@
         ]
       },
       "oracle": {
-        "model": "codex-lb-gcp/gpt-5.6-sol",
+        "model": "codex-lb-gcp/gpt-6.1-sol",
         "variant": "high",
         "skills": [
           "simplify"
@@ -23,19 +23,19 @@
         "mcps": []
       },
       "council": {
-        "model": "codex-lb-gcp/gpt-5.6-sol",
+        "model": "codex-lb-gcp/gpt-6.1-sol",
         "variant": "high",
         "skills": [],
         "mcps": []
       },
       "explorer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "model": "codex-lb-gcp/gpt-6-luna",
         "variant": "low",
         "skills": [],
         "mcps": []
       },
       "librarian": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "model": "codex-lb-gcp/gpt-6-luna",
         "variant": "low",
         "skills": [],
         "mcps": [
@@ -44,14 +44,14 @@
         ]
       },
       "designer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
-        "variant": "medium",
+        "model": "codex-lb-gcp/gpt-6-luna",
+        "variant": "high",
         "skills": [],
         "mcps": []
       },
       "fixer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
-        "variant": "medium",
+        "model": "codex-lb-gcp/gpt-6-luna",
+        "variant": "high",
         "skills": [],
         "mcps": []
       }
@@ -77,19 +77,19 @@
         "mcps": []
       },
       "council": {
-        "model": "codex-lb-gcp/gpt-5.6-sol",
+        "model": "codex-lb-gcp/gpt-6.1-sol",
         "variant": "high",
         "skills": [],
         "mcps": []
       },
       "explorer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "model": "codex-lb-gcp/gpt-6-luna",
         "variant": "low",
         "skills": [],
         "mcps": []
       },
       "librarian": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
+        "model": "codex-lb-gcp/gpt-6-luna",
         "variant": "low",
         "skills": [],
         "mcps": [
@@ -98,14 +98,14 @@
         ]
       },
       "designer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
-        "variant": "medium",
+        "model": "codex-lb-gcp/gpt-6-luna",
+        "variant": "high",
         "skills": [],
         "mcps": []
       },
       "fixer": {
-        "model": "codex-lb-gcp/gpt-5.6-luna",
-        "variant": "medium",
+        "model": "codex-lb-gcp/gpt-6-luna",
+        "variant": "high",
         "skills": [],
         "mcps": []
       }
@@ -120,11 +120,11 @@
           "variant": "high"
         },
         "sol": {
-          "model": "codex-lb-gcp/gpt-5.6-sol",
+          "model": "codex-lb-gcp/gpt-6.1-sol",
           "variant": "high"
         },
         "luna": {
-          "model": "codex-lb-gcp/gpt-5.6-luna",
+          "model": "codex-lb-gcp/gpt-6-luna",
           "variant": "high"
         }
       }
@@ -138,7 +138,7 @@
         "@agentclientprotocol/claude-agent-acp"
       ],
       "description": "Claude Code specialist；由 OMO 依任務自行決定是否委派。",
-      "wrapperModel": "codex-lb-gcp/gpt-5.6-luna",
+      "wrapperModel": "codex-lb-gcp/gpt-6-luna",
       "permissionMode": "ask",
       "timeoutMs": 0
     }
