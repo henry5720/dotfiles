@@ -27,6 +27,7 @@ packages:
     - python
     # 預設安裝的命令列工具。Linux 不走 apt,由 run_onchange_after_install-cli-tools 從 GitHub release 下載
     - eza
+    - fzf
 
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理。

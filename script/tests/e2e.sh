@@ -185,8 +185,9 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   done
   check "~/.p10k.zsh 已部署" "grep -q POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ~/.p10k.zsh"
   # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
-  check "zsh -i -c exit 不出錯、p10k 與插件有載入、設定檔有讀到" \
-    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  # stderr 是空的也守住 `fzf --zsh`:吃到沒有 --zsh 的舊版 fzf 會在這裡報錯。
+  check "zsh -i -c exit 不出錯、p10k、插件與 fzf 整合有載入、設定檔有讀到" \
+    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+functions[fzf-history-widget]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
   # ls、grep 只加顏色;ll 等有 eza 才用 eza(兩邊都有裝 eza)
   check_alias "ll 展開含 eza" ll '$a == *eza*'
   check_alias "ls 展開是 ls --color=auto(沒換成 eza)" ls '$a == "ls --color=auto"'
@@ -297,7 +298,7 @@ DOCKERFILE
 UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
 # 預設安裝的命令列工具:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
-CLI_TOOLS=(eza)
+CLI_TOOLS=(eza fzf)
 
 check_cli_tools() {
   for t in "${CLI_TOOLS[@]}"; do
@@ -492,7 +493,7 @@ DOCKERFILE
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
 # 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3),
 # 以及預設安裝的命令列工具(Linux 走下載腳本,Termux 走 pkg)。
-TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza)
+TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza fzf)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
 # (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。

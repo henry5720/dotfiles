@@ -20,6 +20,11 @@ mkdir -p "$bin"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
+# 檔名帶版本號的 asset 要先知道 latest 是哪個 tag:/releases/latest 會轉址到 /releases/tag/<tag>
+latest_tag() {
+  url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$1/releases/latest")
+  echo "${url##*/}"
+}
 # fetch <名字> <tar.gz 的 URL>:解到 $tmp/<名字>。先存檔再解,curl 失敗才會讓腳本停下來
 fetch() {
   curl -fsSL -o "$tmp/$1.tar.gz" "$2"
@@ -37,5 +42,18 @@ else
   esac
   fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$target.tar.gz"
   install -m 755 "$tmp/eza/eza" "$bin/eza"
+fi
+
+# 3. fzf:Go 靜態 binary。tag 是 v0.xx.x,檔名裡的版本不帶 v
+if [ -e "$bin/fzf" ]; then
+  echo "fzf 已安裝,跳過"
+else
+  case "$arch" in
+    x86_64) target=linux_amd64 ;;
+    aarch64) target=linux_arm64 ;;
+  esac
+  tag=$(latest_tag junegunn/fzf)
+  fetch fzf "https://github.com/junegunn/fzf/releases/download/$tag/fzf-${tag#v}-$target.tar.gz"
+  install -m 755 "$tmp/fzf/fzf" "$bin/fzf"
 fi
 {{ end -}}
