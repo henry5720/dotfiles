@@ -77,8 +77,10 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
   && source ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # fzf:Ctrl-R 模糊搜歷史、Ctrl-T 挑檔案、Alt-C 進子目錄、**<Tab> 模糊補全(平常 Tab 不變)。
-# 要 fzf ≥ 0.48 才有 --zsh;~/.local/bin 排在 PATH 前面,不會吃到 apt 的舊版。沒裝就略過
-(( $+commands[fzf] )) && source <(fzf --zsh)
+# 要 fzf ≥ 0.48 才有 --zsh;~/.local/bin 排在 PATH 前面,不會吃到 apt 的舊版。沒裝就略過。
+# 沒有終端機($TTY 空,例如 ssh host 'zsh -i -c …')也略過:用不到按鍵,
+# 而且它還原選項時會印「can't change option: zle」
+(( $+commands[fzf] )) && [[ -n $TTY ]] && source <(fzf --zsh)
 
 # 目錄跳轉:z <片段> 跳到常去、最近去過的目錄。cd 不變,資料檔用預設的 ~/.z
 [ -f ~/.config/zsh/zsh-z/zsh-z.plugin.zsh ] \

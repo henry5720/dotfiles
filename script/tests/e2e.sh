@@ -95,6 +95,15 @@ make_fixtures() {
   git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init
   git clone -q --bare "$tmp/ac" "$tmp/agent-config.git"
   rm -rf "$tmp/ac"
+  # zsh_ok 的 tty 版用(兩邊都有 python3)。檔名不能叫 tty.py,會蓋掉標準庫的 tty
+  cat > "$tmp/zsh-tty.py" <<'PY'
+import pty, subprocess, sys
+# 在 pty 裡跑指令(stdin 是終端機),stdout 丟掉,stderr 原樣印出,回傳它的 exit code
+master, slave = pty.openpty()
+r = subprocess.run(sys.argv[1:], stdin=slave, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+sys.stderr.buffer.write(r.stderr)
+sys.exit(r.returncode)
+PY
   docker exec -u "$CTR_USER" "$CTR" mkdir -p "$FIX"
   tar -C "$tmp" -cf - . | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$FIX" -xf -
   rm -rf "$tmp"
@@ -166,11 +175,14 @@ INIT_FLAGS=(
 # zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
 ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-z zsh-syntax-highlighting)
 
-# zsh_ok <zsh 指令>:印出一段容器內指令 —— 在 zsh -i 裡跑它,要回傳 0、stderr 要是空的。
+# zsh_ok <zsh 指令> [tty]:印出一段容器內指令 —— 在 zsh -i 裡跑它,要回傳 0、stderr 要是空的。
+# docker exec 沒有終端機;給 tty 就改在 pty 裡跑(zshrc 的 fzf 整合只在有終端機時載入)。
 # termux-docker 沒有 Android 系統 library,.zshrc 開頭的 fastfetch 一定 link 失敗(真機不會),
 # 只濾掉這一種訊息,其他 stderr 照樣算錯。zsh 指令裡不能有單引號。
 zsh_ok() {
-  echo "if ! err=\$(zsh -i -c '$1' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
+  local run=""
+  [ "${2:-}" = tty ] && run="python3 -I $FIX/zsh-tty.py "
+  echo "if ! err=\$(${run}zsh -i -c '$1' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
 }
 
 # check_alias <描述> <alias 名> <zsh 條件>:條件裡用 $a 代表 alias 展開的結果(沒定義是「未定義」)
@@ -185,9 +197,12 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   done
   check "~/.p10k.zsh 已部署" "grep -q POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ~/.p10k.zsh"
   # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
+  # 這項沒有終端機,也守住「沒終端機時 fzf 整合不載入、不印 can't change option: zle」。
+  check "zsh -i -c exit 不出錯、p10k 與插件有載入、設定檔有讀到" \
+    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
   # stderr 是空的也守住 `fzf --zsh`:吃到沒有 --zsh 的舊版 fzf 會在這裡報錯。
-  check "zsh -i -c exit 不出錯、p10k、插件與 fzf 整合有載入、設定檔有讀到" \
-    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+functions[fzf-history-widget]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  check "(有 tty)zsh -i -c exit 不出錯、fzf 整合有載入" \
+    "$(zsh_ok '[[ -n $TTY ]] && (( ${+functions[fzf-history-widget]} ))' tty)"
   # ls、grep 只加顏色;ll 等有 eza 才用 eza(兩邊都有裝 eza)
   check_alias "ll 展開含 eza" ll '$a == *eza*'
   check_alias "ls 展開是 ls --color=auto(沒換成 eza)" ls '$a == "ls --color=auto"'
@@ -315,6 +330,7 @@ check_cli_tools() {
   done
   step "藏起 ~/.local/bin 的 ${CLI_TOOLS[*]}" "${hide}true"
   check "藏起後 zsh -i -c exit 不出錯" "$(zsh_ok 'true')"
+  check "藏起後(有 tty)zsh -i -c exit 不出錯" "$(zsh_ok '[[ -n $TTY ]]' tty)"
   check_alias "藏起後 ll 退回 ls -alF" ll '$a == "ls -alF"'
   check_alias "藏起後 la 退回 ls -A" la '$a == "ls -A"'
   check_alias "藏起後 l 退回 ls -CF" l '$a == "ls -CF"'
