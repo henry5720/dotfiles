@@ -1,0 +1,92 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!{{ lookPath "sh" }}
+# 預設安裝的命令列工具(不進選單):從 GitHub release 的 latest 下載到 ~/.local/bin。
+# Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml),
+# 這支和 Linux 以外的系統(例如 macOS)都渲染成空的。
+# chezmoi 不負責更新、也不釘版本。alias 與 shell 整合在 home/dot_zshrc。
+#
+# 加一個預設工具要動:這支加一段、packages.yaml 的 termux 清單、
+# script/tests/e2e.sh 的 CLI_TOOLS 與 TERMUX_BASE。
+#
+# 「已經裝過」只看 ~/.local/bin/<工具> 在不在,不用 command -v:Ubuntu 可能有 apt 裝的舊版
+# (例如 fzf 0.44 沒有 `fzf --zsh`),找到它就跳過的話,每次開 shell 都會報錯。
+# 系統那份不用管,zshrc 讓 ~/.local/bin 排在 PATH 前面。
+#
+# 單一工具下載失敗只印一行跳過、繼續下一個,整支照樣 exit 0:不然 apply 會中止,
+# 排在後面的 after 腳本全不會跑。代價是 run_onchange 只在這支內容變了才重跑,失敗的那個不會自動重試。
+set -eu
+{{ template "sh-arch" . }}
+# 1. 共用開頭:架構、目的地、暫存目錄。各工具 asset 的架構名在這裡一次決定
+#    eza:x86_64 用靜態連結的 musl 版,aarch64 只有 glibc 版;bat、rg 兩邊都用 musl 版(直接用 $arch)
+arch=$(uname -m)
+case "$arch" in
+  x86_64) eza_target=x86_64-unknown-linux-musl; fzf_target=linux_amd64 ;;
+  aarch64) eza_target=aarch64-unknown-linux-gnu; fzf_target=linux_arm64 ;;
+  *) skip_arch "命令列工具(eza 等)" ;;
+esac
+bin="$HOME/.local/bin"
+mkdir -p "$bin"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# 下面這些函式在 `if !` 裡跑,set -e 不作用,每一步都要自己 && 串起來
+# 檔名帶版本號的 asset 要先知道 latest 是哪個 tag:/releases/latest 會轉址到 /releases/tag/<tag>
+latest_tag() {
+  url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$1/releases/latest") &&
+    echo "${url##*/}"
+}
+# fetch <名字> <tar.gz 的 URL>:解到 $tmp/<名字>
+fetch() {
+  curl -fsSL -o "$tmp/$1.tar.gz" "$2" &&
+    mkdir -p "$tmp/$1" &&
+    tar -xzf "$tmp/$1.tar.gz" -C "$tmp/$1"
+}
+# put <指令名> <解出來的 binary>:先 install 到 $bin 裡的暫存名再 mv(同一個檔案系統,原子替換),
+# 中斷時不會留下半個 binary、之後又被當成已安裝
+put() {
+  install -m 755 "$2" "$bin/.$1.tmp" &&
+    mv -f "$bin/.$1.tmp" "$bin/$1"
+}
+# want <指令名> <安裝函式>:已經有就跳過;安裝失敗印一行跳過,不讓整支停下來
+want() {
+  if [ -e "$bin/$1" ]; then
+    echo "$1 已安裝,跳過"
+  elif ! "$2"; then
+    rm -f "$bin/.$1.tmp"
+    echo "$1 下載失敗,跳過"
+  fi
+}
+
+# 2. eza
+install_eza() {
+  fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$eza_target.tar.gz" &&
+    put eza "$tmp/eza/eza"
+}
+want eza install_eza
+
+# 3. fzf:Go 靜態 binary。tag 是 v0.xx.x,檔名裡的版本不帶 v
+install_fzf() {
+  tag=$(latest_tag junegunn/fzf) &&
+    fetch fzf "https://github.com/junegunn/fzf/releases/download/$tag/fzf-${tag#v}-$fzf_target.tar.gz" &&
+    put fzf "$tmp/fzf/fzf"
+}
+want fzf install_fzf
+
+# 4. bat:靜態連結的 musl 版。指令名是 bat(apt 版叫 batcat)。tag 是 v0.xx.x,檔名也帶 v
+install_bat() {
+  tag=$(latest_tag sharkdp/bat) &&
+    name="bat-$tag-$arch-unknown-linux-musl" &&
+    fetch bat "https://github.com/sharkdp/bat/releases/download/$tag/$name.tar.gz" &&
+    put bat "$tmp/bat/$name/bat"
+}
+want bat install_bat
+
+# 5. ripgrep(指令 rg):靜態連結的 musl 版。tag 不帶 v
+install_rg() {
+  tag=$(latest_tag BurntSushi/ripgrep) &&
+    name="ripgrep-$tag-$arch-unknown-linux-musl" &&
+    fetch ripgrep "https://github.com/BurntSushi/ripgrep/releases/download/$tag/$name.tar.gz" &&
+    put rg "$tmp/ripgrep/$name/rg"
+}
+want rg install_rg
+{{ end -}}

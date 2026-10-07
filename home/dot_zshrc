@@ -76,6 +76,16 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
 [ -f ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ] \
   && source ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 
+# fzf:Ctrl-R 模糊搜歷史、Ctrl-T 挑檔案、Alt-C 進子目錄、**<Tab> 模糊補全(平常 Tab 不變)。
+# 要 fzf ≥ 0.48 才有 --zsh;~/.local/bin 排在 PATH 前面,不會吃到 apt 的舊版。沒裝就略過。
+# 沒有終端機($TTY 空,例如 ssh host 'zsh -i -c …')也略過:用不到按鍵,
+# 而且它還原選項時會印「can't change option: zle」
+(( $+commands[fzf] )) && [[ -n $TTY ]] && source <(fzf --zsh)
+
+# 目錄跳轉:z <片段> 跳到常去、最近去過的目錄。cd 不變,資料檔用預設的 ~/.z
+[ -f ~/.config/zsh/zsh-z/zsh-z.plugin.zsh ] \
+  && source ~/.config/zsh/zsh-z/zsh-z.plugin.zsh
+
 # 語法高亮 (必須放最後)
 [ -f ~/.config/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] \
   && source ~/.config/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
@@ -83,5 +93,22 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
 # ===============================================================
 # 7. 自定義別名 (Aliases)
 # ===============================================================
+# ls、grep 只加顏色,不換成 eza、rg(參數意思不同);cat 也不換成 bat
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+
+# 有 eza 才用 eza 版的 ll/la/l/lt(開 shell 時判斷,裝好要開新 shell);
+# 沒有就退回 Ubuntu bash 預設的 ll/la/l,lt 不定義。--icons=auto:接 pipe 時不印 icon
+if (( $+commands[eza] )); then
+  alias ll='eza -la --git --icons=auto --group-directories-first'
+  alias la='eza -a --icons=auto --group-directories-first'
+  alias l='eza -F --icons=auto --group-directories-first'
+  alias lt='eza --tree --level=2 --icons=auto --group-directories-first'
+else
+  alias ll='ls -alF'
+  alias la='ls -A'
+  alias l='ls -CF'
+fi
+
 # alias c='claude'
 # alias oc='opencode'
