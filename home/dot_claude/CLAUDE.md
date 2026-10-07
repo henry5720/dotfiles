@@ -72,8 +72,6 @@ EnterWorktree --path <那個 path>
 - **卡住**：留言卡在哪，不關、assignee 留著（照上游）。
 - **做完**：留言（commit、怎麼驗的）再關。PR 或 commit message 寫了 `Closes #N` 的，那就是紀錄，進預設分支時 GitHub 自動關。
 - **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
-- 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
-- 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
 
 <!-- 以下整段是 `codegraph install` 自己寫進 ~/.claude/CLAUDE.md 的。
      這份檔案由 chezmoi 部署,不收進 repo 的話下次 apply 就會被刪掉,codegraph 就沒人告訴 agent 要用。
