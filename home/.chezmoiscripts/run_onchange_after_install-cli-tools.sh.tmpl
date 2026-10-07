@@ -2,17 +2,22 @@
 #!{{ lookPath "sh" }}
 # 預設安裝的命令列工具(不進選單):從 GitHub release 的 latest 下載到 ~/.local/bin。
 # Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml),這支渲染成空的。
-# chezmoi 不負責更新、也不釘版本。zshrc 的 alias 與 shell 整合在 home/dot_zshrc 第 6、7 段。
+# chezmoi 不負責更新、也不釘版本。alias 與 shell 整合在 home/dot_zshrc。
+#
+# 加一個預設工具要動:這支加一段、packages.yaml 的 termux 清單、
+# script/tests/e2e.sh 的 CLI_TOOLS 與 TERMUX_BASE。
 #
 # 「已經裝過」只看 ~/.local/bin/<工具> 在不在,不用 command -v:Ubuntu 可能有 apt 裝的舊版
 # (例如 fzf 0.44 沒有 `fzf --zsh`),找到它就跳過的話,每次開 shell 都會報錯。
 # 系統那份不用管,zshrc 讓 ~/.local/bin 排在 PATH 前面。
 set -eu
 {{ template "sh-arch" . }}
-# 1. 共用開頭:架構、目的地、暫存目錄
+# 1. 共用開頭:架構、目的地、暫存目錄。各工具 asset 的架構名在這裡一次決定
+#    eza:x86_64 用靜態連結的 musl 版,aarch64 只有 glibc 版;bat、rg 兩邊都用 musl 版(直接用 $arch)
 arch=$(uname -m)
 case "$arch" in
-  x86_64|aarch64) ;;
+  x86_64) eza_target=x86_64-unknown-linux-musl; fzf_target=linux_amd64 ;;
+  aarch64) eza_target=aarch64-unknown-linux-gnu; fzf_target=linux_arm64 ;;
   *) skip_arch "命令列工具(eza 等)" ;;
 esac
 bin="$HOME/.local/bin"
@@ -32,15 +37,11 @@ fetch() {
   tar -xzf "$tmp/$1.tar.gz" -C "$tmp/$1"
 }
 
-# 2. eza:x86_64 用靜態連結的 musl 版;aarch64 只有 glibc 版
+# 2. eza
 if [ -e "$bin/eza" ]; then
   echo "eza 已安裝,跳過"
 else
-  case "$arch" in
-    x86_64) target=x86_64-unknown-linux-musl ;;
-    aarch64) target=aarch64-unknown-linux-gnu ;;
-  esac
-  fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$target.tar.gz"
+  fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$eza_target.tar.gz"
   install -m 755 "$tmp/eza/eza" "$bin/eza"
 fi
 
@@ -48,12 +49,8 @@ fi
 if [ -e "$bin/fzf" ]; then
   echo "fzf 已安裝,跳過"
 else
-  case "$arch" in
-    x86_64) target=linux_amd64 ;;
-    aarch64) target=linux_arm64 ;;
-  esac
   tag=$(latest_tag junegunn/fzf)
-  fetch fzf "https://github.com/junegunn/fzf/releases/download/$tag/fzf-${tag#v}-$target.tar.gz"
+  fetch fzf "https://github.com/junegunn/fzf/releases/download/$tag/fzf-${tag#v}-$fzf_target.tar.gz"
   install -m 755 "$tmp/fzf/fzf" "$bin/fzf"
 fi
 
