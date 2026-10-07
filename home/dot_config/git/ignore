@@ -6,3 +6,7 @@
 # 但目錄還是會出現在 git status 的 untracked —— 在這裡一次擋掉,
 # 就不用去每個 repo 的 .git/info/exclude 各加一行。
 .codegraph/
+
+# Claude Code 的個人權限設定(按過「以後都允許」的指令記在這):只屬於這台機器,
+# 不該進版控。不是每個 repo 的 .gitignore 都有擋,例如這個 repo 自己就沒擋。
+**/.claude/settings.local.json
