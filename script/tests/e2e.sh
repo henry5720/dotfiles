@@ -164,7 +164,7 @@ INIT_FLAGS=(
 # 共用檢查
 # ===============================================================
 # zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
-ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-syntax-highlighting)
+ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-z zsh-syntax-highlighting)
 
 check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check "預設 shell 是 zsh" "[ \"\$($1)\" = \"\$(command -v zsh)\" ]"
@@ -175,8 +175,8 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
   # termux-docker 沒有 Android 系統 library,.zshrc 開頭的 fastfetch 一定 link 失敗(真機不會),
   # 只濾掉這一種訊息,其他 stderr 照樣算錯。
-  check "zsh -i -c exit 不出錯、p10k 與兩個插件有載入、設定檔有讀到" \
-    "if ! err=\$(zsh -i -c '(( \${+functions[p10k]} && \${+functions[_zsh_autosuggest_start]} && \${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n \$POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
+  check "zsh -i -c exit 不出錯、p10k 與插件有載入、設定檔有讀到" \
+    "if ! err=\$(zsh -i -c '(( \${+functions[p10k]} && \${+functions[_zsh_autosuggest_start]} && \${+functions[zshz]} && \${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n \$POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
   # wizard 是在第一次畫 prompt 時跳出來,`zsh -i -c` 不畫 prompt,所以要真的開互動 shell:
   # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
   # wizard 會吃掉那個 exit 繼續等輸入,30 秒後砍掉,輸出裡有 wizard 字樣就算失敗。

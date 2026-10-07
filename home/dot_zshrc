@@ -76,6 +76,10 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
 [ -f ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ] \
   && source ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 
+# 目錄跳轉:z <片段> 跳到常去、最近去過的目錄。cd 不變,資料檔用預設的 ~/.z
+[ -f ~/.config/zsh/zsh-z/zsh-z.plugin.zsh ] \
+  && source ~/.config/zsh/zsh-z/zsh-z.plugin.zsh
+
 # 語法高亮 (必須放最後)
 [ -f ~/.config/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] \
   && source ~/.config/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
