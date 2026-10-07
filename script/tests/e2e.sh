@@ -217,7 +217,7 @@ TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 # 文件解析兩項一般用不到又重,不在這裡實裝,只做下面的渲染檢查:
 # - document-media:apt 裝 ffmpeg、mupdf-tools、pandoc,相依套件一大串
 # - ai-document-media:docling + faster-whisper 的 venv,好幾 GB(實裝在一次性容器手動驗過,見 #65)
-TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/agent-config
+TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # agent-config 的 remote 是 git@github.com(SSH),容器裡沒有能用的 key。
 # 測試用 AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),
@@ -244,6 +244,9 @@ declare -A TOOL_CHECK=(
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
   [headless-chrome]="google-chrome --headless --no-sandbox --disable-gpu --dump-dom 'data:text/html,<p>e2e-ok</p>' 2>/dev/null | grep -q e2e-ok && [ \$(dpkg-query -W -f='\${Status}\\n' fonts-noto-cjk fonts-noto-color-emoji 2>/dev/null | grep -c 'install ok installed') = 2 ]"
+  # 用 headless-chrome 裝的那支 Chrome 真的開得了頁(它預設找 /opt/google/chrome/chrome,不會自己下載)。
+  # 容器擋 user namespace,Chrome sandbox 起不來,所以關掉(同上面 headless-chrome 的 --no-sandbox)
+  [playwright-cli]=". ~/.nvm/nvm.sh && playwright-cli --version && PLAYWRIGHT_MCP_SANDBOX=false playwright-cli -s=e2e open 'data:text/html,<title>e2e-ok</title>' | grep -q e2e-ok; r=\$?; playwright-cli -s=e2e close >/dev/null 2>&1; [ \$r = 0 ]"
   # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json"
 )
@@ -322,7 +325,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
-  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -379,15 +382,19 @@ scenario_ubuntu() {
   # WSL 用 Windows 的 Chrome(chrome-mcp),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問(--no-tty 沒給旗標 = 用預設值,也就是全部列出來的選項)。
-  bold "▶ (渲染)WSL 選單不列 headless Chrome"
+  bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   local tmpl=~/.local/share/chezmoi/home scripts=~/.local/share/chezmoi/home/.chezmoiscripts
   check "(對照)非 WSL 的選單有 headless-chrome" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"headless-chrome\"'"
-  check "WSL 的選單沒有 headless-chrome(其他 AI 工具照常列)" \
-    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/wsl.toml && grep -q '\"agent-config\"' /tmp/wsl.toml && ! grep -q headless-chrome /tmp/wsl.toml"
+  check "(對照)非 WSL 的選單有 playwright-cli" \
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
+  check "WSL 的選單沒有 headless-chrome、playwright-cli(其他 AI 工具照常列)" \
+    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/wsl.toml && grep -q '\"agent-config\"' /tmp/wsl.toml && ! grep -q headless-chrome /tmp/wsl.toml && ! grep -q playwright-cli /tmp/wsl.toml"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "WSL 上就算 tools 裡有 playwright-cli,安裝腳本也渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
 
   # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
@@ -395,9 +402,10 @@ scenario_ubuntu() {
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
   check "非 Debian 系的 config 樣板不問選單,tools 是空的" \
     "chezmoi --config /tmp/fresh-fedora.toml execute-template --init --no-tty --override-data '$fedora' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/fedora.toml && grep -qx '    tools = \[\]' /tmp/fedora.toml"
-  local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","btop"]}'
+  local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
-           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome; do
+           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
+           run_onchange_after_npm-install-playwright-cli; do
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
@@ -410,6 +418,11 @@ scenario_ubuntu() {
     "! chezmoi execute-template < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
   check "勾了套件腳本會裝 ffmpeg、mupdf-tools、pandoc" \
     "chezmoi execute-template --override-data '{\"tools\":[\"document-media\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+
+  # 容器的 config 已經勾了 playwright-cli,要蓋成空的才是「沒勾」
+  bold "▶ (渲染)playwright-cli"
+  check "沒勾時安裝腳本是空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[]}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
 
   bold "▶ (渲染)ai-document-media"
   check "沒勾時安裝腳本是空的" \
