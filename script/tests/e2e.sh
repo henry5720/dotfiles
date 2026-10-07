@@ -166,6 +166,18 @@ INIT_FLAGS=(
 # zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
 ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-z zsh-syntax-highlighting)
 
+# zsh_ok <zsh 指令>:印出一段容器內指令 —— 在 zsh -i 裡跑它,要回傳 0、stderr 要是空的。
+# termux-docker 沒有 Android 系統 library,.zshrc 開頭的 fastfetch 一定 link 失敗(真機不會),
+# 只濾掉這一種訊息,其他 stderr 照樣算錯。zsh 指令裡不能有單引號。
+zsh_ok() {
+  echo "if ! err=\$(zsh -i -c '$1' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
+}
+
+# check_alias <描述> <alias 名> <zsh 條件>:條件裡用 $a 代表 alias 展開的結果(沒定義是「未定義」)
+check_alias() {
+  check "$1" "$(zsh_ok "a=\${aliases[$2]-未定義}; [[ $3 ]] || { print -ru2 -- \"實際:$2 → \$a\"; false }")"
+}
+
 check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check "預設 shell 是 zsh" "[ \"\$($1)\" = \"\$(command -v zsh)\" ]"
   for d in "${ZSH_EXTERNALS[@]}"; do
@@ -173,10 +185,12 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   done
   check "~/.p10k.zsh 已部署" "grep -q POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ~/.p10k.zsh"
   # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
-  # termux-docker 沒有 Android 系統 library,.zshrc 開頭的 fastfetch 一定 link 失敗(真機不會),
-  # 只濾掉這一種訊息,其他 stderr 照樣算錯。
   check "zsh -i -c exit 不出錯、p10k 與插件有載入、設定檔有讀到" \
-    "if ! err=\$(zsh -i -c '(( \${+functions[p10k]} && \${+functions[_zsh_autosuggest_start]} && \${+functions[zshz]} && \${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n \$POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]' 2>&1 >/dev/null); then echo \"zsh 回傳非 0:\$err\"; false; else err=\$(printf '%s\\n' \"\$err\" | grep -v 'CANNOT LINK EXECUTABLE \"fastfetch\"'); [ -z \"\$err\" ] || { echo \"\$err\"; false; }; fi"
+    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  # ls、grep 只加顏色;ll 等有 eza 才用 eza(兩邊都有裝 eza)
+  check_alias "ll 展開含 eza" ll '$a == *eza*'
+  check_alias "ls 展開是 ls --color=auto(沒換成 eza)" ls '$a == "ls --color=auto"'
+  check_alias "grep 展開是 grep --color=auto" grep '$a == "grep --color=auto"'
   # wizard 是在第一次畫 prompt 時跳出來,`zsh -i -c` 不畫 prompt,所以要真的開互動 shell:
   # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
   # wizard 會吃掉那個 exit 繼續等輸入,30 秒後砍掉,輸出裡有 wizard 字樣就算失敗。
@@ -282,6 +296,28 @@ DOCKERFILE
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
+# 預設安裝的命令列工具:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
+CLI_TOOLS=(eza)
+
+check_cli_tools() {
+  for t in "${CLI_TOOLS[@]}"; do
+    check "~/.local/bin/$t 能執行(--version exit 0)" "~/.local/bin/$t --version"
+  done
+  # 沒裝到要安靜略過(下載失敗、架構不支援):把 binary 藏起來模擬,檢查完放回去
+  local hide="" unhide=""
+  for t in "${CLI_TOOLS[@]}"; do
+    hide+="mv ~/.local/bin/$t ~/.local/bin/$t.e2e-hidden && "
+    unhide+="mv ~/.local/bin/$t.e2e-hidden ~/.local/bin/$t && "
+  done
+  step "藏起 ~/.local/bin 的 ${CLI_TOOLS[*]}" "${hide}true"
+  check "藏起後 zsh -i -c exit 不出錯" "$(zsh_ok 'true')"
+  check_alias "藏起後 ll 退回 ls -alF" ll '$a == "ls -alF"'
+  check_alias "藏起後 la 退回 ls -A" la '$a == "ls -A"'
+  check_alias "藏起後 l 退回 ls -CF" l '$a == "ls -CF"'
+  check_alias "藏起後 lt 沒定義" lt '$a == 未定義'
+  step "放回 ~/.local/bin 的 ${CLI_TOOLS[*]}" "${unhide}true"
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -321,6 +357,7 @@ scenario_ubuntu() {
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
+  check_cli_tools
   check_bootstrap_rerun ubuntu
 
   bold "▶ 第二次 init／apply"
@@ -453,8 +490,9 @@ DOCKERFILE
 }
 
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
-# 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3)。
-TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python)
+# 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3),
+# 以及預設安裝的命令列工具(Linux 走下載腳本,Termux 走 pkg)。
+TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
 # (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。

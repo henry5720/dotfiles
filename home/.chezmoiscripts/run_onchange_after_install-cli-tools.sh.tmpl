@@ -1,0 +1,41 @@
+{{- if ne .chezmoi.os "android" -}}
+#!{{ lookPath "sh" }}
+# 預設安裝的命令列工具(不進選單):從 GitHub release 的 latest 下載到 ~/.local/bin。
+# Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml),這支渲染成空的。
+# chezmoi 不負責更新、也不釘版本。zshrc 的 alias 與 shell 整合在 home/dot_zshrc 第 6、7 段。
+#
+# 「已經裝過」只看 ~/.local/bin/<工具> 在不在,不用 command -v:Ubuntu 可能有 apt 裝的舊版
+# (例如 fzf 0.44 沒有 `fzf --zsh`),找到它就跳過的話,每次開 shell 都會報錯。
+# 系統那份不用管,zshrc 讓 ~/.local/bin 排在 PATH 前面。
+set -eu
+{{ template "sh-arch" . }}
+# 1. 共用開頭:架構、目的地、暫存目錄
+arch=$(uname -m)
+case "$arch" in
+  x86_64|aarch64) ;;
+  *) skip_arch "命令列工具(eza 等)" ;;
+esac
+bin="$HOME/.local/bin"
+mkdir -p "$bin"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# fetch <名字> <tar.gz 的 URL>:解到 $tmp/<名字>。先存檔再解,curl 失敗才會讓腳本停下來
+fetch() {
+  curl -fsSL -o "$tmp/$1.tar.gz" "$2"
+  mkdir -p "$tmp/$1"
+  tar -xzf "$tmp/$1.tar.gz" -C "$tmp/$1"
+}
+
+# 2. eza:x86_64 用靜態連結的 musl 版;aarch64 只有 glibc 版
+if [ -e "$bin/eza" ]; then
+  echo "eza 已安裝,跳過"
+else
+  case "$arch" in
+    x86_64) target=x86_64-unknown-linux-musl ;;
+    aarch64) target=aarch64-unknown-linux-gnu ;;
+  esac
+  fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$target.tar.gz"
+  install -m 755 "$tmp/eza/eza" "$bin/eza"
+fi
+{{ end -}}
