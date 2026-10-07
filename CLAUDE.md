@@ -109,7 +109,7 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 ### Issue tracker
 
 issue 和 spec 放在這個 repo 的 GitHub Issues,用 `gh` CLI。
-細節見 `docs/agents/issue-tracker.md`。
+照 issue 做事(`/implement`、`/implement-spec`)時,認領、卡住、結案照 `docs/agents/issue-tracker.md` 的「照 ticket 做事」。
 
 ### Triage labels
 
