@@ -66,7 +66,7 @@ teamsync-frontend 的 e2e 用 Playwright。這份對照用來決定平常偵錯�
 | 工具 | `browser_snapshot`；另有 `browser_find` 只回符合文字的節點與上下文 [pm-snap-doc] [pm-tools] | 同 @playwright/mcp（v1.63.0 也有 `browser_find`）[pt-browsertools] | `take_snapshot`（`verbose` 取完整 a11y tree）[cd-ref-snap] |
 | 格式 | YAML 式 ARIA snapshot，例如 `- button "Button 1" [ref=e2]`；`boxes` 或 `--snapshot-boxes` 加 `[box=x,y,w,h]` [pt-test-snap] [pm-snap-doc] | 同左 | 縮排文字，例如 `uid=1_1 button "Click me" focusable focused` [cd-snap-example] [cd-snapfmt] |
 | 元素代號 | `ref`（`e2` 這種），點擊等工具的 `target` 填 ref，內部轉成 `aria-ref=` locator；`target` 也接受 selector [pa-snap] [pa-tab-ref] | 同左 | `uid`（`1_1` 這種），`click`、`fill`、`take_screenshot`、`get_css_styles` 都用它；文件要求永遠用最新 snapshot [cd-ref-snap] |
-| 動作後自動附 snapshot | 預設會附，`--snapshot-mode none` 關掉 [pm-opts] | 未查到對應參數 | 未查到 |
+| 動作後自動附 snapshot | 預設會附，`--snapshot-mode none` 關掉 [pm-opts]；0.0.83 附的是 `.yml` 檔案連結，不是整棵樹（[2026-10-07 實測](research/agent-browser-tools.md)） | 未查到對應參數 | 未查到 |
 | 其他 | `depth` 限制深度、`filename` 存檔 [pm-snap-doc] | 同左 | snapshot 會標出 DevTools Elements 面板目前選取的元素；`get_css_styles` 回 matched rules、繼承與 cascade [cd-ref-snap] [cd-ref-css] |
 
 ## 4. performance trace
@@ -147,7 +147,7 @@ teamsync-frontend 的 e2e 用 Playwright。這份對照用來決定平常偵錯�
 - chrome-devtools-mcp：官方 Docker image 未查到。
 - chrome-devtools-mcp：console 存檔、storage state 匯入匯出、動作後自動附 snapshot，未查到。
 - `@playwright/mcp` 以 root 跑時的行為說明，未查到。
-- 兩邊的確切「預設啟用工具數」：@playwright/mcp 從 README 數得 25；chrome-devtools-mcp 只數了 reference 總數 58，預設啟用幾個沒有逐一核對旗標。
+- ~~兩邊的確切「預設啟用工具數」~~：chrome-devtools-mcp 1.10.1 預設 30 個、`--slim` 3 個（[2026-10-07 實測](research/agent-browser-tools.md)）；@playwright/mcp 從 README 數得 25。
 
 ## 來源清單
 
