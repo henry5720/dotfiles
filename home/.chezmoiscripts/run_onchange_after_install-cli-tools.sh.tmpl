@@ -56,4 +56,24 @@ else
   fetch fzf "https://github.com/junegunn/fzf/releases/download/$tag/fzf-${tag#v}-$target.tar.gz"
   install -m 755 "$tmp/fzf/fzf" "$bin/fzf"
 fi
+
+# 4. bat:靜態連結的 musl 版。指令名是 bat(apt 版叫 batcat)。tag 是 v0.xx.x,檔名也帶 v
+if [ -e "$bin/bat" ]; then
+  echo "bat 已安裝,跳過"
+else
+  tag=$(latest_tag sharkdp/bat)
+  name="bat-$tag-$arch-unknown-linux-musl"
+  fetch bat "https://github.com/sharkdp/bat/releases/download/$tag/$name.tar.gz"
+  install -m 755 "$tmp/bat/$name/bat" "$bin/bat"
+fi
+
+# 5. ripgrep(指令 rg):靜態連結的 musl 版。tag 不帶 v
+if [ -e "$bin/rg" ]; then
+  echo "rg 已安裝,跳過"
+else
+  tag=$(latest_tag BurntSushi/ripgrep)
+  name="ripgrep-$tag-$arch-unknown-linux-musl"
+  fetch ripgrep "https://github.com/BurntSushi/ripgrep/releases/download/$tag/$name.tar.gz"
+  install -m 755 "$tmp/ripgrep/$name/rg" "$bin/rg"
+fi
 {{ end -}}

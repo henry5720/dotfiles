@@ -192,6 +192,9 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check_alias "ll 展開含 eza" ll '$a == *eza*'
   check_alias "ls 展開是 ls --color=auto(沒換成 eza)" ls '$a == "ls --color=auto"'
   check_alias "grep 展開是 grep --color=auto" grep '$a == "grep --color=auto"'
+  # bat、rg 有裝,但不蓋掉 cat、grep(參數意思不同)
+  check_alias "cat 沒被換成 bat" cat '$a != *bat*'
+  check_alias "grep 沒被換成 rg" grep '" $a " != *" rg "*'
   # wizard 是在第一次畫 prompt 時跳出來,`zsh -i -c` 不畫 prompt,所以要真的開互動 shell:
   # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
   # wizard 會吃掉那個 exit 繼續等輸入,30 秒後砍掉,輸出裡有 wizard 字樣就算失敗。
@@ -298,7 +301,7 @@ DOCKERFILE
 UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
 
 # 預設安裝的命令列工具:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
-CLI_TOOLS=(eza fzf)
+CLI_TOOLS=(eza fzf bat rg)
 
 check_cli_tools() {
   for t in "${CLI_TOOLS[@]}"; do
@@ -493,7 +496,7 @@ DOCKERFILE
 # Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
 # 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3),
 # 以及預設安裝的命令列工具(Linux 走下載腳本,Termux 走 pkg)。
-TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza fzf)
+TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza fzf bat ripgrep)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
 # (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。
