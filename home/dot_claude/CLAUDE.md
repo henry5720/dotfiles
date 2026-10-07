@@ -35,47 +35,9 @@
 
 ## Worktree
 
-`HERDR_ENV=1` 時，開 worktree 走 herdr，不要讓 `EnterWorktree` 自己開：
+開 worktree 前先載入 `herdr-worktree` skill：`HERDR_ENV=1` 時由 herdr 開，Claude、Codex、opencode 的 worktree 才會都歸 herdr 管。
 
-```
-herdr worktree create --cwd <repo> --branch <name> --base <ref> --no-focus   # 回傳 .worktree.path
-EnterWorktree --path <那個 path>
-```
-
-`--cwd` 要給**主 checkout**，給 linked worktree 會回 `linked_worktree_source`。
-`--base` 不給就用預設分支 —— 要疊在別人剛做好的那顆 commit 上時記得指定，不必從頭來。
-
-開在 `~/.herdr/worktrees/<repo>/<branch>`，在 repo 外面，不會被 IDE、檔案搜尋、watcher 掃進去。
-代價是順便開一個 herdr workspace，用完 `herdr worktree remove --workspace <id>` 收掉。
-
-沒有 herdr 就用內建的 `EnterWorktree`，它固定開在 `<repo>/.claude/worktrees/`，路徑改不了。
-⚠️ 已經 `EnterWorktree` 進去之後就**換不到第二個 herdr worktree**（`--path` 只認
-`<repo>/.claude/worktrees/` 底下的）。要換基底就在**現在這個** worktree 裡 `git switch`。
-
-**不要在別人正在用的 worktree 裡 `git switch`。** 長期 worktree（例如某條整合分支那份）
-隨時可能有另一個 session 住在裡面，切分支會把它的 HEAD 從腳下抽走，它未提交的檔案會跟著
-跑到你的分支名下。要動碼就自己開一個。
-
-**什麼時候收**：合併完、而且在**目標分支那份 checkout** 上驗過、確定不用回去改，就收。
-不要全部留到最後，worktree 和分支會越積越多。
-
-**收掉不會弄丟東西** —— 分支 ref 住在主 checkout 的 `.git/refs/heads/`，`worktree remove`
-不刪分支也不刪 commit，換個 session 一樣找得到。所以**不要為了備份去 push 子分支**
-（推上去就永遠躺在 remote，不會有 PR 也沒人刪）；只有換裝置、換人接手、過夜離開機器才推，
-合併後當天 `git push origin --delete`。
-
-## Issue 生命週期
-
-照 issue 做事（`/implement #N`）時：
-
-- **Assign**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
-  做不下去就留言卡在哪、unassign；`--bg` 派出去的 `state` 是失敗時，由派它的人 unassign。
-- **Close**：PR 進預設分支、body 寫 `Closes #N` 的，交給 merge 關；其他情況（沒開 PR、PR 進的不是預設分支）
-  commit 之後留言（commit、怎麼驗的）再關。
-- **PR**：開 PR（含 draft）就 `--assignee @me`。
-- **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
-- 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
-- 派 `/implement` 給別的 session 用 `claude --bg "/implement <issue URL>"`（subagent 叫不到它，它設了 `disable-model-invocation`），完成與否看 `claude agents --json` 的 `state`。
+別人正在用的 worktree 只讀，要動碼就自己開一個：另一個 session 可能住在裡面，`git switch` 會把它的 HEAD 和未提交的檔案帶到你的分支。
 
 <!-- 以下整段是 `codegraph install` 自己寫進 ~/.claude/CLAUDE.md 的。
      這份檔案由 chezmoi 部署,不收進 repo 的話下次 apply 就會被刪掉,codegraph 就沒人告訴 agent 要用。
