@@ -15,12 +15,11 @@ map 的流程由上游 `wayfinder` 決定，不在這裡。
 ```mermaid
 flowchart TD
   A["issue 開著<br/>沒有開著的 blocker、沒有別人的 assignee"] --> B["Assign 自己"]
-  B --> C["開 worktree、commit"]
-  C --> D{"有開 PR？"}
-  D -- "有（預設）" --> E["PR 寫 Closes #N<br/>--assignee @me"]
-  E --> F["merge 進預設分支<br/>GitHub 自動關 issue"]
-  D -- "沒有 PR，或 PR 不是進預設分支" --> G["留言：commit、怎麼驗的<br/>關 issue"]
+  B --> C["commit 到目前分支<br/>不開 worktree、不開 PR"]
+  C --> G["留言：commit、怎麼驗的<br/>關 issue"]
 ```
+
+照上游 `/implement`。`--bg` 派出去的 session 會被 Claude Code 要求先進 worktree，那是 harness 的限制，不是這個流程的一步。
 
 ## spec（底下有 sub-issue）
 

@@ -70,8 +70,8 @@ EnterWorktree --path <那個 path>
 
 - **Assign**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
   做不下去就留言卡在哪、unassign；`--bg` 派出去的 `state` 是失敗時，由派它的人 unassign。
-- **Close**：PR 進預設分支、body 寫 `Closes #N` 的，交給 merge 關；其他情況（沒開 PR、PR 進的不是預設分支）
-  commit 之後留言（commit、怎麼驗的）再關。
+- **Commit、Close**：照上游 `/implement` 直接 commit 到目前分支，不另開 worktree、不開 PR；
+  commit 之後留言（commit、怎麼驗的）再關。spec 照上游 `/implement-spec`，由整合分支的 PR merge 關。
 - **PR**：開 PR（含 draft）就 `--assignee @me`。
 - **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
 - 指令看 repo 的 `docs/agents/issue-tracker.md`，沒有就用 `gh`。
