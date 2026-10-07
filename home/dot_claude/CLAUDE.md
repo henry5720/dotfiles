@@ -22,10 +22,22 @@
 - 一次只問一個問題。skill 明確要求成批提問時（例如 `grilling` 一輪問完整個 frontier）照 skill 走。
 - 講流程用文字箭頭（`讀設定 → 掃 repo → 產出`）。要畫圖前先確認那個地方渲染得出來 —— 終端機和 Slack 都不會渲染 mermaid。
 
-## 人看的文件
+## 照讀者選格式
 
-- 寫進 repo 給人看的文件以圖為主（表格也算）。一張圖只講一件事；旁邊已有表格就不畫。
+| 讀者 | 例子 | 格式 |
+|---|---|---|
+| 人（agent 也會讀） | PR、issue、repo 裡的 docs | 圖為主：mermaid、表格、diff。一張圖只講一件事；旁邊已有表格就不畫 |
+| agent | SKILL.md、CLAUDE.md、AGENTS.md | 文字步驟，照 `writing-for-agents` skill |
+
+- mermaid 只在 GitHub 這類會渲染的地方用；終端機、Slack 見〈回覆〉。
 - commit 前看過渲染結果：有 Chrome 用 `mmdc`，沒有就看 PR diff 預覽。
+
+## PR 的驗證段
+
+PR body 一律有「## 驗證」：跑了什麼指令 → 尾段輸出；沒跑的、沒走到的列「未驗」和原因。
+
+- UI 改動：照 `verify-in-browser` skill 附截圖（`gh pr comment --attach`，不 commit 進 repo）。
+- repo 有前端、但這次沒動到 UI：寫「未做瀏覽器驗收：非 UI 改動」，讓 reviewer 看得到這個判斷。
 
 ## 誠實
 
