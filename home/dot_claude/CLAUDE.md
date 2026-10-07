@@ -66,11 +66,8 @@ EnterWorktree --path <那個 path>
 
 ## Issue 生命週期
 
-照 issue 做事（`/implement #N`）時，接了、卡住、做完都要在 GitHub 上看得到。怎麼寫 code（worktree、分支、PR）照 skill，這裡不管。
-
-- **接**：issue 還開著、沒有開著的 blocker、沒有別人的 assignee 才做。先 assign 自己，再寫第一行 code；不符合就停下來問。
-- **卡住**：留言卡在哪，不關、assignee 留著（照上游）。
-- **做完**：留言（commit、怎麼驗的）再關。PR 或 commit message 寫了 `Closes #N` 的，那就是紀錄，進預設分支時 GitHub 自動關。
+- 照 issue 做事（`/implement #N`、`/implement-spec`）時，認領、卡住、結案照 repo 的 `docs/agents/issue-tracker.md`
+  （上游 `/implement` 不碰 issue，這裡補上）。repo 沒寫就：動手前 assign 自己、卡住留言不關、做完留言（commit、怎麼驗的）再關。
 - **交給 runner**：要 AFK 做的 spec，`/to-tickets` 拆完時每張 sub-issue 一併貼 `agent-runner`（上游只貼 `ready-for-agent`，這裡覆寫）。
 
 <!-- 以下整段是 `codegraph install` 自己寫進 ~/.claude/CLAUDE.md 的。

@@ -1,6 +1,6 @@
 # Issue 生命週期
 
-給人看的：一張 issue 在 GitHub 上會經過哪些狀態。agent 照的規則在 [`home/dot_claude/CLAUDE.md`](../home/dot_claude/CLAUDE.md) 的「Issue 生命週期」（部署成 `~/.claude/CLAUDE.md`），改規則時兩份一起改。
+給人看的：一張 issue 在 GitHub 上會經過哪些狀態。agent 照的規則在 [`docs/agents/issue-tracker.md`](agents/issue-tracker.md) 的「照 ticket 做事」，改規則時兩份一起改。
 
 怎麼寫 code（worktree、分支、PR）不歸這裡管，看用的 skill 或 agent-runner。
 
