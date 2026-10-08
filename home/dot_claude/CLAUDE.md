@@ -24,20 +24,18 @@
 
 ## 照讀者選格式
 
-| 讀者 | 例子 | 格式 |
-|---|---|---|
-| 人（agent 也會讀） | PR、issue、repo 裡的 docs | 圖為主：mermaid、表格、diff。一張圖只講一件事；旁邊已有表格就不畫 |
-| agent | SKILL.md、CLAUDE.md、AGENTS.md | 文字步驟，照 `writing-for-agents` skill |
+先看主要讀者要理解什麼，再選最精簡的呈現方式：
 
-- mermaid 只在 GitHub 這類會渲染的地方用；終端機、Slack 見〈回覆〉。
-- commit 前看過渲染結果：有 Chrome 用 `mmdc`，沒有就看 PR diff 預覽。
+- 人需要理解結構、流程或差異時，用 `show-me` 選接收平台支援的最小 tree、圖表或 diff，配少量文字；一句話能說清就用短文。同一內容不要重複用圖表和長文說明。
+- agent 指引用精確的文字步驟、契約與完成條件，照 `writing-for-agents` skill。
+- 在 PR/GitHub 使用 `show-me` 的 HTML 輸出時，選平台可直接閱讀的形式，不產生只能本機檢視的 HTML。
 
 ## PR 的驗證段
 
-PR body 一律有「## 驗證」：跑了什麼指令 → 尾段輸出；沒跑的、沒走到的列「未驗」和原因。
+PR body 一律有「## 驗證」：列出實際執行的指令與結果；未執行或未涵蓋的項目列「未驗」和原因。
 
-- UI 改動：照 `verify-in-browser` skill 附截圖（`gh pr comment --attach`，不 commit 進 repo）。
-- repo 有前端、但這次沒動到 UI：寫「未做瀏覽器驗收：非 UI 改動」，讓 reviewer 看得到這個判斷。
+- 視覺證據按需提供：呈現 UI 效果時優先附真實截圖；只有靜態圖無法呈現互動時才附短影片，不要求每個 PR 都附圖或錄影。說明圖不算實測證據。
+- 證據須對應這次變更，作為附件提供、不 commit 進 repo，且不含敏感資料。
 
 ## 誠實
 
