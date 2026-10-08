@@ -100,9 +100,10 @@ class AiProfileTest(unittest.TestCase):
             cfg = Path(d) / "data.toml"; cfg.write_text("", encoding="utf-8")
             for relative in ("home/dot_config/opencode/routes/personal/opencode.json.tmpl", "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl"):
                 subprocess.run(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / relative).read_bytes(), check=True, stdout=subprocess.DEVNULL)
-            cfg.write_text('[data]\ncodeServerPassword="x"\ncodexLbApiKey="x"\ncontext7ApiKey=""\ngitUserName="x"\ngitUserEmail="x@y.invalid"\n[data.aiPersonal]\ncodexModel="keep-codex"\n[data.aiPersonal.models]\nastra="keep-astra"\nsol="keep-sol"\nluna="keep-luna"\n', encoding="utf-8")
+            cfg.write_text('[data]\ncodeServerPassword="x"\ncodexLbApiKey="x"\ncontext7ApiKey=""\ngitUserName="x"\ngitUserEmail="x@y.invalid"\n[data.aiPersonal]\ncodexModel="keep-codex"\n', encoding="utf-8")
             output = subprocess.check_output(["chezmoi", "--source", str(ROOT), "--no-tty", "--config", str(cfg), "execute-template", "--init"], input=(ROOT / "home/.chezmoi.toml.tmpl").read_bytes()).decode()
-            self.assertTrue(all(value in output for value in ("keep-codex", "keep-astra", "keep-sol", "keep-luna")))
+            self.assertIn("keep-codex", output)
+            self.assertNotIn("models", output)
 
     def test_personal_route_names_and_tui_pin(self):
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").read_text())
@@ -114,13 +115,18 @@ class AiProfileTest(unittest.TestCase):
     def test_rendered_personal_route_models_and_common_role_metadata(self):
         with tempfile.TemporaryDirectory() as d:
             cfg = Path(d) / "data.toml"
-            cfg.write_text('[data.aiPersonal.models]\nastra="astra"\nsol="sol"\nluna="luna"\n', encoding="utf-8")
+            cfg.write_text("", encoding="utf-8")
             rendered = json.loads(subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
         roles = rendered["presets"]["personal"]
         self.assertEqual(set(roles), {"orchestrator", "oracle", "council", "explorer", "librarian", "designer", "fixer"})
+        self.assertEqual(roles["orchestrator"]["model"], "openai/gpt-6.1-sol")
+        self.assertEqual(roles["oracle"]["model"], "openai/gpt-6-astra")
         self.assertTrue(all(role["model"].startswith("openai/") for role in roles.values()))
         self.assertNotIn("acpAgents", rendered); self.assertEqual(rendered["fallback"]["enabled"], False)
+        self.assertEqual(rendered["autoUpdate"], True)
+        self.assertIn("@3.0.3/", rendered["$schema"])
         company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
+        self.assertEqual(company["autoUpdate"], True)
         company_orchestrator = company["presets"]["teamsync-astra"]["orchestrator"]
         self.assertEqual(roles["orchestrator"]["skills"], company_orchestrator["skills"])
         self.assertEqual(roles["orchestrator"]["mcps"], company_orchestrator["mcps"])
@@ -139,12 +145,42 @@ class AiProfileTest(unittest.TestCase):
             company_path.write_text(json.dumps(company), encoding="utf-8")
             template = source / "route.tmpl"
             template.write_bytes((ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes())
-            cfg = source / "data.toml"; cfg.write_text('[data.aiPersonal.models]\nastra="a"\nsol="s"\nluna="l"\n', encoding="utf-8")
+            cfg = source / "data.toml"; cfg.write_text("", encoding="utf-8")
             rendered = subprocess.check_output(["chezmoi", "--source", str(source), "--config", str(cfg), "execute-template"], input=template.read_bytes())
             output = json.loads(rendered)
             self.assertEqual(output["presets"]["personal"]["orchestrator"]["skills"], ["fixture-common-skill"])
             self.assertEqual(output["presets"]["personal"]["orchestrator"]["mcps"], ["fixture-common-mcp"])
             self.assertEqual(output["presets"]["personal"]["orchestrator"]["variant"], "fixture-variant")
+
+    def test_personal_core_route_uses_shared_company_role_models(self):
+        with tempfile.TemporaryDirectory() as d:
+            source = Path(d)
+            company_path = source / "dot_config/opencode/oh-my-opencode-slim.json"
+            company_path.parent.mkdir(parents=True)
+            company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
+            company["preset"] = "fixture-active"
+            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync-astra"]))
+            company["presets"]["fixture-active"]["orchestrator"]["model"] = "codex-lb-gcp/fixture-main"
+            company["presets"]["fixture-active"]["explorer"]["model"] = "codex-lb-gcp/fixture-small"
+            company["council"]["default_preset"] = "fixture-council"
+            company["council"]["presets"]["fixture-council"] = {
+                "terra": {"model": "codex-lb-gcp/fixture-terra"},
+                "sol": {"model": "codex-lb-gcp/fixture-sol"},
+                "luna": {"model": "codex-lb-gcp/fixture-luna"},
+            }
+            company["autoUpdate"] = False
+            company["$schema"] = "https://unpkg.com/oh-my-opencode-slim@3.0.3/oh-my-opencode-slim.schema.json"
+            company_path.write_text(json.dumps(company), encoding="utf-8")
+            cfg = source / "data.toml"
+            cfg.write_text("", encoding="utf-8")
+            core = json.loads(subprocess.check_output(["chezmoi", "--source", str(source), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl").read_bytes()))
+            omo = json.loads(subprocess.check_output(["chezmoi", "--source", str(source), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
+        self.assertEqual(core["model"], "openai/fixture-main")
+        self.assertEqual(core["small_model"], "openai/fixture-small")
+        self.assertEqual(omo["presets"]["personal"]["orchestrator"]["model"], "openai/fixture-main")
+        self.assertEqual(omo["council"]["presets"]["personal"]["terra"]["model"], "openai/fixture-terra")
+        self.assertEqual(omo["autoUpdate"], False)
+        self.assertEqual(omo["$schema"], company["$schema"])
 
     def test_personal_opencode_route_denies_company_imagegen_skill(self):
         with tempfile.TemporaryDirectory() as d:

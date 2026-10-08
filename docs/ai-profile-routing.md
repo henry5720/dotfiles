@@ -31,7 +31,8 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
   —— project 的 gateway、model mapping 因此不生效。原本 inline 的 `OPENCODE_CONFIG_CONTENT`
   只保留非 routing 欄位。
 - route view 裡的 `skills`、`oh-my-opencode-slim`、`AGENTS.md`、`tui.jsonc` 都是整個連回
-  global 的 symlink，不另外放同名 skill，避免 loader collision。OMO plugin 固定 2.2.18。
+  global 的 symlink，不另外放同名 skill，避免 loader collision。個人 OMO 設定沿用公司 preset 的
+  roles/council，只把 provider 前綴改成 `openai/`；schema 固定 3.0.3，`autoUpdate` 與公司一致開啟。
 - 唯一的 skill 差異：兩個個人入口都停用 `company-imagegen-fallback`（Codex 在
   `personal.config.toml` 的 `[[skills.config]]`，OpenCode 在 route 的 `permission.skill`）。
 - 其餘 argv、cwd、project/native loader 語意照原樣。provider 相關的環境變數**不會**被清掉，
@@ -41,12 +42,11 @@ TUI interactive 與首次 plugin 初始化未在此 lane 驗證。
 
 ## 模型與登入
 
-個人 profile 不猜模型。模型放在 chezmoi 的非秘密 `data.aiPersonal`：`codexModel`、
-`models.astra`、`models.sol`、`models.luna`（`home/.chezmoi.toml.tmpl`）。留空時只產生合法的
-setup config，launcher 會拒絕啟動（`help`、`models`、登入這類不需要 model 的指令除外）。
-填妥後由 templates 產生 Codex model、OpenCode main/small model 與 OMO roles/council mapping
-（對應關係見 `home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl`）。
-模型 ID 由實際 entitlement 決定，不要填 placeholder。
+個人 Codex 的模型仍由 chezmoi 非秘密資料 `data.aiPersonal.codexModel` 設定。
+個人 OpenCode 不再另外填三個模型 ID：它直接讀公司 OMO 的 `teamsync-astra` preset，保留同一份
+角色分工與 council，只換成 `openai/` provider。OpenCode main model 取 orchestrator，small model
+取 explorer；調整公司 preset 時個人 route 會一起更新。launcher 仍檢查產生的 route 是否有 main、
+small model 與 OMO preset，避免設定檔缺漏時啟動；不需要模型的 help、models、登入指令仍可使用。
 
 登入手動完成，沒有自動登入或 API-key route：
 

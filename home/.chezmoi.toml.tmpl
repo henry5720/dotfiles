@@ -44,7 +44,6 @@
 {{-   $tools = promptMultichoiceOnce . "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
 {{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
-{{- $models := default dict (index $personal "models") -}}
 
 [data]
     codeServerPassword = {{ $codeServerPassword | quote }}
@@ -55,11 +54,6 @@
     gitUserEmail = {{ $gitUserEmail | quote }}
     tools = {{ $tools | toToml }}
 
-    # 非秘密模型資料；留空不會 prompt，也不會讓個人 profile 被視為 ready。
+    # 個人 Codex 使用的非秘密模型資料。
     [data.aiPersonal]
     codexModel = {{ default "" (index $personal "codexModel") | quote }}
-
-    [data.aiPersonal.models]
-    astra = {{ default "" (index $models "astra") | quote }}
-    sol = {{ default "" (index $models "sol") | quote }}
-    luna = {{ default "" (index $models "luna") | quote }}

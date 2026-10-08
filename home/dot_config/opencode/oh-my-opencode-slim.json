@@ -1,10 +1,11 @@
 {
-  "$schema": "https://unpkg.com/oh-my-opencode-slim@latest/oh-my-opencode-slim.schema.json",
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.3/oh-my-opencode-slim.schema.json",
   "preset": "teamsync-astra",
+  "autoUpdate": true,
   "presets": {
     "teamsync": {
       "orchestrator": {
-        "model": "codex-lb-gcp/gpt-6-astra",
+        "model": "codex-lb-gcp/gpt-6.1-sol",
         "variant": "medium",
         "skills": [
           "*"
@@ -15,7 +16,7 @@
         ]
       },
       "oracle": {
-        "model": "codex-lb-gcp/gpt-6.1-sol",
+        "model": "codex-lb-gcp/gpt-6-astra",
         "variant": "high",
         "skills": [
           "simplify"
@@ -58,7 +59,7 @@
     },
     "teamsync-astra": {
       "orchestrator": {
-        "model": "codex-lb-gcp/gpt-6-astra",
+        "model": "codex-lb-gcp/gpt-6.1-sol",
         "variant": "medium",
         "skills": [
           "*"

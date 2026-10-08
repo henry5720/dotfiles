@@ -95,9 +95,9 @@ def main():
     env["OH_MY_OPENCODE_SLIM_PRESET"] = "personal"
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps(overlay_opencode(env, ready))
     if not args and not ready:
-        fail("personal OpenCode 尚未設定完整 model；請先在 chezmoi data.aiPersonal.models 填寫")
+        fail("personal OpenCode route 缺少 model 設定；請確認 chezmoi 已部署 route templates")
     if args and args[0] not in {"help", "auth", "providers", "models", "--help", "-h", "--version", "version"} and not ready:
-        fail("personal OpenCode 尚未設定完整 model；請先在 chezmoi data.aiPersonal.models 填寫")
+        fail("personal OpenCode route 缺少 model 設定；請確認 chezmoi 已部署 route templates")
     os.execvpe(binary, [binary, *args], env)
 
 

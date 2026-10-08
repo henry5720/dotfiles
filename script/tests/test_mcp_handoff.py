@@ -43,7 +43,30 @@ class McpHandoffTest(unittest.TestCase):
         existing = {"model": "drifted", "mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}}}
         output = json.loads(self.run_script(OPENCODE, "sh", json.dumps(existing)))
         self.assertEqual(output["mcp"], existing["mcp"])
-        self.assertEqual(output["model"], "codex-lb-gcp/gpt-6-astra")
+        self.assertEqual(output["model"], "codex-lb-gcp/gpt-6.1-sol")
+
+    def test_opencode_models_follow_active_omo_preset(self):
+        with tempfile.TemporaryDirectory() as d:
+            source = Path(d)
+            company_path = source / "dot_config/opencode/oh-my-opencode-slim.json"
+            company_path.parent.mkdir(parents=True)
+            company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
+            company["preset"] = "fixture-active"
+            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync-astra"]))
+            company["presets"]["fixture-active"]["orchestrator"]["model"] = "codex-lb-gcp/fixture-main"
+            company["presets"]["fixture-active"]["explorer"]["model"] = "codex-lb-gcp/fixture-small"
+            company_path.write_text(json.dumps(company), encoding="utf-8")
+            rendered = subprocess.check_output([
+                "chezmoi", "--source", str(source), "--config", str(self.cfg),
+                "--destination", str(self.home), "execute-template",
+            ], input=OPENCODE.read_bytes()).decode()
+            env = os.environ.copy(); env["HOME"] = str(self.home)
+            output = json.loads(subprocess.run(
+                ["sh", "-c", rendered], input='{}', env=env, text=True,
+                capture_output=True, check=True,
+            ).stdout)
+        self.assertEqual(output["model"], "codex-lb-gcp/fixture-main")
+        self.assertEqual(output["small_model"], "codex-lb-gcp/fixture-small")
 
     def test_cleanup_removes_only_verbatim_legacy_entries(self):
         pinned = ["-y", "chrome-devtools-mcp@1.10.1"] + LEGACY_CHROME[2:]

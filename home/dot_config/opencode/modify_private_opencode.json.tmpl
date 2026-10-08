@@ -4,6 +4,10 @@
 # `mcp` 由 skillshare 管(清單在 agent-config 的 mcp.yaml,`skillshare sync mcp -g` 寫進來)。
 # 整份部署的話每次 apply 都會把 skillshare 寫的 MCP 蓋掉,所以用 modify_:
 # 下面這份整個照 repo 的版本輸出,只有 `mcp` 換回現有檔案裡的那一段。
+{{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
+{{- $active := index (index $company "presets") (index $company "preset") -}}
+{{- $main := index (index $active "orchestrator") "model" -}}
+{{- $small := index (index $active "explorer") "model" -}}
 set -eu
 
 # 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,墊一個空物件給 jq。
@@ -14,8 +18,8 @@ existing=$(cat)
 printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "codex-lb-gcp/gpt-6-astra",
-  "small_model": "codex-lb-gcp/gpt-6-luna",
+  "model": {{ $main | toJson }},
+  "small_model": {{ $small | toJson }},
   "permission": {
     "external_directory": {
       "*": "ask",

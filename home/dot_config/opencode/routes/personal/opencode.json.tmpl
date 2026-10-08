@@ -1,5 +1,7 @@
-{{- $personal := default dict (index . "aiPersonal") -}}
-{{- $models := default dict (index $personal "models") -}}
+{{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
+{{- $agents := index (index $company "presets") (index $company "preset") -}}
+{{- $main := regexReplaceAll "^[^/]+/" (index (index $agents "orchestrator") "model") "" -}}
+{{- $small := regexReplaceAll "^[^/]+/" (index (index $agents "explorer") "model") "" -}}
 {
   "$schema": "https://opencode.ai/config.json",
   "permission": {
@@ -7,7 +9,7 @@
       "company-imagegen-fallback": "deny"
     }
   },
-  "enabled_providers": ["openai"]{{ with (default "" (index $models "astra")) }},
-  "model": {{ printf "openai/%s" . | quote }}{{ end }}{{ with (default "" (index $models "luna")) }},
-  "small_model": {{ printf "openai/%s" . | quote }}{{ end }}
+  "enabled_providers": ["openai"],
+  "model": {{ printf "openai/%s" $main | quote }},
+  "small_model": {{ printf "openai/%s" $small | quote }}
 }
