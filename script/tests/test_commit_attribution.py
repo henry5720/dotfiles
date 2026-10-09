@@ -105,7 +105,7 @@ class CommitAttributionTest(unittest.TestCase):
 
     def test_scoped_apply_deploys_guides_and_keeps_shared_symlinks(self):
         source = Path(self.tmp.name) / "source"
-        for directory in ("dot_claude", "dot_codex", "dot_config/opencode", ".chezmoitemplates"):
+        for directory in ("dot_claude", "dot_codex", "dot_config/opencode", "dot_config/agent-commit", ".chezmoitemplates"):
             shutil.copytree(ROOT / "home" / directory, source / directory)
         command = [
             "chezmoi", "--source", str(source), "--config", str(self.cfg),
@@ -129,6 +129,12 @@ class CommitAttributionTest(unittest.TestCase):
         self.assertEqual(work["instructions"], [str(guide)])
         self.assertEqual(personal["instructions"], [str(guide)])
         self.assertIn("Generated with OpenCode.", guide.read_text())
+        shared_guide = self.home / ".config/agent-commit/instructions.md"
+        self.assertEqual(shared_guide.read_text(),
+                         (ROOT / "home/dot_config/agent-commit/instructions.md").read_text())
+        for relative in (".claude/CLAUDE.md", ".codex/AGENTS.md", ".config/opencode/AGENTS.md"):
+            self.assertIn("~/.config/agent-commit/instructions.md",
+                          (self.home / relative).read_text())
         subprocess.run(command + ["verify"], check=True, capture_output=True)
 
 
