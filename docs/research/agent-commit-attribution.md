@@ -12,7 +12,7 @@ Claude 與 Codex 都有已證實會被 GitHub 配對到各自帳號頭像的共�
 | Codex | `Co-authored-by: Codex <noreply@openai.com>` | 同一公開 commit 的 authors 包含 `codex`、其 profile path 與 avatar | 已安裝版本有原生 attribution extension，讀 Codex backend 的 `commit_attribution_enabled`；未找到 `config.toml` 的同名開關 |
 | opencode | 未確認官方 email 或預設 co-author trailer | 未驗證官方 logo 配對 | 查過 config schema、設定實作與 prompt，未找到 attribution 專用欄位；可寫專屬 instructions，但 instructions 本身不會建立官方 GitHub 身分 |
 
-先採用 Claude 與 Codex 原生 attribution，再決定 opencode 的可接受呈現。不要改共用 `git user.name` 或把供應商 email 當成 opencode 身分：那會改作者，或顯示供應商頭像，而不是使用的 CLI。
+Claude 優先用原生 attribution；Codex 先分清 backend policy 與 work gateway 的行為（見追查段），再決定 opencode 的可接受呈現。不要改共用 `git user.name` 或把供應商 email 當成 opencode 身分：那會改作者，或顯示供應商頭像，而不是使用的 CLI。
 
 ## GitHub 到底顯示什麼
 
@@ -56,7 +56,7 @@ REST commit API 的頂層 `author`、`committer` 不包含全部共同作者；�
 - [`world_state.rs`](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/ext/git-attribution/src/world_state.rs#L17)：enabled 時給模型 commit trailer 指引，保留 existing trailers、exact attribution 去重、body 與 trailers 留空行，包含 GitHub app/plugin 的 commit message；另要求 PR attribution。disabled policy 會指示忽略先前要求加入 attribution 的指引。
 - [官方 integration tests](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/app-server/tests/suite/v2/git_attribution.rs)：驗 workspace policy、cold resume 與 legacy attribution 替換；本輪只讀 source，未執行 Codex 自身 tests。
 
-因此「只在 AGENTS.md 寫 Codex trailer」不是目前所有環境的保證方案。原生 backend policy 明確 disabled 時，較低優先的個人 instruction 無法可靠覆蓋。使用者目前設定、可切換的 UI 入口與部署後行為仍未驗；不應捏造一個 `config.toml` key。
+因此「只在 AGENTS.md 寫 Codex trailer」不是目前所有環境的保證方案。Runtime 若明確注入 disabled developer 指令，較低優先的個人 instruction 無法可靠覆蓋；但 false policy 並非每次都注入該指令，詳見追查段的 fresh／resume 差異。使用者目前設定、可切換的 UI 入口與部署後行為仍未驗；不應捏造一個 `config.toml` key。
 
 ## 已取得 GitHub 共同作者與 avatar 證據
 
@@ -108,3 +108,46 @@ Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>
 - 未驗：使用者自己的 Codex backend setting、設定切換 UI、本機 agent 正常 commit→push 的 end-to-end、瀏覽器 logo 截圖、opencode 官方 attribution identity。原因：本輪限定只讀研究，不部署、不公開測試 commit／PR；官方來源未建立 opencode 身分。
 
 沒有修改 `home/` 或套用 chezmoi；此檔只記錄研究，未決定最終配置架構。
+
+## 追查：本機 Codex policy 與使用者可操作入口
+
+2026-10-09 補查，範圍限定 Codex 0.161.0。使用者已決定本人保留主要作者、agent 用共同作者；opencode 官方身分未建立時用文字標記。這段不改設定。
+
+### 可操作入口尚未建立
+
+重新抓 [官方 settings](https://developers.openai.com/codex/reference/settings/)、[config reference](https://developers.openai.com/codex/config-reference/)、[auth](https://developers.openai.com/codex/auth/) 與 [cloud](https://developers.openai.com/codex/cloud/) 頁面，未找到 `commit_attribution_enabled` 的使用者設定步驟或可寫的 CLI/config key。匿名讀 `https://chatgpt.com/codex/settings` 回 HTTP 403，無法確認登入後有沒有 attribution UI；不能將猜測網址當已證實入口。
+
+官方 0.161.0 source 的 [`get_user_settings`](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/backend-client/src/client.rs#L545) 是已登入後的 GET，讀 `/api/codex/settings/user` 或 ChatGPT backend 的 `/wham/settings/user`，不是設定寫入 API。[response type](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/backend-client/src/types.rs#L85)明寫 `Server-computed effective commit-attribution policy`，欄位缺少時 default disabled。這些來源只建立「CLI 接受 server 算出的有效 policy」，不建立使用者能自由切換、預設帳號值或哪些方案支援。
+
+本輪不讀 token、不直接呼叫需登入的 backend、不切開關。最少必要的後續操作：使用者在既有 ChatGPT 帳號的 Codex settings 只查看 attribution 是否有可見控制；若有，回報控制名稱與目前值即可，不必提供 credentials。工作路徑沒有 ChatGPT 登入，不應為取得 logo 要求改用 personal 登入或換 provider。
+
+### 本機安全讀取結果
+
+| 已執行的檢查 | 結果 | 能支持的結論 |
+|---|---|---|
+| `codex login status` | `Not logged in`，exit 1 | 這個 shell 的共用 Codex auth 沒有登入；不能假設正在使用 ChatGPT backend policy |
+| `codex-work login status`、`codex-personal login status` | 均 `Not logged in`，exit 1 | wrapper 沒有各自已登入的證據 |
+| 只解析 `~/.codex/config.toml` 的安全鍵 | `model_provider = "codex-lb-gcp"`；provider `requires_openai_auth` unset；`env_key` 未配置；`experimental_bearer_token` 有配置但不讀／不輸出值 | work 以 gateway 設定使用 provider，`login status` 失敗不表示 gateway 不能執行模型 |
+| 只解析 `~/.codex/personal.config.toml` 的安全鍵 | `model_provider = "openai"`、`forced_login_method = "chatgpt"` | personal 的登入方式要求與 work 不同；這不是已登入的證據 |
+| `CODEX_HOME` | 此 shell unset | 預設共用 `~/.codex`；沒有為 work/personal 設不同 auth root 的證據 |
+
+[`ai-profile` 原始碼](../../home/dot_local/bin/executable_ai-profile#L69)的 work 分支直接轉送原 CLI；[personal 分支](../../home/dot_local/bin/executable_ai-profile#L85)對 `login/logout` 原生轉送，不加 profile，其餘執行加 `--profile personal`。兩個部署入口的 symlink 都解到 `ai-profile`。因此目前是共用登入儲存、執行時切 provider/login 限制，不能稱為兩個獨立登入帳號。頂層 `profiles.personal` 本輪未見註冊；未啟動模型驗證 personal profile 如何載入，不對 personal 實際可用性下結論。
+
+官方 [auth 文件](https://developers.openai.com/codex/auth/)也區分 ChatGPT login、API/provider credentials，以及 `forced_login_method` 的限制；自訂 gateway 可用 provider credentials。因此不從 provider 名稱猜 backend 帳號。
+
+### 目前 policy 的證據與缺口
+
+按本機版本 [`policy.rs`](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/ext/git-attribution/src/policy.rs#L90)，無 auth／非 Codex backend auth 會產生 disabled policy。搭配 `Not logged in` 可推斷「新啟動的 CLI 若採用這份共用 auth，原生 attribution 不會從已登入 backend 啟用」；這是 source + login status 的推論，不是已取得活躍 session 的有效 policy。
+
+另外安全掃描 `~/.codex/sessions` 最近 12 個 rollout：只檢查 `response_item` 的 developer message 中 `<git_attribution>` 區塊，僅允許輸出 exact enabled trailer／disabled policy 片段。沒有找到符合片段，沒有輸出其他 session 內容。不能以「沒找到」判定 active session enabled 或 disabled，也不能證明本次 API 執行環境與本機 CLI 用同一個 auth。尚未取得 active policy 的直接證據。
+
+**False 不等於一定注入禁止指令。** 本機版本 [`world_state.rs` match](https://github.com/openai/codex/blob/rust-v0.161.0/codex-rs/ext/git-attribution/src/world_state.rs#L30)在 `(false, Absent)` 或 `(false, Known(_))` 回傳 `None`，沒有新的 developer fragment；只有先前 `Known(true)` 或 `Unknown` 時才產生 `DISABLED_INSTRUCTIONS`。因此 fresh gateway session 在原生 policy false、先前 world state absent 時，不會因 false 本身禁止個人 instruction；專屬 AGENTS.md 可以要求 trailer，仍待正常 commit 驗收。Resume／policy 從 true 變 false 才可能出現禁止指令，需留意 session 狀態。這修正前段較籠統的 disabled-policy 描述：有效值 false 與明確禁止 instruction 必須分開看。
+
+影響：推薦 work 路徑使用 Codex 專屬 instruction，但不保證所有 resume 狀態；後續以正常授權 commit 驗收。沒有證實的 account UI 開關不能當作部署前提。
+
+### 本次驗證與未驗
+
+- 已執行上述三個 `login status` 與安全 TOML 鍵解析；未輸出 provider URL、key 或 token。
+- 已執行 curl 讀官方 docs 與 0.161.0 backend client/types source，取得 GET route 與 effective-policy 語意。
+- 已讀 wrapper 的 work/personal 分支及部署 symlink target；未執行 login/logout 或啟動模型。
+- 未驗：登入後 settings UI、帳號有效 policy、active session policy、personal profile 執行。原因：沒有需要的安全已授權 backend 存取；匿名頁面 403；rollout 沒有匹配片段；本輪不登入、不更改現有 auth／配置。
