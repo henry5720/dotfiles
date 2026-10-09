@@ -13,7 +13,7 @@
 # 權限三個 key(approval_policy、sandbox_mode、approvals_reviewer)也由這裡管:sandbox 照常擋
 # .git 寫入與連網,越界的請求先交給 auto_review 審,審不過才問人。
 #   - 每次 apply 都蓋回,不是「沒有才寫」:codex 自己會寫 approvals_reviewer = "user"(來源查不到)。
-#     依據目前是推論:TUI 的 /permissions 只在當次 session 有效,不會寫回這份檔。
+#     依據(2026-10-09 實測,codex 0.161.0):TUI 的 /permissions 只在當次 session 有效,不會寫回這份檔。
 #   - Termux 的 codex 沒有 sandbox:shell 指令不設防地跑、不發核准請求,改檔反而每次都要審。
 #     這組 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
 #   - personal profile(personal.config.toml)不寫權限 key,--profile personal 疊在這份上就吃到同一組。
