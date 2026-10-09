@@ -31,7 +31,7 @@
 
 ## PR 自審與驗收
 
-明確呼叫 `pr-review-and-verify`，或要求自審／驗收自己作者的 PR（例如「收這個 PR」）時，依 `pr-review-and-verify` skill 執行；完整流程留在 skill。
+明確呼叫 `pr-review-and-verify`，或要求完整執行自己作者的 PR 自審與驗收（例如「收這個 PR」）時，依 `pr-review-and-verify` skill 執行；完整流程留在 skill。
 
 ## PR body
 
