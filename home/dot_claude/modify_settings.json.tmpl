@@ -2,15 +2,16 @@
 # shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.claude/settings.json 這份大部分不該納管:herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
 # autoMode.environment 一整塊機器描述,都是工具自己寫進去、而且會一直變的東西。
-# 所以同樣走 modify_,只釘一個 key。
+# 所以同樣走 modify_,只釘必要的 plugin 開關與 commit attribution。
 #
 # 釘的是「關掉官方 chrome-devtools plugin」。那個 plugin 的設定在
 # ~/.claude/plugins/cache/claude-plugins-official/chrome-devtools-mcp/*/.claude-plugin/plugin.json,
 # args 只有 ["chrome-devtools-mcp@<版本>"] —— 沒有 --browser-url,在 WSL 上跑不起來。
 # 不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
 #
-# 只釘這一個 key,不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,
+# 不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,
 # 會一直迭代,那種東西記在 docs/new-machine-setup.md 的重建清單裡就好。
+# attribution 只釘 commit，PR 標記與其他工具自行寫入的設定照留。
 
 set -eu
 
@@ -18,7 +19,9 @@ set -eu
 existing=$(cat)
 [ -n "$existing" ] || existing='{}'
 
-# 2. 只設這一個 key。這份檔案結尾本來就有換行,所以不用像 .claude.json 那樣砍。
+# 2. 固定 plugin 開關與共同作者；其餘設定原樣保留。
 printf '%s' "$existing" | jq '
   .enabledPlugins["chrome-devtools-mcp@claude-plugins-official"] = false
+  | .attribution |= (if type == "object" then . else {} end)
+  | .attribution.commit = "Co-Authored-By: Claude Code <noreply@anthropic.com>"
 '

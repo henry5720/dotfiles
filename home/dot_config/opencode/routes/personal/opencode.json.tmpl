@@ -4,6 +4,7 @@
 {{- $small := regexReplaceAll "^[^/]+/" (index (index $agents "explorer") "model") "" -}}
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [{{ printf "%s/.config/opencode/commit-instructions.md" .chezmoi.homeDir | toJson }}],
   "permission": {
     "skill": {
       "company-imagegen-fallback": "deny"

@@ -18,6 +18,7 @@ existing=$(cat)
 printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [{{ printf "%s/.config/opencode/commit-instructions.md" .chezmoi.homeDir | toJson }}],
   "model": {{ $main | toJson }},
   "small_model": {{ $small | toJson }},
   "permission": {
