@@ -4,19 +4,27 @@
 # 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
 # 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
 #
-# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider;
+# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider 與權限 key;
 # codex 自己的 table 原封不動吐回去。`chezmoi diff` 因此會是空的。
 #
 # MCP server 不歸這裡管,由 skillshare 寫(清單在 agent-config 的 mcp.yaml)。
 # 所有 [mcp_servers.*] 都當成別人的 table 原樣保留,不然每次 apply 都會刪掉 skillshare 寫的。
 #
-# ⚠️ codex 會把 key 寫在第一個 table 之前的頂層(例如 approvals_reviewer)。那些 key 只能
+# 權限三個 key(approval_policy、sandbox_mode、approvals_reviewer)也由這裡管:sandbox 照常擋
+# .git 寫入與連網,越界的請求先交給 auto_review 審,審不過才問人。
+#   - 每次 apply 都蓋回,不是「沒有才寫」:codex 自己會寫 approvals_reviewer = "user"(來源查不到)。
+#     依據(2026-10-09 實測,codex 0.161.0):TUI 的 /permissions 只在當次 session 有效,不會寫回這份檔。
+#   - Termux 的 codex 沒有 sandbox:shell 指令不設防地跑、不發核准請求,改檔反而每次都要審。
+#     這組 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
+#   - personal profile(personal.config.toml)不寫權限 key,--profile personal 疊在這份上就吃到同一組。
+#
+# ⚠️ 不歸 repo 管的頂層 key(例如 notify)寫在第一個 table 之前。那些 key 只能
 # 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table
-# 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 model_reasoning_effort
-# 與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
+# 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 repo 管的頂層 key
+# (最後一個是 approvals_reviewer)與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
 # 解析後的結構,位置變了就是結構變了)。
 #
-# ⚠️ 新機器上這份只會產出 repo provider,下半段要自己長回來:
+# ⚠️ 新機器上這份只會產出 repo provider 與權限 key,下半段要自己長回來:
 #   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
 #   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
 #     這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),重跑 herdr
@@ -37,7 +45,10 @@ import os
 import sys
 import tomllib
 
-managed_top_keys = ("model", "model_provider", "model_reasoning_effort")
+managed_top_keys = (
+    "model", "model_provider", "model_reasoning_effort",
+    "approval_policy", "sandbox_mode", "approvals_reviewer",
+)
 provider = "codex-lb-gcp"
 # 這個樣板自己產生的橫幅。遇到就連同底下的註解一起丟掉,後面再重新長出來。
 # 前兩個是舊版寫 MCP 時的橫幅,只是為了清掉已部署機器上殘留的那段註解;
@@ -80,7 +91,7 @@ def header_path(line):
 
 def comparable(text):
     value = tomllib.loads(text)
-    for key in ("model", "model_provider", "model_reasoning_effort"):
+    for key in managed_top_keys:
         value.pop(key, None)
     providers = value.get("model_providers", {})
     providers.pop(provider, None)
@@ -169,12 +180,15 @@ sys.stdout.write(candidate)
 ' "$preamble_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
-# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 是 repo
-# 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
+# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與權限
+# 是 repo 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
 # ============================================================
 model = "gpt-6.1-sol"
 model_provider = "codex-lb-gcp"
 model_reasoning_effort = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+approvals_reviewer = "auto_review"
 TOML
 cat "$preamble_file"
 cat <<'TOML'

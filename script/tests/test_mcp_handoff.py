@@ -10,9 +10,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
+CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
 CLEANUP = ROOT / "home/.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl"
 LEGACY_CHROME = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
+PERMISSIONS = {"approval_policy": "on-request", "sandbox_mode": "workspace-write", "approvals_reviewer": "auto_review"}
 
 
 class McpHandoffTest(unittest.TestCase):
@@ -38,6 +40,25 @@ class McpHandoffTest(unittest.TestCase):
         first = self.run_script(CODEX, "sh")
         synced = first + "\n[mcp_servers.gh_grep]\nurl = 'https://mcp.grep.app'\n"
         self.assertEqual(self.run_script(CODEX, "sh", synced), synced)
+
+    def test_codex_pins_permission_keys_at_top_level(self):
+        # codex 自己寫的 "user" 要被換掉,它自己的頂層 key 與 table 照留;輸出再餵一次要一樣。
+        existing = (
+            'approvals_reviewer = "user"\nnotify = ["herdr"]\n\n'
+            '[projects."/x"]\ntrust_level = "trusted"\n'
+        )
+        first = self.run_script(CODEX, "sh", existing)
+        config = tomllib.loads(first)
+        for key, value in PERMISSIONS.items():
+            self.assertEqual(config[key], value)  # 解析後是頂層 key,不在 provider table 底下
+        self.assertEqual(config["notify"], ["herdr"])
+        self.assertEqual(config["projects"], {"/x": {"trust_level": "trusted"}})
+        self.assertNotIn("approvals_reviewer", config["model_providers"]["codex-lb-gcp"])
+        self.assertEqual(self.run_script(CODEX, "sh", first), first)
+
+    def test_codex_personal_has_no_permission_keys(self):
+        output = tomllib.loads(self.run_script(CODEX_PERSONAL, "sh"))
+        self.assertFalse(set(PERMISSIONS) & set(output))
 
     def test_opencode_keeps_mcp_and_resets_other_keys(self):
         existing = {"model": "drifted", "mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}}}
