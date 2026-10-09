@@ -283,6 +283,11 @@ declare -A TOOL_CHECK=(
   # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json"
 )
+# Codex 權限三個 key 由 modify_ 釘死(#148);不測 sandbox 行為,容器裡的結果不代表實機。
+check_codex_permissions() {
+  check "modify_ 產物:~/.codex/config.toml 權限是 on-request + workspace-write + auto_review" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert (c[\"approval_policy\"],c[\"sandbox_mode\"],c[\"approvals_reviewer\"])==(\"on-request\",\"workspace-write\",\"auto_review\")' ~/.codex/config.toml"
+}
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
@@ -376,6 +381,7 @@ scenario_ubuntu() {
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
+  check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check_cli_tools
   check_bootstrap_rerun ubuntu
@@ -540,6 +546,7 @@ scenario_termux() {
     "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "modify_ 產物:~/.codex/config.toml 有 codex-lb provider" \
     "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"model_provider\"]==\"codex-lb-gcp\" and \"codex-lb-gcp\" in c[\"model_providers\"]' ~/.codex/config.toml"
+  check_codex_permissions
   check "modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
     "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"forced_login_method\"]==\"chatgpt\"' ~/.codex/personal.config.toml"
   check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
