@@ -23,14 +23,14 @@
 
 ## 照讀者選格式
 
-- 給人看的說明偏好精簡的視覺呈現；簡單內容用短文，需要時主動選用精簡的圖、表、樹或例子，不等我指定格式。
+- 給人看的說明偏好精簡的視覺呈現；簡單內容用短文，避免同一內容重複展示；需要時主動選用精簡的圖、表、樹或例子，不等我指定格式。
 - agent 指引用精確的文字步驟、契約與完成條件，照 `writing-for-agents` skill。
 - 依接收平台選擇可直接閱讀、呈現的形式；PR/GitHub 不提供只能本機檢視的 HTML。
 - 要畫圖前先確認那個地方渲染得出來 —— 終端機和 Slack 都不會渲染 mermaid，改用文字箭頭或縮排樹；表格可以用。
 
-## PR review
+## PR 自審與驗收
 
-收 PR（例如「收這個 PR」）或被要求 review PR 時，讀 `pr-review-and-verify` skill；完整流程依 skill 執行。
+明確呼叫 `pr-review-and-verify`，或要求自審／驗收自己作者的 PR（例如「收這個 PR」）時，依 `pr-review-and-verify` skill 執行；完整流程留在 skill。
 
 ## PR 的驗證段
 
