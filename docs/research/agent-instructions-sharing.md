@@ -2,6 +2,12 @@
 
 日期：2026-10-09。對應 [查三個 agent 如何共用偏好並保留專屬指引](https://github.com/henry5720/dotfiles/issues/152)。只研究，未改配置、未部署。
 
+## 收尾紀錄（2026-10-09）
+
+本文保留研究當時的來源與建議，並非目前部署方式。後續採用「保留共用 symlink，優先用各工具原生設定與專屬 instruction」，由 [PR #155](https://github.com/henry5720/dotfiles/pull/155) 合併；沒有改成本文示意的三份生成指引。以合併的 commit `8a74a6e` 為準。
+
+只有未來出現原生設定無法表達的工具專屬文字指引時，再評估共用 template；本次研究已保存，無需保留獨立 worktree。
+
 ## 結論與建議
 
 **symlink 適合所有工具讀取完全相同內容；需要 agent 專屬指引後，推薦改成 chezmoi 共用 template，加上各 agent 的專屬尾段，部署成普通檔案。** 這是本 repo 的設計建議，不是三家共同宣布的最佳實踐。

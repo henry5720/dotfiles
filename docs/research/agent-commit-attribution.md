@@ -2,6 +2,12 @@
 
 研究日期：2026-10-09。對應 [查各 agent 的 commit attribution 與 GitHub 頭像身分](https://github.com/henry5720/dotfiles/issues/153)。
 
+## 收尾紀錄（2026-10-09）
+
+本文記錄研究當時的查證結果；後續配置已由 [PR #155](https://github.com/henry5720/dotfiles/pull/155)（commit `8a74a6e`）合併：Claude 使用原生共同作者設定，Codex 追加專屬 commit instruction，OpenCode 使用文字標記，work／personal 共用該指引；全域偏好的 symlink 保留。
+
+配置已完成不代表本文所有未驗項目已通過。本文沒有新增 GitHub 頭像、Codex backend policy 或 OpenCode 官方 attribution 身分的驗收證據；仍以各段的「未驗」為準。本次研究已保存，無需保留獨立 worktree。
+
 ## 結論
 
 Claude 與 Codex 都有已證實會被 GitHub 配對到各自帳號頭像的共同作者 email。opencode 尚未找到官方 commit attribution 身分，不能保證同一做法能顯示 opencode logo。
