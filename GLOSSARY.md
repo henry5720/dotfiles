@@ -41,3 +41,25 @@ _Avoid_: 可以接了、交給 runner
 **agent-runner label**:
 人決定把一張 issue 交給 runner 時貼的 label；runner 只接帶這個 label 的 issue。spec 本身不貼，它的 sub-issue 要交給 runner 就一張一張貼。
 _Avoid_: 用 ready-for-agent 表示交給 runner
+
+## Agent 分工
+
+**L1**:
+跨 provider 派工的那一層：人透過 Herdr 決定開哪個 agent、叫它做什麼。agent 用 Herdr skill 叫別的 agent，只要是人當下指示的，仍然算 L1 的決定。
+_Avoid_: supervisor、orchestrator agent
+
+**L2**:
+單一 CLI 裡派 subagent 的那一層，用 Claude Code、Codex 的原生功能。
+_Avoid_: worker、team runtime
+
+**Supervisor**:
+自己拆任務、決定派給哪個 provider、自己驗收和重試的 agent，也就是由 agent 接手 L1。目前不採用。
+_Avoid_: 把 L1 也叫 orchestrator
+
+**工作流程 skill**:
+規定一件工作照什麼步驟做的一組 skill，例如 matt-skills、Superpowers。可以替換，與 L1、L2 無關，也不決定用哪個模型。
+_Avoid_: harness、框架
+
+**原生角色**:
+寫在 `~/.claude/agents/`、`~/.codex/agents/` 的 custom agent，定義某類工作用哪個模型、多少 reasoning effort、哪些工具。
+_Avoid_: role（單獨使用時）、persona
