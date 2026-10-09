@@ -41,6 +41,10 @@ PR body 一律有「## 驗證」：列出實際執行的指令與結果；未執
 - 講風險、講影響範圍時要附檔案路徑、行號或指令輸出。憑印象講的不算數。
 - 回覆裡提到的路徑、檔名、函式名，先確認存在再寫出來。
 
+## Commit 共同作者
+
+修改 Git repo、交接未提交工作、建立或 amend commit 前，讀 `~/.config/agent-commit/instructions.md`，累積並保留實際參與的 agent。
+
 ## Worktree
 
 開 worktree 前先載入 `herdr-worktree` skill：`HERDR_ENV=1` 時由 herdr 開，Claude、Codex、opencode 的 worktree 才會都歸 herdr 管。
