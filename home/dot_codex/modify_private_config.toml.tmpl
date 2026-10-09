@@ -4,7 +4,7 @@
 # 自己寫進去的狀態(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。
 # 整份納管的話每跑一次 codex 就多一段 diff,而且那些絕對路徑等於把專案清單推上公開 repo。
 #
-# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,只管理 provider 與權限 key;
+# 所以用 chezmoi 的 modify_:現有檔案從 stdin 進來,管理 provider、權限與 commit 指引;
 # codex 自己的 table 原封不動吐回去。`chezmoi diff` 因此會是空的。
 #
 # MCP server 不歸這裡管,由 skillshare 寫(清單在 agent-config 的 mcp.yaml)。
@@ -21,7 +21,7 @@
 # ⚠️ 不歸 repo 管的頂層 key(例如 notify)寫在第一個 table 之前。那些 key 只能
 # 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table
 # 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 repo 管的頂層 key
-# (最後一個是 approvals_reviewer)與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
+# 與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
 # 解析後的結構,位置變了就是結構變了)。
 #
 # ⚠️ 新機器上這份只會產出 repo provider 與權限 key,下半段要自己長回來:
@@ -37,17 +37,23 @@ trap 'rm -f "$input_file"' EXIT HUP INT TERM
 printf '%s' "$existing" > "$input_file"
 output_file=$(mktemp)
 preamble_file=$(mktemp)
-trap 'rm -f "$input_file" "$output_file" "$preamble_file"' EXIT HUP INT TERM
+instructions_file=$(mktemp)
+trap 'rm -f "$input_file" "$output_file" "$preamble_file" "$instructions_file"' EXIT HUP INT TERM
+cat <<'INSTRUCTIONS' > "$instructions_file"
+{{ includeTemplate "codex-commit-attribution.md" . }}
+INSTRUCTIONS
 python3 -c '
 import glob
 import json
 import os
+import re
 import sys
 import tomllib
 
 managed_top_keys = (
     "model", "model_provider", "model_reasoning_effort",
     "approval_policy", "sandbox_mode", "approvals_reviewer",
+    "developer_instructions",
 )
 provider = "codex-lb-gcp"
 # 這個樣板自己產生的橫幅。遇到就連同底下的註解一起丟掉,後面再重新長出來。
@@ -101,7 +107,31 @@ def comparable(text):
     return value
 
 existing = sys.stdin.read()
-for line in existing.splitlines(keepends=True):
+prior_instructions = tomllib.loads(existing).get("developer_instructions", "")
+if not isinstance(prior_instructions, str):
+    raise SystemExit("developer_instructions 必須是字串")
+guide = open(sys.argv[2], encoding="utf-8").read().rstrip("\n")
+# 只替換 chezmoi 的區塊，使用者自己追加的文字保留；第二次執行不重複加入。
+prior_instructions = re.sub(
+    r"(?:\n\n)?<!-- chezmoi:codex-commit-attribution:start -->.*?<!-- chezmoi:codex-commit-attribution:end -->",
+    "", prior_instructions, flags=re.S,
+)
+instructions = prior_instructions + "\n\n" + guide if prior_instructions else guide
+
+def statements(text):
+    # 多行字串／陣列中的 table 字樣也是值的一部分；讀到完整 TOML statement 再分類。
+    pending = []
+    for line in text.splitlines(keepends=True):
+        pending.append(line)
+        statement = "".join(pending)
+        try:
+            tomllib.loads(statement)
+        except tomllib.TOMLDecodeError:
+            continue
+        yield statement
+        pending = []
+
+for line in statements(existing):
     if line.rstrip("\n") in markers:
         while out and (not out[-1].strip() or out[-1].startswith("# ===")):
             out.pop()
@@ -128,7 +158,7 @@ for line in existing.splitlines(keepends=True):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        if any(stripped.startswith(key) and stripped[len(key):].lstrip().startswith("=") for key in managed_top_keys):
+        if set(tomllib.loads(line)) & set(managed_top_keys):
             continue
         preamble.append(line)
         continue
@@ -136,7 +166,7 @@ for line in existing.splitlines(keepends=True):
         out.append(line)
 while out and not out[-1].strip():
     out.pop()
-preamble_text = "".join(preamble).strip("\n")
+preamble_text = "developer_instructions = " + json.dumps(instructions, ensure_ascii=False) + "\n" + "".join(preamble).strip("\n")
 open(sys.argv[1], "w", encoding="utf-8").write(preamble_text + "\n" if preamble_text else "")
 if skills_at is None:
     skills_at = len(out)
@@ -174,10 +204,12 @@ try:
         changed = [key for key in changed if before.get(key) != after.get(key)]
         raise ValueError("非 managed TOML 設定在重寫後改變: " + ",".join(changed))
     tomllib.loads(verified)
+    if tomllib.loads(verified)["developer_instructions"] != instructions:
+        raise ValueError("Codex commit 指引未保留在頂層")
 except (tomllib.TOMLDecodeError, ValueError) as error:
     raise SystemExit("codex config 安全更新失敗: " + str(error))
 sys.stdout.write(candidate)
-' "$preamble_file" < "$input_file" > "$output_file"
+' "$preamble_file" "$instructions_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
 # codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與權限

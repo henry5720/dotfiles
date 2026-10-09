@@ -27,7 +27,7 @@ class McpHandoffTest(unittest.TestCase):
     def tearDown(self): self.tmp.cleanup()
 
     def render(self, template):
-        return subprocess.check_output(["chezmoi", "--config", str(self.cfg), "--destination", str(self.home), "execute-template"], input=template.read_bytes()).decode()
+        return subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(self.cfg), "--destination", str(self.home), "execute-template"], input=template.read_bytes()).decode()
 
     def run_script(self, template, interpreter, stdin=""):
         env = os.environ.copy(); env["HOME"] = str(self.home)
