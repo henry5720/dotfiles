@@ -63,3 +63,7 @@ _Avoid_: harness、框架
 **原生角色**:
 寫在 `~/.claude/agents/`、`~/.codex/agents/` 的 custom agent，定義某類工作用哪個模型、多少 reasoning effort、哪些工具。
 _Avoid_: role（單獨使用時）、persona
+
+**內建 subagent**:
+CLI 自帶、不用寫設定就能派的 subagent，例如 Claude 的 Explore、Plan、general-purpose，Codex 的 default、explorer、worker。自己寫一個同名的原生角色會蓋掉它。
+_Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
