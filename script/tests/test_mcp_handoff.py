@@ -11,10 +11,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
-PERMISSIONS = {"approval_policy": "on-request", "sandbox_mode": "workspace-write", "approvals_reviewer": "auto_review"}
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
 CLEANUP = ROOT / "home/.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl"
 LEGACY_CHROME = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
+PERMISSIONS = {"approval_policy": "on-request", "sandbox_mode": "workspace-write", "approvals_reviewer": "auto_review"}
 
 
 class McpHandoffTest(unittest.TestCase):

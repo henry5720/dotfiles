@@ -18,13 +18,13 @@
 #     這組 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
 #   - personal profile(personal.config.toml)不寫權限 key,--profile personal 疊在這份上就吃到同一組。
 #
-# ⚠️ codex 會把它自己的 key 寫在第一個 table 之前的頂層。那些 key 只能
+# ⚠️ 不歸 repo 管的頂層 key(例如 notify)寫在第一個 table 之前。那些 key 只能
 # 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table
-# 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 model_reasoning_effort
-# 與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
+# 的欄位,語意整個改掉。所以下面把它們獨立收進 $preamble_file,插在 repo 管的頂層 key
+# (最後一個是 approvals_reviewer)與第一個 table 之間。留不住或放錯位置,尾端的安全檢查都會擋下來(comparable() 比的是
 # 解析後的結構,位置變了就是結構變了)。
 #
-# ⚠️ 新機器上這份只會產出 repo provider,下半段要自己長回來:
+# ⚠️ 新機器上這份只會產出 repo provider 與權限 key,下半段要自己長回來:
 #   - 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
 #   - [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh
 #     這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),重跑 herdr
@@ -180,8 +180,8 @@ sys.stdout.write(candidate)
 ' "$preamble_file" < "$input_file" > "$output_file"
 cat <<'TOML'
 # ============================================================
-# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 是 repo
-# 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
+# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與權限
+# 是 repo 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
 # ============================================================
 model = "gpt-6.1-sol"
 model_provider = "codex-lb-gcp"

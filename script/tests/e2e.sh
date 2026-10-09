@@ -190,6 +190,12 @@ check_alias() {
   check "$1" "$(zsh_ok "a=\${aliases[$2]-未定義}; [[ $3 ]] || { print -ru2 -- \"實際:$2 → \$a\"; false }")"
 }
 
+# Codex 權限三個 key 由 modify_ 釘死(#148);不測 sandbox 行為,容器裡的結果不代表實機。
+check_codex_permissions() {
+  check "modify_ 產物:~/.codex/config.toml 權限是 on-request + workspace-write + auto_review" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert (c[\"approval_policy\"],c[\"sandbox_mode\"],c[\"approvals_reviewer\"])==(\"on-request\",\"workspace-write\",\"auto_review\")' ~/.codex/config.toml"
+}
+
 check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check "預設 shell 是 zsh" "[ \"\$($1)\" = \"\$(command -v zsh)\" ]"
   for d in "${ZSH_EXTERNALS[@]}"; do
@@ -283,11 +289,6 @@ declare -A TOOL_CHECK=(
   # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json"
 )
-# Codex 權限三個 key 由 modify_ 釘死(#148);不測 sandbox 行為,容器裡的結果不代表實機。
-check_codex_permissions() {
-  check "modify_ 產物:~/.codex/config.toml 權限是 on-request + workspace-write + auto_review" \
-    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert (c[\"approval_policy\"],c[\"sandbox_mode\"],c[\"approvals_reviewer\"])==(\"on-request\",\"workspace-write\",\"auto_review\")' ~/.codex/config.toml"
-}
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
@@ -550,7 +551,7 @@ scenario_termux() {
   check "modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
     "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"forced_login_method\"]==\"chatgpt\"' ~/.codex/personal.config.toml"
   check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
-    "jq -e '.model == \"codex-lb-gcp/gpt-6-astra\" and .mcp == {}' ~/.config/opencode/opencode.json"
+    "jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}' ~/.config/opencode/opencode.json"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
