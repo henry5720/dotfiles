@@ -14,14 +14,15 @@
 
 | | 是什麼 | 誰寫的 | 檔案實際在哪 | 怎麼更新 |
 |---|---|---|---|---|
-| **規則** | 你希望 agent 怎麼做事 | **你** | agent-config 的 `extras/agents-md/AGENTS.md`,skillshare 以 symlink 放到各 client | 改完在 agent-config commit |
+| **規則** | 你希望 agent 怎麼做事 | **你** | agent-config 的 `instructions/agents-md/AGENTS.md`,本 repo 的 `symlink_` 模板連到各 client | 改完在 agent-config commit |
 | **skill** | 一套做某件事的步驟,用到才載入 | 別人 或 **你** | agent-config repo,skillshare 同步到各 client | `skillshare update --all`,見[〈2〉](#2-skill) |
 | **MCP** | 給 agent 接外部服務的通道 | 別人 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見[〈3〉](#3-mcp) |
 | **plugin** | Claude 的擴充包(可同時含 skill + MCP + 指令) | 別人 | `~/.claude/plugins/` | Claude 裡打 `/plugin` |
 
 ## 全貌
 
-chezmoi 管機器和 client 本身的設定(Settings),skillshare 管 skills、MCP 和給模型讀的指令檔(Instructions):
+chezmoi 管機器和 client 本身的設定(Settings),skillshare 管 skills 和 MCP;給模型讀的指令檔(Instructions)
+內容在 agent-config,但放到各 client 的 symlink 由 chezmoi 放:
 
 ```mermaid
 flowchart LR
@@ -32,9 +33,11 @@ flowchart LR
   dotfiles --> clients
   agentconfig --> clients
   dotfiles -. "裝 skillshare、放 config.yaml" .-> agentconfig
+  dotfiles -. "symlink 指到 instructions/" .-> agentconfig
 ```
 
-兩邊唯一的交接:chezmoi 裝好 skillshare、放好它的 `config.yaml`,之後就不再碰。
+兩邊的交接:chezmoi 裝好 skillshare、放好它的 `config.yaml`(之後就不再碰),
+以及 chezmoi 的 `symlink_` 模板指到 agent-config 的 `instructions/`(決策見 [ADR 0002](adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md))。
 
 不歸 skillshare 管的例外(obsidian-wiki、plugin…)和 herdr skill 要跟版本的事,見
 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
@@ -49,27 +52,28 @@ skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 
 每家 agent 讀的檔名不一樣 —— Claude 只讀 `CLAUDE.md`,opencode 讀 `AGENTS.md`。
 各寫一份的話,改了 A 忘了改 B,兩邊行為就會不一樣(這件事真的發生過)。
 
-解法是**只留一份真的檔案,其他都是捷徑**。給模型讀的指令檔(Instructions)放在 agent-config 的
-`extras/`,由 skillshare 以 symlink 放出去;本 repo 只管 skillshare 的 `config.yaml` 裡「連到哪」:
+解法是**只留一份真的檔案,其他都是捷徑**。給模型讀的指令檔(Instructions)內容放在 agent-config 的
+`instructions/`;放到哪由本 repo 的 `symlink_*.tmpl` 決定(例如 `home/dot_claude/symlink_CLAUDE.md.tmpl`),
+所以在 `home/dot_claude/` 等目錄就看得到 CLAUDE.md 從哪來:
 
 ```
-agent-config/extras/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
+agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
    ├── ~/.claude/CLAUDE.md
    ├── ~/.codex/AGENTS.md
    ├── ~/.config/opencode/AGENTS.md
    └── ~/.config/opencode/routes/personal/AGENTS.md
 ```
 
-commit 指引也一樣:`extras/agent-commit/instructions.md` → `~/.config/agent-commit/instructions.md`,
-`extras/opencode-commit/commit-instructions.md` → `~/.config/opencode/commit-instructions.md`
+commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.config/agent-commit/instructions.md`,
+`instructions/opencode-commit/commit-instructions.md` → `~/.config/opencode/commit-instructions.md`
 (後者由本 repo 的 `opencode.json` 引用)。
 
-新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完 bootstrap,
-選裝工具 `agent-config` 的腳本最後會 `skillshare sync --all`,把這幾個 symlink 建好。
-第一次 sync 會先備份原本的檔案(restore point),`skillshare extras remove` 時放回去。
+新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完 bootstrap。
+`chezmoi apply` 先放好 symlink,這時 agent-config 還沒 clone,symlink 是懸空的;
+選裝工具 `agent-config` 的 after 腳本 clone 完,symlink 就指得到檔案。沒勾 `agent-config` 的機器,這幾個 symlink 會一直懸空。
 
-已經裝過 agent-config 的機器,`skillshare pull` 後內容就跟著 symlink 生效;新增 extra 才要
-`skillshare extras init`(這台的 `config.yaml` 不會再被 chezmoi 更新)再 `skillshare sync extras`。
+已經裝過 agent-config 的機器,改內容只要 `skillshare pull`;改「連到哪」(新增或搬動 symlink)
+則是改本 repo 的 `symlink_` 模板再 `chezmoi apply`。從舊的 extras 做法換過來時,兩個都要跑。
 
 ## 規則要寫什麼
 
@@ -155,7 +159,7 @@ codegraph install -t claude -l global -y   # 只為了 Claude 的 prompt hook �
 |---|---|---|
 | `~/.claude.json` 的 `mcpServers.codegraph` | 在 | chezmoi 不管 `~/.claude.json` |
 | `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | 同上,`modify_settings.json.tmpl` 只釘一個 plugin 開關 |
-| `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | 會改到 agent-config | 這份是指向 agent-config `extras/agents-md/AGENTS.md` 的 symlink,寫進去就是改 source |
+| `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | 會改到 agent-config | 這份是指向 agent-config `instructions/agents-md/AGENTS.md` 的 symlink,寫進去就是改 source |
 
 所以那段收進了 agent-config 的 `AGENTS.md`,**保留英文原文和 START/END 標記** ——
 `codegraph upgrade` 會重寫兩個標記之間的內容,翻成中文的話每次升級都會在 agent-config 留下修改。
@@ -438,7 +442,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會�
 |---|---|---|
 | `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
 | `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
-| skillshare extras 的 symlink(`~/.claude/CLAUDE.md`、各 `AGENTS.md`) | 寫進去就改到 agent-config 的 source | 在 agent-config 看 `git diff`,要留就 commit |
+| 指令檔的 symlink(`~/.claude/CLAUDE.md`、各 `AGENTS.md`) | 寫進去就改到 agent-config 的 source | 在 agent-config 看 `git diff`,要留就 commit |
 | 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
 
 ---
@@ -460,7 +464,7 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 
 | 想做什麼 | 怎麼做 |
 |---|---|
-| 改 agent 的行為規則 | 改 agent-config 的 `extras/agents-md/AGENTS.md`,在 agent-config commit |
+| 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
 | 新機器套用規則 | 跑 bootstrap,見[新機器設定 Runbook](new-machine-setup.md) |
 | 裝／更新 skill、寫自己的 skill | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |

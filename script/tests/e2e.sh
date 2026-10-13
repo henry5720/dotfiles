@@ -74,7 +74,7 @@ cleanup() {
 # 放在家目錄底下,因為 Termux 容器沒有 /tmp(在 Termux 裡是 $PREFIX/tmp)。
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo
 #   $FIX/key、key.pub     假的 henry5720 key
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + AGENTS.md extra)
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md)
 make_fixtures() {
   FIX=$CTR_HOME/e2e-fixtures
   local tmp
@@ -90,8 +90,8 @@ make_fixtures() {
   mkdir -p "$tmp/ac/skills/e2e-hello"
   printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
   printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
-  mkdir -p "$tmp/ac/extras/agents-md"
-  printf 'e2e-agents\n' > "$tmp/ac/extras/agents-md/AGENTS.md"
+  mkdir -p "$tmp/ac/instructions/agents-md"
+  printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"
   git -C "$tmp/ac" init -q -b main
   git -C "$tmp/ac" add -A
   git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init
@@ -288,7 +288,7 @@ declare -A TOOL_CHECK=(
   # 用 headless-chrome 裝的那支 Chrome 真的開得了頁(它預設找 /opt/google/chrome/chrome,不會自己下載)。
   # 容器擋 user namespace,Chrome sandbox 起不來,所以關掉(同上面 headless-chrome 的 --no-sandbox)
   [playwright-cli]=". ~/.nvm/nvm.sh && playwright-cli --version && PLAYWRIGHT_MCP_SANDBOX=false playwright-cli -s=e2e open 'data:text/html,<title>e2e-ok</title>' | grep -q e2e-ok; r=\$?; playwright-cli -s=e2e close >/dev/null 2>&1; [ \$r = 0 ]"
-  # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定、AGENTS.md 連成 CLAUDE.md
+  # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定;chezmoi 先放的 CLAUDE.md symlink 在 clone 後指得到 AGENTS.md
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json && [ -L ~/.claude/CLAUDE.md ] && grep -q e2e-agents ~/.claude/CLAUDE.md"
 )
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }

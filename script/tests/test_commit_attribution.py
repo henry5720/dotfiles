@@ -104,7 +104,7 @@ class CommitAttributionTest(unittest.TestCase):
         self.assertEqual(self.run_script(OPENCODE, first), first)
 
     def test_scoped_apply_deploys_attribution_settings(self):
-        # 指令檔(CLAUDE.md、AGENTS.md、commit 指引)由 agent-config 的 extras 管,這裡只驗 Settings。
+        # 指令檔(CLAUDE.md、AGENTS.md、commit 指引)內容在 agent-config,symlink 由 test_instruction_symlinks 驗,這裡只驗 Settings。
         source = Path(self.tmp.name) / "source"
         for directory in ("dot_claude", "dot_codex", "dot_config/opencode", ".chezmoitemplates"):
             shutil.copytree(ROOT / "home" / directory, source / directory)
