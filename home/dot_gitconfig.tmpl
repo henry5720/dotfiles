@@ -12,3 +12,9 @@
 	name = {{ .gitUserName }}
 [core]
 	editor = vim
+# GitHub 的 repo 用 HTTPS clone／pull(公開 repo 不用 key,新機器還沒放 key 也能 chezmoi init／update),
+# push 時才改走 SSH(~/.ssh/config 的 github.com 用 ~/.ssh/henry5720)。
+# 用 pushInsteadOf 而不是 insteadOf:insteadOf 連 clone 都會改寫成 SSH,沒 key 的新機器就 clone 不了。
+# 本來 remote 就是 git@ 的舊機器不受影響。見 git-config(1) 的 url.<base>.pushInsteadOf。
+[url "git@github.com:"]
+	pushInsteadOf = https://github.com/
