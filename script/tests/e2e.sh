@@ -27,13 +27,13 @@ IMAGE="dotfiles-e2e-$TARGET:$TAG"
 CTR="dotfiles-e2e-$TARGET-$TAG"
 FAILED=()
 
+# 建映像與容器(setup_ubuntu)、fixtures(make_fixtures)、cleanup、red/green/bold
+# 跟錄影共用,在 container.sh。
+. "$REPO/script/tests/container.sh"
+
 # ===============================================================
 # 共用工具
 # ===============================================================
-red()   { printf '\033[31m%s\033[0m\n' "$*"; }
-green() { printf '\033[32m%s\033[0m\n' "$*"; }
-bold()  { printf '\033[1m%s\033[0m\n' "$*"; }
-
 # 在容器裡以一般使用者執行(login shell,~/.local/bin 會在 PATH 上)。
 # 輸出存進 $OUT,呼叫端決定要不要印。CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 in_ctr() {
@@ -60,55 +60,6 @@ check() {  # check <描述> <容器內指令>
     printf '%s\n' "$OUT" | tail -n 20 | sed 's/^/    │ /'
     FAILED+=("$1")
   fi
-}
-
-cleanup() {
-  if [ "${E2E_KEEP:-0}" = 1 ]; then
-    bold "保留容器 $CTR(E2E_KEEP=1),用完 docker rm -f $CTR"
-  else
-    docker rm -f "$CTR" >/dev/null 2>&1 || true
-  fi
-}
-
-# 測試要的東西都在主機上做好再放進容器的 $FIX:容器在 bootstrap 之前連 git、ssh-keygen 都沒有。
-# 放在家目錄底下,因為 Termux 容器沒有 /tmp(在 Termux 裡是 $PREFIX/tmp)。
-#   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo
-#   $FIX/key、key.pub     假的 henry5720 key
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md)
-make_fixtures() {
-  FIX=$CTR_HOME/e2e-fixtures
-  local tmp
-  tmp=$(mktemp -d)
-  mkdir -p "$tmp/dotfiles"
-  (cd "$REPO" && git ls-files -co --exclude-standard -z \
-    | while IFS= read -r -d '' f; do [ -e "$f" ] && printf '%s\0' "$f"; done \
-    | tar --null -T - -cf -) | tar -C "$tmp/dotfiles" -xf -
-  git -C "$tmp/dotfiles" init -q -b main
-  git -C "$tmp/dotfiles" add -A
-  git -C "$tmp/dotfiles" -c user.name=e2e -c user.email=e2e@example.com commit -qm e2e
-  ssh-keygen -q -t ed25519 -N '' -C e2e -f "$tmp/key"
-  mkdir -p "$tmp/ac/skills/e2e-hello"
-  printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
-  printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
-  mkdir -p "$tmp/ac/instructions/agents-md"
-  printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"
-  git -C "$tmp/ac" init -q -b main
-  git -C "$tmp/ac" add -A
-  git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init
-  git clone -q --bare "$tmp/ac" "$tmp/agent-config.git"
-  rm -rf "$tmp/ac"
-  # zsh_ok 的 tty 版用(兩邊都有 python3)。檔名不能叫 tty.py,會蓋掉標準庫的 tty
-  cat > "$tmp/zsh-tty.py" <<'PY'
-import pty, subprocess, sys
-# 在 pty 裡跑指令(stdin 是終端機),stdout 丟掉,stderr 原樣印出,回傳它的 exit code
-master, slave = pty.openpty()
-r = subprocess.run(sys.argv[1:], stdin=slave, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
-sys.stderr.buffer.write(r.stderr)
-sys.exit(r.returncode)
-PY
-  docker exec -u "$CTR_USER" "$CTR" mkdir -p "$FIX"
-  tar -C "$tmp" -cf - . | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$FIX" -xf -
-  rm -rf "$tmp"
 }
 
 # 印出「跑 bootstrap wizard」的容器內指令,交給 step／check 執行。多給的參數轉給 chezmoi init。
@@ -302,22 +253,7 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 # ===============================================================
 # 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
 # ===============================================================
-# 映像模擬一台全新的 Ubuntu:只有一般使用者 + sudo 免密碼,沒有 git／curl／ssh／chezmoi,
-# 全部由 bootstrap wizard 裝。apt 清單刪掉,所以 wizard 一定要自己 apt-get update。
-setup_ubuntu() {
-  CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
-  CTR_HOME=/home/ubuntu
-  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
-FROM ubuntu:24.04
-RUN apt-get update \
- && apt-get install -y --no-install-recommends sudo \
- && rm -rf /var/lib/apt/lists/* \
- && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
-DOCKERFILE
-  docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
-  make_fixtures
-}
+# setup_ubuntu 在 container.sh(錄影也用它)。
 
 # 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
 # 不然 yaml 少列一個測試也照樣過。
