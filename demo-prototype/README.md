@@ -14,6 +14,7 @@
 
 - `menu.tape`：草稿 A。打 README 那行 `bash <(curl …)`（Hide 裡把 `curl` 換成讀本機 bootstrap.sh）→ 剪掉第 1–4 關 → 選單取消勾 ttyd、wakatime、opencode、document-media、ai-document-media（= e2e 的 `TOOLS_FIRST`）→ 剪掉安裝 → 停在「== 完成」。1200×400
 - `menu-a-reuse.gif`：草稿 A 在已裝好的容器重錄（`REUSE=1`），13.4 秒、186 KB；apply 幾乎沒輸出，結尾比全新機器乾淨
+- `menu-a-fresh.gif`：草稿 A 在全新容器錄，13.4 秒、286 KB；結尾「完成」上方是 npm 的 update notice 和 tailscale 訊息（整次錄影 343 秒，含 150 秒等選單）
 - `peek-800.tape`／`peek-800.gif`／`peek-800-picked.png`：拉高到 800 的對照，選單一樣固定一頁 11 項，只多露出上面的 apt log
 - `record-menu.sh`：借 `setup_ubuntu`／`make_fixtures` 建容器但**不跑 bootstrap**；先放假 key、寫好 6 個 promptString 的值（`promptStringOnce` 讀到就不問），補 vhs、ttyd、ffmpeg、Google Chrome（VHS 自己下載的 Chromium 在乾淨容器缺函式庫）、`fonts-noto-cjk`、Hack Nerd Font
 - 用法：`bash demo-prototype/record-menu.sh menu.tape`（`REUSE=1` 沿用容器 `dotfiles-demo-menu`；要重出選單先刪掉 `chezmoi.toml` 的 `tools` 那行）
