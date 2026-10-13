@@ -1,5 +1,7 @@
 # dotfiles
 
+![裝完之後的 terminal：p10k prompt、語法上色與 autosuggestion、eza、fastfetch](docs/demo/main.gif)
+
 個人公開設定，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，也用在雲端主機與 Android 平板
 （原生 Termux、Termux 裡的 proot Ubuntu）。
 
@@ -60,6 +62,8 @@ chezmoi 會依命名與 template 規則部署 `home/`，不一定原樣複製。
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
 ```
+
+![跑 bootstrap、在選裝工具選單取消幾項、裝完](docs/demo/menu.gif)
 
 跑之前要先做腳本做不到的前置，每種機器（WSL、雲端主機、原生 Termux、proot Ubuntu）不同。
 前置、每一關做什麼、裝完之後的 AI 工具設定見[新機器設定](docs/new-machine-setup.md)。

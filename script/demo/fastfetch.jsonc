@@ -1,0 +1,5 @@
+// 只給錄影容器用(script/demo/record.sh 放到容器的 ~/.config/fastfetch/config.jsonc)。
+// 不印 title(會是容器 ID)、Terminal(會是 ttyd),也不印 kernel、記憶體、磁碟、IP、uptime 這些主機資訊。
+{
+  "modules": ["os", "packages", "shell", "terminalfont", "break", "colors"]
+}
