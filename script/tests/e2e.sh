@@ -450,6 +450,9 @@ APT_LOG='$PREFIX/var/log/apt/history.log'
 HACK_SHA256=8cba545f0ab36d8f313a448676df9988d6c679a014ffed863e52305844e7b113
 
 scenario_termux() {
+  # pkg 沒選過 mirror 時每次隨機挑一個,挑到壞的(404、卡住)整輪就紅。先放好 termux-change-repo
+  # 選完會留下的 symlink,固定用預設那組;真機上 pkg 自己挑,不受影響。
+  step "固定用預設 mirror" "ln -sfn \$PREFIX/etc/termux/mirrors/default \$PREFIX/etc/termux/chosen_mirrors"
   # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
   step "全新 Termux 跑 README 的安裝指令(pkg upgrade、pkg install chezmoi、init --apply)" \
     "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}")"
