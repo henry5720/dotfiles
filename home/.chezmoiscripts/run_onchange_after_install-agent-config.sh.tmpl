@@ -7,12 +7,13 @@
 #
 # 是 after_:要等 ~/.config/skillshare/config.yaml(dot_config/skillshare/create_config.yaml)先部署,
 # init 才會直接從 remote 拉。chezmoi 的 after_ 腳本一定在所有檔案部署完之後才跑。
-# remote 走 SSH(git@),要先有 ~/.ssh/henry5720 並加到 GitHub;
+# remote 走 HTTPS:agent-config 是公開 repo,新機器還沒放 SSH key 也 clone 得下來;
+# push 由 ~/.gitconfig 的 pushInsteadOf 改走 SSH。
 # AGENT_CONFIG_REMOTE 只給測試換成本機 repo 用(script/tests/e2e.sh)。
 set -eu
 
 dir=$HOME/.config/skillshare
-remote=${AGENT_CONFIG_REMOTE:-git@github.com:henry5720/agent-config.git}
+remote=${AGENT_CONFIG_REMOTE:-https://github.com/henry5720/agent-config.git}
 
 # 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
 if [ -d "$dir/.git" ]; then

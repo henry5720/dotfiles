@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # 原生 Termux 的 xfce 桌面套件（平板用，手動跑一次）
-# 系統更新、git、openssh、字型都由 bootstrap 和 chezmoi 處理，這裡只裝桌面。
+# git、openssh、字型都由 chezmoi 處理（系統更新見 README 的安裝指令），這裡只裝桌面。
 # 啟動桌面：bash ~/.local/share/chezmoi/script/termux/startxfce_native.sh
 set -euo pipefail
 

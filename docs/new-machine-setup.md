@@ -6,16 +6,16 @@ Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）與原生 Termux。�
 這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
 ```text
-腳本做不到的前置 → bootstrap（最後一關是 chezmoi init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
+機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
 ```
 
-bootstrap 之後的套件、zsh、選裝工具全由 chezmoi 處理；這份只寫 chezmoi 之外要人做的事。
+`chezmoi init --apply` 之後的套件、zsh、選裝工具全由 chezmoi 處理；這份只寫 chezmoi 之外要人做的事。
 Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密不會由文件代替你決定，
 需要人工確認的地方會停下來。
 
 ## 交給 coding agent
 
-第 1、2 步要人做（裝 app、貼 key、填憑證、選工具）。第 4 步之後可以把以下 prompt 貼給
+第 1、2 步要人做（裝 app、放 key、填憑證、選工具）。第 4 步之後可以把以下 prompt 貼給
 **已經能正常工作的 coding agent**：
 
 ```text
@@ -32,7 +32,7 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 完成後只回報每一步的結果與尚未處理的人工項目。
 ```
 
-## 1. 前置（腳本做不到的）
+## 1. 前置（機器本身）
 
 ### WSL2
 
@@ -51,7 +51,7 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
    放的 `~/.termux/font.ttf`。
 2. 要桌面才需要：從 [termux-x11 的 nightly release](https://github.com/termux/termux-x11/releases/tag/nightly)
    裝 Termux:X11 app（`termux-x11-universal-debug.apk`，它不在 F-Droid）。
-3. 在原生 Termux 跑第 2 步的 bootstrap。第 1 關會跳出 mirror 選單和儲存空間權限對話框。
+3. 在原生 Termux 跑第 2 步 Termux 那行。要用手機儲存空間時另外跑 `termux-setup-storage`（會跳 Android 權限對話框）。
 4. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
 5. 要 proot Ubuntu（開發環境放這裡）：
@@ -61,32 +61,66 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
    proot-distro login ubuntu --user henry
    ```
 
-   腳本會建一般使用者、裝 sudo、設密碼，可以重跑。登入後把它當成一台 Ubuntu，再跑一次
-   第 2 步的 bootstrap。
+   腳本會建一般使用者、裝 sudo 與 curl、設密碼，可以重跑。登入後把它當成一台 Ubuntu，跑第 2 步
+   Ubuntu 那行。
 
-## 2. 跑 bootstrap
+## 2. 裝 chezmoi 與 dotfiles
 
-先在舊機器準備好 `~/.ssh/henry5720` 的內容（`cat ~/.ssh/henry5720`），然後在新機器：
+### 2.1（可選）更新系統
+
+跳過也裝得起來。以 Ubuntu 為例（其他系統換成自己的套件管理器）：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
+sudo apt update && sudo apt upgrade -y
 ```
 
-不要改成 `curl | bash`：那樣 stdin 被吃掉，wizard 讀不到你貼的 key。五關依序是：
+Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。之後的 `chezmoi apply` 在 Ubuntu 只裝缺的
+套件、不升級；在 Termux 有缺的套件要裝時會先 `pkg upgrade`（Termux 不支援部分升級），不缺就不動。
 
-| 關 | 做什麼 | 你要做的事 |
-|---|---|---|
-| 1 | 系統更新（Ubuntu `apt upgrade`；Termux 選 mirror、`pkg upgrade`、開儲存空間權限） | Termux 選 mirror、按允許 |
-| 2 | 裝 git、ssh、curl | — |
-| 3 | 放 `~/.ssh/henry5720`（已經有就跳過） | 貼上私鑰，換行後 Ctrl-D |
-| 4 | `ssh -T git@github.com` 驗證；Termux 另外把公鑰加進 `authorized_keys` | 被拒就照提示把公鑰加到 GitHub |
-| 5 | 裝 chezmoi，跑 `chezmoi init --apply --ssh henry5720` | 回答下面的問題 |
+### 2.2（可選）放 SSH key
 
-所有機器共用同一把 key，檔名一定要是 `henry5720`：ssh config 對 GitHub 和所有 Tailscale
-主機都寫死這個 IdentityFile。每一關都能重跑，做過的會跳過；多給的參數會原樣轉給
-`chezmoi init`。
+clone、`chezmoi update` 走 HTTPS，不用 key；要 **push**（dotfiles、agent-config）或從這台
+**連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再放。
 
-第 5 關 `chezmoi init` 會問：
+所有機器共用同一把 key，檔名一定要是 `~/.ssh/henry5720`：ssh config 對 GitHub 和所有
+Tailscale 主機都寫死這個 IdentityFile。在舊機器 `cat ~/.ssh/henry5720` 複製內容，然後在新機器：
+
+```bash
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+cat > ~/.ssh/henry5720            # 貼上整段（含 BEGIN/END 兩行），換行後 Ctrl-D
+chmod 600 ~/.ssh/henry5720
+ssh-keygen -y -f ~/.ssh/henry5720 > ~/.ssh/henry5720.pub   # 能產生就代表 key 格式對
+```
+
+放好後跑一次 `chezmoi apply`（還沒裝 chezmoi 就等 2.3 一起做）：
+
+- `~/.ssh/config` 由 chezmoi 部署，GitHub 與各主機開始用這把 key。
+- **原生 Termux**：公鑰會被加進 `~/.ssh/authorized_keys`（已經有就跳過），ssh config 的
+  `phone`／`pad` 才連得進來。
+- 這把 key 要在 GitHub 的 [SSH keys](https://github.com/settings/keys) 裡，`ssh -T git@github.com`
+  會回 `successfully authenticated` 就對了。
+
+push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
+HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器
+remote 本來就是 `git@`，照常運作。
+
+### 2.3 一行指令裝好
+
+chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily-operations/#install-chezmoi-and-your-dotfiles-on-a-new-machine-with-a-single-command)：
+
+| 機器 | 指令 |
+|---|---|
+| Ubuntu（WSL、雲端主機、proot Ubuntu） | `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720` |
+| 原生 Termux | `pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720` |
+
+- Ubuntu 那行在家目錄跑：`/lb` 把 chezmoi 裝到**目前目錄**的 `.local/bin`（不帶 `/lb` 會裝到 `./bin`）。
+- 不帶 `--ssh`：dotfiles 是公開 repo，chezmoi 用 `https://github.com/henry5720/dotfiles.git` clone，
+  不用 key。`--ssh` 一定要 key。
+- Termux 先 `pkg upgrade`：Termux 不支援部分升級，套件版本對不上會裝失敗。`get.chezmoi.io`
+  在 Android 只支援 arm64，所以 Termux 用 `pkg`。
+- 重跑沒事：source 已經在 `~/.local/share/chezmoi` 就不會再 clone。
+
+`chezmoi init` 會問：
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
@@ -110,9 +144,24 @@ bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/scri
 | `playwright-cli` | agent 操作瀏覽器用，借 `headless-chrome` 那支 Chrome，條件同上；用 npm 裝，要一起勾 `nvm` |
 | `agent-config` | skillshare 把 agent-config 的 skills、MCP 裝進各 client |
 
-之後要改選擇、選單加了新工具時怎麼辦，見 [README](../README.md#之後想加減工具)。
-
 apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+
+### 2.4 之後想加減工具
+
+第一次 `chezmoi init` 之後的 `chezmoi apply` 不再問選單。要改選擇，直接改存下來的設定：
+
+```bash
+chezmoi edit-config   # 改 [data] 底下的 tools = [...] 那一行
+chezmoi apply         # 新勾的工具這時才裝
+```
+
+- **取消勾選不會解除安裝**，只是之後不再管它；要移除自己手動移。
+- 可選的名稱就是 `home/.chezmoi.toml.tmpl` 裡 `$toolChoices` 列的那些。**選單以後加了新工具，
+  舊機器不會自動問**，一樣用 `edit-config` 加進去。
+- ⚠️ 也可以 `chezmoi init --prompt` 重出選單，但它會把**所有**問題重問一遍。選單與 Git 身分的
+  預設是現在存的值，直接 Enter 會保留；**憑證的預設是空的**（刻意不帶現值，免得明文印在
+  提示上），直接 Enter 會把憑證清空。用之前先準備好要重填的值。
+- 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
 
 ## 3. 需要才跑的手動腳本
 

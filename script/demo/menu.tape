@@ -1,7 +1,7 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
-# 畫面:打 README 那行指令 →(剪掉第 1–4 關)→ 選單取消勾 5 項 → Enter →(剪掉安裝)→ 完成
+# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 選單取消勾 5 項 → Enter →(剪掉安裝)→ 完成
 # 取消勾的 5 項 = 選單全部減掉 e2e 的 TOOLS_FIRST,裝完的環境就是主 GIF 要的那台。
-# 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面錄影環境才有的 log(跳過 key、不連 GitHub)推出畫面
+# 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面 installer 的 log 推出畫面
 Output menu.gif
 Set Shell bash
 Set FontFamily "Hack Nerd Font Mono"
@@ -12,26 +12,28 @@ Set Padding 24
 Set Theme "Catppuccin Mocha"
 Set TypingSpeed 25ms
 
-# 測試用環境變數 + 把 curl 換成本機那份 bootstrap.sh(只在這個 shell,bootstrap 裡的 curl 不受影響)
+# 裝的是本機 repo 而不是 GitHub 上的:先把 fixture cp 成 chezmoi 的 source,
+# source 已經在,畫面上那行 init 就不 clone、直接用它(跟 script/tests/e2e.sh 同一招)。
+# agent-config 也換成假 remote。chezmoi 本身照樣從 get.chezmoi.io 下載。
 Hide
-Type "export BOOTSTRAP_SKIP_GITHUB=1 BOOTSTRAP_SKIP_UPGRADE=1 BOOTSTRAP_REPO=~/e2e-fixtures/dotfiles AGENT_CONFIG_REMOTE=~/e2e-fixtures/agent-config.git" Enter
-Type "curl() { cat ~/e2e-fixtures/dotfiles/script/bootstrap.sh; }" Enter
+Type "export AGENT_CONFIG_REMOTE=~/e2e-fixtures/agent-config.git" Enter
+Type "mkdir -p ~/.local/share && cp -a ~/e2e-fixtures/dotfiles ~/.local/share/chezmoi && cd ~" Enter
 Type "PS1='$ '" Enter
 Ctrl+L
 Sleep 500ms
 Show
 
-# 1. README 上那行指令
+# 1. README 上 Ubuntu 那行指令
 Sleep 800ms
-Type "bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)"
+Type `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720`
 Sleep 600ms
 Enter
 Sleep 300ms
 
-# 2. 第 1–4 關、裝 chezmoi 剪掉,選單出來才顯示
+# 2. 下載 chezmoi 剪掉,選單出來才顯示
 # Wait+Screen 等選單不可靠(畫面明明有字也會逾時),用固定等待:選單會停著等輸入
 Hide
-Sleep 150s
+Sleep 60s
 Sleep 500ms
 Show
 Sleep 1.5s

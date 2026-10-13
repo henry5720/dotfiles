@@ -2,8 +2,8 @@
 
 ![裝完之後的 terminal：p10k prompt、語法上色與 autosuggestion、eza、fastfetch](docs/demo/main.gif)
 
-個人公開設定，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，也用在雲端主機與 Android 平板
-（原生 Termux、Termux 裡的 proot Ubuntu）。
+個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，
+也用在雲端主機與 Android 平板（原生 Termux、Termux 裡的 proot Ubuntu）。
 
 ## 支援哪些環境
 
@@ -11,121 +11,90 @@
 |---|---|---|
 | WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、zsh、選裝工具選單（不列 headless Chrome、playwright-cli） |
 | 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、終端機字型；**沒有**選單（開發環境放 proot Ubuntu） |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
 
-機器種類自動判斷，不用回答。Windows 那一側（`wsl/`）是手動套用的參考檔。
-
-## 這個 repo 怎麼分工
-
-| 東西 | 誰跑、什麼時候 | 管什麼 |
-|---|---|---|
-| `script/bootstrap.sh` | 自己，新機器跑一次 | 裝好 git、ssh、chezmoi，最後跑 `chezmoi init --apply` |
-| `home/` | `chezmoi apply`，每次改完 | 設定檔、基底套件、選裝工具、p10k 與 zsh 插件、預設 shell |
-| `script/ubuntu/`、`script/termux/` | 自己，要用時手動跑 | 會改系統的東西：Docker（`install-docker.sh`，會移除衝突套件）、swap（`setup-swap.sh`，改 `/etc/fstab`）、平板桌面 |
-
-其餘 chezmoi 看不到：`docs/`（說明）、`wsl/`（Windows 端）、`ai-agent/`（手動貼用的 persona）。
-
-預設 source repo 在 `~/.local/share/chezmoi`。
-
-### `home/` 部署到哪
-
-| repo | 部署到 | 內容 |
-|---|---|---|
-| `home/dot_zshrc`、`dot_p10k.zsh`、`dot_gitconfig.tmpl` | `~/.zshrc`、`~/.p10k.zsh`、`~/.gitconfig` | shell、p10k 設定、git |
-| `home/.chezmoiexternal.toml.tmpl` | `~/.config/zsh/*`、Termux 的 `~/.termux/font.ttf` | p10k、zsh 插件、Termux 字型（apply 時下載） |
-| `home/.chezmoidata/packages.yaml` | （不部署） | 基底套件與走 apt 的選裝工具清單 |
-| `home/.chezmoiscripts/run_*` | （不部署，apply 時執行） | 裝套件、裝選裝工具、換預設 shell |
-| `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、fontconfig（WSL 借用 Windows 字型）、code-server、opencode、skillshare 的 `config.yaml` |
-| `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的設定；全域規則只放 symlink（`symlink_CLAUDE.md.tmpl` 等），內容在 agent-config（不含 skills、MCP） |
-| `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp`、`share-shell` 等） |
-| `home/dot_local/share/fonts/` | `~/.local/share/fonts/` | Termux 字型的 symlink，給 xfce 終端機用（只部署在原生 Termux） |
-| `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
-| `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證、Git 身分、選裝工具的選擇（`chezmoi init` 時問） |
-
-逐檔清單跑 `chezmoi managed`。skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容不在這裡（規則的 symlink 在，見 [ADR 0002](docs/adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)），見 agent-config 的
-[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
-
-chezmoi 會依命名與 template 規則部署 `home/`，不一定原樣複製。用法與檔名前綴請看
-[chezmoi 官方文件](https://www.chezmoi.io/)及 [target types](https://www.chezmoi.io/reference/target-types/)。
-
-## 使用前
-
-- fork 或使用前，先檢查 provider、agent rules、SSH、Windows/Termux 機器設定。bootstrap 與
-  ssh config 都寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key，fork 要一起改。
-- 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles。
-- Ubuntu 機器要能 `sudo`：裝套件、換 shell 都會叫 sudo。沒有 sudo 的機器不支援。
-- 憑證不進 git；`chezmoi init` 只在尚未有值時提示，值放在
-  `~/.config/chezmoi/chezmoi.toml`。不信任或共用機器不要填真實憑證。
+機器種類自動判斷，不用回答。Ubuntu 機器要能 `sudo`。
 
 ## 新機器
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
-```
-
-![跑 bootstrap、在選裝工具選單取消幾項、裝完](docs/demo/menu.gif)
-
-跑之前要先做腳本做不到的前置，每種機器（WSL、雲端主機、原生 Termux、proot Ubuntu）不同。
-前置、每一關做什麼、裝完之後的 AI 工具設定見[新機器設定](docs/new-machine-setup.md)。
-
-## 之後想加減工具
-
-Ubuntu 機器第一次 `chezmoi init` 會出一個勾選選單，**預設全選**，直接 Enter 就全部裝。之後
-的 `chezmoi apply` 不再問。要改選擇，直接改存下來的設定：
+| 步驟 | 要不要做 | 怎麼做 |
+|---|---|---|
+| 更新系統 | 可選，跳過也裝得起來 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
+| 放 SSH key | 可選，要 push 或連其他機器才需要；裝完再放也行 | 見[新機器設定 2.2](docs/new-machine-setup.md#22可選放-ssh-key) |
+| 裝 chezmoi 與 dotfiles | 必做 | 下面兩行挑一行 |
 
 ```bash
-chezmoi edit-config   # 改 [data] 底下的 tools = [...] 那一行
-chezmoi apply         # 新勾的工具這時才裝
+# Ubuntu（WSL、雲端主機、proot Ubuntu），在家目錄跑
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
+
+# 原生 Termux
+pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
 ```
 
-- **取消勾選不會解除安裝**，只是之後不再管它；要移除自己手動移。
-- 可選的名稱就是 `home/.chezmoi.toml.tmpl` 裡 `$toolChoices` 列的那些。**選單以後加了新工具，
-  舊機器不會自動問**，一樣用 `edit-config` 加進去。
-- ⚠️ 也可以 `chezmoi init --prompt` 重出選單，但它會把**所有**問題重問一遍。選單與 Git 身分的
-  預設是現在存的值，直接 Enter 會保留；**憑證的預設是空的**（刻意不帶現值，免得明文印在
-  提示上），直接 Enter 會把憑證清空。用之前先準備好要重填的值。
-- 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
+![打上面 Ubuntu 那行、在選裝工具選單取消幾項、裝完](docs/demo/menu.gif)
 
-## 既有機器升級到這個流程
+clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、
+裝完之後的 AI 工具設定、之後怎麼加減選裝工具，見[新機器設定](docs/new-machine-setup.md)。
 
-以前用 `script/ubuntu/` 舊安裝腳本裝的機器，拉新版之後：
-
-1. `chezmoi diff` 會多出兩支腳本：裝基底套件（不缺就直接結束）、換預設 shell（已經是
-   zsh 就直接結束）。p10k、zsh 插件目錄已經存在，chezmoi 直接接手，不會重新 clone。
-   另外 `~/.p10k.zsh` 會被 repo 那份**覆蓋**：以前自己跑 `p10k configure` 產的那份如果跟
-   repo 不一樣，diff 會列出來，apply 前要留的先備份（內容相同就沒有 diff）。
-2. chezmoi 會提示 `config file template has changed`。跑 `chezmoi init` 時會出選裝工具選單，
-   **預設全選，直接 Enter 會裝原本沒裝的工具**（例如 AI 文件解析的 venv，好幾 GB）。先取消
-   不要的再 Enter。
-
-## 日常修改
+## repo 結構
 
 ```text
-修改 home/ → chezmoi diff → 確認 → chezmoi apply → chezmoi verify
+.chezmoiroot                    內容是 home：chezmoi 只看 home/，其餘它看不到
+home/                           → 部署到 ~（chezmoi apply）
+├── .chezmoi.toml.tmpl          → ~/.config/chezmoi/chezmoi.toml：憑證、Git 身分、選裝工具
+├── .chezmoidata/               不部署：基底套件與走 apt 的選裝工具清單
+├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
+├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
+├── dot_zshrc                   → ~/.zshrc
+├── dot_p10k.zsh                → ~/.p10k.zsh
+├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
+├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
+├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
+├── dot_codex/                  → ~/.codex/：同上
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（ai-profile、chrome-mcp…）
+├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
+└── private_dot_ssh/            → ~/.ssh/（700）：SSH config
+script/                         不部署，自己手動跑
+├── ubuntu/                     會改系統的：Docker、swap
+├── termux/                     平板桌面、proot Ubuntu 的使用者
+├── tests/                      容器 e2e 與單元測試
+└── demo/                       重錄 README 的 GIF
+docs/                           說明（見下面的文件索引）
+wsl/                            Windows 側參考檔，之後由 Windows 上的 chezmoi 管
 ```
 
-```bash
-cd ~/.local/share/chezmoi
-# 修改 home/ 裡的檔案
-chezmoi diff
-chezmoi apply
-chezmoi verify
-```
+- 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
+  [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
+- skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
+  規則的 symlink（[ADR 0002](docs/adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)）；見 agent-config 的
+  [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
+- `wsl/` 怎麼交給 Windows 上的 chezmoi，見
+  [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
+- 日常怎麼改、套用、同步，照 chezmoi 官方的 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 
-不要直接改已部署的 `$HOME` 檔案；本機有不認得的變更時，先備份或處理衝突。
+## fork 前要改什麼
+
+- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
+- [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
+- [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
+- [ ] ssh config 裡的 Tailscale 主機與平板
+- [ ] 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles
+- [ ] 憑證不進 git，`chezmoi init` 時才問、存在 `~/.config/chezmoi/chezmoi.toml`；不信任或共用的機器不要填真實憑證
 
 ## 文件索引
 
-- [新機器設定](docs/new-machine-setup.md)：bootstrap 每一關、平板與 proot、裝完之後的 AI agent 與各 repo 設定。
-- [AI agent setup](docs/ai-agent-setup.md)：規則、plugin、codegraph、playwright-cli 與 opencode；skill 與 MCP 指到 agent-config。
-- [AI profile routing](docs/ai-profile-routing.md)：公司／個人 CLI 的切換與登入前置。
-- [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config）：瀏覽器 MCP、轉發到 EC2 與排錯。
-- [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md)：Playwright（`@playwright/mcp`、test MCP）與 chrome-devtools-mcp 各能做什麼，逐項附來源。
-- [code-server remote](docs/code-server-remote.md)：自己從其他裝置連線 code-server。
-- [開給訪客看](docs/share-with-guest.md)：用 tailscale funnel 把 shell（`share-shell`）或 dev server 臨時開給沒有 tailscale 的人。
-- [Herdr notifications](docs/herdr-notifications.md)：WSL2 通知音與 PulseAudio 排錯。
-- [WSL 常用指令](wsl/command.md)：Windows 終端機字型、port 轉發。
-- [Issue 生命週期](docs/issue-lifecycle.md)：issue 從待接到完成，在 GitHub 上的狀態和紀錄。
+| 文件 | 什麼時候看 |
+|---|---|
+| [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具、之後加減選裝工具 |
+| [AI agent setup](docs/ai-agent-setup.md) | 改規則、plugin、codegraph、playwright-cli、opencode |
+| [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
+| [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
+| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
+| [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
+| [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
+| [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
+| [WSL 常用指令](wsl/command.md) | Windows 終端機字型、port 轉發 |
+| [Issue 生命週期](docs/issue-lifecycle.md) | 看 issue 從待接到完成在 GitHub 上留什麼 |
+| [`CLAUDE.md`](CLAUDE.md) | 改這個 repo：檔名前綴、秘密、驗證方式（含容器 e2e） |
 
-repo 修改規範與驗證方式（含容器 e2e 測試）見 [`CLAUDE.md`](CLAUDE.md)。`docs/superpowers/`
-是歷史 spec/plan，不是現行文件。
+`docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。

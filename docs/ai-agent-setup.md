@@ -68,7 +68,7 @@ commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.confi
 `instructions/opencode-commit/commit-instructions.md` → `~/.config/opencode/commit-instructions.md`
 (後者由本 repo 的 `opencode.json` 引用)。
 
-新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完 bootstrap。
+新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完 `chezmoi init --apply`。
 `chezmoi apply` 先放好 symlink,這時 agent-config 還沒 clone,symlink 是懸空的;
 選裝工具 `agent-config` 的 after 腳本 clone 完,symlink 就指得到檔案。沒勾 `agent-config` 的機器,這幾個 symlink 會一直懸空。
 
@@ -98,13 +98,6 @@ commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.confi
 > 這條**不包含** repo 根目錄的 `dotfiles/CLAUDE.md`。那份寫的是「怎麼改這個 repo」
 > (檔名前綴、秘密、驗證方式),和個人偏好不重複,載入一次,是正常的專案指引。
 > 要避開的只有把**個人規則本體**放到 `dotfiles/.claude/CLAUDE.md`。
-
-## `ai-agent/` 那兩份 think-mode 不是規則
-
-`ai-agent/AGENTS(think-mode).md` 和 `AGENTS(think-mode-long).md` 是「思維總監」對抗式 persona,
-**手動貼進對話用的**,不由 chezmoi 部署、不在 symlink 鏈裡、不會自動生效。
-
-放在 repo 根目錄(chezmoi 看不到的那半)就是為了跟會自動載入的規則分開。
 
 ---
 
@@ -465,7 +458,7 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
-| 新機器套用規則 | 跑 bootstrap,見[新機器設定 Runbook](new-machine-setup.md) |
+| 新機器套用規則 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
 | 裝／更新 skill、寫自己的 skill | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |

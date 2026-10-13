@@ -13,8 +13,8 @@ shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`scri
 `.chezmoiroot` 的內容是 `home`,所以:
 
 - **`home/` 是 chezmoi 的地盤** —— 檔名前綴有語意(見下),會部署到家目錄
-- **其餘 chezmoi 完全看不到** —— `script/`(bootstrap、手動腳本、測試)、`docs/`、`wsl/`(Windows 主機側)、
-  `ai-agent/`(手動貼用的 persona),以及這個 CLAUDE.md
+- **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`、`wsl/`(Windows 主機側),
+  以及這個 CLAUDE.md
 
 改 `home/` 底下 = 改會部署到家目錄的設定;改其他地方 = 只是 repo 內容,不影響任何機器。
 
@@ -67,14 +67,14 @@ chezmoi diff                                    # 輸出空的 = 家目錄與 re
 chezmoi verify                                  # 同上,只看 exit code
 chezmoi --no-tty execute-template --init \
   < home/.chezmoi.toml.tmpl                     # config 樣板能不能渲染
-bash -n script/*.sh script/ubuntu/*.sh script/termux/*.sh  # 腳本語法(shellcheck 未安裝)
+bash -n script/*/*.sh                           # 腳本語法(shellcheck 未安裝)
 python3 -m unittest discover -s script/tests   # modify_ 與 ai-profile 的單元測試
-bash script/tests/e2e.sh ubuntu                # 容器 e2e:全新 ubuntu:24.04 跑 bootstrap 到 init --apply
+bash script/tests/e2e.sh ubuntu                # 容器 e2e:全新 ubuntu:24.04 照 README 官方指令 init --apply
 bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86_64
 ```
 
-容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、bootstrap 時唯一能從零驗證的
-方法,兩種容器都要過。需要 docker、能連外(含 22 port,bootstrap 那關真的連 GitHub);
+容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、README 的安裝指令時唯一能從零驗證的
+方法,兩種容器都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改),不碰本機家目錄。檢查清單與環境變數(`E2E_TAG`、
 `E2E_KEEP`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
 
@@ -86,6 +86,9 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 - **README.md** 只放專案層:這是什麼、怎麼裝、哪個檔部署到哪、依賴、fork 前要改什麼
 - **`docs/<主題>.md`** 放細節,README 用連結指過去,不要在 README 展開
 - chezmoi 本身的通用用法**不要抄進 repo**,連官方文件
+- 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)
+  或 context7)有沒有現成做法,有就照官方做;偏離官方時,在那個檔案的註解或 issue 寫下理由。
+  這個 repo 曾經自己寫一支安裝腳本重做官方一行指令就有的事(#168)
 - **設定檔自己的註解就是它的文件**。例如 `home/private_dot_ssh/private_config` 已經逐段解釋了
   每個 Host,不要再開一份 docs 複製一遍 —— 兩份一定會漂移
 - `docs/superpowers/` 是歷史紀錄(當初的 spec / plan),**不是現況**,別當根據
