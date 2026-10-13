@@ -74,8 +74,8 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 sudo apt update && sudo apt upgrade -y
 ```
 
-Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。chezmoi 之後的 `apply` 只裝缺的套件，
-不會再升級整台機器。
+Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。之後的 `chezmoi apply` 在 Ubuntu 只裝缺的
+套件、不升級；在 Termux 有缺的套件要裝時會先 `pkg upgrade`（Termux 不支援部分升級），不缺就不動。
 
 ### 2.2（可選）放 SSH key
 

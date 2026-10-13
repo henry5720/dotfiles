@@ -25,9 +25,10 @@ done
 # 2. 有缺才裝
 echo "安裝缺少的套件:$missing"
 {{ if eq .chezmoi.os "android" -}}
-# 只 install 不 upgrade,跟 Ubuntu 一樣:apply 不該升級整台機器。
-# Termux 不支援部分升級(新套件可能連到更新的 library),所以 README 的安裝指令先 `pkg upgrade`
-# 才裝 chezmoi;之後清單加了套件,裝之前也要自己先 pkg upgrade。
+# Termux 不支援部分升級(新套件可能連到比已裝的更新的 library),官方建議裝新套件前先 upgrade。
+# 走到這裡代表確定有缺的套件要裝(第 1 步一個都不缺就結束了),所以不是每次 apply 都升級。
+# --force-confold:遇到改過的設定檔保留現有的,不跳互動提示。
+DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confold
 # shellcheck disable=SC2086 # 要拆成多個參數
 DEBIAN_FRONTEND=noninteractive pkg install -y $missing
 {{- else }}
