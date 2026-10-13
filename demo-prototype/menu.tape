@@ -1,4 +1,4 @@
-# PROTOTYPE — README「怎麼裝」選單 GIF 劇本草稿 A（#159）
+# PROTOTYPE — README「怎麼裝」選單 GIF 劇本（#159 Q1–Q8 定案版；GIF 是加 NPM 那行之前錄的）
 # 畫面：打 README 那行指令 →（剪掉第 1–4 關）→ 選單取消勾 5 項 → Enter →（剪掉安裝）→ 完成
 # 取消勾的 5 項 = 選單全部減掉 e2e 的 TOOLS_FIRST，裝完的環境就是主 GIF 要的那台。
 # 高 400：選單固定一頁 11 項（跟高度無關），壓矮讓上面錄影環境才有的 log（跳過 key、不連 GitHub）推出畫面
@@ -13,9 +13,10 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 25ms
 
 # CODEX_NON_INTERACTIVE：有 TTY 時 codex installer 會問「Start Codex now?」卡住 apply（repo 的 bug，e2e 用 --no-tty 測不到）
+# NPM_CONFIG_UPDATE_NOTIFIER：結尾「完成」上方不要出現 npm 的新版本提示（#159 Q5）
 # 測試用環境變數 + 把 curl 換成本機那份 bootstrap.sh（只在這個 shell，bootstrap 裡的 curl 不受影響）
 Hide
-Type "export BOOTSTRAP_SKIP_GITHUB=1 BOOTSTRAP_SKIP_UPGRADE=1 BOOTSTRAP_REPO=~/e2e-fixtures/dotfiles AGENT_CONFIG_REMOTE=~/e2e-fixtures/agent-config.git CODEX_NON_INTERACTIVE=1" Enter
+Type "export BOOTSTRAP_SKIP_GITHUB=1 BOOTSTRAP_SKIP_UPGRADE=1 BOOTSTRAP_REPO=~/e2e-fixtures/dotfiles AGENT_CONFIG_REMOTE=~/e2e-fixtures/agent-config.git CODEX_NON_INTERACTIVE=1 NPM_CONFIG_UPDATE_NOTIFIER=false" Enter
 Type "curl() { cat ~/e2e-fixtures/dotfiles/script/bootstrap.sh; }" Enter
 Type "PS1='$ '" Enter
 Ctrl+L
