@@ -39,25 +39,28 @@ clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會�
 ## repo 結構
 
 ```text
-.chezmoiroot          內容是 home：chezmoi 只看 home/，其餘它看不到
-home/                 → 部署到 ~（chezmoi apply）
-├── .chezmoi.toml.tmpl      → ~/.config/chezmoi/chezmoi.toml：憑證、Git 身分、選裝工具（init 時問）
-├── .chezmoidata/           不部署：基底套件與走 apt 的選裝工具清單
-├── .chezmoiexternal.toml.tmpl → ~/.config/zsh/*、Termux 的 ~/.termux/font.ttf（apply 時下載）
-├── .chezmoiscripts/        不部署，apply 時執行：裝套件、裝選裝工具、換預設 shell
-├── dot_zshrc、dot_p10k.zsh、dot_gitconfig.tmpl → ~/.zshrc、~/.p10k.zsh、~/.gitconfig
-├── dot_config/             → ~/.config/：nvim、git hooks、zsh、fontconfig、code-server、opencode、skillshare
-├── dot_claude/、dot_codex/ → ~/.claude/、~/.codex/：設定；全域規則只放 symlink，內容在 agent-config
-├── dot_local/bin/          → ~/.local/bin/：自己的指令（ai-profile、chrome-mcp、share-shell…）
-├── dot_local/share/fonts/  → ~/.local/share/fonts/：Termux 字型的 symlink（只在原生 Termux）
-└── private_dot_ssh/        → ~/.ssh/（700）：SSH config
-script/               不部署，自己手動跑
-├── ubuntu/                 會改系統的：Docker（會移除衝突套件）、swap（改 /etc/fstab）
-├── termux/                 平板桌面、proot Ubuntu 的使用者
-├── tests/                  容器 e2e 與單元測試
-└── demo/                   重錄 README 的 GIF
-docs/                 說明（見下面的文件索引）
-wsl/                  Windows 側參考檔，之後由 Windows 上的 chezmoi 管
+.chezmoiroot                    內容是 home：chezmoi 只看 home/，其餘它看不到
+home/                           → 部署到 ~（chezmoi apply）
+├── .chezmoi.toml.tmpl          → ~/.config/chezmoi/chezmoi.toml：憑證、Git 身分、選裝工具
+├── .chezmoidata/               不部署：基底套件與走 apt 的選裝工具清單
+├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
+├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
+├── dot_zshrc                   → ~/.zshrc
+├── dot_p10k.zsh                → ~/.p10k.zsh
+├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
+├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
+├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
+├── dot_codex/                  → ~/.codex/：同上
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（ai-profile、chrome-mcp…）
+├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
+└── private_dot_ssh/            → ~/.ssh/（700）：SSH config
+script/                         不部署，自己手動跑
+├── ubuntu/                     會改系統的：Docker、swap
+├── termux/                     平板桌面、proot Ubuntu 的使用者
+├── tests/                      容器 e2e 與單元測試
+└── demo/                       重錄 README 的 GIF
+docs/                           說明（見下面的文件索引）
+wsl/                            Windows 側參考檔，之後由 Windows 上的 chezmoi 管
 ```
 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
