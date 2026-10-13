@@ -1,0 +1,30 @@
+{{- $pub := joinPath .chezmoi.homeDir ".ssh/henry5720.pub" -}}
+{{- if and (eq .chezmoi.os "android") (stat $pub) -}}
+#!{{ lookPath "sh" }}
+# 原生 Termux:把 ~/.ssh/henry5720.pub 加進 ~/.ssh/authorized_keys,ssh config 的 phone／pad
+# 才連得進來。非 android、或還沒放 key(步驟見 docs/new-machine-setup.md),渲染成空的,chezmoi 不跑。
+# key 比 init 晚放也沒關係:放好之後下一次 chezmoi apply 這支就有內容、會跑。
+# 公鑰的雜湊寫在下面:換了 key 就重跑一次(chezmoi 官方 run_onchange_ 的作法)。
+# 只加不刪,所以要能重跑:已經有這把 key 就跳過。
+# henry5720.pub sha256: {{ include $pub | sha256sum }}
+set -eu
+
+pub=$HOME/.ssh/henry5720.pub
+auth=$HOME/.ssh/authorized_keys
+
+# 1. 只比對 key 本體(第 2 欄),同一把 key 註解不同也算已經有
+blob=$(awk '{print $2}' "$pub")
+if [ -f "$auth" ] && grep -qF "$blob" "$auth"; then
+  echo "authorized_keys 已有 henry5720 這把 key,跳過"
+  exit 0
+fi
+
+# 2. 加進去,權限收成 600(sshd 不接受別人寫得進去的 authorized_keys)。
+#    原本最後一行沒換行就先補一個,不然新 key 會黏在上一把後面
+if [ -s "$auth" ] && [ -n "$(tail -c 1 "$auth")" ]; then
+  echo >> "$auth"
+fi
+cat "$pub" >> "$auth"
+chmod 600 "$auth"
+echo "已把 henry5720.pub 加進 $auth"
+{{ end -}}

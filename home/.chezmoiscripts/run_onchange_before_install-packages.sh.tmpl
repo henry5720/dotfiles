@@ -10,7 +10,6 @@
 set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
-#    script/bootstrap.sh 第 2 關有同一段邏輯:它在 chezmoi 之前跑、用不到樣板,所以兩份各自維護。
 missing=""
 {{- $pkgs := .packages.ubuntu }}
 {{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ end }}
@@ -26,10 +25,9 @@ done
 # 2. 有缺才裝
 echo "安裝缺少的套件:$missing"
 {{ if eq .chezmoi.os "android" -}}
-# Termux 不支援部分升級(新套件可能連到比已裝的更新的 library),所以先整台 upgrade。
-# --force-confold:遇到改過的設定檔保留現有的,不跳互動提示。
-# DEBIAN_FRONTEND 跟 script/bootstrap.sh 一致。
-DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confold
+# 只 install 不 upgrade,跟 Ubuntu 一樣:apply 不該升級整台機器。
+# Termux 不支援部分升級(新套件可能連到更新的 library),所以 README 的安裝指令先 `pkg upgrade`
+# 才裝 chezmoi;之後清單加了套件,裝之前也要自己先 pkg upgrade。
 # shellcheck disable=SC2086 # 要拆成多個參數
 DEBIAN_FRONTEND=noninteractive pkg install -y $missing
 {{- else }}
