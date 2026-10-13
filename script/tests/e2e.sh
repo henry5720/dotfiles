@@ -1,6 +1,6 @@
 #!/bin/bash
-# 容器 e2e:在全新容器裡從本機 repo 跑 bootstrap wizard(script/bootstrap.sh,
-# 最後一關就是 `chezmoi init --apply`),檢查機器上看得到的結果。
+# 容器 e2e:在全新容器裡照 README「新機器」那兩行官方指令裝 chezmoi、從本機 repo
+# `chezmoi init --apply`,檢查機器上看得到的結果。
 #
 # 用法:
 #   bash script/tests/e2e.sh [ubuntu|termux]     # 預設 ubuntu
@@ -10,8 +10,11 @@
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
 #
 # 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub:
-# 工作目錄在主機上包成一個暫時的 git repo 放進容器,wizard 用 BOOTSTRAP_REPO 從那裡 clone。
-# SSH key 是主機上現產的假 key,從 stdin 餵給 wizard;連 GitHub 驗證那關跳過(要人工驗)。
+# 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
+# 再照抄 README 那行:source 已經在,chezmoi init 就不 clone,直接用它渲染、apply。
+# (不把路徑直接給 init:clone 本機路徑要外部 git,連 go-git 也是,但全新機器還沒有 git。
+#  真的從 GitHub clone 那段由「chezmoi init henry5720 猜出 HTTPS」那項檢查驗。)
+# 機器上不放 SSH key(新機器本來就可以沒有);Termux 那段之後才放假 key 測 authorized_keys。
 # 秘密類 prompt 用 --promptString 給假值。
 #
 # 要加檢查項目:改下面「目標:<目標>」那一段的 scenario_<目標>,其他地方不用動。
@@ -62,53 +65,33 @@ check() {  # check <描述> <容器內指令>
   fi
 }
 
-# 印出「跑 bootstrap wizard」的容器內指令,交給 step／check 執行。多給的參數轉給 chezmoi init。
-# Termux 容器沒有 app 設的 TERMUX_VERSION,由這裡補上。
-# EXTRA_ENV 可以再加環境變數、蓋掉上面的預設(例如 HOME=… 換一個空的家目錄)。
-bootstrap() {  # bootstrap <輸出 log> <stdin 檔案> [chezmoi init 參數...]
-  local log=$1 stdin=$2; shift 2
-  local env="BOOTSTRAP_SKIP_GITHUB=1 BOOTSTRAP_REPO=$FIX/dotfiles AGENT_CONFIG_REMOTE=$FIX/agent-config.git ${EXTRA_ENV:-}"
-  [ "$TARGET" = termux ] && env="$env TERMUX_VERSION=e2e"
-  echo "set -o pipefail; $env bash $FIX/dotfiles/script/bootstrap.sh $(printf '%q ' "$@") < $stdin 2>&1 | tee $log"
-}
-
-# wizard 第一次跑完之後,兩個目標共用的檢查。
-check_bootstrap() {  # check_bootstrap <ubuntu|termux>
-  check "判斷出機器種類是 $1" "grep -q '偵測到 $1' ~/e2e-init.log"
-  check "第 2 關:git、ssh、curl 都有" "command -v git && command -v ssh && command -v curl"
-  check "第 3 關:貼上的 key 原封不動放在 ~/.ssh/henry5720,權限 600" \
-    "cmp ~/.ssh/henry5720 $FIX/key && [ \"\$(stat -c %a ~/.ssh/henry5720)\" = 600 ]"
-  check "第 3 關:產生的 .pub 跟原本的公鑰是同一把" \
-    "[ \"\$(awk '{print \$2}' ~/.ssh/henry5720.pub)\" = \"\$(awk '{print \$2}' $FIX/key.pub)\" ]"
-}
-
-# 重跑整支 wizard、貼錯 key。放在第一次 apply 的檢查之後。
-check_bootstrap_rerun() {  # check_bootstrap_rerun <ubuntu|termux>
-  bold "▶ 重跑 bootstrap wizard"
-  # stdin 給空的:如果第 3 關沒跳過、又去讀 key,會讀到空內容而失敗
-  check "重跑 exit 0(不用再貼 key、不用再給 prompt 旗標)" "$(bootstrap '~/e2e-rerun.log' /dev/null --no-tty)"
-  check "第 2 關跳過" "grep -q '都裝了，跳過' ~/e2e-rerun.log"
-  check "第 3 關跳過" "grep -q '已存在，跳過貼上' ~/e2e-rerun.log"
-  check "第 5 關不重裝 chezmoi" "grep -q 'chezmoi 已安裝' ~/e2e-rerun.log"
-  if [ "$1" = termux ]; then
-    check "authorized_keys 沒有重複加" \
-      "grep -q 'authorized_keys 已有這把 key' ~/e2e-rerun.log && [ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
+# 印出「照 README 裝新機器」的容器內指令,交給 step／check 執行。多給的參數轉給 chezmoi init。
+# 跟 README 只差在:先放好 source(見檔頭);Termux 的 pkg 加 -y(README 那行會問 Y/n)。
+install_cmd() {  # install_cmd <輸出 log> [chezmoi init 參數...]
+  local log=$1; shift
+  local pre="set -o pipefail; export AGENT_CONFIG_REMOTE=$FIX/agent-config.git; mkdir -p ~/.local/share && cp -a $FIX/dotfiles ~/.local/share/chezmoi && cd ~"
+  local args; args="henry5720 $(printf '%q ' "$@")"
+  if [ "$TARGET" = termux ]; then
+    # --force-confold:升級遇到改過的設定檔保留現有的,不跳 dpkg 的互動問題
+    echo "$pre && export DEBIAN_FRONTEND=noninteractive && { pkg upgrade -y -o Dpkg::Options::=--force-confold && pkg install -y chezmoi && chezmoi init --apply $args; } 2>&1 | tee $log"
+  else
+    # 在家目錄跑:/lb 裝到「目前目錄」的 .local/bin
+    echo "$pre && { sh -c \"\$(curl -fsLS get.chezmoi.io/lb)\" -- init --apply $args; } 2>&1 | tee $log"
   fi
+}
 
-  bold "▶ bootstrap wizard 貼錯 key(換一個空的家目錄)"
-  step "建一個空的家目錄與一段不是 key 的輸入" "rm -rf $FIX/badhome && mkdir $FIX/badhome && echo 'not a key' > $FIX/badkey"
-  check "貼錯時 wizard 失敗" "! { $(EXTRA_ENV="HOME=$FIX/badhome BOOTSTRAP_SKIP_UPGRADE=1" bootstrap '~/e2e-badkey.log' "$FIX/badkey" --no-tty); }"
-  check "說明是 key 格式不對" "grep -q '不是 OpenSSH 私鑰' ~/e2e-badkey.log"
-  check "沒留下 key 檔" "[ -z \"\$(ls -A $FIX/badhome/.ssh)\" ]"
-  check "停在第 3 關,沒有往下跑" "! grep -q '4/5' ~/e2e-badkey.log"
-  check "BOOTSTRAP_SKIP_UPGRADE=1 時第 1 關只看不升級" "grep -qE '只模擬 upgrade|只列出可升級的套件' ~/e2e-badkey.log"
-
-  # 真的連 GitHub(要能連外的 22 port):假 key 一定被拒。驗的是「被拒就停、不往下 init」;
-  # 被接受的那條路要用真的 key,只能人工驗。
-  bold "▶ bootstrap wizard 連 GitHub 驗證假 key"
-  check "GitHub 拒絕時 wizard 失敗" "! { $(EXTRA_ENV="BOOTSTRAP_SKIP_GITHUB=0 BOOTSTRAP_SKIP_UPGRADE=1" bootstrap '~/e2e-github.log' /dev/null --no-tty); }"
-  check "說明是 GitHub 不接受這把 key、停在第 4 關" \
-    "grep -q 'GitHub 不接受這把 key' ~/e2e-github.log && grep -q 'Permission denied (publickey)' ~/e2e-github.log && ! grep -q '5/5' ~/e2e-github.log"
+# 兩個目標共用:git 的 HTTPS clone、SSH push。
+GH_HTTPS=https://github.com/henry5720
+check_git_remotes() {
+  check "沒放 SSH key 也裝完(~/.ssh/henry5720 不存在)" "[ ! -e ~/.ssh/henry5720 ]"
+  check "gitconfig 有 url.git@github.com:.pushInsteadOf = https://github.com/" \
+    "[ \"\$(git config --global --get url.git@github.com:.pushInsteadOf)\" = https://github.com/ ]"
+  # 不連網:git 自己算出 fetch／push 各用哪個 URL。Termux 沒有 /tmp,用 $TMPDIR
+  check "HTTPS remote 的 fetch 不改寫、push 改寫成 git@github.com:" \
+    "d=\${TMPDIR:-/tmp}/pio; rm -rf \$d && git init -q \$d && git -C \$d remote add origin $GH_HTTPS/dotfiles.git && [ \"\$(git -C \$d remote get-url origin)\" = $GH_HTTPS/dotfiles.git ] && [ \"\$(git -C \$d remote get-url --push origin)\" = git@github.com:henry5720/dotfiles.git ]"
+  # e2e 用 AGENT_CONFIG_REMOTE 換成假 remote,這裡另外看沒換時的預設值,並確認不帶 key 真的 clone 得到
+  check "agent-config 腳本預設 remote 是 HTTPS,而且不用 key 就讀得到" \
+    "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
@@ -211,9 +194,9 @@ TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 # - ai-document-media:docling + faster-whisper 的 venv,好幾 GB(實裝在一次性容器手動驗過,見 #65)
 TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
-# agent-config 的 remote 是 git@github.com(SSH),容器裡沒有能用的 key。
-# 測試用 AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),
-# skillshare 本身照樣從網路裝、照樣 init/install/sync。真的 git@ clone 只在有 key 的機器上會走到。
+# agent-config 的預設 remote 是 GitHub 的 HTTPS(check_git_remotes 驗)。安裝測試用
+# AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),內容可控、不受上游變動影響;
+# skillshare 本身照樣從網路裝、照樣 init/install/sync。
 
 # 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
 declare -A TOOL_CHECK=(
@@ -289,11 +272,15 @@ check_cli_tools() {
 # - nvm／code-server／herdr／fastfetch／wakatime 都會連網抓上游 installer 或 release;
 #   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
-  step "全新機器跑 bootstrap wizard,最後 init --apply(選單只勾一部分)" \
-    "$(bootstrap '~/e2e-init.log' "$FIX/key" --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST")"
-  check_bootstrap ubuntu
-  check "第 1 關有升級:沒有可升級的套件" "apt-get -s upgrade | grep -q '^0 upgraded'"
-  check "第 5 關 chezmoi 裝在 ~/.local/bin" "[ -x ~/.local/bin/chezmoi ]"
+  step "全新機器跑 README 的官方安裝指令,init --apply(選單只勾一部分)" \
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST")"
+  check "chezmoi 裝在 ~/.local/bin,家目錄沒多出 bin/" "[ -x ~/.local/bin/chezmoi ] && [ ! -e ~/bin ]"
+  check_git_remotes
+  # 真的連 GitHub(HTTPS,不用 key):README 那行給的是 henry5720,chezmoi 自己猜 URL。
+  # 只 init 不 apply,source 與 config 放 /tmp,不碰上面裝好的那份;config 樣板是 GitHub main 上那份。
+  # 這時套件腳本已經裝了 git;--use-builtin-git 強制走內建 go-git,跟還沒有 git 的新機器一樣。
+  check "chezmoi init henry5720 猜出 HTTPS 的 GitHub URL、push 走 SSH" \
+    "rm -rf /tmp/guess && chezmoi --source /tmp/guess/src --config /tmp/guess/chezmoi.toml --use-builtin-git true init --no-tty --promptDefaults $(printf '%q ' "${INIT_FLAGS[@]}") henry5720 </dev/null && [ \"\$(git -C /tmp/guess/src remote get-url origin)\" = $GH_HTTPS/dotfiles.git ] && [ \"\$(git -C /tmp/guess/src remote get-url --push origin)\" = git@github.com:henry5720/dotfiles.git ]"
 
   bold "▶ 第一次 apply 之後"
   for p in "${UBUNTU_BASE[@]}"; do
@@ -323,7 +310,6 @@ scenario_ubuntu() {
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check_cli_tools
-  check_bootstrap_rerun ubuntu
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -436,8 +422,8 @@ scenario_ubuntu() {
 # ===============================================================
 # 目標:termux(代表原生 Termux)
 # ===============================================================
-# 映像模擬一台剛裝好的 Termux:什麼都沒裝。git／openssh／chezmoi 由 bootstrap wizard 裝,
-# python、jq、zsh 等由 chezmoi 的套件腳本裝。
+# 映像模擬一台剛裝好的 Termux:什麼都沒裝。chezmoi 照 README 用 pkg 裝,
+# git、openssh、python、jq、zsh 等由 chezmoi 的套件腳本裝。
 # 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
 # bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
 # 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
@@ -464,18 +450,12 @@ APT_LOG='$PREFIX/var/log/apt/history.log'
 HACK_SHA256=8cba545f0ab36d8f313a448676df9988d6c679a014ffed863e52305844e7b113
 
 scenario_termux() {
-  # termux-change-repo 是全螢幕選單,容器裡沒辦法操作;先放好它選完會留下的 symlink,
-  # 讓 wizard 走「已選過」那條路。真的選 mirror 要在真機上人工驗。
-  step "模擬已選過 mirror" "ln -sfn \$PREFIX/etc/termux/mirrors/default \$PREFIX/etc/termux/chosen_mirrors"
   # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
-  step "全新 Termux 跑 bootstrap wizard,最後 init --apply" \
-    "$(bootstrap '~/e2e-init.log' "$FIX/key" --no-tty "${INIT_FLAGS[@]}")"
-  check_bootstrap termux
-  check "第 1 關有升級:沒有可升級的套件" "[ -z \"\$(apt list --upgradable 2>/dev/null | grep -v '^Listing')\" ]"
-  check "第 1 關跳過 termux-change-repo" "grep -q '已選過 mirror' ~/e2e-init.log"
-  check "第 1 關 termux-setup-storage 失敗只警告(容器沒有 Android)" "grep -q 'termux-setup-storage 失敗' ~/e2e-init.log"
-  check "第 4 關把公鑰加進 authorized_keys" "[ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
-  check "第 5 關 chezmoi 用 pkg 裝" "dpkg-query -W -f='\${Status}' chezmoi | grep -q 'install ok installed'"
+  step "全新 Termux 跑 README 的安裝指令(pkg upgrade、pkg install chezmoi、init --apply)" \
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}")"
+  check "pkg upgrade 有跑:沒有可升級的套件" "[ -z \"\$(apt list --upgradable 2>/dev/null | grep -v '^Listing')\" ]"
+  check "chezmoi 用 pkg 裝" "dpkg-query -W -f='\${Status}' chezmoi | grep -q 'install ok installed'"
+  check_git_remotes
 
   bold "▶ 第一次 apply 之後"
   for p in "${TERMUX_BASE[@]}"; do
@@ -507,7 +487,21 @@ scenario_termux() {
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
   check_zsh_env "readlink -f ~/.termux/shell"
-  check_bootstrap_rerun termux
+
+  # key 不在 init 時放:之後放好、再 apply 一次,authorized_keys 才補上(docs/new-machine-setup.md 的步驟)
+  bold "▶ 之後才放 SSH key,再 apply"
+  # Termux 的 openssh 套件安裝時會建一個空的 authorized_keys,所以看「沒有這把 key」而不是「沒有檔案」
+  check "還沒放 key:authorized_keys 腳本渲染成空的、沒加任何東西" \
+    "! grep -qF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys 2>/dev/null && ! chezmoi status | grep -q termux-authorized-keys"
+  step "放假 key(~/.ssh/henry5720、henry5720.pub)" \
+    "cp $FIX/key ~/.ssh/henry5720 && cp $FIX/key.pub ~/.ssh/henry5720.pub && chmod 600 ~/.ssh/henry5720"
+  check "放了 key 之後 authorized_keys 腳本待跑" "chezmoi status | grep -E '^.?R.*termux-authorized-keys'"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check "authorized_keys 有這把 key 一次、權限 600" \
+    "[ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ] && [ \"\$(stat -c %a ~/.ssh/authorized_keys)\" = 600 ]"
+  # run_onchange_ 內容沒變就不會再跑,所以直接把渲染出來的腳本再跑一次
+  check "腳本重跑不重複加" \
+    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl | sh | grep -q '已有 henry5720 這把 key' && [ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
 
   bold "▶ 第二次 apply"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"

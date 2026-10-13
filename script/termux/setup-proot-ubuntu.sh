@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # 在原生 Termux 跑：把 proot Ubuntu 準備成「一台有一般使用者、能 sudo 的 Ubuntu」，
-# 之後進去跑同一支 bootstrap。可以重複執行，已經做過的步驟會跳過。
+# 之後進去跑 README 裡 Ubuntu 那行 chezmoi 官方安裝指令。可以重複執行，已經做過的步驟會跳過。
 #
 # 用法：bash setup-proot-ubuntu.sh [使用者名稱]    # 預設 henry（跟 henry-desktop 等自家 Linux 主機的 User 一致）
 set -euo pipefail
@@ -25,7 +25,7 @@ proot-distro login ubuntu -- bash -c '
   set -euo pipefail
   name="$1"
   # sudo 會拉進 tzdata，不設 noninteractive 會卡在時區選單。
-  # curl、ca-certificates：下一步的 bootstrap 指令要用 curl 抓 https，rootfs 預設沒有
+  # curl、ca-certificates：下一步的安裝指令要用 curl 抓 https，rootfs 預設沒有
   if ! command -v sudo >/dev/null || ! command -v curl >/dev/null || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y sudo curl ca-certificates
@@ -46,6 +46,6 @@ cat <<MSG
 
 proot Ubuntu 的使用者 $name 準備好了。下一步：
   proot-distro login ubuntu --user $name
-進去之後當成一台 Ubuntu，跑 bootstrap：
-  bash <(curl -fsSL https://raw.githubusercontent.com/henry5720/dotfiles/main/script/bootstrap.sh)
+進去之後當成一台 Ubuntu，裝 chezmoi 與 dotfiles：
+  sh -c "\$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 MSG

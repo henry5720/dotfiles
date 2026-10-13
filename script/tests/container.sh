@@ -30,10 +30,11 @@ cleanup() {
 # ===============================================================
 # fixtures
 # ===============================================================
-# 測試要的東西都在主機上做好再放進容器的 $FIX:容器在 bootstrap 之前連 git、ssh-keygen 都沒有。
+# 測試要的東西都在主機上做好再放進容器的 $FIX:容器在 chezmoi 套件腳本跑之前連 git、ssh-keygen 都沒有。
 # 放在家目錄底下,因為 Termux 容器沒有 /tmp(在 Termux 裡是 $PREFIX/tmp)。
-#   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo
-#   $FIX/key、key.pub     假的 henry5720 key
+#   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
+#                        origin 是 GitHub 的 HTTPS URL
+#   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
 #   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 make_fixtures() {
@@ -47,6 +48,8 @@ make_fixtures() {
   git -C "$tmp/dotfiles" init -q -b main
   git -C "$tmp/dotfiles" add -A
   git -C "$tmp/dotfiles" -c user.name=e2e -c user.email=e2e@example.com commit -qm e2e
+  # 跟 chezmoi init henry5720 clone 下來的一樣(e2e 與錄影都把它 cp 成 chezmoi 的 source)
+  git -C "$tmp/dotfiles" remote add origin https://github.com/henry5720/dotfiles.git
   ssh-keygen -q -t ed25519 -N '' -C e2e -f "$tmp/key"
   mkdir -p "$tmp/ac/skills/e2e-hello"
   printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
@@ -75,15 +78,16 @@ PY
 # ===============================================================
 # 目標:ubuntu(代表 WSL、雲端主機、proot Ubuntu)
 # ===============================================================
-# 映像模擬一台全新的 Ubuntu:只有一般使用者 + sudo 免密碼,沒有 git／curl／ssh／chezmoi,
-# 全部由 bootstrap wizard 裝。apt 清單刪掉,所以 wizard 一定要自己 apt-get update。
+# 映像模擬一台全新的 Ubuntu:一般使用者 + sudo 免密碼,只多 curl(真的 Ubuntu 預設就有,
+# README 的安裝指令要用它);沒有 git／ssh／chezmoi。chezmoi 由官方 installer 裝,
+# git 等由 chezmoi 的套件腳本裝。apt 清單刪掉,所以套件腳本一定要自己 apt-get update。
 setup_ubuntu() {
   CTR_USER=ubuntu  # ubuntu:24.04 內建的 uid 1000
   CTR_HOME=/home/ubuntu
   docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
 FROM ubuntu:24.04
 RUN apt-get update \
- && apt-get install -y --no-install-recommends sudo \
+ && apt-get install -y --no-install-recommends sudo curl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
 DOCKERFILE

@@ -9,8 +9,8 @@
 #   E2E_KEEP=1       錄完不刪容器,錄壞時 `docker exec -it -u ubuntu <容器> bash` 進去看
 #
 # 在全新的 ubuntu:24.04 容器裡錄,不碰本機家目錄;錄的是 repo 工作目錄(含未 commit 的修改)。
-# 建容器與 fixtures(假 key、假 agent-config remote)跟 e2e 共用 script/tests/container.sh。
-# 一次約 6 分鐘以上,大半是等 bootstrap 跑到選單、等 apply 裝完。
+# 建容器與 fixtures(本機 repo、假 agent-config remote)跟 e2e 共用 script/tests/container.sh。
+# 一次約 5 分鐘以上,大半是等 apply 裝完。
 # 劇本在同目錄的 menu.tape、main.tape;fastfetch.jsonc 只用在錄影容器。
 set -uo pipefail
 
@@ -63,16 +63,11 @@ docker exec -u "$CTR_USER" "$CTR" bash -c '
   fc-cache -f
 ' || fail "裝字型失敗"
 
-# 4. 讓 bootstrap 在選單之前都不用問人:
-#    第 3 關 key 已存在就跳過貼上;promptStringOnce 讀到現值就不問,只剩選單。
-bold "▶ 放假 key 與憑證假值"
+# 4. 讓 init 在選單之前都不用問人:promptStringOnce 讀到現值就不問,只剩選單
+bold "▶ 放憑證假值"
 docker exec -u "$CTR_USER" "$CTR" bash -c "
   set -e
-  mkdir -p ~/.ssh ~/.config/chezmoi
-  chmod 700 ~/.ssh
-  cp $FIX/key ~/.ssh/henry5720
-  cp $FIX/key.pub ~/.ssh/henry5720.pub
-  chmod 600 ~/.ssh/henry5720
+  mkdir -p ~/.config/chezmoi
   cat > ~/.config/chezmoi/chezmoi.toml <<'EOF'
 [data]
     codeServerPassword = \"demo\"
@@ -89,7 +84,7 @@ docker exec -u "$CTR_USER" "$CTR" mkdir -p "$CTR_HOME/demo"
 tar -C "$DEMO" -cf - menu.tape main.tape fastfetch.jsonc \
   | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$CTR_HOME/demo" -xf - || fail "放劇本失敗"
 
-# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 那行 bootstrap,裝完才結束
+# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Ubuntu 那行,裝完才結束
 vhs_run menu.tape
 
 # 7. 主 GIF:同一台裝好的機器,fastfetch 換成錄影專用設定(不印容器 ID、ttyd、主機資訊)
