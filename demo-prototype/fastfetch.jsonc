@@ -1,0 +1,4 @@
+// PROTOTYPE：錄影容器專用，拿掉主機資訊（#130 第 3 點）與錄影工具痕跡（title 的容器 ID、Terminal: ttyd）
+{
+  "modules": ["os", "packages", "shell", "terminalfont", "break", "colors"]
+}
