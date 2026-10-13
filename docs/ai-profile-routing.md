@@ -30,8 +30,9 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
   OMO preset 設成 `personal`，並用 `OPENCODE_CONFIG_CONTENT` 強制 `enabled_providers = ["openai"]`
   —— project 的 gateway、model mapping 因此不生效。原本 inline 的 `OPENCODE_CONFIG_CONTENT`
   只保留非 routing 欄位。
-- route view 裡的 `skills`、`oh-my-opencode-slim`、`AGENTS.md`、`tui.jsonc` 都是整個連回
-  global 的 symlink，不另外放同名 skill，避免 loader collision。個人 OMO 設定沿用公司 preset 的
+- route view 裡的 `skills`、`oh-my-opencode-slim`、`tui.jsonc` 都是整個連回 global 的 symlink，
+  `AGENTS.md` 則由 agent-config 的 skillshare extras 連到同一份全域指令檔；不另外放同名 skill，
+  避免 loader collision。個人 OMO 設定沿用公司 preset 的
   roles/council，只把 provider 前綴改成 `openai/`；schema 固定 3.0.3，`autoUpdate` 與公司一致開啟。
 - 唯一的 skill 差異：兩個個人入口都停用 `company-imagegen-fallback`（Codex 在
   `personal.config.toml` 的 `[[skills.config]]`，OpenCode 在 route 的 `permission.skill`）。

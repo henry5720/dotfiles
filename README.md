@@ -34,13 +34,13 @@
 | `home/.chezmoidata/packages.yaml` | （不部署） | 基底套件與走 apt 的選裝工具清單 |
 | `home/.chezmoiscripts/run_*` | （不部署，apply 時執行） | 裝套件、裝選裝工具、換預設 shell |
 | `home/dot_config/*` | `~/.config/*` | nvim、git hooks、zsh、fontconfig（WSL 借用 Windows 字型）、code-server、opencode、skillshare 的 `config.yaml` |
-| `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的規則與設定（不含 skills、MCP） |
+| `home/dot_claude/`、`dot_codex/` | `~/.claude/`、`~/.codex/` | Claude Code、Codex 的設定（不含規則、skills、MCP） |
 | `home/dot_local/bin/` | `~/.local/bin/` | 自己的指令（`ai-profile`、`chrome-mcp`、`share-shell` 等） |
 | `home/dot_local/share/fonts/` | `~/.local/share/fonts/` | Termux 字型的 symlink，給 xfce 終端機用（只部署在原生 Termux） |
 | `home/private_dot_ssh/` | `~/.ssh/`（700） | SSH config |
 | `home/.chezmoi.toml.tmpl` | `~/.config/chezmoi/chezmoi.toml` | 憑證、Git 身分、選裝工具的選擇（`chezmoi init` 時問） |
 
-逐檔清單跑 `chezmoi managed`。skills 和 MCP 不在這裡，見 agent-config 的
+逐檔清單跑 `chezmoi managed`。skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）不在這裡，見 agent-config 的
 [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 
 chezmoi 會依命名與 template 規則部署 `home/`，不一定原樣複製。用法與檔名前綴請看

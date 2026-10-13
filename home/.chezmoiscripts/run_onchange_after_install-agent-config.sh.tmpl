@@ -1,7 +1,8 @@
 {{- if has "agent-config" (index . "tools") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 agent-config(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# skillshare 把 agent-config repo 的 skills 裝進 Claude／Codex、MCP 寫進三個 client。
+# skillshare 把 agent-config repo 的 skills 裝進 Claude／Codex、MCP 寫進三個 client,
+# extras(CLAUDE.md／AGENTS.md 等指令檔)以 symlink 放到各 client 的位置。
 #
 # 是 after_:要等 ~/.config/skillshare/config.yaml(dot_config/skillshare/create_config.yaml)先部署,
 # init 才會直接從 remote 拉。chezmoi 的 after_ 腳本一定在所有檔案部署完之後才跑。
@@ -14,7 +15,7 @@ remote=${AGENT_CONFIG_REMOTE:-git@github.com:henry5720/agent-config.git}
 
 # 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
 if [ -d "$dir/.git" ]; then
-  echo "agent-config 已安裝($dir),跳過。更新:skillshare pull && skillshare sync mcp -g"
+  echo "agent-config 已安裝($dir),跳過。更新:skillshare pull && skillshare sync --all"
   exit 0
 fi
 
@@ -28,10 +29,11 @@ if [ ! -x "$ss" ]; then
   INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"
 fi
 
-# 3. 從 remote init,再把 skills 與 MCP 裝進各個 client。pull/install 不會同步 MCP,最後的 sync mcp -g 不能省
+# 3. 從 remote init,再把 skills、extras 與 MCP 裝進各個 client。
+#    單講 sync 只同步 skills;pull/install 也不會同步 extras 與 MCP,所以最後要 sync --all,
+#    不然新機器沒有 ~/.claude/CLAUDE.md 這些指令檔
 [ -f "$dir/config.yaml" ] || { echo "找不到 $dir/config.yaml" >&2; exit 1; }
 "$ss" init --git-root root --remote "$remote" --no-copy --no-skill --targets claude,codex
 "$ss" install -g
-"$ss" sync
-"$ss" sync mcp -g
+"$ss" sync --all
 {{ end -}}

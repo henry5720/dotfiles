@@ -1,6 +1,8 @@
 # skillshare 的全域設定。skills 與 MCP 的內容在 agent-config repo,這份只告訴 skillshare 去哪找、寫到哪。
 # config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放。
 # 用 create_:skillshare init 會改寫這個檔(加 schema 註解、重排 key),之後 chezmoi 不再動它。
+# extras 是給模型讀的指令檔(Instructions),內容在 agent-config 的 extras/<name>/,這裡只列要連到哪;
+# 已經有 config.yaml 的機器,chezmoi 不會補進新加的 extra(create_),要在那台用 skillshare extras init 加。
 # sources 不列 agents:agent-config 沒有 agents 目錄,不寫 skillshare 也預設看 ~/.config/skillshare/agents。
 # 要先放好再 init,init 才會直接從 remote 拉下來(流程見 run_onchange_after_install-agent-config.sh.tmpl)。
 git_root: root
@@ -15,3 +17,20 @@ targets:
   codex:
     skills:
       path: ~/.agents/skills
+extras:
+  - name: agents-md
+    file: AGENTS.md
+    targets:
+      - path: ~/.claude
+        as: CLAUDE.md
+      - path: ~/.codex
+      - path: ~/.config/opencode
+      - path: ~/.config/opencode/routes/personal
+  - name: agent-commit
+    file: instructions.md
+    targets:
+      - path: ~/.config/agent-commit
+  - name: opencode-commit
+    file: commit-instructions.md
+    targets:
+      - path: ~/.config/opencode

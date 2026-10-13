@@ -103,9 +103,10 @@ class CommitAttributionTest(unittest.TestCase):
         self.assertEqual(personal["enabled_providers"], ["openai"])
         self.assertEqual(self.run_script(OPENCODE, first), first)
 
-    def test_scoped_apply_deploys_guides_and_keeps_shared_symlinks(self):
+    def test_scoped_apply_deploys_attribution_settings(self):
+        # 指令檔(CLAUDE.md、AGENTS.md、commit 指引)由 agent-config 的 extras 管,這裡只驗 Settings。
         source = Path(self.tmp.name) / "source"
-        for directory in ("dot_claude", "dot_codex", "dot_config/opencode", "dot_config/agent-commit", ".chezmoitemplates"):
+        for directory in ("dot_claude", "dot_codex", "dot_config/opencode", ".chezmoitemplates"):
             shutil.copytree(ROOT / "home" / directory, source / directory)
         command = [
             "chezmoi", "--source", str(source), "--config", str(self.cfg),
@@ -119,22 +120,11 @@ class CommitAttributionTest(unittest.TestCase):
                          "Co-Authored-By: Claude Code <noreply@anthropic.com>")
         config = tomllib.loads((self.home / ".codex/config.toml").read_text())
         self.assertIn("Co-authored-by: Codex <noreply@openai.com>", config["developer_instructions"])
-        for relative in (".codex/AGENTS.md", ".config/opencode/AGENTS.md"):
-            deployed = self.home / relative
-            self.assertTrue(deployed.is_symlink())
-            self.assertEqual(deployed.resolve(), self.home / ".claude/CLAUDE.md")
         work = json.loads((self.home / ".config/opencode/opencode.json").read_text())
         personal = json.loads((self.home / ".config/opencode/routes/personal/opencode.json").read_text())
         guide = self.home / ".config/opencode/commit-instructions.md"
         self.assertEqual(work["instructions"], [str(guide)])
         self.assertEqual(personal["instructions"], [str(guide)])
-        self.assertIn("Generated with OpenCode.", guide.read_text())
-        shared_guide = self.home / ".config/agent-commit/instructions.md"
-        self.assertEqual(shared_guide.read_text(),
-                         (ROOT / "home/dot_config/agent-commit/instructions.md").read_text())
-        for relative in (".claude/CLAUDE.md", ".codex/AGENTS.md", ".config/opencode/AGENTS.md"):
-            self.assertIn("~/.config/agent-commit/instructions.md",
-                          (self.home / relative).read_text())
         subprocess.run(command + ["verify"], check=True, capture_output=True)
 
 
