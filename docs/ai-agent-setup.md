@@ -49,7 +49,7 @@ skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 
 
 # 1. 規則(在 agent-config,不在本 repo)
 
-每家 agent 讀的檔名不一樣 —— Claude 只讀 `CLAUDE.md`,opencode 讀 `AGENTS.md`。
+每家 agent 讀的全域檔名不一樣 —— Claude 是 `~/.claude/CLAUDE.md`,Codex、opencode 是 `AGENTS.md`。
 各寫一份的話,改了 A 忘了改 B,兩邊行為就會不一樣(這件事真的發生過)。
 
 解法是**只留一份真的檔案,其他都是捷徑**。給模型讀的指令檔(Instructions)內容放在 agent-config 的
@@ -79,7 +79,8 @@ commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.confi
 
 只寫「換到任何一個 repo 都還成立」的事。判斷方法:
 
-- 換個 repo 就不成立(技術棧、build 指令、專案慣例)→ 寫在**那個 repo 自己的 `CLAUDE.md`**
+- 換個 repo 就不成立(技術棧、build 指令、專案慣例)→ 寫在**那個 repo 自己的 `AGENTS.md`**
+  (Claude Code 2.1.277 起,repo 沒有 `CLAUDE.md` 時直接讀它)
 - 是一套多步驟流程(查 bug、TDD、需求對齊)→ 寫成 **skill**,用到才載入
 - linter、git hook、權限設定做得到 → **交給那些工具**,寫成規則只是「希望 agent 不要這樣做」
 
@@ -89,13 +90,13 @@ commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.confi
 
 ## 不要把本體放在 `dotfiles/.claude/CLAUDE.md`
 
-看起來很整齊,但會出事。Claude 認的專案指引位置就是 `./CLAUDE.md` 或 `./.claude/CLAUDE.md`,
+看起來很整齊,但會出事。Claude 認的專案指引位置是 `./CLAUDE.md`、`./.claude/CLAUDE.md`(沒有它們時是 `./AGENTS.md`),
 而多份 CLAUDE.md 是**接在一起**送進去、不是互相覆蓋。
 
 所以在 dotfiles 裡開 Claude 會讀到兩次:一次是你的個人設定,一次是「dotfiles 這個專案的設定」——
 同一份規則載入兩遍,白花錢,而且重複的指令本身就會讓 agent 更難遵守。
 
-> 這條**不包含** repo 根目錄的 `dotfiles/CLAUDE.md`。那份寫的是「怎麼改這個 repo」
+> 這條**不包含** repo 根目錄的 `dotfiles/AGENTS.md`。那份寫的是「怎麼改這個 repo」
 > (檔名前綴、秘密、驗證方式),和個人偏好不重複,載入一次,是正常的專案指引。
 > 要避開的只有把**個人規則本體**放到 `dotfiles/.claude/CLAUDE.md`。
 
