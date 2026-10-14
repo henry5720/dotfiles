@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 `home/` 要在一般 Linux 和原生 Termux 都能用 —— WSL 專屬的東西(`/mnt/c`、Windows 程式)不在
 WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝工具選單)在非 Debian 系 Linux 也一樣。
@@ -14,7 +14,7 @@ shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`scri
 
 - **`home/` 是 chezmoi 的地盤** —— 檔名前綴有語意(見下),會部署到家目錄
 - **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`、`wsl/`(Windows 主機側),
-  以及這個 CLAUDE.md
+  以及這個 AGENTS.md
 
 改 `home/` 底下 = 改會部署到家目錄的設定;改其他地方 = 只是 repo 內容,不影響任何機器。
 
@@ -42,7 +42,7 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 ⚠️ **新增要執行的腳本一定要加 `executable_`**,否則部署成 644 不可執行,而且不會報錯。
 
 完整規則見 [Target types](https://www.chezmoi.io/reference/target-types/)。這張表是刻意留在
-手邊的例外(下面「文件放哪」說不要抄 chezmoi 的通用知識)—— 前綴弄錯是靜默改掉權限,
+手邊的例外(全域規則說工具的通用用法不抄、連官方)—— 前綴弄錯是靜默改掉權限,
 成本太高,不值得為了原則去翻文件。
 
 ## 秘密
@@ -83,14 +83,12 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 
 ## 文件放哪
 
-- **README.md** 只放專案層:這是什麼、怎麼裝、哪個檔部署到哪、依賴、fork 前要改什麼
-- **`docs/<主題>.md`** 放細節,README 用連結指過去,不要在 README 展開
-- chezmoi 本身的通用用法**不要抄進 repo**,連官方文件
+README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;這裡只補這個 repo 的:
+
+- README 的專案層包含:哪個檔部署到哪、依賴、fork 前要改什麼
 - 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)
   或 context7)有沒有現成做法,有就照官方做;偏離官方時,在那個檔案的註解或 issue 寫下理由。
   這個 repo 曾經自己寫一支安裝腳本重做官方一行指令就有的事(#168)
-- **設定檔自己的註解就是它的文件**。例如 `home/private_dot_ssh/private_config` 已經逐段解釋了
-  每個 Host,不要再開一份 docs 複製一遍 —— 兩份一定會漂移
 - `docs/superpowers/` 是歷史紀錄(當初的 spec / plan),**不是現況**,別當根據
 
 ## 註解樣式

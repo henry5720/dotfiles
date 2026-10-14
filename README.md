@@ -95,6 +95,6 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
 | [WSL 常用指令](wsl/command.md) | Windows 終端機字型、port 轉發 |
 | [Issue 生命週期](docs/issue-lifecycle.md) | 看 issue 從待接到完成在 GitHub 上留什麼 |
-| [`CLAUDE.md`](CLAUDE.md) | 改這個 repo：檔名前綴、秘密、驗證方式（含容器 e2e） |
+| [`AGENTS.md`](AGENTS.md) | 改這個 repo：檔名前綴、秘密、驗證方式（含容器 e2e） |
 
 `docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
