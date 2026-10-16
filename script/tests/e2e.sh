@@ -369,16 +369,21 @@ scenario_ubuntu() {
 
   # WSL 用 Windows 的 Chrome(chrome-mcp),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
-  # promptMultichoiceOnce 才會真的問(--no-tty 沒給旗標 = 用預設值,也就是全部列出來的選項)。
+  # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:不在選單上的會報 invalid choice。
   bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
-  local tmpl=~/.local/share/chezmoi/home scripts=~/.local/share/chezmoi/home/.chezmoiscripts
-  check "(對照)非 WSL 的選單有 headless-chrome" \
-    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"headless-chrome\"'"
-  check "(對照)非 WSL 的選單有 playwright-cli" \
-    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
-  check "WSL 的選單沒有 headless-chrome、playwright-cli(其他 AI 工具照常列)" \
-    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/wsl.toml && grep -q '\"agent-config\"' /tmp/wsl.toml && ! grep -q headless-chrome /tmp/wsl.toml && ! grep -q playwright-cli /tmp/wsl.toml"
+  # 加引號:~ 要留到容器裡才展開(容器的家目錄是 /home/ubuntu,不是跑 e2e 這台的)
+  local tmpl='~/.local/share/chezmoi/home' scripts='~/.local/share/chezmoi/home/.chezmoiscripts'
+  check "選單預設都不勾(沒給旗標 = tools 是空的)" \
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -qx '    tools = \\[\\]'"
+  check "(對照)非 WSL 的選單有 headless-chrome、playwright-cli" \
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=headless-chrome/playwright-cli") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
+  check "WSL 的選單照常列 AI 工具" \
+    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=agent-config") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"agent-config\"'"
+  for t in headless-chrome playwright-cli; do
+    check "WSL 的選單沒有 $t(勾了會報 invalid choice)" \
+      "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=$t") < $tmpl/.chezmoi.toml.tmpl 2>&1 | grep -q 'invalid choice'"
+  done
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
   check "WSL 上就算 tools 裡有 playwright-cli,安裝腳本也渲染成空的" \
@@ -398,7 +403,7 @@ scenario_ubuntu() {
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
-    "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
+    "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=fastfetch") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
   # 文件解析兩項不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才有內容、而且語法對。
   bold "▶ (渲染)document-media"

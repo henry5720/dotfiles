@@ -8,7 +8,7 @@
        預設帶現值,`--prompt` 時直接 Enter 保留。 */ -}}
 {{- $gitUserName := promptStringOnce . "gitUserName" "git user.name" (default "henry" (index . "gitUserName")) -}}
 {{- $gitUserEmail := promptStringOnce . "gitUserEmail" "git user.email" (default "" (index . "gitUserEmail")) -}}
-{{- /* 選裝工具:只在 Debian 系 Linux(Ubuntu、WSL、proot Ubuntu)問一次,第一次預設全選。
+{{- /* 選裝工具:只在 Debian 系 Linux(Ubuntu、WSL、proot Ubuntu)問一次,第一次預設都不勾,由使用者自己選。
        原生 Termux 不出選單(開發環境放 proot Ubuntu);其他 Linux 也不出,選單裡大半要 apt。
        之後要改:`chezmoi edit-config` 改 [data] tools 那一行再 apply;新勾的會裝,取消勾選不會解除安裝。
        `--prompt` 也會重問選單,預設帶現在的勾選(不在這台選單裡的會被濾掉)。
@@ -32,9 +32,8 @@
 {{-     $toolChoices = concat $toolChoices (list "headless-chrome" "playwright-cli") -}}
 {{-   end -}}
 {{-   $toolChoices = append $toolChoices "agent-config" -}}
-{{-   $toolDefaults := $toolChoices -}}
+{{-   $toolDefaults := list -}}
 {{-   if hasKey . "tools" -}}
-{{-     $toolDefaults = list -}}
 {{-     range .tools -}}
 {{-       if has . $toolChoices -}}
 {{-         $toolDefaults = append $toolDefaults . -}}
