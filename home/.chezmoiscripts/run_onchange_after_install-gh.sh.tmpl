@@ -13,8 +13,9 @@ key=/etc/apt/keyrings/githubcli-archive-keyring.gpg
 list=/etc/apt/sources.list.d/github-cli.list
 pin=/etc/apt/preferences.d/github-cli
 
-# 1. 已經是官方源那版就不重裝。要連 pin 一起看,否則 Ubuntu 版 gh 會被當成已裝而跳過
-if command -v gh >/dev/null 2>&1 && [ -f "$pin" ]; then
+# 1. 已經是官方源那版就不重裝。看套件的 Maintainer:官方源是 GitHub,Ubuntu 版是 Ubuntu Developers。
+#    不看 pin 檔:照官方文件手動裝的機器沒有 pin,會被當成沒裝、重加一次 apt 來源
+if [ "$(dpkg-query -W -f='${Maintainer}' gh 2>/dev/null)" = GitHub ]; then
   echo "gh 已安裝(官方 apt 源),跳過"
   exit 0
 fi
