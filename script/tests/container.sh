@@ -92,6 +92,7 @@ RUN apt-get update \
  && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
+  # 固定 hostname:預設是容器 ID,README 的 GIF 裡 fastfetch 標題會印出來
+  docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
   make_fixtures
 }

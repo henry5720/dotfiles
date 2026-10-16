@@ -124,7 +124,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設全選**。
+- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。

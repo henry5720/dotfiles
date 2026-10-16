@@ -1,6 +1,6 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
-# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 選單取消勾 5 項 → Enter →(剪掉安裝)→ 完成
-# 取消勾的 5 項 = 選單全部減掉 e2e 的 TOOLS_FIRST,裝完的環境就是主 GIF 要的那台。
+# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 選單勾 4 項 → Enter →(剪掉安裝)→ 完成
+# 選單預設都不勾。主 GIF 只需要 fastfetch,另外 3 項是示範,挑裝得快的。
 # 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面 installer 的 log 推出畫面
 Output menu.gif
 Set Shell bash
@@ -38,15 +38,12 @@ Sleep 500ms
 Show
 Sleep 1.5s
 
-# 3. 多選:往下取消勾 ttyd、wakatime、opencode、document-media、ai-document-media
+# 3. 多選:勾 fastfetch、gh、claude、codex(選單順序見 home/.chezmoi.toml.tmpl 的 $toolChoices)
 Set TypingSpeed 120ms
+Space Sleep 400ms
+Down 2
+Space Sleep 400ms
 Down 7
-Space Sleep 400ms
-Down
-Space Sleep 400ms
-Down 3
-Space Sleep 400ms
-Down
 Space Sleep 400ms
 Down
 Space Sleep 1s

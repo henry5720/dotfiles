@@ -11,7 +11,7 @@
 # 在全新的 ubuntu:24.04 容器裡錄,不碰本機家目錄;錄的是 repo 工作目錄(含未 commit 的修改)。
 # 建容器與 fixtures(本機 repo、假 agent-config remote)跟 e2e 共用 script/tests/container.sh。
 # 一次約 5 分鐘以上,大半是等 apply 裝完。
-# 劇本在同目錄的 menu.tape、main.tape;fastfetch.jsonc 只用在錄影容器。
+# 劇本在同目錄的 menu.tape、main.tape。
 set -uo pipefail
 
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -81,15 +81,14 @@ EOF
 
 # 5. 劇本放進容器(tar 帶進去,檔案屬於容器裡的使用者)
 docker exec -u "$CTR_USER" "$CTR" mkdir -p "$CTR_HOME/demo"
-tar -C "$DEMO" -cf - menu.tape main.tape fastfetch.jsonc \
+tar -C "$DEMO" -cf - menu.tape main.tape \
   | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$CTR_HOME/demo" -xf - || fail "放劇本失敗"
 
 # 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Ubuntu 那行,裝完才結束
 vhs_run menu.tape
 
-# 7. 主 GIF:同一台裝好的機器,fastfetch 換成錄影專用設定(不印容器 ID、ttyd、主機資訊)
-docker exec -u "$CTR_USER" "$CTR" install -D -m 644 "$CTR_HOME/demo/fastfetch.jsonc" "$CTR_HOME/.config/fastfetch/config.jsonc" \
-  || fail "放 fastfetch 設定失敗"
+# 7. 主 GIF:同一台裝好的機器,fastfetch 照預設印完整資訊
+#    Kernel、CPU、磁碟是錄影那台主機的,Terminal 是 VHS 用的 ttyd
 vhs_run main.tape
 
 # 8. 拷回 repo;超過 1 MB 只警告(錄一次要好幾分鐘,擋下就白錄了)
