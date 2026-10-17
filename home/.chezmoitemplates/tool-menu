@@ -11,7 +11,7 @@ code-server 瀏覽器開的 VS Code
 tailscale 私人 VPN,連自己的機器
 herdr 終端機多工,同時開多個 coding agent
 ttyd 把終端機開成網頁,share-shell 用
-wakatime wakatime-cli + zsh 外掛:記錄寫程式的時間
+wakatime wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin)
 claude Claude Code CLI
 codex Codex CLI
 opencode OpenCode CLI

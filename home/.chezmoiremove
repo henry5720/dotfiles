@@ -7,3 +7,7 @@
 # ttyd 改由 share-shell 臨時起(前景、隨機密碼),不再有常駐 service 和固定密碼。
 .config/systemd/user/ttyd.service
 .config/ttyd
+# WakaTime 的 zsh 外掛(社群版 sobolevn/wakatime-zsh-plugin)不再裝:官方 https://wakatime.com/terminal
+# 明講別用 terminal plugin,時間改由各 agent 的官方 plugin 記(#176)。這份是以前 install-wakatime
+# 腳本 clone 的、只有 dot_zshrc 會載入它,刪掉不影響別的東西;chezmoi 移除 target 的官方做法就是列在這裡。
+.config/zsh/wakatime-zsh-plugin

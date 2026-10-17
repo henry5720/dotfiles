@@ -273,6 +273,9 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會順便裝它的 plugin；只勾其中一個不裝，
 已經裝了就跳過。之後才補勾任一邊，打 `tools` 勾完就會裝。
 
+不裝 zsh 的 WakaTime 外掛：官方的 [terminal 頁面](https://wakatime.com/terminal)明講別用 terminal plugin。
+以前裝過的機器，apply 時會刪掉舊的 `~/.config/zsh/wakatime-zsh-plugin`（列在 `home/.chezmoiremove`）。
+
 | 同時勾 | 裝什麼 | 確認 |
 |---|---|---|
 | `claude` | [claude-code-wakatime](https://github.com/wakatime/claude-code-wakatime) | `claude plugin list` 有 `claude-code-wakatime@wakatime` |

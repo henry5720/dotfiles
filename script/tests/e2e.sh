@@ -218,7 +218,7 @@ declare -A TOOL_CHECK=(
   [herdr]="command -v herdr"
   [ttyd]="command -v ttyd"
   # 官方位置:~/.wakatime/wakatime-cli 是指到 wakatime-cli-linux-<arch> 的 symlink
-  [wakatime]="[ -L ~/.wakatime/wakatime-cli ] && ~/.wakatime/wakatime-cli --version && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
+  [wakatime]="[ -L ~/.wakatime/wakatime-cli ] && ~/.wakatime/wakatime-cli --version"
   [claude]="command -v claude && claude --version"
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
@@ -360,16 +360,18 @@ scenario_ubuntu() {
   # 不經選單、直接用 chezmoi edit-config 改 [data] tools 那一行再 apply,也要能裝。
   # edit-config 只是開編輯器,這裡直接 sed config 模擬。
   bold "▶ edit-config 在 tools 多加 wakatime"
+  # 模擬以前裝過 zsh 外掛的機器:clone 還在,apply 之後要被 .chezmoiremove 清掉、zsh 不再載入
+  step "放一份舊的 zsh 外掛 clone" \
+    "mkdir -p ~/.config/zsh/wakatime-zsh-plugin && echo '_wakatime_heartbeat() { :; }' > ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check_tool wakatime
-  # 外掛預設找 ~/.wakatime/wakatime-cli,找不到就每個指令都印「not installed」、不計時。
-  # 上面只驗兩邊都在;這裡真的觸發一次 heartbeat,驗外掛找得到我們裝的那支。
-  check "zsh 的 WakaTime 外掛找得到 wakatime-cli" \
-    "out=\$(zsh -i -c '_wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
+  # zsh 外掛不再裝(#176):不 clone、zshrc 也不載入
+  check "沒有 clone zsh 的 WakaTime 外掛" "[ ! -e ~/.config/zsh/wakatime-zsh-plugin ]"
+  check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
   check "plugin 寫進的設定跟 modify_ 不打架(chezmoi verify 通過)" "chezmoi verify"
