@@ -50,6 +50,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 home/                           → 部署到 ~（chezmoi apply）
 ├── .chezmoi.toml.tmpl          → ~/.config/chezmoi/chezmoi.toml：憑證、Git 身分、選裝工具
 ├── .chezmoidata/               不部署：基底套件與走 apt 的選裝工具清單
+├── .chezmoitemplates/          不部署：樣板共用片段（選單的選項與說明、判斷 WSL／Debian、腳本共用函式…）
 ├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
 ├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
 ├── dot_zshrc                   → ~/.zshrc
@@ -58,7 +59,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
 ├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
 ├── dot_codex/                  → ~/.codex/：同上
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（ai-profile、chrome-mcp…）
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、chrome-mcp…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
 script/                         不部署，自己手動跑
@@ -77,7 +78,8 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 - `wsl/` 怎麼交給 Windows 上的 chezmoi，見
   [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
-- 日常怎麼改、套用、同步，照 chezmoi 官方的 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
+- 日常怎麼改、套用、同步，見[裝完之後](docs/after-install.md)；chezmoi 本身的用法照官方
+  [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 
 ## fork 前要改什麼
 
@@ -90,20 +92,35 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 ## 文件索引
 
+分類見 [`AGENTS.md`](AGENTS.md)「文件放哪」。
+
+**裝機與日常**
+
 | 文件 | 什麼時候看 |
 |---|---|
 | [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
 | [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
+
+**主題文件**
+
+| 文件 | 什麼時候看 |
+|---|---|
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 | [AI agent setup](docs/ai-agent-setup.md) | 改規則、plugin、codegraph、playwright-cli、opencode |
 | [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
 | [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
-| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
 | [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
 | [WSL 常用指令](wsl/command.md) | Windows 終端機字型、port 轉發 |
 | [Issue 生命週期](docs/issue-lifecycle.md) | 看 issue 從待接到完成在 GitHub 上留什麼 |
-| [`AGENTS.md`](AGENTS.md) | 改這個 repo：檔名前綴、秘密、驗證方式（含容器 e2e） |
 
+**背景與決策**
+
+| 文件 | 什麼時候看 |
+|---|---|
+| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
+| [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
+
+改這個 repo（檔名前綴、秘密、驗證方式含容器 e2e）看 [`AGENTS.md`](AGENTS.md)。
 `docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
