@@ -22,7 +22,7 @@ if command -v playwright-cli >/dev/null 2>&1; then
 fi
 
 # 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:tools 一起勾 nvm(chezmoi edit-config 改 tools 再 apply)" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:打 tools 一起勾 nvm" >&2; exit 1; }
 npm install -g @playwright/cli
 
 # 4. 沒有 Chrome 只提醒,不算失敗:CLI 本身裝好了,之後補勾 headless-chrome 就能用

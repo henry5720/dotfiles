@@ -1,0 +1,18 @@
+{{- /* 只有出選單的機器(Debian 系 Linux)才部署;其他機器渲染成空的,chezmoi 不建這個檔。 */ -}}
+{{- if includeTemplate "is-debian" . -}}
+#!/bin/sh
+# 重出選裝工具選單,勾完直接裝。選單本身在 chezmoi 的 config 樣板(.chezmoi.toml.tmpl)。
+#
+#   tools
+#
+# init --prompt 只會重問選單:憑證與 git 身分已經存過就沿用、不再問;選單預設帶現在的勾選。
+# 取消勾選不會解除安裝,要移除用那個工具自己的方式(dotfiles 的 docs/new-machine-setup.md)。
+# 參數原樣交給 chezmoi init(e2e 用 --no-tty --promptDefaults 跑)。
+set -eu
+
+# 1. 重出選單,把勾選寫回 ~/.config/chezmoi/chezmoi.toml
+chezmoi init --prompt "$@"
+
+# 2. 照新的勾選裝
+chezmoi apply
+{{ end -}}

@@ -47,18 +47,15 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 
 ## 秘密
 
-**這個 repo 是公開的。** 秘密不進 git,一律走 chezmoi 的 `promptStringOnce`,值存在
+**這個 repo 是公開的。** 秘密不進 git,一律在 `chezmoi init` 時問,值存在
 `~/.config/chezmoi/chezmoi.toml`(repo 外),在 `.tmpl` 裡以 `{{ .someKey }}` 帶入。
 
-新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 加一行,再從用到它的 `.tmpl` 引用。簽名是:
+新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 開頭的清單加一項 `(list "key" "提示文字" "預設值")`
+(沒有預設值給 `""`),`[data]` 加一行,再從用到它的 `.tmpl` 引用。已經存過的值不會再問,
+`chezmoi init --prompt` 也不會 —— `--prompt` 只重問選單,`tools` 指令靠這個。
 
-```
-promptStringOnce map path prompt [default]
-```
-
-第三個參數是**提示文字**,第四個才是選用的預設值。少給提示文字會直接錯
-(`wrong number of args ... want at least 3`),而且是在 `chezmoi init` 時才炸 —— 平常
-`chezmoi apply` 不會重新渲染 config 樣板,所以這種錯很容易漏到新機器上才發現。
+樣板寫錯是在 `chezmoi init` 時才炸 —— 平常 `chezmoi apply` 不會重新渲染 config 樣板,
+所以這種錯很容易漏到新機器上才發現。改完一定跑下面的 `execute-template --init`。
 
 ## 怎麼驗證
 

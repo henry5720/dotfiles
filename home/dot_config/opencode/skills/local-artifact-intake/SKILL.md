@@ -14,10 +14,9 @@ description: 處理 PDF、DOCX、PPTX、XLSX、CSV、audio 或 video 時，先�
 - 只在使用者明確要求處理上述檔案內容時執行；不要為了方便而把工作交給其他 agent。
 - 不自動安裝套件、不使用網路下載、不使用 `sudo`。可執行工具一律用 `command -v` 探測，
   不用 `which` 或猜測路徑；Python module 只能用不改檔的 import probe 確認。
-- AI 解析是可選能力，不是共同前置條件。安裝契約由
-  dotfiles 的 chezmoi 選裝工具 `ai-document-media` 管理：預設建立
-  `~/.local/share/ai-document-media/venv`，也可用 `AI_DOCUMENT_MEDIA_BACKEND=uv` 管理同一個
-  venv，並安裝 `docling` 與 `faster-whisper`。skill 不負責安裝或更新它們。
+- AI 解析是可選能力，不是共同前置條件。dotfiles 不安裝 `docling` 與 `faster-whisper`；
+  只有使用者自己在 `~/.local/share/ai-document-media/venv`（或 `AI_DOCUMENT_MEDIA_VENV`
+  指定的位置）建好時才用。skill 不負責安裝或更新它們。
 - Docling 與 faster-whisper 只接受已存在的本機 model/cache；沒有本機 model 就回報 blocker。
   設定 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1` 後才可呼叫 AI parser，禁止以 model name
   觸發網路下載或在背景初始化 model。安裝 Python package 不等於已安裝 model。

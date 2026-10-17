@@ -63,7 +63,7 @@ docker exec -u "$CTR_USER" "$CTR" bash -c '
   fc-cache -f
 ' || fail "裝字型失敗"
 
-# 4. 讓 init 在選單之前都不用問人:promptStringOnce 讀到現值就不問,只剩選單
+# 4. 讓 init 在選單之前都不用問人:憑證與 git 身分已經有值就不問,只剩選單
 bold "▶ 放憑證假值"
 docker exec -u "$CTR_USER" "$CTR" bash -c "
   set -e
