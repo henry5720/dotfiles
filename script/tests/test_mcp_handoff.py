@@ -41,6 +41,17 @@ class McpHandoffTest(unittest.TestCase):
         synced = first + "\n[mcp_servers.gh_grep]\nurl = 'https://mcp.grep.app'\n"
         self.assertEqual(self.run_script(CODEX, "sh", synced), synced)
 
+    def test_codex_keeps_wakatime_plugin_tables(self):
+        # install-wakatime 腳本跑 `codex plugin add` 寫進來的兩個 table(#173),apply 要原樣留著。
+        first = self.run_script(CODEX, "sh")
+        added = first + (
+            '\n[marketplaces.wakatime]\nsource_type = "git"\n'
+            'source = "https://github.com/wakatime/codex-cli-wakatime.git"\n'
+            '\n[plugins."codex-cli-wakatime@wakatime"]\nenabled = true\n'
+        )
+        self.assertEqual(self.run_script(CODEX, "sh", added), added)
+        self.assertTrue(tomllib.loads(added)["plugins"]["codex-cli-wakatime@wakatime"]["enabled"])
+
     def test_codex_pins_permission_keys_at_top_level(self):
         # codex 自己寫的 "user" 要被換掉,它自己的頂層 key 與 table 照留;輸出再餵一次要一樣。
         existing = (
