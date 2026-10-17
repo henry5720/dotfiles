@@ -106,7 +106,10 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | 文件 | 什麼時候看 |
 |---|---|
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
-| [AI agent setup](docs/ai-agent-setup.md) | 改規則、plugin、codegraph、playwright-cli、opencode |
+| [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
+| [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
+| [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
+| [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
 | [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
 | [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
@@ -119,6 +122,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 | 文件 | 什麼時候看 |
 |---|---|
+| [AI agent 環境：為什麼這樣分](docs/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
 | [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
 | [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
 
