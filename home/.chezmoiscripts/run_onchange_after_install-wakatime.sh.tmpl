@@ -2,6 +2,9 @@
 #!{{ lookPath "sh" }}
 # 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
+# 同時勾了 claude 的機器再裝各 agent 的官方 WakaTime plugin(第 4 段起)。放在這支、不另開腳本:
+# 勾選組合一變,這支渲染出來的內容就變,run_onchange 會重跑,舊機器補勾也會裝到;
+# 而且照檔名順序,install-claude 等腳本已經先跑完。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
 #
 # wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-linux-<arch>,
@@ -40,4 +43,21 @@ plugin="$HOME/.config/zsh/wakatime-zsh-plugin"
 if [ ! -d "$plugin" ]; then
   git clone --depth=1 https://github.com/sobolevn/wakatime-zsh-plugin.git "$plugin"
 fi
+{{- if has "claude" (index . "tools") }}
+
+# 4. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
+#    plugin 找 ~/.wakatime/wakatime-cli-linux-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
+#    plugin 的 hook 用 node 跑,要勾 nvm(沒有 node 只是不送 heartbeat,不影響 Claude Code)。
+#    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
+#    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
+claude=$(command -v claude || echo "$HOME/.local/bin/claude")
+if [ ! -x "$claude" ]; then
+  echo "找不到 claude,跳過 Claude Code 的 WakaTime plugin"
+elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-code-wakatime@wakatime")' >/dev/null; then
+  echo "Claude Code 的 WakaTime plugin 已安裝,跳過"
+else
+  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null
+  "$claude" plugin install claude-code-wakatime@wakatime </dev/null
+fi
+{{- end }}
 {{ end -}}

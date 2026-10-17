@@ -238,6 +238,14 @@ declare -A TOOL_CHECK=(
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
+# 各 agent 的官方 WakaTime plugin:wakatime 和那個 agent 都勾了才裝(#172)。
+# 從 agent 自己的 plugin 清單看,不看檔案位置。
+declare -A WAKA_PLUGIN=(
+  [claude]="claude plugin list --json | jq -e 'any(.[]; .id == \"claude-code-wakatime@wakatime\")'"
+)
+check_waka_plugin()    { check "$1 的 WakaTime plugin 已安裝" "${WAKA_PLUGIN[$1]}"; }
+check_no_waka_plugin() { check "$1 的 WakaTime plugin 沒有安裝" "! { ${WAKA_PLUGIN[$1]}; }"; }
+
 # 選裝腳本在 chezmoi 裡的名字(scriptState 的 name、dry-run 的 diff 標頭)。從 TOOL_CHECK 產生,
 # 加工具時不用再改這裡。名字帶腳本所在的 .chezmoiscripts/;codegraph 的腳本叫 npm-install-codegraph,
 # 所以檔名前綴是 (npm-)?install-。
@@ -303,6 +311,8 @@ scenario_ubuntu() {
   check_no_tool ffmpeg
   check_no_tool mupdf-tools
   check_no_tool pandoc
+  # agent 有裝、wakatime 沒勾:不裝 plugin
+  for a in "${!WAKA_PLUGIN[@]}"; do check_no_waka_plugin "$a"; done
   check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
   # skillshare 的設定(create_config.yaml)是一般檔案,所有 after_ 腳本都在檔案部署之後跑。
   # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
@@ -358,6 +368,14 @@ scenario_ubuntu() {
   # 上面只驗兩邊都在;這裡真的觸發一次 heartbeat,驗外掛找得到我們裝的那支。
   check "zsh 的 WakaTime 外掛找得到 wakatime-cli" \
     "out=\$(zsh -i -c '_wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
+  # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
+  for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
+  check "plugin 寫進的設定跟 modify_ 不打架(chezmoi verify 通過)" "chezmoi verify"
+  check "modify_ 釘的 chrome-devtools plugin 開關還在" \
+    "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
+  # run_onchange_ 內容沒變就不會再跑,所以直接把渲染出來的腳本再跑一次
+  check "wakatime 腳本重跑 exit 0、plugin 都跳過不重裝" \
+    "out=\$(chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl | sh 2>&1) && echo \"\$out\" && ! grep -q 'Successfully' <<<\"\$out\" && [ \"\$(grep -c 'plugin 已安裝,跳過' <<<\"\$out\")\" = ${#WAKA_PLUGIN[@]} ]"
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
   check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
@@ -429,6 +447,13 @@ scenario_ubuntu() {
     "chezmoi execute-template --override-data '{\"tools\":[\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && ! grep -qE 'ffmpeg|mupdf-tools' /tmp/dm.sh && sh -n /tmp/dm.sh"
   check "三個都勾時套件腳本裝 ffmpeg、mupdf-tools、pandoc" \
     "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\",\"mupdf-tools\",\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+
+  # 只勾 wakatime、沒勾 agent:不碰 agent 的 plugin。實裝那半在上面(agent 先勾、之後補勾 wakatime)。
+  bold "▶ (渲染)只勾 wakatime 不裝 agent 的 WakaTime plugin"
+  check "只勾 wakatime 時腳本不含 plugin 安裝指令" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && ! grep -qE 'plugin (install|add)|--install-extension' /tmp/waka.sh"
+  check "wakatime + claude 時腳本只多 Claude Code 那段" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\",\"claude\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && grep -q 'plugin install claude-code-wakatime@wakatime' /tmp/waka.sh && ! grep -qE 'codex plugin|--install-extension' /tmp/waka.sh"
 
   # 容器的 config 已經勾了 playwright-cli,要蓋成空的才是「沒勾」
   bold "▶ (渲染)playwright-cli"

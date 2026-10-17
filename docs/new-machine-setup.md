@@ -215,7 +215,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新；`chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它
-關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
+關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝（WakaTime 的 plugin 由 apply 裝，見 4.7）。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
 [plugin](ai-agent-setup.md#4-plugin)。
 
 claude-hud 不在官方 marketplace，要先加它自己的：
@@ -265,6 +265,19 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 不要用 `.git/config` 覆蓋共用 `core.hooksPath`：套件安裝可能把 husky 設定寫回去，而且
 會讓 husky 自己的 hook 停止運作。完整的 worktree 同步與 hook 判斷見
 [ai-agent-setup.md 的 codegraph 細節](ai-agent-setup.md#codegraph-的索引是每個專案自己的事)。
+
+### 4.7 WakaTime（勾了 `wakatime` 才有）
+
+`wakatime` 裝 wakatime-cli（官方位置 `~/.wakatime/wakatime-cli`），API key 由 chezmoi 寫進
+`~/.wakatime.cfg`（init 時留空就不會送）。AI coding 的時間要靠各 agent 的官方 plugin 觸發
+wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會順便裝它的 plugin；只勾其中一個不裝，
+已經裝了就跳過。之後才補勾任一邊，打 `tools` 勾完就會裝。
+
+| 同時勾 | 裝什麼 | 確認 |
+|---|---|---|
+| `claude` | [claude-code-wakatime](https://github.com/wakatime/claude-code-wakatime) | `claude plugin list` 有 `claude-code-wakatime@wakatime` |
+
+plugin 的 hook 用 node 跑，要勾 `nvm`。沒記到時看 `~/.wakatime/wakatime.log`。
 
 ## 恢復邊界
 
