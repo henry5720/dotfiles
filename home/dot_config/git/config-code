@@ -10,6 +10,6 @@
 # ⚠️ repo 在自己的 local config 設了 core.hooksPath 的話(husky 就是這樣做),
 # **local 贏 global**,這份完全不生效,而且是靜默的。檢查方式:
 #   git config --get core.hooksPath      # 有輸出 = 被搶走了
-# 那種 repo 要在它自己的 hook 目錄放一支轉接,見 docs/ai-agent-setup.md。
+# 那種 repo 要在它自己的 hook 目錄放一支轉接,見 docs/codegraph.md。
 [core]
 	hooksPath = ~/.config/git/hooks

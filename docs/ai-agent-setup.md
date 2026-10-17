@@ -1,476 +1,88 @@
 # AI agent 環境:誰管什麼
 
-用 Claude Code / opencode 這類 coding agent 時,身上會掛四種東西。
+用 Claude Code、Codex、opencode 時,身上會掛四種東西:規則、skill、MCP、plugin。
 它們**放在不同地方、用不同指令更新**,搞混就會出現「我明明更新了怎麼沒變」。
+為什麼這樣分,見 [AI agent 環境:為什麼這樣分](ai-agent-principles.md)。
 
-## 三個原則
-
-1. **除了規則,全部都是可選的。** skill、MCP、plugin 沒有「標準配備」,
-   看你需要什麼就裝什麼,不裝也完全能用。
-2. **本 repo 只維護「你自己寫的規則」。** 別人的東西一律不複製進來。
-3. **這裡只記「去哪裡拿」,不記東西本身。** 重灌時照著指令重裝,不是還原備份。
+```text
+dotfiles(chezmoi)
+  ├─ 裝 skillshare、放它的 config.yaml(之後不再碰)─→ agent-config
+  ├─ 規則的 symlink,指到 agent-config 的 instructions/ ─→ agent-config
+  └─ client 本身的設定 ──────────────────────────────┐
+agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode
+  └─ 規則內容、skills、MCP ────────────────────────────┘
+Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ Claude Code
+```
 
 ## 四種東西
 
-| | 是什麼 | 誰寫的 | 檔案實際在哪 | 怎麼更新 |
-|---|---|---|---|---|
-| **規則** | 你希望 agent 怎麼做事 | **你** | agent-config 的 `instructions/agents-md/AGENTS.md`,本 repo 的 `symlink_` 模板連到各 client | 改完在 agent-config commit |
-| **skill** | 一套做某件事的步驟,用到才載入 | 別人 或 **你** | agent-config repo,skillshare 同步到各 client | `skillshare update --all`,見[〈2〉](#2-skill) |
-| **MCP** | 給 agent 接外部服務的通道 | 別人 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見[〈3〉](#3-mcp) |
-| **plugin** | Claude 的擴充包(可同時含 skill + MCP + 指令) | 別人 | `~/.claude/plugins/` | Claude 裡打 `/plugin` |
+| | 是什麼 | 檔案實際在哪 | 怎麼更新 |
+|---|---|---|---|
+| **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,本 repo 的 `symlink_` 模板連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
+| **skill** | 一套做某件事的步驟,用到才載入 | agent-config,skillshare 同步到各 client | `skillshare update --all`,見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md) |
+| **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md) |
+| **plugin** | Claude 的擴充包(可同時含 skill、MCP、指令) | `~/.claude/plugins/` | Claude 裡打 `/plugin`,見 [plugin](#plugin) |
 
-## 全貌
+- skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作),這份不重寫。
+- 不歸 skillshare 管的例外(obsidian-wiki、plugin…)和 herdr skill 要跟版本的事,見
+  agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
+- **這個 repo 不寫任何 MCP 條目。** dotfiles 自己部署、跟 MCP 有關的只有
+  [codegraph](codegraph.md)(CLI、索引、git hook)、[playwright-cli](playwright-cli.md)(操作瀏覽器時代替 MCP)
+  和 [opencode](opencode.md) 的設定檔。
 
-chezmoi 管機器和 client 本身的設定(Settings),skillshare 管 skills 和 MCP;給模型讀的指令檔(Instructions)
-內容在 agent-config,但放到各 client 的 symlink 由 chezmoi 放:
+## 規則
 
-```mermaid
-flowchart LR
-  dotfiles["dotfiles（chezmoi）<br/>client 設定"]
-  agentconfig["agent-config（skillshare）<br/>skills、MCP、規則"]
-  clients["Claude Code<br/>Codex<br/>OpenCode"]
+只有一份真的檔案,其他都是 symlink,由本 repo 的 `symlink_*.tmpl` 放(決策見 [ADR 0002](adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)):
 
-  dotfiles --> clients
-  agentconfig --> clients
-  dotfiles -. "裝 skillshare、放 config.yaml" .-> agentconfig
-  dotfiles -. "symlink 指到 instructions/" .-> agentconfig
-```
-
-兩邊的交接:chezmoi 裝好 skillshare、放好它的 `config.yaml`(之後就不再碰),
-以及 chezmoi 的 `symlink_` 模板指到 agent-config 的 `instructions/`(決策見 [ADR 0002](adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md))。
-
-不歸 skillshare 管的例外(obsidian-wiki、plugin…)和 herdr skill 要跟版本的事,見
-agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
-
-skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作),
-這份不重寫。新機器則是 chezmoi 選裝工具選單勾 `agent-config`,apply 時自動 init。
-
----
-
-# 1. 規則(在 agent-config,不在本 repo)
-
-每家 agent 讀的全域檔名不一樣 —— Claude 是 `~/.claude/CLAUDE.md`,Codex、opencode 是 `AGENTS.md`。
-各寫一份的話,改了 A 忘了改 B,兩邊行為就會不一樣(這件事真的發生過)。
-
-解法是**只留一份真的檔案,其他都是捷徑**。給模型讀的指令檔(Instructions)內容放在 agent-config 的
-`instructions/`;放到哪由本 repo 的 `symlink_*.tmpl` 決定(例如 `home/dot_claude/symlink_CLAUDE.md.tmpl`),
-所以在 `home/dot_claude/` 等目錄就看得到 CLAUDE.md 從哪來:
-
-```
+```text
 agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
    ├── ~/.claude/CLAUDE.md
    ├── ~/.codex/AGENTS.md
    ├── ~/.config/opencode/AGENTS.md
    └── ~/.config/opencode/routes/personal/AGENTS.md
+agent-config/instructions/agent-commit/instructions.md
+   └── ~/.config/agent-commit/instructions.md
+agent-config/instructions/opencode-commit/commit-instructions.md
+   └── ~/.config/opencode/commit-instructions.md   (opencode.json 的 instructions 引用它)
 ```
 
-commit 指引也一樣:`instructions/agent-commit/instructions.md` → `~/.config/agent-commit/instructions.md`,
-`instructions/opencode-commit/commit-instructions.md` → `~/.config/opencode/commit-instructions.md`
-(後者由本 repo 的 `opencode.json` 引用)。
+agent-config 在本機 clone 在 `~/.config/skillshare/`,symlink 指的就是那裡。
 
-新機器不用為規則另外做事——依 [新機器設定 Runbook](new-machine-setup.md) 跑完 `chezmoi init --apply`。
-`chezmoi apply` 先放好 symlink,這時 agent-config 還沒 clone,symlink 是懸空的;
-選裝工具 `agent-config` 的 after 腳本 clone 完,symlink 就指得到檔案。沒勾 `agent-config` 的機器,這幾個 symlink 會一直懸空。
-
-已經裝過 agent-config 的機器,改內容只要 `skillshare pull`;改「連到哪」(新增或搬動 symlink)
-則是改本 repo 的 `symlink_` 模板再 `chezmoi apply`。從舊的 extras 做法換過來時,兩個都要跑。
-
-## 規則要寫什麼
-
-只寫「換到任何一個 repo 都還成立」的事。判斷方法:
-
-- 換個 repo 就不成立(技術棧、build 指令、專案慣例)→ 寫在**那個 repo 自己的 `AGENTS.md`**
-  (Claude Code 2.1.277 起,repo 沒有 `CLAUDE.md` 時直接讀它)
-- 是一套多步驟流程(查 bug、TDD、需求對齊)→ 寫成 **skill**,用到才載入
-- linter、git hook、權限設定做得到 → **交給那些工具**,寫成規則只是「希望 agent 不要這樣做」
-
-還有一條:**規則要能判斷有沒有違規**。
-「講白話一點」沒辦法判斷;「一個句子拿掉抽象名詞就沒有資訊了就重寫」可以。
-判斷不了的規則,你沒辦法抓它,agent 也就不會穩定遵守。
-
-## 不要把本體放在 `dotfiles/.claude/CLAUDE.md`
-
-看起來很整齊,但會出事。Claude 認的專案指引位置是 `./CLAUDE.md`、`./.claude/CLAUDE.md`(沒有它們時是 `./AGENTS.md`),
-而多份 CLAUDE.md 是**接在一起**送進去、不是互相覆蓋。
-
-所以在 dotfiles 裡開 Claude 會讀到兩次:一次是你的個人設定,一次是「dotfiles 這個專案的設定」——
-同一份規則載入兩遍,白花錢,而且重複的指令本身就會讓 agent 更難遵守。
-
-> 這條**不包含** repo 根目錄的 `dotfiles/AGENTS.md`。那份寫的是「怎麼改這個 repo」
-> (檔名前綴、秘密、驗證方式),和個人偏好不重複,載入一次,是正常的專案指引。
-> 要避開的只有把**個人規則本體**放到 `dotfiles/.claude/CLAUDE.md`。
-
----
-
-# 2. skill
-
-skill 由 skillshare 管,說明在 agent-config:從哪來、裝給誰(global／project)、
-怎麼關、description 的常駐成本,見 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)。
-
----
-
-# 3. MCP
-
-三個 client 共用的 MCP 也由 skillshare 管:誰寫哪一段、API key、從舊版 dotfiles 升上來
-怎麼清舊條目,見 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。**這個 repo 不寫任何 MCP 條目。**
-
-下面幾節是 dotfiles 自己部署、跟 MCP 有關的東西:codegraph(CLI、索引、git hook)、
-playwright-cli(操作瀏覽器時代替 MCP)和 opencode 的設定檔。
-
-## codegraph:設定會回來,但它塞進 CLAUDE.md 的那段不會
-
-[codegraph](https://github.com/colbymchenry/codegraph) 把程式碼建成 symbol 圖,讓 agent 用
-`codegraph_explore` 一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。它同時是 CLI、MCP
-server 和背景 daemon。
-
-裝法選 npm(不是官方那條 `curl | sh`),chezmoi 選裝工具的 `codegraph` 就是跑第一行:
-
-```bash
-npm i -g @colbymchenry/codegraph      # 主套件只是 shim,真的 binary 走 optionalDependency 帶下來
-codegraph install -t claude -l global -y   # 只為了 Claude 的 prompt hook 和權限,MCP 不靠它
-```
-
-**MCP 不靠 `codegraph install`。** codegraph 這台 MCP server 定義在 agent-config 的
-`mcp.yaml`,由 skillshare 寫進 Claude、Codex、OpenCode 三邊。`codegraph install` 現在只剩
-一件事是別人不做的:在 `~/.claude/settings.json` 加 `codegraph prompt-hook` 和
-`permissions.allow`。它塞進 `~/.claude/CLAUDE.md` 的那段已經收進 agent-config 的 `AGENTS.md`(見下),不用靠它寫。
-不跑這行,MCP 照樣能用,只是少了 prompt hook 提醒、呼叫工具時要多按幾次允許。
-
-它沒有「只裝 hook、不寫 MCP」的選項,所以還是會順手寫一份 `~/.claude.json` 的
-`mcpServers.codegraph`。內容跟 `mcp.yaml` 一字不差時 skillshare 列為 `unchanged`,不會衝突,
-但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`
-(見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#從舊版-dotfiles-升上來的機器))。不要再用 `-t opencode`、`-t codex`,
-那兩邊的 MCP 交給 skillshare 寫。
-
-⚠️ **npm 裝的東西綁在當前 node 版本。** `npm config get prefix` 是
-`~/.nvm/versions/node/<版本>`,`nvm use` 換版本後 `codegraph` 就從 PATH 上消失,而
-`~/.claude.json` 裡那台 MCP server 的 command 就是裸的 `codegraph` —— 它會變成連不上,
-而不是報「找不到指令」。換 node 版本後重跑一次 `npm i -g` 就好。
-
-`codegraph install` 動四個地方,其中三個符合上面「會回來」的判準,**只有一個不會**:
-
-| 它改了什麼 | apply 之後還在嗎 | 為什麼 |
-|---|---|---|
-| `~/.claude.json` 的 `mcpServers.codegraph` | 在 | chezmoi 不管 `~/.claude.json` |
-| `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | 同上,`modify_settings.json.tmpl` 只釘一個 plugin 開關 |
-| `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | 會改到 agent-config | 這份是指向 agent-config `instructions/agents-md/AGENTS.md` 的 symlink,寫進去就是改 source |
-
-所以那段收進了 agent-config 的 `AGENTS.md`,**保留英文原文和 START/END 標記** ——
-`codegraph upgrade` 會重寫兩個標記之間的內容,翻成中文的話每次升級都會在 agent-config 留下修改。
-
-> 裝完跑一次 `stat -c %a ~/.claude.json`。實測第一次 `codegraph install` 之後權限
-> 從 600 變成 644,chezmoi 已經不管這個檔,不會幫你發現。
-> 兇手就是 `codegraph install`。2026-08-20 在一台沒裝過 codegraph 的機器上重量一次:裝前
-> `stat -c %a ~/.claude.json` 是 600,只跑了 `codegraph install -t claude -l global -y`,
-> 裝完立刻變 644。重跑 `codegraph install --refresh` 不會重現,所以只發生在第一次寫入。
-> `chmod 600 ~/.claude.json` 修掉 —— 那個檔裡有帳號資訊,644 表示同機其他使用者讀得到。
-
-## codegraph 的索引是每個專案自己的事
-
-```bash
-cd <專案>
-codegraph init      # 建索引
-codegraph status    # 看索引狀態
-codegraph sync      # 手動同步(-q 給 hook 用)
-codegraph uninit -f # 移除(注意是 -f,不是 -y)
-```
-
-`.codegraph/` 裡自帶一份 `.gitignore`(內容是 `*` 加 `!.gitignore`),db 不會進版控,但
-**目錄本身會出現在 `git status` 的 untracked** —— 這件事由全域 gitignore 一次擋掉,見
-[worktree 怎麼處理](#worktree-怎麼處理索引不重建只複製)。
-
-哪些專案值得 init?判準是「檔案多到 grep 不完」。實測數字:
-
-| 專案 | 索引到的檔 | init 耗時 | 峰值記憶體 | 索引大小 |
-|---|---|---|---|---|
-| 工作用的前端(React) | 7,135 | 20 秒 | 2.9 GB | 261 MB |
-| 工作用的主後端(Python) | 2,604 | 31 秒 | 2.8 GB | 274 MB |
-| `~/code/fizzt-frontend` | 54 | 1.4 秒 | — | 1.8 MB |
-| 這個 dotfiles repo | **5** | — | — | 400 KB |
-
-後兩個不值得:54 個檔 agent 直接讀還更準。**dotfiles repo 特別不值得** —— 它只索引到
-當時的 4 支 tmux `.py`(已移除)加 `nvim/lua/config/options.lua`,
-shell script 和設定檔它不解析,而這個 repo 幾乎只有那兩種。
-
-⚠️ **峰值記憶體是 2.9 GB。** `.wslconfig` 給 16GB,別讓兩三個 init 同時跑。
-
-## 索引什麼時候會跟上你的改動
-
-README 寫「存檔 2 秒內自動同步」,**但那要有 watcher,而 watcher 是綁在 MCP server 上的**。
-實測三種情況:
-
-| 情境 | 結果 |
+| 想做什麼 | 怎麼做 |
 |---|---|
-| `codegraph init` 完就放一個新檔進去 | 等 15 秒索引完全不動;`pgrep codegraph` 也沒有任何 watcher 行程 |
-| 有 `codegraph serve --mcp`(cwd 在該專案)時放新檔 | **第 1 秒進索引** |
-| 沒有 server 時改檔,之後才開 server | 啟動當下就補完 |
+| 改規則內容 | 改 agent-config 的檔案、在 agent-config commit;其他機器 `skillshare pull` |
+| 改「連到哪」(新增或搬動 symlink) | 改本 repo 的 `symlink_` 模板,`chezmoi apply` |
+| 從舊的 skillshare extras 做法換過來 | 上面兩個都要跑 |
+| 確認規則有生效 | 開新 session 打 `/context`,看 **Memory files** 那區 |
 
-所以實務上:**你在那個專案開 Claude Code / opencode,MCP server 起來、watcher 跟著跑,
-你改的檔就自動同步。** 你自己用編輯器改、沒開 agent 的那段時間不同步,但下次開 agent 就補上。
+新機器不用為規則另外做事:`chezmoi apply` 先放好 symlink,這時 agent-config 還沒 clone,symlink 是懸空的;
+選裝工具 `agent-config` 的 after 腳本 clone 完就指得到檔案。沒勾 `agent-config` 的機器,這幾個 symlink 會一直懸空。
 
-**但有一種 repo 永遠等不到那個「下次」** —— 你不會在裡面開 agent 的那種。
-工作上那兩個第三方服務的後端就是:你不在裡面開 agent,而是從前端用
-`-p <那個 repo>` 查過去,那邊沒有 server、沒有 watcher,
-`git pull` 拉進來的改動就永遠不會進索引 —— 而查詢不會告訴你索引是舊的。
+## plugin
 
-這個縫由共用的 `post-merge` hook 補:`git pull` / `git merge` 之後跑一次
-`codegraph sync -q`。成本很低,sync 比對的是檔案內容雜湊不是 mtime,內容沒變就不重解析
-—— 實測 `touch` 1000 個檔只要 0.77 秒。fast-forward 與 `--no-ff` 都會觸發(實測過)。
-
-⚠️ MCP server 不保證跟著 session 死。收拾殘留的:
-
-```bash
-for p in $(pgrep -f "codegraph.*serve --mcp"); do echo "$p -> $(readlink /proc/$p/cwd)"; done
-```
-
-## worktree 怎麼處理:索引不重建,只複製
-
-worktree 是獨立目錄,所以要自己一份 `.codegraph/`。但**不要在 worktree 跑 `codegraph init`**
-—— 索引 db 裡沒有絕對路徑(可攜),複製主 checkout 那份再 sync 就好:
-
-| 做法 | 耗時 | 峰值記憶體 |
-|---|---|---|
-| 在 worktree `codegraph init` | 25 秒 | 2.9 GB |
-| `cp -r` 主索引 + `codegraph sync` | **約 1 秒** | **123 MB** |
-
-sync 只重解析跟主 checkout 不同的那幾個檔(實測輸出 `Modified: 1 — 4 nodes in 60ms`),
-之後查到的就是 worktree 自己的版本。
-
-⚠️ **一定是 `cp`,不能 symlink。** worktree 的 sync 會寫回索引,symlink 會把主 checkout
-那份寫髒。`node_modules` 可以 symlink,這個不行。
-
-### 為什麼不共用主 checkout 的索引
-
-`codegraph_explore` 有 `projectPath` 參數,技術上可以站在 worktree 查主 checkout 的索引。
-**但不要這樣用。** 實測(兩份程式碼,worktree 那份的函式多一個參數):它回傳的是主 checkout
-的檔案內容,而那段輸出自己寫著
-
-> The code below is the **verbatim, current on-disk source** … byte-for-byte identical to what
-> the Read tool returns. It is NOT a summary, outline, or stale cache. **Treat each block as a
-> Read you have already performed: do not Read a file shown here.**
-
-所以 agent 不會 fallback —— 它被明確告知那就是磁碟上的內容。你改過的檔案會拿到舊簽名,
-而且路徑只是相對路徑(`src/pricing.ts:1`),看不出是哪個 checkout,**沒有任何不一致的訊號**。
-`--max-files 0` 也不會關掉那段原始碼。
-
-真的只想要跨檔關係,走 CLI(這兩個只輸出 `符號 + 檔案:行號`,不貼內容):
-
-```bash
-codegraph callers <symbol> -p ~/code/<repo>
-codegraph impact  <symbol> -p ~/code/<repo>
-```
-
-### 自動化:全域 git 設定 + 一支共用 hook
-
-設定全部在全域、由 chezmoi 部署,**不用逐 repo 設**:
-
-| chezmoi 檔案 | 部署到 | 做什麼 |
-|---|---|---|
-| `home/dot_config/git/ignore` | `~/.config/git/ignore` | 全機器忽略 `.codegraph/`(git 預設就讀這路徑,不用設 `core.excludesFile`) |
-| `home/dot_config/git/config` | `~/.config/git/config` | `includeIf gitdir:~/code/` |
-| `home/dot_config/git/config-code` | 同目錄 | `core.hooksPath = ~/.config/git/hooks` |
-| `home/dot_config/git/hooks/executable_post-checkout` | `~/.config/git/hooks/post-checkout`(755) | 新 worktree:複製主索引 + sync |
-| `home/dot_config/git/hooks/executable_post-merge` | `~/.config/git/hooks/post-merge`(755) | `git pull` / `merge` 後 sync |
-
-三件實測過的事:
-
-- `git worktree add` **會**觸發 `post-checkout`,所以不管用 herdr、`git worktree add` 還是
-  IDE 開,都會跑到這支 —— 不需要在每個開 worktree 的流程裡各寫一次
-- **worktree 開在 `~/code` 外面也生效**。`includeIf` 比對的是 **gitdir** 不是工作目錄,而
-  herdr 放在 `~/.herdr/worktrees/<repo>/<slug>/` 的 worktree,gitdir 是
-  `~/code/<repo>/.git/worktrees/<slug>`
-- 改 `core.hooksPath` 沒踩掉任何東西:設定當時 `~/code` 的 12 個 repo 加 8 個子 repo,
-  `.git/hooks/` 全部只有 `.sample`
-
-實際跑一次 `git worktree add` 的樣子:
-
-```
-$ git worktree add -b tmp ../wt-check
-codegraph: 索引已從 /home/henry/code/<主 checkout> 複製並同步
-worktree add 總耗時 2.85 秒
-```
-
-⚠️ **`~/.gitconfig` 一個字都不用改。** git 會同時讀 `~/.config/git/config` 和 `~/.gitconfig`
-(`git config --list --show-origin` 會列出兩個檔),所以那份放 `user.email` 的不必動。
-
-⚠️ **repo 自己在 local config 設了 `core.hooksPath`,共用 hook 就靜默失效** —— local 贏
-global。husky 就是這樣做的(`core.hooksPath=.husky/_`)。檢查:
-
-```bash
-git config --get core.hooksPath     # 有輸出 = 被搶走了
-```
-
-那種 repo 要在它自己的 hook 目錄放轉接。husky 的 `.husky/_/h` 會去執行 `.husky/<hook名>`,
-不存在就 `exit 0`,所以放這裡。**hook 名字用 `$0` 推、不寫死**,同一份內容可以複製給任何
-hook —— 以後接第三支直接 `cp`:
-
-```sh
-# <repo>/.husky/post-checkout   ← 未追蹤,要進 .git/info/exclude
-#!/bin/sh
-h="$HOME/.config/git/hooks/$(basename "$0")"
-[ -x "$h" ] && "$h" "$@"
-exit 0
-```
-
-```bash
-cd <repo>
-chmod +x .husky/post-checkout
-cp .husky/post-checkout .husky/post-merge      # 兩支共用同一份內容
-chmod +x .husky/post-merge
-gcd=$(git rev-parse --git-common-dir)
-echo '.husky/post-checkout' >> "$gcd/info/exclude"
-echo '.husky/post-merge'    >> "$gcd/info/exclude"
-git status --short                              # 要是空的
-```
-
-用 `.git/info/exclude` 不用 `.gitignore`:前者是機器本地、永不 commit、共用 git dir
-所以所有 worktree 立刻生效;後者是被追蹤的檔案,會 commit 給同事,而且已經開好的
-worktree 在別的 branch 上看不到。
-
-最後那行 `exit 0` **不能省**:husky 的 `h` 結尾是 `exit $c`,會把 hook 的 exit code 傳回去,
-而 `[ -x ... ] && ...` 在檔案不存在時整條 AND-list 回 1,husky 就印
-`husky - post-checkout script failed (code 1)`。同理,共用那支 hook 裡全部用 `if` 包、
-最後明確 `exit 0` —— 它是被 `sh -e` 執行的。
-
-## playwright-cli:操作瀏覽器用,瀏覽器借 headless-chrome 那支
-
-agent 要點、填表、跑流程、截圖時用 `playwright-cli`,查原因才用 chrome-devtools-mcp,
-分工見 [ADR 0001](adr/0001-browser-tools-drive-vs-debug.md)。勾選裝工具 `playwright-cli`,
-chezmoi 就跑 `npm install -g @playwright/cli`(要一起勾 `nvm`,同 codegraph)。
-
-| 問題 | 答案 |
-|---|---|
-| 瀏覽器從哪來 | 預設用系統的 `/opt/google/chrome/chrome`,也就是選裝工具 `headless-chrome` 裝的那支 |
-| 沒有那支 Chrome 會怎樣 | `open` 直接報錯 `Chromium distribution 'chrome' is not found`,**不會自己下載**(2026-10-06 在 `node:22-bookworm-slim` 容器實測 0.1.22) |
-| 那為什麼不讓它自己抓 | `playwright-cli install-browser` 不給參數會把 chromium、firefox、webkit 全抓下來,系統函式庫還要另外 apt |
-| 哪些機器出現在選單 | 跟 `headless-chrome` 同一個條件:非 WSL 的 amd64。WSL 用 Windows 的 Chrome,ARM 沒有 Google 的 `.deb` |
-| skill 在哪 | 不在這個 repo。`playwright-cli install --skills` 那份由 agent-config 用 skillshare 發 |
-
-跟 codegraph 一樣,npm 全域套件綁在當下的 node 版本,`nvm use` 換版本後要重裝一次。
-
-## opencode
-
-`home/dot_config/opencode/modify_private_opencode.json.tmpl`(部署成權限 600 的
-`~/.config/opencode/opencode.json`)管 provider、agent、plugin(含 `opencode-wakatime`)。
-它是 `modify_`:整份照 repo 的版本輸出,只有 `mcp` 那段換回現有檔案裡的 —— 那段是
-skillshare 寫的,見 agent-config 的[〈誰寫哪一段〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#誰寫哪一段)。
-
-除了 `mcp`,其他 key 仍然是 repo 說了算:installer 或 opencode 自己寫進去的其他設定,
-下次 `chezmoi apply` 會被蓋回 repo 版,而且不會有提示。要留住就改 repo 那份再 apply。
-
-改完驗證(這個檔含明文 API key,不要直接 cat):
-
-```bash
-chezmoi cat ~/.config/opencode/opencode.json | jq empty        # JSON 合法嗎
-chezmoi apply ~/.config/opencode/opencode.json
-opencode mcp list                                             # 看有沒有 connected
-```
-
-sequential-thinking 以前也寫在這裡,已經拿掉:Anthropic 從 2025-12 起建議改用 extended
-thinking 取代,而且長 session 記憶體會漲到 10GB 以上。
-
-### provider 與 API key
-
-這份設定有自訂 base URL 的 `codex-lb-gcp` provider,所以不能只靠 `opencode auth login`。
-provider 結構跟著 dotfiles 走,API key 則在 `chezmoi init` 時問(`home/.chezmoi.toml.tmpl`),
-只存在 repo 外的 `~/.config/chezmoi/chezmoi.toml`。
-
-fork 這個 repo 時要換掉 provider 的 base URL,並在 `chezmoi init` 輸入自己的 key。不要把
-渲染後的 `~/.config/opencode/opencode.json` 收回 repo,那份含明文 key。
-
-> chrome-devtools 的版本釘在 agent-config 的 `mcp.yaml`,升級就改那裡再 `skillshare sync mcp -g`。
-
----
-
-# 4. plugin
-
-Claude 專屬的擴充包,一個 plugin 裡面可能同時有 skill、MCP、slash 指令。
+Claude 專屬的擴充包,一個 plugin 裡可能同時有 skill、MCP、slash 指令。
 **`skillshare update` 完全管不到它們**,這是最容易搞混的地方。
 
-```
-Claude 裡打 /plugin   → 瀏覽、安裝、更新、移除
-```
+- Claude 裡打 `/plugin` 瀏覽、安裝、更新、移除。檔案在 `~/.claude/plugins/`,清單在 `installed_plugins.json`。
+- 新機器要裝哪些、`chrome-devtools-mcp` 為什麼關掉,見[新機器設定 4.5](new-machine-setup.md#45-mcpskills-與-claude-plugin)。
+- opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由本 repo 的 [opencode 設定](opencode.md)管,
+  跟 Claude 的 plugin 無關。
+- ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供一般 skill repo 和 Claude plugin
+  兩條路(例如 mattpocock),兩邊都裝會變成每個 skill 兩份。選一條。
 
-檔案在 `~/.claude/plugins/`,清單在 `installed_plugins.json`。
-
-opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由 opencode 自己管,
-跟 Claude 的 plugin 無關。
-
-> ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供一般 skill repo 和 Claude plugin
-> 兩條路(例如 mattpocock),兩邊都裝會變成每個 skill 兩份。選一條。
-
----
-
-# 5. 要不要裝一個新工具
-
-看到一個工具想裝的時候,這四個問題。**這裡不列「該裝什麼」的清單** —— 清單會過時
-(要看現況跑 `skillshare list -v`),判準不會。
-
-## 5-1 跟現有的重疊嗎
-
-重疊的不要裝第二份。**skill 每多一個,每個 session 就多一段 description 常駐在 context 裡**,
-而重複的指令本身會讓 agent 更難遵守(跟〈不要把本體放在 dotfiles/.claude/CLAUDE.md〉同一個道理)。
-
-caveman 只挑一個裝的例子見 [agent-config 的〈選 skill 的原則〉](https://github.com/henry5720/agent-config#選-skill-的原則)。
-
-## 5-2 成本量過了嗎
-
-量,不要估。codegraph 的數字是實際跑出來的:7,135 檔的前端 261 MB、20 秒、**峰值 2.9 GB
-記憶體**;`.wslconfig` 只給 16 GB,這個數字會影響「幾個 worktree 能同時 init」這種決定。
-
-而量過之後結論可能翻盤:原本因為「11 個 worktree × 261 MB 太貴」打算不在 worktree 用
-codegraph,量完發現 `df` 有 931 G 可用(0.3%),而且複製主索引只要 1 秒 —— 反對的理由兩個
-都不成立。**憑印象估成本會做出錯的決定。**
-
-## 5-3 它承諾的行為,實測過嗎
-
-README 寫的不算。codegraph 的 README 說「存檔 2 秒內自動同步」,實測 `init` 完根本沒有
-watcher 行程,要有 MCP server 在跑才會同步(見〈索引什麼時候會跟上你的改動〉)。
-如果照 README 相信,就會為了「補同步」去掛 git hook —— 解一個不存在的問題。
-
-## 5-4 它自己寫的設定,chezmoi 會不會蓋掉
-
-裝完跑 `chezmoi verify`。四種情況:
-
-| installer 寫進哪 | 結果 | 怎麼辦 |
-|---|---|---|
-| `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,重建清單記一行指令 |
-| `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份 |
-| 指令檔的 symlink(`~/.claude/CLAUDE.md`、各 `AGENTS.md`) | 寫進去就改到 agent-config 的 source | 在 agent-config 看 `git diff`,要留就 commit |
-| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
-
----
-
-# 換機器怎麼重建
-
-完整的新機器順序已移到 [new-machine-setup.md](new-machine-setup.md)。這份文件保留
-agent、MCP、skill、plugin、OpenCode 與 codegraph 的「誰管什麼」和日常操作;換機器時
-照 Runbook 的順序,再從這裡連到各工具的細節,不要把整份設定手抄進 repo。
-
-Runbook 的邊界是:**chezmoi 恢復家目錄設定,各 repo 的 codegraph index 仍要逐 repo
-重建,登入狀態與秘密不搬移也不進 repo**。skill 的停用狀態也不在 repo 裡 —— 新機器裝完
-skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)重跑一次移 symlink。codegraph 的索引、worktree、hook 轉接細節
-見 [codegraph 的索引是每個專案自己的事](#codegraph-的索引是每個專案自己的事)。
-
----
-
-# 懶人包
+## 懶人包
 
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
-| 新機器套用規則 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
-| 裝／更新 skill、寫自己的 skill | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
+| 新機器套用規則、要重裝什麼 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
+| 裝／更新 skill、寫自己的 skill、接 MCP | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
-| 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |
-| 接一個 MCP(三個 client 都要) | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
-| 讓 agent 用瀏覽器 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(amd64 限定,要勾選裝工具 `headless-chrome`,見[新機器設定 4.1](new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有))。再在 session 裡 `/mcp` 確認連上 |
-| 讓 agent 點、跑流程、截圖(不查原因) | 遠端主機勾 `playwright-cli`,見 [playwright-cli](#playwright-cli操作瀏覽器用瀏覽器借-headless-chrome-那支) |
-| 換過 node 版本後 playwright-cli 不見了 | `npm i -g @playwright/cli` 再裝一次 |
-| 讓 agent 用 symbol 圖查程式碼,不要一直 grep | 在那個專案 `codegraph init`,見 [codegraph](#codegraph設定會回來但它塞進-claudemd-的那段不會) |
-| 換過 node 版本後 codegraph 掛了 | `npm i -g @colbymchenry/codegraph` 再裝一次(npm -g 綁 node 版本) |
-| 新 worktree 要有 codegraph 索引 | 什麼都不用做,共用 `post-checkout` hook 會複製主索引(約 1 秒) |
-| 某個 repo 的共用 hook 沒生效 | `git config --get core.hooksPath` —— 有輸出就是被 husky 之類搶走了,補轉接 |
-| 換新機器要重裝什麼 | 見[新機器設定 Runbook](new-machine-setup.md) |
+| 關掉不用的 skill | 見 agent-config 的[〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關);新機器裝完 skill 會全部是開的,要重關一次 |
+| 讓 agent 用瀏覽器查原因 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(見[新機器設定 4.1](new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有)),再在 session 裡 `/mcp` 確認連上 |
+| 讓 agent 點、跑流程、截圖 | 遠端主機勾 `playwright-cli`,見 [playwright-cli](playwright-cli.md) |
+| 讓 agent 用 symbol 圖查程式碼,不要一直 grep | `codegraph-setup-repo ~/code/<repo>`,見 [codegraph](codegraph.md) |
+| 換過 node 版本後 codegraph／playwright-cli 不見了 | 重裝那個 npm 全域套件,見 [codegraph](codegraph.md#換-node-版本之後) |
+| 某個 repo 的共用 git hook 沒生效 | 見 [codegraph](codegraph.md#repo-自己搶走-corehookspath) |
+| 改 opencode 的 provider、agent、plugin | 見 [opencode](opencode.md) |
 | 更新 Claude plugin | Claude 裡打 `/plugin` |
-| 確認規則有生效 | 開新 session 打 `/context`,看 **Memory files** 那區 |

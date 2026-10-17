@@ -95,6 +95,9 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 - 能畫成圖的用文字圖(箭頭、縮排樹)和表格,不用 mermaid:終端機和 agent 讀的是原始文字
 - 只有 agent 要遵守的限制寫在這份 AGENTS.md,或 Runbook「交給 coding agent」那段 prompt,不另寫一份給 agent 的文件
 - Runbook 裡某一步太長(例如整張對照表),拆成主題文件,Runbook 只留一行連結
+- 搬檔案、改名或改標題(錨點會跟著變)時,連 agent-config 一起查:它的文件用
+  `https://github.com/henry5720/dotfiles/blob/main/...` 連進來,這邊一改就斷。
+  `grep -rn "henry5720/dotfiles/blob" ~/.config/skillshare --include='*.md'`,斷的到 agent-config 開 PR 修
 
 - README 的專案層包含:哪個檔部署到哪、依賴、fork 前要改什麼
 - 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)

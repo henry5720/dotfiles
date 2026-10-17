@@ -2,7 +2,7 @@
 # `git pull` / `git merge` 之後把 codegraph 索引補上。
 #
 # 為什麼需要這支 —— 索引的自動更新是綁在 MCP server 上的(見
-# docs/ai-agent-setup.md〈索引什麼時候會跟上你的改動〉):你在某個 repo 開 agent,
+# docs/codegraph.md〈索引什麼時候會跟上你的改動〉):你在某個 repo 開 agent,
 # server 起來、watcher 跟著跑,你改的檔才會即時進索引。
 #
 # 但有些 repo 你不會在裡面開 agent —— 你是從別的 repo 用 `-p <那個路徑>` 查過去的。

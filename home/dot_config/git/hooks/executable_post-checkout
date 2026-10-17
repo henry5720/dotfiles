@@ -13,7 +13,7 @@
 #    checkout 那份寫髒。node_modules 可以 symlink,這個不行。
 #
 # 4. 為什麼全部用 if 包、最後明確 exit 0 —— husky 的 shim 用 `sh -e` 執行這支
-#    (見 docs/ai-agent-setup.md),`[ 條件 ] && exit 0` 這種收尾在條件不成立時
+#    (見 docs/codegraph.md),`[ 條件 ] && exit 0` 這種收尾在條件不成立時
 #    整條 AND-list 回 1,整支就以 1 結束,husky 會印 "script failed"。
 #
 # 5. 為什麼路徑都從 --show-toplevel 算 —— 一般 `git checkout` 也會觸發這支,
