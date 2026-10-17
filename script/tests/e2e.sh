@@ -343,6 +343,10 @@ scenario_ubuntu() {
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check_tool wakatime
+  # 外掛預設找 ~/.wakatime/wakatime-cli,找不到就每個指令都印「not installed」、不計時。
+  # 上面只驗兩邊都在;這裡真的觸發一次 heartbeat,驗外掛找得到我們裝的那支。
+  check "zsh 的 WakaTime 外掛找得到 wakatime-cli" \
+    "out=\$(zsh -i -c 'type -p \"\$ZSH_WAKATIME_BIN\" && _wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
   check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
