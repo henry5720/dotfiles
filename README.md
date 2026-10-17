@@ -33,10 +33,11 @@ pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
 
 ![打上面 Ubuntu 那行、在選裝工具選單勾幾項、裝完](docs/demo/menu.gif)
 
-之後要加減選裝工具（只有 Ubuntu）：
+裝完之後：
 
 ```bash
-tools   # 重出選單，預設帶現在的勾選，Enter 之後直接裝；取消勾選不會解除安裝
+tools                                  # 加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
+chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分（見新機器設定 2.5）
 ```
 
 clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、

@@ -141,12 +141,29 @@ apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux �
 tools   # 重出選單，預設帶現在的勾選；Enter 之後直接 apply
 ```
 
-- 只會跳出選單：憑證和 Git 身分已經存過就不再問。要改它們用 `chezmoi edit-config` 改
-  `[data]` 那一行再 `chezmoi apply`。
+- 只會跳出選單：憑證和 Git 身分已經存過就不再問。要改它們見 2.5。
 - **取消勾選不會解除安裝**，只是之後不再管它。要移除用那個工具自己的方式，例如
   `sudo apt remove btop`、`npm uninstall -g <套件>`。
 - 選單以後加了新工具，舊機器不會自己問，打 `tools` 勾它才會裝。
 - 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
+
+### 2.5 之後想改憑證或 Git 身分
+
+```bash
+chezmoi edit-config   # 開 ~/.config/chezmoi/chezmoi.toml,改 [data] 底下那一行
+chezmoi apply         # 寫進用到它的檔案
+```
+
+| `[data]` 的 key | 寫進哪裡 |
+|---|---|
+| `wakatimeApiKey` | `~/.wakatime.cfg`（留空就不部署） |
+| `codexLbApiKey` | `~/.codex/config.toml`、`~/.config/opencode/opencode.json` |
+| `context7ApiKey` | `~/.config/zsh/env.zsh`（新開的 zsh 才吃到） |
+| `codeServerPassword` | `~/.config/code-server/config.yaml`（要重啟 code-server） |
+| `gitUserName`、`gitUserEmail` | `~/.gitconfig` |
+
+- 不要直接改上面右欄的檔案：下次 `chezmoi apply` 會被蓋回 `chezmoi.toml` 裡的值。
+- `chezmoi.toml` 有明文的 key，不要 `cat` 出來貼給別人或 agent。
 
 ## 3. 需要才跑的手動腳本
 
