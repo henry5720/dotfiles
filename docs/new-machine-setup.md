@@ -291,7 +291,7 @@ Claude Code、Codex 的 plugin 用 node 跑 hook，要勾 `nvm`；code-server �
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 基底套件、勾選的選裝工具、zsh／p10k／插件、預設 shell、規則、OpenCode core config、agent preset、`modify_` 設定、`chrome-mcp` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
-| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、AI 解析的 model。 |
+| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
