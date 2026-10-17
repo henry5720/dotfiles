@@ -34,7 +34,14 @@ pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
 ![打上面 Ubuntu 那行、在選裝工具選單勾幾項、裝完](docs/demo/menu.gif)
 
 clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、
-裝完之後的 AI 工具設定、之後怎麼加減選裝工具，見[新機器設定](docs/new-machine-setup.md)。
+裝完之後的 AI 工具設定，見[新機器設定](docs/new-machine-setup.md)。
+
+裝完之後最常用的兩個（其他見[裝完之後](docs/after-install.md)）：
+
+```bash
+tools                                  # 加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
+chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
+```
 
 ## repo 結構
 
@@ -85,7 +92,9 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具、之後加減選裝工具 |
+| [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
+| [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
+| [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 | [AI agent setup](docs/ai-agent-setup.md) | 改規則、plugin、codegraph、playwright-cli、opencode |
 | [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
 | [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |

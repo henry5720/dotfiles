@@ -135,18 +135,9 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
 
-### 2.4 之後想加減工具
+### 2.4 裝完之後
 
-```bash
-tools   # 重出選單，預設帶現在的勾選；Enter 之後直接 apply
-```
-
-- 只會跳出選單：憑證和 Git 身分已經存過就不再問。要改它們用 `chezmoi edit-config` 改
-  `[data]` 那一行再 `chezmoi apply`。
-- **取消勾選不會解除安裝**，只是之後不再管它。要移除用那個工具自己的方式，例如
-  `sudo apt remove btop`、`npm uninstall -g <套件>`。
-- 選單以後加了新工具，舊機器不會自己問，打 `tools` 勾它才會裝。
-- 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
+加減選裝工具、改 key、移除工具，見[裝完之後](after-install.md)。
 
 ## 3. 需要才跑的手動腳本
 
@@ -215,7 +206,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新；`chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它
-關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝（WakaTime 的 plugin 由 apply 裝，見 4.7）。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
+關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](wakatime.md)）。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
 [plugin](ai-agent-setup.md#4-plugin)。
 
 claude-hud 不在官方 marketplace，要先加它自己的：
@@ -268,30 +259,14 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 ### 4.7 WakaTime（勾了 `wakatime` 才有）
 
-`wakatime` 裝 wakatime-cli（官方位置 `~/.wakatime/wakatime-cli`），API key 由 chezmoi 寫進
-`~/.wakatime.cfg`（init 時留空就不會送）。AI coding 與編輯器的時間要靠各工具的官方 plugin 觸發
-wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會順便裝它的 plugin；只勾其中一個不裝，
-已經裝了就跳過。之後才補勾任一邊，打 `tools` 勾完就會裝。
-
-不裝 zsh 的 WakaTime 外掛：官方的 [terminal 頁面](https://wakatime.com/terminal)明講別用 terminal plugin。
-以前裝過的機器，apply 時會刪掉舊的 `~/.config/zsh/wakatime-zsh-plugin`（列在 `home/.chezmoiremove`）。
-
-| 同時勾 | 裝什麼 | 確認 |
-|---|---|---|
-| `claude` | [claude-code-wakatime](https://github.com/wakatime/claude-code-wakatime) | `claude plugin list` 有 `claude-code-wakatime@wakatime` |
-| `codex` | [codex-cli-wakatime](https://github.com/wakatime/codex-cli-wakatime) | `codex plugin list` 的 installed 有 `codex-cli-wakatime@wakatime` |
-| `code-server` | Open VSX 的 [WakaTime.vscode-wakatime](https://open-vsx.org/extension/WakaTime/vscode-wakatime) | `code-server --list-extensions` 有 `wakatime.vscode-wakatime` |
-
-Claude Code、Codex 的 plugin 用 node 跑 hook，要勾 `nvm`；code-server 的擴充跑在 server 端，
-用的是這台的設定檔。沒記到時看 `~/.wakatime/wakatime.log`（Codex 的在
-`~/.wakatime/codex-cli.log`）。Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
+第一次開 Codex 要同意 WakaTime 的 hook；裝了什麼、怎麼確認見 [WakaTime](wakatime.md)。
 
 ## 恢復邊界
 
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 基底套件、勾選的選裝工具、zsh／p10k／插件、預設 shell、規則、OpenCode core config、agent preset、`modify_` 設定、`chrome-mcp` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
-| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、AI 解析的 model。 |
+| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 

@@ -80,7 +80,21 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 
 ## 文件放哪
 
-README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;這裡只補這個 repo 的:
+README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;這裡只補這個 repo 的。
+
+新內容照「讀者什麼時候打開」放(用詞見 `GLOSSARY.md` 的「文件」),人和 agent 讀同一份:
+
+| 類別 | 什麼時候打開 | 放在 |
+|---|---|---|
+| README | 第一次看到這個 repo | `README.md`:是什麼、哪種機器部署什麼、安裝一行、裝完最常用的指令、文件索引 |
+| Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
+| 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md` |
+| 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>.md`,README 索引連過去 |
+| 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、選型比較、`docs/research/` |
+
+- 能畫成圖的用文字圖(箭頭、縮排樹)和表格,不用 mermaid:終端機和 agent 讀的是原始文字
+- 只有 agent 要遵守的限制寫在這份 AGENTS.md,或 Runbook「交給 coding agent」那段 prompt,不另寫一份給 agent 的文件
+- Runbook 裡某一步太長(例如整張對照表),拆成主題文件,Runbook 只留一行連結
 
 - README 的專案層包含:哪個檔部署到哪、依賴、fork 前要改什麼
 - 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)
