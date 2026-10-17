@@ -3,27 +3,39 @@
 # 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
+#
+# wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-linux-<arch>,
+# 再 symlink 成 ~/.wakatime/wakatime-cli。zsh 外掛預設找這支;各編輯器的 WakaTime 外掛也用同一支、
+# 還會自己更新它,已經有了就不重抓。
 set -eu
 {{ template "sh-arch" . }}
 # 1. wakatime-cli
-if command -v wakatime-cli >/dev/null 2>&1; then
+case "$(uname -m)" in
+  x86_64) asset=amd64 ;;
+  aarch64) asset=arm64 ;;
+  *) skip_arch wakatime-cli ;;
+esac
+dir="$HOME/.wakatime"
+bin="$dir/wakatime-cli-linux-$asset"
+if [ -x "$bin" ]; then
   echo "wakatime-cli 已安裝,跳過"
 else
-  case "$(uname -m)" in
-    x86_64) asset=amd64 ;;
-    aarch64) asset=arm64 ;;
-    *) skip_arch wakatime-cli ;;
-  esac
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/wakatime.zip" \
     "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-linux-$asset.zip"
   unzip -q "$tmp/wakatime.zip" -d "$tmp"
-  mkdir -p "$HOME/.local/bin"
-  install -m 755 "$tmp/wakatime-cli-linux-$asset" "$HOME/.local/bin/wakatime-cli"
+  mkdir -p "$dir"
+  install -m 755 "$tmp/wakatime-cli-linux-$asset" "$bin"
+fi
+ln -sfn "$bin" "$dir/wakatime-cli"
+
+# 2. 舊版放在 ~/.local/bin/wakatime-cli,刪掉,只留官方位置那支
+if [ -f "$HOME/.local/bin/wakatime-cli" ] && [ ! -L "$HOME/.local/bin/wakatime-cli" ]; then
+  rm -f "$HOME/.local/bin/wakatime-cli"
 fi
 
-# 2. zsh 外掛
+# 3. zsh 外掛
 plugin="$HOME/.config/zsh/wakatime-zsh-plugin"
 if [ ! -d "$plugin" ]; then
   git clone --depth=1 https://github.com/sobolevn/wakatime-zsh-plugin.git "$plugin"

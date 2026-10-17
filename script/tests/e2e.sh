@@ -217,7 +217,8 @@ declare -A TOOL_CHECK=(
   [tailscale]="command -v tailscale"
   [herdr]="command -v herdr"
   [ttyd]="command -v ttyd"
-  [wakatime]="command -v wakatime-cli && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
+  # 官方位置:~/.wakatime/wakatime-cli 是指到 wakatime-cli-linux-<arch> 的 symlink
+  [wakatime]="[ -L ~/.wakatime/wakatime-cli ] && ~/.wakatime/wakatime-cli --version && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
   [claude]="command -v claude && claude --version"
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
@@ -356,7 +357,7 @@ scenario_ubuntu() {
   # 外掛預設找 ~/.wakatime/wakatime-cli,找不到就每個指令都印「not installed」、不計時。
   # 上面只驗兩邊都在;這裡真的觸發一次 heartbeat,驗外掛找得到我們裝的那支。
   check "zsh 的 WakaTime 外掛找得到 wakatime-cli" \
-    "out=\$(zsh -i -c 'type -p \"\$ZSH_WAKATIME_BIN\" && _wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
+    "out=\$(zsh -i -c '_wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
   check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
