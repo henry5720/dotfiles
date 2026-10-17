@@ -269,7 +269,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 ### 4.7 WakaTime（勾了 `wakatime` 才有）
 
 `wakatime` 裝 wakatime-cli（官方位置 `~/.wakatime/wakatime-cli`），API key 由 chezmoi 寫進
-`~/.wakatime.cfg`（init 時留空就不會送）。AI coding 的時間要靠各 agent 的官方 plugin 觸發
+`~/.wakatime.cfg`（init 時留空就不會送）。AI coding 與編輯器的時間要靠各工具的官方 plugin 觸發
 wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會順便裝它的 plugin；只勾其中一個不裝，
 已經裝了就跳過。之後才補勾任一邊，打 `tools` 勾完就會裝。
 
@@ -277,8 +277,10 @@ wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會�
 |---|---|---|
 | `claude` | [claude-code-wakatime](https://github.com/wakatime/claude-code-wakatime) | `claude plugin list` 有 `claude-code-wakatime@wakatime` |
 | `codex` | [codex-cli-wakatime](https://github.com/wakatime/codex-cli-wakatime) | `codex plugin list` 的 installed 有 `codex-cli-wakatime@wakatime` |
+| `code-server` | Open VSX 的 [WakaTime.vscode-wakatime](https://open-vsx.org/extension/WakaTime/vscode-wakatime) | `code-server --list-extensions` 有 `wakatime.vscode-wakatime` |
 
-plugin 的 hook 用 node 跑，要勾 `nvm`。沒記到時看 `~/.wakatime/wakatime.log`（Codex 的在
+Claude Code、Codex 的 plugin 用 node 跑 hook，要勾 `nvm`；code-server 的擴充跑在 server 端，
+用的是這台的設定檔。沒記到時看 `~/.wakatime/wakatime.log`（Codex 的在
 `~/.wakatime/codex-cli.log`）。Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
 
 ## 恢復邊界

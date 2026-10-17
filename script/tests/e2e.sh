@@ -238,11 +238,12 @@ declare -A TOOL_CHECK=(
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
-# 各 agent 的官方 WakaTime plugin:wakatime 和那個 agent 都勾了才裝(#172、#173)。
+# 各 agent／編輯器的官方 WakaTime plugin:wakatime 和那個工具都勾了才裝(#172、#173、#174)。
 # 從 agent 自己的 plugin 清單看,不看檔案位置。
 declare -A WAKA_PLUGIN=(
   [claude]="claude plugin list --json | jq -e 'any(.[]; .id == \"claude-code-wakatime@wakatime\")'"
   [codex]="codex plugin list --json | jq -e 'any(.installed[]?; .pluginId == \"codex-cli-wakatime@wakatime\")'"
+  [code-server]="code-server --list-extensions | grep -qix wakatime.vscode-wakatime"
 )
 check_waka_plugin()    { check "$1 的 WakaTime plugin 已安裝" "${WAKA_PLUGIN[$1]}"; }
 check_no_waka_plugin() { check "$1 的 WakaTime plugin 沒有安裝" "! { ${WAKA_PLUGIN[$1]}; }"; }
@@ -458,6 +459,8 @@ scenario_ubuntu() {
     "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\",\"claude\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && grep -q 'plugin install claude-code-wakatime@wakatime' /tmp/waka.sh && ! grep -qE 'codex plugin|--install-extension' /tmp/waka.sh"
   check "wakatime + codex 時腳本只多 Codex CLI 那段" \
     "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\",\"codex\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && grep -q 'plugin add codex-cli-wakatime@wakatime' /tmp/waka.sh && ! grep -qE 'claude-code-wakatime|--install-extension' /tmp/waka.sh"
+  check "wakatime + code-server 時腳本只多 code-server 那段" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\",\"code-server\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && grep -q 'install-extension WakaTime.vscode-wakatime' /tmp/waka.sh && ! grep -qE 'claude-code-wakatime|codex-cli-wakatime' /tmp/waka.sh"
 
   # 容器的 config 已經勾了 playwright-cli,要蓋成空的才是「沒勾」
   bold "▶ (渲染)playwright-cli"

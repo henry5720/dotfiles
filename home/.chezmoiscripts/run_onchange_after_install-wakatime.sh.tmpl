@@ -2,7 +2,7 @@
 #!{{ lookPath "sh" }}
 # 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
-# 同時勾了 claude、codex 的機器再裝那個 agent 的官方 WakaTime plugin(第 4 段起)。放在這支、不另開腳本:
+# 同時勾了 claude、codex、code-server 的機器再裝那邊的官方 WakaTime plugin／擴充(第 4 段起)。放在這支、不另開腳本:
 # 勾選組合一變,這支渲染出來的內容就變,run_onchange 會重跑,舊機器補勾也會裝到;
 # 而且照檔名順序,install-claude 等腳本已經先跑完。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
@@ -74,6 +74,20 @@ elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginI
 else
   "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null
   "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
+fi
+{{- end }}
+{{- if has "code-server" (index . "tools") }}
+
+# 6. code-server 的 WakaTime 擴充:code-server FAQ 的 --install-extension,預設從 Open VSX 抓
+#    WakaTime.vscode-wakatime。擴充跑在 server 端,用這台的 ~/.wakatime/wakatime-cli 與 ~/.wakatime.cfg。
+#    code-server 不在 PATH 的話(非 apt 安裝)找 installer 的 standalone 位置。
+cs=$(command -v code-server || echo "$HOME/.local/bin/code-server")
+if [ ! -x "$cs" ]; then
+  echo "找不到 code-server,跳過 code-server 的 WakaTime 擴充"
+elif "$cs" --list-extensions </dev/null | grep -qix 'wakatime.vscode-wakatime'; then
+  echo "code-server 的 WakaTime plugin 已安裝,跳過"
+else
+  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null
 fi
 {{- end }}
 {{ end -}}
