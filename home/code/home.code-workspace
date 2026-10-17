@@ -1,0 +1,16 @@
+{
+  "folders": [
+    { "path": "." },
+    { "path": "../.local/share/chezmoi", "name": "chezmoi" },
+    { "path": "../.config/herdr", "name": "herdr" },
+    { "path": "../.config/skillshare", "name": "skillshare" }
+  ],
+  "settings": {
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/.pnpm-store/**": true,
+      "**/dist/**": true,
+      "**/.git/objects/**": true
+    }
+  }
+}
