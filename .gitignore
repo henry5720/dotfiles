@@ -4,7 +4,7 @@
 # 1. 本機專屬設定
 # ===============================================================
 # 生效的設定檔由 chezmoi apply 產生在家目錄,本來就不在 repo 內。
-# 秘密走 chezmoi 的 promptStringOnce,存在 ~/.config/chezmoi/(repo 外)。
+# 秘密在 chezmoi init 時問(home/.chezmoi.toml.tmpl),存在 ~/.config/chezmoi/(repo 外)。
 *.local
 
 # ===============================================================

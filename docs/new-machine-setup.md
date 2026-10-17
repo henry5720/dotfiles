@@ -26,8 +26,8 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 遇到 sudo 密碼或權限、任何秘密/API key/password、Claude OAuth、SSH key、需要瀏覽器
 登入、或 optional choice 時,請先暫停並詢問我,不要猜測或代替我選擇。不要讀取、列印、
 儲存、複製或提交任何憑證;不要把 Claude OAuth 或 SSH private key 寫進 repo。
-不要執行 chezmoi init --prompt(它會重問所有憑證,直接 Enter 會清空)。
-要改選裝工具就請我自己用 chezmoi edit-config 改。
+不要執行 tools 或 chezmoi init --prompt(會跳出選單要人勾)。
+要改選裝工具就請我自己打 tools。
 
 完成後只回報每一步的結果與尚未處理的人工項目。
 ```
@@ -137,8 +137,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 | `nvm` | Node／npm；`codegraph`、`playwright-cli`、OmO 都要它 |
 | `code-server`、`tailscale`、`ttyd`、`herdr`、`wakatime` | 遠端編輯、VPN、`share-shell` 用的 web terminal、agent 多工、計時 |
 | `claude`、`codex`、`opencode` | 三個 AI CLI，work 設定由 chezmoi 部署 |
-| `document-media` | `ffmpeg`、`mupdf-tools`、`pandoc`、`python3-venv`，給 `local-artifact-intake` skill |
-| `ai-document-media` | 獨立 venv 裝 `docling`、`faster-whisper`，**好幾 GB**，見第 4 步 |
+| `ffmpeg`、`mupdf-tools`、`pandoc` | 影音轉檔、讀 PDF（`mutool`）、文件格式互轉，給 `local-artifact-intake` skill |
 | `codegraph` | 用 npm 裝，要一起勾 `nvm`（或機器上本來就有 npm） |
 | `headless-chrome` | 遠端主機給 agent 自己開瀏覽器；WSL 和非 amd64 不列 |
 | `playwright-cli` | agent 操作瀏覽器用，借 `headless-chrome` 那支 Chrome，條件同上；用 npm 裝，要一起勾 `nvm` |
@@ -148,19 +147,15 @@ apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux �
 
 ### 2.4 之後想加減工具
 
-第一次 `chezmoi init` 之後的 `chezmoi apply` 不再問選單。要改選擇，直接改存下來的設定：
-
 ```bash
-chezmoi edit-config   # 改 [data] 底下的 tools = [...] 那一行
-chezmoi apply         # 新勾的工具這時才裝
+tools   # 重出選單，預設帶現在的勾選；Enter 之後直接 apply
 ```
 
-- **取消勾選不會解除安裝**，只是之後不再管它；要移除自己手動移。
-- 可選的名稱就是 `home/.chezmoi.toml.tmpl` 裡 `$toolChoices` 列的那些。**選單以後加了新工具，
-  舊機器不會自動問**，一樣用 `edit-config` 加進去。
-- ⚠️ 也可以 `chezmoi init --prompt` 重出選單，但它會把**所有**問題重問一遍。選單與 Git 身分的
-  預設是現在存的值，直接 Enter 會保留；**憑證的預設是空的**（刻意不帶現值，免得明文印在
-  提示上），直接 Enter 會把憑證清空。用之前先準備好要重填的值。
+- 只會跳出選單：憑證和 Git 身分已經存過就不再問。要改它們用 `chezmoi edit-config` 改
+  `[data]` 那一行再 `chezmoi apply`。
+- **取消勾選不會解除安裝**，只是之後不再管它。要移除用那個工具自己的方式，例如
+  `sudo apt remove btop`、`npm uninstall -g <套件>`。
+- 選單以後加了新工具，舊機器不會自己問，打 `tools` 勾它才會裝。
 - 已經裝過的工具不會重裝；chezmoi 也不負責更新選裝工具。
 
 ## 3. 需要才跑的手動腳本
@@ -176,26 +171,12 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 
 ## 4. AI 工具收尾（Ubuntu）
 
-### 4.1 AI 文件／影音解析（選了 `ai-document-media` 才有）
-
-venv 在 `~/.local/share/ai-document-media/venv`，只裝 `docling` 與 `faster-whisper`。要改用
-自己裝好的 uv 建 venv，在 apply 前設 `AI_DOCUMENT_MEDIA_BACKEND=uv`；沒有 uv 會停，不會替你下載。
-
-它不會下載或初始化 model。使用前由人手把 model 放在本機，以 `WHISPER_MODEL_DIR` 等 local
-path 指定，並讓 skill 以 offline mode 執行；沒有本機 model 就回報 blocker，不可讓工具連網
-下載。Tika 只有在 `TIKA_SERVER_JAR` 指向已存在的本機 JAR 時才可作 fallback。確認 venv：
-
-```bash
-AI_DOCUMENT_MEDIA_VENV="${AI_DOCUMENT_MEDIA_VENV:-$HOME/.local/share/ai-document-media/venv}"
-"$AI_DOCUMENT_MEDIA_VENV/bin/python" -c 'import docling, faster_whisper'
-```
-
-### 4.2 headless Chrome（選了 `headless-chrome` 才有）
+### 4.1 headless Chrome（選了 `headless-chrome` 才有）
 
 裝的是 Google 官方的 `.deb`，外加中文和 emoji 字型（沒裝的話截圖會是方框）。怎麼開、跟桌機的
 `chrome-mcp` 怎麼輪流使用 9222，見 agent-config 的 chrome-mcp skill。
 
-### 4.3 安裝／同步 oh-my-opencode-slim
+### 4.2 安裝／同步 oh-my-opencode-slim
 
 chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
 installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
@@ -212,7 +193,7 @@ OmO 的 `@claude-code` ACP adapter 由 config 以 `npx` 按需啟動，不需要
 herdr integration install opencode
 ```
 
-### 4.4 登入 Claude Code
+### 4.3 登入 Claude Code
 
 ```bash
 claude auth status
@@ -222,13 +203,13 @@ claude auth status
 狀態不能搬到另一台機器，也不能放進 repo。個人入口要另外登入並填妥 personal model，見
 [AI profile routing](ai-profile-routing.md)，未完成前不要視為可用。
 
-### 4.5 驗證 OpenCode 與 Claude Code ACP
+### 4.4 驗證 OpenCode 與 Claude Code ACP
 
 啟動 `opencode`，在互動介面輸入 `ping all agents`；需要單獨確認 Claude 時，再用
 `@claude-code` 做一個短 smoke test。這個驗證只確認 agent 路徑，不代表所有 optional MCP
 都已安裝。
 
-### 4.6 MCP、skills 與 Claude plugin
+### 4.5 MCP、skills 與 Claude plugin
 
 MCP 不歸 chezmoi 管。server 清單在 agent-config 的 `mcp.yaml`（`skillshare mcp list` 看得到），
 由 skillshare 寫進 Claude Code、Codex、OpenCode 三邊。選單的 `agent-config` 在 apply 時
@@ -259,7 +240,7 @@ claude plugin install claude-hud@claude-hud
 重跑 `/claude-hud:setup` 即可。顯示偏好 `~/.claude/plugins/claude-hud/config.json` 由 chezmoi
 放好，用 `/claude-hud:configure` 改過之後要 `chezmoi re-add` 收回來。
 
-### 4.7 各 repo 的 codegraph setup
+### 4.6 各 repo 的 codegraph setup
 
 codegraph index 是每個 repo 自己的狀態，不會隨 dotfiles 一起搬。先把需要工作的 repo
 放回 `~/code`，再對每個 repo 執行：
@@ -314,7 +295,7 @@ opencode
 npx --yes oh-my-opencode-slim@latest doctor
 ```
 
-`opencode` 裡的互動驗證同 4.5。`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出
+`opencode` 裡的互動驗證同 4.4。`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出
 與本次重建無關的 drift，先依該檔案所屬 repo 的情況處理，不要為了讓驗證變綠就覆蓋未知的本機修改。
 
 其他現況查詢：

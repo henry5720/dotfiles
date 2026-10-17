@@ -372,8 +372,8 @@ thinking 取代,而且長 session 記憶體會漲到 10GB 以上。
 ### provider 與 API key
 
 這份設定有自訂 base URL 的 `codex-lb-gcp` provider,所以不能只靠 `opencode auth login`。
-provider 結構跟著 dotfiles 走,API key 則由 `home/.chezmoi.toml.tmpl` 的 `promptStringOnce`
-在 `chezmoi init` 時詢問,只存在 repo 外的 `~/.config/chezmoi/chezmoi.toml`。
+provider 結構跟著 dotfiles 走,API key 則在 `chezmoi init` 時問(`home/.chezmoi.toml.tmpl`),
+只存在 repo 外的 `~/.config/chezmoi/chezmoi.toml`。
 
 fork 這個 repo 時要換掉 provider 的 base URL,並在 `chezmoi init` 輸入自己的 key。不要把
 渲染後的 `~/.config/opencode/opencode.json` 收回 repo,那份含明文 key。
@@ -464,7 +464,7 @@ skill 會全部是開的,照 agent-config 的[〈怎麼關〉](https://github.co
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 移 symlink 到 `~/.claude/skills-disabled/`,或 `/skills` 選單切狀態(見 [〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關)) |
 | 接一個 MCP(三個 client 都要) | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
-| 讓 agent 用瀏覽器 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(amd64 限定,要勾選裝工具 `headless-chrome`,見[新機器設定 4.2](new-machine-setup.md#42-headless-chrome選了-headless-chrome-才有))。再在 session 裡 `/mcp` 確認連上 |
+| 讓 agent 用瀏覽器 | `chrome-mcp`:WSL 開 Windows Chrome,遠端主機開本機的 headless Chrome(amd64 限定,要勾選裝工具 `headless-chrome`,見[新機器設定 4.1](new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有))。再在 session 裡 `/mcp` 確認連上 |
 | 讓 agent 點、跑流程、截圖(不查原因) | 遠端主機勾 `playwright-cli`,見 [playwright-cli](#playwright-cli操作瀏覽器用瀏覽器借-headless-chrome-那支) |
 | 換過 node 版本後 playwright-cli 不見了 | `npm i -g @playwright/cli` 再裝一次 |
 | 讓 agent 用 symbol 圖查程式碼,不要一直 grep | 在那個專案 `codegraph init`,見 [codegraph](#codegraph設定會回來但它塞進-claudemd-的那段不會) |

@@ -189,9 +189,7 @@ PY
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
-# 文件解析兩項一般用不到又重,不在這裡實裝,只做下面的渲染檢查:
-# - document-media:apt 裝 ffmpeg、mupdf-tools、pandoc,相依套件一大串
-# - ai-document-media:docling + faster-whisper 的 venv,好幾 GB(實裝在一次性容器手動驗過,見 #65)
+# ffmpeg、mupdf-tools、pandoc 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
 TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # agent-config 的預設 remote 是 GitHub 的 HTTPS(check_git_remotes 驗)。安裝測試用
@@ -213,8 +211,9 @@ declare -A TOOL_CHECK=(
   [claude]="command -v claude && claude --version"
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
-  [document-media]="[ \$(dpkg-query -W -f='\${Status}\\n' ffmpeg mupdf-tools pandoc 2>/dev/null | grep -c 'install ok installed') = 3 ]"
-  [ai-document-media]="~/.local/share/ai-document-media/venv/bin/python -c 'import docling, faster_whisper'"
+  [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
+  [mupdf-tools]="dpkg-query -W -f='\${Status}' mupdf-tools 2>/dev/null | grep -q 'install ok installed'"
+  [pandoc]="dpkg-query -W -f='\${Status}' pandoc 2>/dev/null | grep -q 'install ok installed'"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -290,8 +289,10 @@ scenario_ubuntu() {
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
-  check_no_tool document-media
-  check_no_tool ai-document-media
+  check_no_tool ffmpeg
+  check_no_tool mupdf-tools
+  check_no_tool pandoc
+  check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
   # skillshare 的設定(create_config.yaml)是一般檔案,所有 after_ 腳本都在檔案部署之後跑。
   # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
   check "agent-config 用的是 chezmoi 放的 skillshare 設定(targets 有 claude、codex)" \
@@ -321,19 +322,19 @@ scenario_ubuntu() {
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # --prompt 會重問所有問題:非秘密欄位(git 身分)與選單預設帶現值,直接 Enter 保留;
-  # 憑證不帶現值(不想明文顯示在提示上),這裡照樣用旗標給。--promptDefaults = 每題都直接 Enter
-  # (沒有預設值的題目它還是會去讀 stdin,所以四個憑證都要給)。
-  bold "▶ init --prompt 直接 Enter,git 身分與選單保留原值"
+  # tools = init --prompt + apply。--prompt 只重問選單:憑證與 git 身分已經存過就不問,
+  # 所以不給任何 prompt 旗標也不會卡在 stdin。--promptDefaults = 選單直接 Enter(保留現在的勾選)。
+  bold "▶ tools 直接 Enter,憑證、git 身分與選單保留原值"
   step "記下現在的 tools" "grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml > /tmp/tools-before"
-  check "init --prompt --promptDefaults(只給憑證旗標)exit 0" \
-    "chezmoi init --prompt --promptDefaults --no-tty $(printf '%q ' "${INIT_FLAGS[@]:0:8}") </dev/null"
+  check "tools --no-tty --promptDefaults(不給憑證旗標)exit 0" \
+    "~/.local/bin/tools --no-tty --promptDefaults </dev/null"
+  check "codeServerPassword 保留 e2e" "grep -qx '    codeServerPassword = \"e2e\"' ~/.config/chezmoi/chezmoi.toml"
   check "gitUserName 保留 e2e" "grep -qx '    gitUserName = \"e2e\"' ~/.config/chezmoi/chezmoi.toml"
   check "gitUserEmail 保留 e2e@example.com" "grep -qx '    gitUserEmail = \"e2e@example.com\"' ~/.config/chezmoi/chezmoi.toml"
   check "tools 保留原本的勾選" "grep -qxFf /tmp/tools-before ~/.config/chezmoi/chezmoi.toml"
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 
-  # 改選裝工具的正規做法:chezmoi edit-config 改 [data] tools 那一行,再 apply。
+  # 不經選單、直接用 chezmoi edit-config 改 [data] tools 那一行再 apply,也要能裝。
   # edit-config 只是開編輯器,這裡直接 sed config 模擬。
   bold "▶ edit-config 在 tools 多加 wakatime"
   step "config 的 tools 加上 wakatime" \
@@ -405,23 +406,19 @@ scenario_ubuntu() {
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=fastfetch") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
-  # 文件解析兩項不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才有內容、而且語法對。
-  bold "▶ (渲染)document-media"
+  # ffmpeg、mupdf-tools、pandoc 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾哪個才裝哪個、而且語法對。
+  bold "▶ (渲染)ffmpeg、mupdf-tools、pandoc"
   check "沒勾時套件腳本不含 ffmpeg" \
     "! chezmoi execute-template < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
-  check "勾了套件腳本會裝 ffmpeg、mupdf-tools、pandoc" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"document-media\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+  check "只勾 pandoc 時套件腳本只多 pandoc" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && ! grep -qE 'ffmpeg|mupdf-tools' /tmp/dm.sh && sh -n /tmp/dm.sh"
+  check "三個都勾時套件腳本裝 ffmpeg、mupdf-tools、pandoc" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\",\"mupdf-tools\",\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
 
   # 容器的 config 已經勾了 playwright-cli,要蓋成空的才是「沒勾」
   bold "▶ (渲染)playwright-cli"
   check "沒勾時安裝腳本是空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[]}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
-
-  bold "▶ (渲染)ai-document-media"
-  check "沒勾時安裝腳本是空的" \
-    "[ -z \"\$(chezmoi execute-template < $scripts/run_onchange_after_install-ai-document-media.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "勾了會渲染出可執行的 sh 腳本" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"ai-document-media\"]}' < $scripts/run_onchange_after_install-ai-document-media.sh.tmpl > /tmp/aidm.sh && grep -q docling /tmp/aidm.sh && sh -n /tmp/aidm.sh"
 }
 
 # ===============================================================
@@ -479,6 +476,7 @@ scenario_termux() {
   check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
     "jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}' ~/.config/opencode/opencode.json"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
+  check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
