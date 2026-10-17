@@ -25,8 +25,8 @@
        原生 Termux 不出選單(開發環境放 proot Ubuntu);其他 Linux 也不出,選單裡大半要 apt。
        之後要改:打 `tools`(home/dot_local/bin/executable_tools.tmpl)重出選單,預設帶現在的勾選
        (不在這台選單裡的會被濾掉),勾完直接 apply。新勾的會裝,取消勾選不會解除安裝。
-       加一個新工具要動三處:
-         1. 下面的 $toolChoices 加一項。
+       選項與說明在 .chezmoitemplates/tool-menu。加一個新工具要動三處:
+         1. tool-menu 加一行「工具名 說明」。
          2. 走 apt 的放 .chezmoidata/packages.yaml 的 toolPackages;其他的寫一支
             .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
             {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
@@ -34,18 +34,24 @@
          3. 已經 init 過的機器不會自己問,打 `tools` 勾它才會裝。 */ -}}
 {{- $tools := list -}}
 {{- if includeTemplate "is-debian" . -}}
-{{-   $toolChoices := list "fastfetch" "btop" "gh" "nvm" "code-server" "tailscale" "herdr" "ttyd" "wakatime" -}}
-{{- /* AI 相關。codegraph、playwright-cli 用 npm 裝,要一起勾 nvm(或機器上本來就有 npm)。
-       ffmpeg、mupdf-tools、pandoc 給 local-artifact-intake skill 讀影音、PDF、文件。 */ -}}
-{{-   $toolChoices = concat $toolChoices (list "claude" "codex" "opencode" "ffmpeg" "mupdf-tools" "pandoc" "codegraph") -}}
 {{- /* headless Chrome 給 chrome-mcp 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
-         Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。
-         playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
-{{-   $wsl := eq (includeTemplate "is-wsl" .) "true" -}}
-{{-   if and (not $wsl) (eq .chezmoi.arch "amd64") -}}
-{{-     $toolChoices = concat $toolChoices (list "headless-chrome" "playwright-cli") -}}
+       Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。
+       playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
+{{-   $skip := list -}}
+{{-   if or (eq (includeTemplate "is-wsl" .) "true") (ne .chezmoi.arch "amd64") -}}
+{{-     $skip = list "headless-chrome" "playwright-cli" -}}
 {{-   end -}}
-{{-   $toolChoices = append $toolChoices "agent-config" -}}
+{{- /* 選單上顯示「工具名 + 說明」(工具名補空白對齊),$labels 記工具名 → 選單文字。 */ -}}
+{{-   $toolChoices := list -}}
+{{-   $labels := dict -}}
+{{-   range splitList "\n" (includeTemplate "tool-menu" .) -}}
+{{-     $name := index (splitList " " .) 0 -}}
+{{-     if and $name (not (has $name $skip)) -}}
+{{-       $label := printf "%-16s %s" $name (trimPrefix (printf "%s " $name) .) -}}
+{{-       $_ := set $labels $name $label -}}
+{{-       $toolChoices = append $toolChoices $label -}}
+{{-     end -}}
+{{-   end -}}
 {{-   $current := list -}}
 {{-   if hasKey . "tools" -}}
 {{-     $current = .tools -}}
@@ -56,11 +62,14 @@
 {{-   end -}}
 {{-   $toolDefaults := list -}}
 {{-   range $current -}}
-{{-     if and (has . $toolChoices) (not (has . $toolDefaults)) -}}
-{{-       $toolDefaults = append $toolDefaults . -}}
+{{-     if and (hasKey $labels .) (not (has (get $labels .) $toolDefaults)) -}}
+{{-       $toolDefaults = append $toolDefaults (get $labels .) -}}
 {{-     end -}}
 {{-   end -}}
-{{-   $tools = promptMultichoiceOnce . "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
+{{- /* 選單回傳的是選單文字(已經存過時是存著的工具名),只留第一個空白前的工具名。 */ -}}
+{{-   range promptMultichoiceOnce . "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
+{{-     $tools = append $tools (index (splitList " " .) 0) -}}
+{{-   end -}}
 {{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 

@@ -188,6 +188,16 @@ PY
 
 # 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
+# 選單上的選項是「工具名 + 說明」(home/.chezmoitemplates/tool-menu),--promptMultichoice 要給這串。
+# menu_choice a/b → 「$TOOLS_PROMPT=a 的選單文字/b 的選單文字」;排版要跟 .chezmoi.toml.tmpl 的 printf 一樣。
+menu_choice() {
+  local t out=() line
+  for t in ${1//\// }; do
+    line=$(grep -m1 "^$t " "$REPO/home/.chezmoitemplates/tool-menu") || { echo "tool-menu 沒有 $t" >&2; return 1; }
+    out+=("$(printf '%-16s %s' "$t" "${line#"$t "}")")
+  done
+  (IFS=/; echo "$TOOLS_PROMPT=${out[*]}")
+}
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ffmpeg、mupdf-tools、pandoc 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
 TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
@@ -207,7 +217,8 @@ declare -A TOOL_CHECK=(
   [tailscale]="command -v tailscale"
   [herdr]="command -v herdr"
   [ttyd]="command -v ttyd"
-  [wakatime]="command -v wakatime-cli && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
+  # 官方位置:~/.wakatime/wakatime-cli 是指到 wakatime-cli-linux-<arch> 的 symlink
+  [wakatime]="[ -L ~/.wakatime/wakatime-cli ] && ~/.wakatime/wakatime-cli --version && [ -r ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh ]"
   [claude]="command -v claude && claude --version"
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
@@ -272,7 +283,7 @@ check_cli_tools() {
 #   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
   step "全新機器跑 README 的官方安裝指令,init --apply(選單只勾一部分)" \
-    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$TOOLS_PROMPT=$TOOLS_FIRST")"
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$(menu_choice "$TOOLS_FIRST")")"
   check "chezmoi 裝在 ~/.local/bin,家目錄沒多出 bin/" "[ -x ~/.local/bin/chezmoi ] && [ ! -e ~/bin ]"
   check_git_remotes
   # 真的連 GitHub(HTTPS,不用 key):README 那行給的是 henry5720,chezmoi 自己猜 URL。
@@ -346,7 +357,7 @@ scenario_ubuntu() {
   # 外掛預設找 ~/.wakatime/wakatime-cli,找不到就每個指令都印「not installed」、不計時。
   # 上面只驗兩邊都在;這裡真的觸發一次 heartbeat,驗外掛找得到我們裝的那支。
   check "zsh 的 WakaTime 外掛找得到 wakatime-cli" \
-    "out=\$(zsh -i -c 'type -p \"\$ZSH_WAKATIME_BIN\" && _wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
+    "out=\$(zsh -i -c '_wakatime_heartbeat' 2>&1) && ! grep -q 'not installed' <<<\"\$out\""
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
   check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
@@ -382,12 +393,12 @@ scenario_ubuntu() {
   check "選單預設都不勾(沒給旗標 = tools 是空的)" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -qx '    tools = \\[\\]'"
   check "(對照)非 WSL 的選單有 headless-chrome、playwright-cli" \
-    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=headless-chrome/playwright-cli") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome/playwright-cli)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
   check "WSL 的選單照常列 AI 工具" \
-    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=agent-config") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"agent-config\"'"
+    "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice agent-config)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"agent-config\"'"
   for t in headless-chrome playwright-cli; do
     check "WSL 的選單沒有 $t(勾了會報 invalid choice)" \
-      "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=$t") < $tmpl/.chezmoi.toml.tmpl 2>&1 | grep -q 'invalid choice'"
+      "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice $t)") < $tmpl/.chezmoi.toml.tmpl 2>&1 | grep -q 'invalid choice'"
   done
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
@@ -408,7 +419,7 @@ scenario_ubuntu() {
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
-    "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$TOOLS_PROMPT=fastfetch") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
+    "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
   # ffmpeg、mupdf-tools、pandoc 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾哪個才裝哪個、而且語法對。
   bold "▶ (渲染)ffmpeg、mupdf-tools、pandoc"
