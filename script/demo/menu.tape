@@ -6,7 +6,7 @@ Output menu.gif
 Set Shell bash
 Set FontFamily "Hack Nerd Font Mono"
 Set FontSize 18
-Set Width 1200
+Set Width 1440
 Set Height 400
 Set Padding 24
 Set Theme "Catppuccin Mocha"
@@ -38,7 +38,7 @@ Sleep 500ms
 Show
 Sleep 1.5s
 
-# 3. 多選:勾 fastfetch、gh、claude、codex(選單順序見 home/.chezmoi.toml.tmpl 的 $toolChoices)
+# 3. 多選:勾 fastfetch、gh、claude、codex(選單順序見 home/.chezmoitemplates/tool-menu)
 Set TypingSpeed 120ms
 Space Sleep 400ms
 Down 2
