@@ -1,0 +1,24 @@
+{{- /* 選裝工具選單的選項與說明:一行一項,「工具名 說明」,第一個空白之前是工具名。
+       .chezmoi.toml.tmpl 照這個順序出選單(選單上顯示「工具名 + 說明」,存進 tools 的只有工具名);
+       script/tests/e2e.sh 也讀這份組出選單上的文字。
+       說明從「用哪個工具做」寫起;不要用 /(e2e 的 --promptMultichoice 拿它分隔選項)。
+       哪些機器不列哪幾項(WSL、ARM)寫在 .chezmoi.toml.tmpl。 */ -}}
+fastfetch 終端機印出系統資訊
+btop 終端機看 CPU、記憶體、行程
+gh GitHub CLI(官方 apt 源),裝完 gh auth login
+nvm Node.js 與 npm;codegraph、playwright-cli、OmO 要它
+code-server 瀏覽器開的 VS Code
+tailscale 私人 VPN,連自己的機器
+herdr 終端機多工,同時開多個 coding agent
+ttyd 把終端機開成網頁,share-shell 用
+wakatime wakatime-cli + zsh 外掛:記錄寫程式的時間
+claude Claude Code CLI
+codex Codex CLI
+opencode OpenCode CLI
+ffmpeg 影音轉檔、抽音軌與影格
+mupdf-tools mutool:PDF 抽文字、轉圖片
+pandoc 文件格式互轉(docx、markdown、html)
+codegraph 程式碼索引給 agent 查(npm 裝,要 nvm)
+headless-chrome 沒有畫面的 Chrome,給 agent 開網頁
+playwright-cli agent 操作瀏覽器(用 headless-chrome,要 nvm)
+agent-config skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo)
