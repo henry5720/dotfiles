@@ -42,6 +42,8 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
 # WakaTime shell tracking（未安裝或未設定 key 時不影響啟動）
+# 外掛預設找 ~/.wakatime/wakatime-cli;我們裝在 ~/.local/bin,改成從 PATH 找
+: "${ZSH_WAKATIME_BIN:=wakatime-cli}"
 [ -r "$HOME/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh" ] \
   && source "$HOME/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh"
 
