@@ -67,3 +67,21 @@ _Avoid_: role（單獨使用時）、persona
 **內建 subagent**:
 CLI 自帶、不用寫設定就能派的 subagent，例如 Claude 的 Explore、Plan、general-purpose，Codex 的 default、explorer、worker。自己寫一個同名的原生角色會蓋掉它。
 _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
+
+## 文件
+
+**Runbook**:
+裝一台新機器時從頭走到尾一次的步驟文件。只放裝機當下要做的事。
+_Avoid_: 安裝手冊、setup guide（指裝完之後的操作時）
+
+**日常操作**:
+機器裝好之後才會做的調整，例如加減選裝工具、改憑證。不屬於 Runbook。
+_Avoid_: 維運、day-2、之後的設定
+
+**主題文件**:
+針對單一工具或情境的文件，要用到那個工具或遇到那個情境時才打開。
+_Avoid_: 說明書、guide
+
+**背景與決策**:
+說明為什麼這樣做的文件：ADR、選型比較、研究紀錄。不寫操作步驟。
+_Avoid_: 設計文件、spec（指已定案的決定時）

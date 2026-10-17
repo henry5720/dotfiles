@@ -10,7 +10,7 @@
 
 ## 先把它裝起來
 
-chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[新機器設定 2.4](new-machine-setup.md#24-之後想加減工具)),apply 時會用官方腳本裝 binary。
+chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[裝完之後](after-install.md)),apply 時會用官方腳本裝 binary。
 設定檔不用自己弄,由 chezmoi 從 `home/dot_config/private_code-server/private_config.yaml.tmpl`
 部署(權限與密碼見[密碼放哪](#密碼放哪))。
 
