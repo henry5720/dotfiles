@@ -2,7 +2,7 @@
 #!{{ lookPath "sh" }}
 # 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 裝 wakatime-cli 與 zsh 外掛;dot_zshrc 有外掛才載入,API key 由 private_dot_wakatime.cfg.tmpl 部署。
-# 同時勾了 claude 的機器再裝各 agent 的官方 WakaTime plugin(第 4 段起)。放在這支、不另開腳本:
+# 同時勾了 claude、codex 的機器再裝那個 agent 的官方 WakaTime plugin(第 4 段起)。放在這支、不另開腳本:
 # 勾選組合一變,這支渲染出來的內容就變,run_onchange 會重跑,舊機器補勾也會裝到;
 # 而且照檔名順序,install-claude 等腳本已經先跑完。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。unzip 在基底套件裡。
@@ -58,6 +58,22 @@ elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-co
 else
   "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null
   "$claude" plugin install claude-code-wakatime@wakatime </dev/null
+fi
+{{- end }}
+{{- if has "codex" (index . "tools") }}
+
+# 5. Codex CLI 的 WakaTime plugin:照 wakatime/codex-cli-wakatime README 的兩行指令裝。
+#    codex 會把 [marketplaces.wakatime]、[plugins."codex-cli-wakatime@wakatime"] 寫進
+#    ~/.codex/config.toml;modify_private_config.toml.tmpl 原樣保留別人的 table,不會被 apply 蓋掉。
+#    plugin 一樣用 ~/.wakatime 的 wakatime-cli 與 ~/.wakatime.cfg,hook 也用 node 跑。
+codex=$(command -v codex || echo "$HOME/.local/bin/codex")
+if [ ! -x "$codex" ]; then
+  echo "找不到 codex,跳過 Codex CLI 的 WakaTime plugin"
+elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginId == "codex-cli-wakatime@wakatime")' >/dev/null; then
+  echo "Codex CLI 的 WakaTime plugin 已安裝,跳過"
+else
+  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null
+  "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
 fi
 {{- end }}
 {{ end -}}

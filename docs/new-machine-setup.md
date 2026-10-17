@@ -276,8 +276,10 @@ wakatime-cli 才會記到，所以同時勾了下面那個工具，apply 時會�
 | 同時勾 | 裝什麼 | 確認 |
 |---|---|---|
 | `claude` | [claude-code-wakatime](https://github.com/wakatime/claude-code-wakatime) | `claude plugin list` 有 `claude-code-wakatime@wakatime` |
+| `codex` | [codex-cli-wakatime](https://github.com/wakatime/codex-cli-wakatime) | `codex plugin list` 的 installed 有 `codex-cli-wakatime@wakatime` |
 
-plugin 的 hook 用 node 跑，要勾 `nvm`。沒記到時看 `~/.wakatime/wakatime.log`。
+plugin 的 hook 用 node 跑，要勾 `nvm`。沒記到時看 `~/.wakatime/wakatime.log`（Codex 的在
+`~/.wakatime/codex-cli.log`）。Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
 
 ## 恢復邊界
 
