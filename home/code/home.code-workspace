@@ -1,9 +1,21 @@
 {
   "folders": [
-    { "path": "." },
-    { "path": "../.local/share/chezmoi", "name": "chezmoi" },
-    { "path": "../.config/herdr", "name": "herdr" },
-    { "path": "../.config/skillshare", "name": "skillshare" }
+    {
+      "name": "code",
+      "path": "."
+    },
+    {
+      "name": ".herdr",
+      "path": "../.herdr"
+    },
+    {
+      "name": "chezmoi",
+      "path": "../.local/share/chezmoi"
+    },
+    {
+      "name": "skillshare",
+      "path": "../.config/skillshare"
+    }
   ],
   "settings": {
     "files.watcherExclude": {
