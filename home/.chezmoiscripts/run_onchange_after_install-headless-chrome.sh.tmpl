@@ -3,7 +3,7 @@
 {{- if and (has "headless-chrome" (index . "tools")) (not $wsl) (eq .chezmoi.arch "amd64") (includeTemplate "is-debian" .) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# 給 chrome-mcp skill 的 chrome-headless 用:遠端主機自己開 Chrome 佔 9222,不必靠桌機轉發。
+# 給 remote-chrome skill 的 remote-chrome-headless 用:遠端主機自己開 Chrome 佔 9222,不必靠桌機轉發。
 # Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(toolPackages)。
 set -eu
 {{ template "sh-apt" . }}

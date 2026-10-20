@@ -34,7 +34,7 @@
          3. 已經 init 過的機器不會自己問,打 `tools` 勾它才會裝。 */ -}}
 {{- $tools := list -}}
 {{- if includeTemplate "is-debian" . -}}
-{{- /* headless Chrome 給 chrome-mcp 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
+{{- /* headless Chrome 給 remote-chrome 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
        Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列。
        playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
 {{-   $skip := list -}}

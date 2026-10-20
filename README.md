@@ -59,7 +59,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
 ├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
 ├── dot_codex/                  → ~/.codex/：同上
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、chrome-mcp…）
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
 script/                         不部署，自己手動跑
@@ -111,7 +111,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
 | [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
 | [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
-| [chrome-mcp](https://github.com/henry5720/agent-config/blob/main/docs/skills/chrome-mcp.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
+| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/docs/skills/remote-chrome.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
 | [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
