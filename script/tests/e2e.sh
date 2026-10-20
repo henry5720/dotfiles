@@ -406,7 +406,7 @@ scenario_ubuntu() {
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
-  # WSL 用 Windows 的 Chrome(chrome-mcp),選單不列 headless Chrome。
+  # WSL 用 Windows 的 Chrome(remote-chrome),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:不在選單上的會報 invalid choice。
   bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"

@@ -10,8 +10,8 @@
 
 常見的接法：用 `playwright-cli` 驗收 → 卡在「為什麼」就換 chrome-devtools-mcp → 修好 → 值得防回歸的才寫成 e2e，一次性的修正不寫。
 
-要看著 agent 在自己的 Chrome 裡操作時，chrome-mcp skill 還是能把 Windows Chrome 的 9222 轉發過來，但驗收不靠這條：
-它要人在桌機開著 `chrome-mcp`，沒辦法無人值守。
+要看著 agent 在自己的 Chrome 裡操作時，remote-chrome skill 還是能把 Windows Chrome 的 9222 轉發過來，但驗收不靠這條：
+它要人在桌機開著 `remote-chrome`，沒辦法無人值守。
 
 省 token 是 CLI 和 MCP 的差別，不是牌子的差別：chrome-devtools-mcp 也附了 `chrome-devtools` CLI
 （[docs/cli.md](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md)）。官方部落格 2026-05-19 說它 stable 了，

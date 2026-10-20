@@ -11,3 +11,6 @@
 # 明講別用 terminal plugin,時間改由各 agent 的官方 plugin 記(#176)。這份是以前 install-wakatime
 # 腳本 clone 的、只有 dot_zshrc 會載入它,刪掉不影響別的東西;chezmoi 移除 target 的官方做法就是列在這裡。
 .config/zsh/wakatime-zsh-plugin
+# skill chrome-mcp 改名 remote-chrome,指令跟著改名;舊 symlink 指向的 skill 目錄已不存在,留著只會是斷掉的連結。
+.local/bin/chrome-mcp
+.local/bin/chrome-headless
