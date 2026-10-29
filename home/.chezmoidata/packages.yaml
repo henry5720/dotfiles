@@ -38,6 +38,10 @@ toolPackages:
   ubuntu:
     btop:
       - btop
+    # Claude Code 本體是 native installer(run_onchange_after_install-claude);
+    # 它的 Read tool 讀 PDF 時固定呼叫 pdftoppm,沒裝會直接報錯,不會退回 mutool
+    claude:
+      - poppler-utils
     # 文件／影音,給 local-artifact-intake skill:影音轉檔、讀 PDF(mutool)、轉文件格式
     ffmpeg:
       - ffmpeg
