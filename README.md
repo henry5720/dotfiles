@@ -74,7 +74,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
   [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
-  規則的 symlink（[ADR 0002](docs/adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)）；見 agent-config 的
+  skillshare 的 `config.yaml`，其中 extras 段決定規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 - `wsl/` 怎麼交給 Windows 上的 chezmoi，見
   [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。

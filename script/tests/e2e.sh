@@ -232,7 +232,7 @@ declare -A TOOL_CHECK=(
   # 用 headless-chrome 裝的那支 Chrome 真的開得了頁(它預設找 /opt/google/chrome/chrome,不會自己下載)。
   # 容器擋 user namespace,Chrome sandbox 起不來,所以關掉(同上面 headless-chrome 的 --no-sandbox)
   [playwright-cli]=". ~/.nvm/nvm.sh && playwright-cli --version && PLAYWRIGHT_MCP_SANDBOX=false playwright-cli -s=e2e open 'data:text/html,<title>e2e-ok</title>' | grep -q e2e-ok; r=\$?; playwright-cli -s=e2e close >/dev/null 2>&1; [ \$r = 0 ]"
-  # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定;chezmoi 先放的 CLAUDE.md symlink 在 clone 後指得到 AGENTS.md
+  # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定;extras 把 CLAUDE.md 連到 AGENTS.md
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json && [ -L ~/.claude/CLAUDE.md ] && grep -q e2e-agents ~/.claude/CLAUDE.md"
 )
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
@@ -316,7 +316,7 @@ scenario_ubuntu() {
   # agent 有裝、wakatime 沒勾:不裝 plugin
   for a in "${!WAKA_PLUGIN[@]}"; do check_no_waka_plugin "$a"; done
   check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
-  # skillshare 的設定(create_config.yaml)是一般檔案,所有 after_ 腳本都在檔案部署之後跑。
+  # skillshare 的設定(modify_config.yaml.tmpl)是 modify_ 檔案,所有 after_ 腳本都在檔案部署之後跑。
   # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
   check "agent-config 用的是 chezmoi 放的 skillshare 設定(targets 有 claude、codex)" \
     "grep -q 'path: ~/.claude/skills' ~/.config/skillshare/config.yaml && [ -e ~/.agents/skills/e2e-hello ]"

@@ -6,11 +6,10 @@
 
 ```text
 dotfiles(chezmoi)
-  ├─ 裝 skillshare、放它的 config.yaml(之後不再碰)─→ agent-config
-  ├─ 規則的 symlink,指到 agent-config 的 instructions/ ─→ agent-config
+  ├─ 裝 skillshare、放它的 config.yaml(之後只釘 extras 段)─→ agent-config
   └─ client 本身的設定 ──────────────────────────────┐
 agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode
-  └─ 規則內容、skills、MCP ────────────────────────────┘
+  └─ 規則內容與連結(extras)、skills、MCP ──────────────┘
 Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ Claude Code
 ```
 
@@ -18,7 +17,7 @@ Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ C
 
 | | 是什麼 | 檔案實際在哪 | 怎麼更新 |
 |---|---|---|---|
-| **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,本 repo 的 `symlink_` 模板連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
+| **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,skillshare extras 連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
 | **skill** | 一套做某件事的步驟,用到才載入 | agent-config,skillshare 同步到各 client | `skillshare update --all`,見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md) |
 | **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md) |
 | **plugin** | Claude 的擴充包(可同時含 skill、MCP、指令) | `~/.claude/plugins/` | Claude 裡打 `/plugin`,見 [plugin](#plugin) |
@@ -32,7 +31,8 @@ Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ C
 
 ## 規則
 
-只有一份真的檔案,其他都是 symlink,由本 repo 的 `symlink_*.tmpl` 放(決策見 [ADR 0002](adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)):
+只有一份真的檔案,其他都是 skillshare extras 建的 symlink;連到哪寫在本 repo 的
+`home/dot_config/skillshare/modify_config.yaml.tmpl`(決策見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)):
 
 ```text
 agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
@@ -51,12 +51,13 @@ agent-config 在本機 clone 在 `~/.config/skillshare/`,symlink 指的就是那
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改規則內容 | 改 agent-config 的檔案、在 agent-config commit;其他機器 `skillshare pull` |
-| 改「連到哪」(新增或搬動 symlink) | 改本 repo 的 `symlink_` 模板,`chezmoi apply` |
-| 從舊的 skillshare extras 做法換過來 | 上面兩個都要跑 |
+| 改「連到哪」(新增或搬動連結) | 改本 repo 的 `modify_config.yaml.tmpl`,`chezmoi apply`(apply 後會自動 `skillshare sync extras`) |
+| 從舊的 `symlink_` 模板做法換過來 | `skillshare pull`、`chezmoi apply` |
+| 檢查連結 | `skillshare extras list`,或 dashboard 的 Extras |
 | 確認規則有生效 | 開新 session 打 `/context`,看 **Memory files** 那區 |
 
-新機器不用為規則另外做事:`chezmoi apply` 先放好 symlink,這時 agent-config 還沒 clone,symlink 是懸空的;
-選裝工具 `agent-config` 的 after 腳本 clone 完就指得到檔案。沒勾 `agent-config` 的機器,這幾個 symlink 會一直懸空。
+新機器不用為規則另外做事:選裝工具 `agent-config` 的 after 腳本 clone 完 agent-config 後跑 `skillshare sync --all`,
+連結一起建好。沒勾 `agent-config` 的機器沒有 skillshare,各 client 不會有這幾個檔。
 
 ## plugin
 

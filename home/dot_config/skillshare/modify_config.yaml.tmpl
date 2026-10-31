@@ -1,0 +1,73 @@
+#!{{ lookPath "sh" }}
+# skillshare 的全域設定。skills 與 MCP 的內容在 agent-config repo,這份只告訴 skillshare 去哪找、寫到哪。
+# config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放。
+#
+# 用 modify_ 而不是 create_:skillshare init 與 extras 指令會改寫這個檔(加 schema 註解、重排 key),
+# 所以只釘 extras 段,其餘照 skillshare 寫的留著;新機器(檔案不存在)才輸出整份基底。
+# extras 是給模型讀的指令檔(Instructions):內容在 agent-config 的 instructions/,
+# 由 skillshare 連到各 client 讀的位置(決策見 docs/adr/0003-*.md)。
+# 改了 extras 段,run_onchange_after_sync-skillshare-extras 會在 apply 後跑 skillshare sync extras。
+#
+# extras 的欄位順序照 skillshare 存檔的樣子(name、source、file、targets),段內也不放註解(它存檔會拿掉),
+# 它改寫後再 apply 才不會出現只有排版不同的 diff。
+# agents-md 是一份 AGENTS.md 給四個 client,Claude 讀的檔名是 CLAUDE.md;
+# agent-commit、opencode-commit 的目標路徑要對上 AGENTS.md 與 opencode.json 引用的位置。
+# sources 不列 agents:agent-config 沒有 agents 目錄,不寫 skillshare 也預設看 ~/.config/skillshare/agents。
+
+set -eu
+
+extras=$(cat <<'EOF'
+extras:
+  - name: agents-md
+    source: ~/.config/skillshare/instructions/agents-md
+    file: AGENTS.md
+    targets:
+      - path: ~/.claude
+        as: CLAUDE.md
+      - path: ~/.codex
+      - path: ~/.config/opencode
+      - path: ~/.config/opencode/routes/personal
+  - name: agent-commit
+    source: ~/.config/skillshare/instructions/agent-commit
+    file: instructions.md
+    targets:
+      - path: ~/.config/agent-commit
+  - name: opencode-commit
+    source: ~/.config/skillshare/instructions/opencode-commit
+    file: commit-instructions.md
+    targets:
+      - path: ~/.config/opencode
+EOF
+)
+
+# 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,給 init 前的基底。
+#    要先放好再 init,init 才會直接從 remote 拉下來(流程見 run_onchange_after_install-agent-config.sh.tmpl)。
+existing=$(cat)
+if [ -z "$existing" ]; then
+  cat <<'EOF'
+git_root: root
+preserve_tilde_on_save: true
+sources:
+  skills: ~/.config/skillshare/skills
+  mcp: ~/.config/skillshare/mcp.yaml
+targets:
+  claude:
+    skills:
+      path: ~/.claude/skills
+  codex:
+    skills:
+      path: ~/.agents/skills
+EOF
+  printf '%s\n' "$extras"
+  exit 0
+fi
+
+# 2. 已有 extras 段就原地換掉(到下一個頂層 key 為止,中間的空行留給下一個 key);沒有就接在最後。
+printf '%s\n' "$existing" | awk -v extras="$extras" '
+  /^extras:/ { print extras; skip = 1; done = 1; next }
+  skip && /^[A-Za-z_]/ { skip = 0; printf "%s", blank; blank = "" }
+  skip && /^[[:space:]]*$/ { blank = blank $0 "\n"; next }
+  skip { blank = ""; next }
+  { print }
+  END { if (!done) { print ""; print extras } }
+'

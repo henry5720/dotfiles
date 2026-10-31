@@ -1,0 +1,17 @@
+{{- if has "agent-config" (index . "tools") -}}
+#!{{ lookPath "sh" }}
+# config.yaml 的 extras 段(dot_config/skillshare/modify_config.yaml.tmpl)改了,就讓 skillshare 重連指令檔。
+# 只有 config.yaml 換掉不會動到各 client 那份,要 sync extras 才會建、改、拆連結;
+# 有這支,「改連到哪」只要 chezmoi apply 一步。
+# hash: {{ include "dot_config/skillshare/modify_config.yaml.tmpl" | sha256sum }}
+#
+# 新機器上 install-agent-config(字母序在前)的 sync --all 已經包含 extras,這裡再跑一次無害。
+set -eu
+
+ss=$HOME/.local/bin/skillshare
+if [ ! -d "$HOME/.config/skillshare/.git" ] || [ ! -x "$ss" ]; then
+  echo "agent-config 還沒裝好,跳過 skillshare sync extras"
+  exit 0
+fi
+"$ss" sync extras
+{{ end -}}

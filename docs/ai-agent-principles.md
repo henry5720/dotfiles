@@ -14,8 +14,8 @@
 
 每家 agent 讀的全域檔名不一樣 —— Claude 是 `~/.claude/CLAUDE.md`,Codex、opencode 是 `AGENTS.md`。
 各寫一份的話,改了 A 忘了改 B,兩邊行為就會不一樣(這件事真的發生過)。
-所以只留一份真的檔案在 agent-config,各 client 的檔名都是 symlink;內容和「連到哪」為什麼分兩個 repo 管,
-見 [ADR 0002](adr/0002-agent-instructions-in-agent-config-placed-by-chezmoi-symlinks.md)。
+所以只留一份真的檔案在 agent-config,各 client 的檔名都是 skillshare extras 建的 symlink;內容和「連到哪」為什麼分兩個 repo 管,
+見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)。
 
 ## 規則要寫什麼
 

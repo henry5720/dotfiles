@@ -1,5 +1,7 @@
 # 指令檔內容放 agent-config，放到哪由 chezmoi 的 symlink 負責
 
+> 已被 [ADR 0003](0003-agent-instructions-linked-by-skillshare-extras.md) 取代：改由 skillshare extras 連結，chezmoi 用 `modify_` 釘 extras 段。
+
 給模型讀的指令檔（Instructions）—— 全域 `AGENTS.md`（Claude 那邊叫 `CLAUDE.md`）、
 `agent-commit/instructions.md`、opencode 的 `commit-instructions.md` —— 分兩半管：
 
