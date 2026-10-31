@@ -3,7 +3,8 @@
 # config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放。
 #
 # 用 modify_ 而不是 create_:skillshare init 與 extras 指令會改寫這個檔(加 schema 註解、重排 key),
-# 所以只釘 extras 段,其餘照 skillshare 寫的留著;新機器(檔案不存在)才輸出整份基底。
+# 所以只釘 extras 段與 Claude target 的 agents 路徑,其餘照 skillshare 寫的留著;
+# 新機器(檔案不存在)才從整份基底開始。
 # extras 是給模型讀的指令檔(Instructions):內容在 agent-config 的 instructions/,
 # 由 skillshare 連到各 client 讀的位置(決策見 docs/adr/0003-*.md)。
 # 改了 extras 段,run_onchange_after_sync-skillshare-extras 會在 apply 後跑 skillshare sync extras。
@@ -12,7 +13,10 @@
 # 它改寫後再 apply 才不會出現只有排版不同的 diff。
 # agents-md 是一份 AGENTS.md 給四個 client,Claude 讀的檔名是 CLAUDE.md;
 # agent-commit、opencode-commit 的目標路徑要對上 AGENTS.md 與 opencode.json 引用的位置。
-# sources 不列 agents:agent-config 沒有 agents 目錄,不寫 skillshare 也預設看 ~/.config/skillshare/agents。
+# sources 不列 agents:不寫 skillshare 也預設看 ~/.config/skillshare/agents(agent-config 的 agents/),
+# 目錄不存在時 sync 只印「No agents folder」。agents 路徑只給 Claude:Codex 的 subagent 是 TOML,
+# native agents target 不能轉檔,要用時得走 extras 的 codex-agents extension。
+# agents 放在 claude 的 skills 後面,跟 skillshare 存檔的順序一樣。
 
 set -eu
 
@@ -40,11 +44,11 @@ extras:
 EOF
 )
 
-# 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,給 init 前的基底。
+# 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,從 init 前的基底開始。
 #    要先放好再 init,init 才會直接從 remote 拉下來(流程見 run_onchange_after_install-agent-config.sh.tmpl)。
 existing=$(cat)
 if [ -z "$existing" ]; then
-  cat <<'EOF'
+  existing=$(cat <<'EOF'
 git_root: root
 preserve_tilde_on_save: true
 sources:
@@ -58,16 +62,28 @@ targets:
     skills:
       path: ~/.agents/skills
 EOF
-  printf '%s\n' "$extras"
-  exit 0
+)
 fi
 
-# 2. 已有 extras 段就原地換掉(到下一個頂層 key 為止,中間的空行留給下一個 key);沒有就接在最後。
+# 2. 已有 extras 段就原地換掉(到下一個頂層 key 為止),沒有就接在最後;
+#    targets 底下 claude 的 agents 子段先拿掉,在 claude 段結尾補上釘的那份。
+#    段落之間的空行先暫存,段落結束時才印,留給下一個 key。
 printf '%s\n' "$existing" | awk -v extras="$extras" '
-  /^extras:/ { print extras; skip = 1; done = 1; next }
-  skip && /^[A-Za-z_]/ { skip = 0; printf "%s", blank; blank = "" }
-  skip && /^[[:space:]]*$/ { blank = blank $0 "\n"; next }
+  function end_claude() { if (claude) { print "    agents:"; print "      path: ~/.claude/agents"; claude = 0 } }
+  /^[[:space:]]*$/ { if (claude || skip) { blank = blank $0 "\n"; next } print; next }
+  /^[^ \t-]/ {
+    end_claude(); skip = 0; printf "%s", blank; blank = ""
+    if (/^extras:/) { print extras; skip = 1; done = 1; next }
+    top = $0; print; next
+  }
   skip { blank = ""; next }
-  { print }
-  END { if (!done) { print ""; print extras } }
+  top == "targets:" && /^  [^ ]/ {
+    end_claude(); printf "%s", blank; blank = ""
+    if ($0 == "  claude:") { claude = 1; sub_agents = 0 }
+    print; next
+  }
+  claude && /^    [^ ]/ { sub_agents = ($0 == "    agents:") }
+  claude && sub_agents { blank = ""; next }
+  { printf "%s", blank; blank = ""; print }
+  END { end_claude(); if (!done) { print ""; print extras } }
 '

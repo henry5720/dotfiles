@@ -20,6 +20,9 @@
 | `agent-commit` | `instructions/agent-commit/instructions.md` | `~/.config/agent-commit/instructions.md` |
 | `opencode-commit` | `instructions/opencode-commit/commit-instructions.md` | `~/.config/opencode/commit-instructions.md` |
 
+同一支 `modify_` 也釘 Claude target 的 `agents` 路徑（`~/.claude/agents`），自己寫的 subagent 放 agent-config 的
+`agents/` 就會連過去；Codex 的 subagent 是 TOML，native agents target 不能轉檔，沒釘。
+
 `script/tests/test_skillshare_extras.py` 驗 `modify_` 的輸出，以及 skillshare sync 後這六個路徑都連對。
 
 ## 為什麼 0002 的理由不再成立
@@ -38,7 +41,7 @@
 | 維持 chezmoi `symlink_` 模板（0002） | 不選 | skillshare 看不到這些檔，dashboard 的 Extras 是空的，`status`／`doctor` 也不會檢查 |
 | extras 寫在 `create_config.yaml` | 不選 | 0002 的第 2 點：已裝過的機器不會更新 |
 | `modify_` 整份覆寫 `config.yaml` | 不選 | skillshare init 與 extras 指令會改寫這個檔（加 schema 註解、重排 key），整份覆寫會一直出 diff |
-| `modify_` 只換 `extras` 段 | **選** | 其餘照 skillshare 寫的留著；extras 段照 skillshare 存檔的欄位順序、不放註解，它改寫後再 apply 沒有 diff |
+| `modify_` 只換 `extras` 段與 Claude 的 `agents` 路徑 | **選** | 其餘照 skillshare 寫的留著；extras 段照 skillshare 存檔的欄位順序、不放註解，它改寫後再 apply 沒有 diff |
 
 ## 代價
 

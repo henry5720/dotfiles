@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""指令檔(Instructions)的 extras:chezmoi 寫進 skillshare 的 config.yaml,skillshare sync 後每個 client 讀的位置都連到 agent-config 的 instructions/。
+"""chezmoi 釘進 skillshare config.yaml 的部分:指令檔(Instructions)的 extras 段,與 Claude target 的 agents 路徑。
 
-指令檔內容在 agent-config 的 instructions/,由那邊的 tests/ 驗;這裡只驗 config.yaml 的 extras 段與它連出來的位置。
+指令檔內容在 agent-config 的 instructions/,由那邊的 tests/ 驗;這裡只驗 config.yaml 釘的內容與 extras 連出來的位置。
 """
 import json
 import os
@@ -39,6 +39,11 @@ targets:
   claude:
     skills:
       path: ~/.claude/skills
+    agents:
+      path: ~/old-agents
+  codex:
+    skills:
+      path: ~/.agents/skills
 
 extras:
   - name: old
@@ -48,6 +53,14 @@ extras:
       - path: ~/.old
 
 preserve_tilde_on_save: true
+"""
+# agents 排在 skills 後面,跟 skillshare 存檔的順序一樣
+PINNED_CLAUDE = """\
+  claude:
+    skills:
+      path: ~/.claude/skills
+    agents:
+      path: ~/.claude/agents
 """
 
 
@@ -76,19 +89,29 @@ class SkillshareExtrasTest(unittest.TestCase):
         out = self.run_script()
         self.assertIn("git_root: root\n", out)
         self.assertIn("path: ~/.agents/skills\n", out)
+        self.assertIn(PINNED_CLAUDE, out)
         self.assertEqual(out.count("\nextras:\n"), 1)
         self.assertEqual(self.run_script(out), out)
 
     def test_replaces_extras_in_place_and_keeps_skillshare_layout(self):
         out = self.run_script(SAVED_BY_SKILLSHARE)
         self.assertNotIn("name: old", out)
-        before = SAVED_BY_SKILLSHARE.split("extras:\n")[0]
+        self.assertNotIn("old-agents", out)
+        self.assertIn(PINNED_CLAUDE + "  codex:\n", out)
+        before = SAVED_BY_SKILLSHARE.split("extras:\n")[0].replace("~/old-agents", "~/.claude/agents")
         self.assertTrue(out.startswith(before + "extras:\n"))
         self.assertTrue(out.endswith("      - path: ~/.config/opencode\n\npreserve_tilde_on_save: true\n"))
         self.assertEqual(self.run_script(out), out)
 
+    def test_adds_claude_agents_path_when_missing(self):
+        existing = SAVED_BY_SKILLSHARE.replace("    agents:\n      path: ~/old-agents\n", "")
+        out = self.run_script(existing)
+        self.assertIn(PINNED_CLAUDE + "  codex:\n", out)
+        self.assertEqual(self.run_script(out), out)
+
     def test_appends_extras_when_missing(self):
-        existing = SAVED_BY_SKILLSHARE.split("extras:\n")[0] + "preserve_tilde_on_save: true\n"
+        existing = (SAVED_BY_SKILLSHARE.split("extras:\n")[0].replace("~/old-agents", "~/.claude/agents")
+                    + "preserve_tilde_on_save: true\n")
         out = self.run_script(existing)
         self.assertTrue(out.startswith(existing + "\nextras:\n"))
         self.assertEqual(self.run_script(out), out)
