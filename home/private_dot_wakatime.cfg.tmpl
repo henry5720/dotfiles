@@ -1,4 +1,6 @@
-{{- if .wakatimeApiKey }}
+{{- /* 沒勾 wakatime 的機器 config 裡沒有 wakatimeApiKey(見 .chezmoi.toml.tmpl),用 index 取才不會報錯;
+       留空或沒有時整份渲染成空的,chezmoi 就不部署。 */ -}}
+{{- if index . "wakatimeApiKey" }}
 [settings]
 api_key = {{ .wakatimeApiKey }}
 {{- end }}

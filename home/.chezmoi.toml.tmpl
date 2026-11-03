@@ -1,28 +1,5 @@
 {{- /* 以 root 執行、$HOME 又不屬於 root 時,init 一開頭就停(見 .chezmoitemplates/home-owner-guard)。 */ -}}
 {{- includeTemplate "home-owner-guard" . -}}
-{{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,
-       https://www.chezmoi.io/user-guide/setup/)。不用 promptStringOnce:`chezmoi init --prompt`
-       會讓它重問,而這裡要 --prompt 只重問選單(`tools` 指令靠這個)。
-       憑證刻意不帶現值當預設 —— 預設值會明文印在提示上;反正已經存過的不會再問。
-       之後要改:`chezmoi edit-config` 改 [data] 那一行再 apply。
-       每一項是 (key 提示文字 預設值);預設值空字串 = 沒有預設。 */ -}}
-{{- $answers := dict -}}
-{{- range $q := list
-      (list "codeServerPassword" "code-server 密碼" "")
-      (list "codexLbApiKey" "codex-lb API key" "")
-      (list "context7ApiKey" "Context7 API key（可留空）" "")
-      (list "wakatimeApiKey" "WakaTime API key（可留空）" "")
-      (list "gitUserName" "git user.name" "henry")
-      (list "gitUserEmail" "git user.email" "") -}}
-{{-   $key := index $q 0 -}}
-{{-   if hasKey $ $key -}}
-{{-     $_ := set $answers $key (index $ $key) -}}
-{{-   else if index $q 2 -}}
-{{-     $_ := set $answers $key (promptString (index $q 1) (index $q 2)) -}}
-{{-   else -}}
-{{-     $_ := set $answers $key (promptString (index $q 1)) -}}
-{{-   end -}}
-{{- end -}}
 {{- /* 用途與選裝工具:先問這台的用途(完整／精簡／自訂),再出選裝工具選單,照用途的預設組合勾好,可以再調。
        只在 Debian 系 Linux(Ubuntu、WSL、proot Ubuntu)與 macOS 問。原生 Termux 與其他 Linux 不問,
        自動套用精簡,選單不列的項目(下面 $skip)濾掉。
@@ -158,15 +135,45 @@
 {{-     if not $same }}{{ $use = "自訂" }}{{ end -}}
 {{-   end -}}
 {{- end -}}
+{{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,
+       https://www.chezmoi.io/user-guide/setup/)。不用 promptStringOnce:`chezmoi init --prompt`
+       會讓它重問,而這裡要 --prompt 只重問選單(`tools` 指令靠這個)。
+       憑證只問這台用得到的:每一項最後是「勾了其中一個才問」的工具(空的 = 一定問),所以排在選單之後。
+       沒勾、也沒存過的不寫進 [data]:之後勾了那個工具,跑 `tools` 或 `chezmoi init` 才問得到
+       (寫成空字串就算存過、不會再問了)。用到它的樣板要用 index 取值,或跟著工具被 .chezmoiignore 排除。
+       取消勾選不刪存過的值。
+       憑證刻意不帶現值當預設 —— 預設值會明文印在提示上;反正已經存過的不會再問。
+       之後要改:`chezmoi edit-config` 改 [data] 那一行再 apply。
+       每一項是 (key 提示文字 預設值 工具);預設值空字串 = 沒有預設。 */ -}}
+{{- $answers := dict -}}
+{{- $answerKeys := list -}}
+{{- range $q := list
+      (list "codeServerPassword" "code-server 密碼" "" (list "code-server"))
+      (list "codexLbApiKey" "codex-lb API key" "" (list "codex" "opencode"))
+      (list "context7ApiKey" "Context7 API key（可留空）" "" (list "agent-config"))
+      (list "wakatimeApiKey" "WakaTime API key（可留空）" "" (list "wakatime"))
+      (list "gitUserName" "git user.name" "henry" (list))
+      (list "gitUserEmail" "git user.email" "" (list)) -}}
+{{-   $key := index $q 0 -}}
+{{-   $needed := not (index $q 3) -}}
+{{-   range index $q 3 }}{{ if has . $tools }}{{ $needed = true }}{{ end }}{{ end -}}
+{{-   if hasKey $ $key -}}
+{{-     $_ := set $answers $key (index $ $key) -}}
+{{-   else if not $needed -}}
+{{-     continue -}}
+{{-   else if index $q 2 -}}
+{{-     $_ := set $answers $key (promptString (index $q 1) (index $q 2)) -}}
+{{-   else -}}
+{{-     $_ := set $answers $key (promptString (index $q 1)) -}}
+{{-   end -}}
+{{-   $answerKeys = append $answerKeys $key -}}
+{{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 
 [data]
-    codeServerPassword = {{ $answers.codeServerPassword | quote }}
-    codexLbApiKey = {{ $answers.codexLbApiKey | quote }}
-    context7ApiKey = {{ $answers.context7ApiKey | quote }}
-    wakatimeApiKey = {{ $answers.wakatimeApiKey | quote }}
-    gitUserName = {{ $answers.gitUserName | quote }}
-    gitUserEmail = {{ $answers.gitUserEmail | quote }}
+{{- range $answerKeys }}
+    {{ . }} = {{ get $answers . | quote }}
+{{- end }}
     machineUse = {{ $use | quote }}
     tools = {{ $tools | toToml }}
     toolsSchema = 2

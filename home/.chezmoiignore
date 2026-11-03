@@ -5,6 +5,16 @@
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
 .zshrc
 .p10k.zsh
+.config/zsh/env.zsh
+{{ end }}
+{{ if or (ne .chezmoi.os "linux") (not (has "zsh" (index . "tools"))) (includeTemplate "has-root" .) }}
+# 只有沒有 root 的 Linux、勾了 zsh 才要:互動式 bash 切 zsh(modify_dot_bashrc.tmpl)與補 .profile。
+# 有 root 的走 chsh(run_once_after_set-default-shell),不碰這兩個檔。
+.bashrc
+.profile
+{{ else if or (stat (joinPath .chezmoi.homeDir ".bash_profile")) (stat (joinPath .chezmoi.homeDir ".bash_login")) }}
+# 已經有 ~/.bash_profile 或 ~/.bash_login:login bash 讀的是它們、不讀 .profile,補了也沒用,不補。
+.profile
 {{ end }}
 {{ if eq .chezmoi.os "android" }}
 # 原生 Termux:移除舊 chezmoi MCP 條目的一次性遷移只對已經部署過舊版的 Ubuntu 機器有意義,
@@ -23,3 +33,5 @@
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
+# code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
+{{ if not (has "code-server" $tools) }}.config/code-server{{ end }}

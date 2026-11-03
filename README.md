@@ -28,7 +28,7 @@
 # Ubuntu（WSL、雲端主機、proot Ubuntu），在家目錄跑
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 
-# Ubuntu，免回答用途與選單：直接套精簡（用途提示要一字不差，見新機器設定）
+# Ubuntu，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" --promptString "git user.email=<email>" henry5720
 
 # 原生 Termux

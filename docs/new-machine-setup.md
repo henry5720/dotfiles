@@ -131,11 +131,19 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
-- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
 - **用途（只有 Ubuntu 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
 - **選裝工具選單（只有 Ubuntu 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
+- 憑證：只問勾了的工具用得到的，精簡一個都不問。
+
+  | 勾了 | 問 |
+  |---|---|
+  | code-server | `code-server 密碼` |
+  | codex 或 opencode | `codex-lb API key` |
+  | agent-config | `Context7 API key`（可留空） |
+  | wakatime | `WakaTime API key`（可留空） |
+
+- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
 | 用途 | 給誰 | 預設勾哪些 |
 |---|---|---|
@@ -155,7 +163,8 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
   --promptString "git user.email=<email>" henry5720
 ```
 
-`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。憑證目前還是會問。
+`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。精簡用不到憑證，所以只剩 git email 要給。
+之後勾了用得到憑證的工具，`tools` 會在那時問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
@@ -179,14 +188,23 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 
 | 略過什麼 | 手動方式（彙整裡有完整指令） |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 zsh、vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq 例外：從 GitHub release 裝到 `~/.local/bin`，不用 root |
-| 改預設 shell | 有 zsh 之後自己 `chsh` |
+| 系統套件（基底的 git、curl、python3，與 vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
 | tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
 | gh、fastfetch、code-server | 從 GitHub release 或官方 installer 的 standalone 模式裝到 `~/.local` |
 | nvm 與 Node（codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 
 不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+jq 從 GitHub release 裝到 `~/.local/bin`。
+
+勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`。不能 `chsh`，改成：
+
+- `~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間）：互動式 bash 一啟動就 `exec zsh`；
+  `bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh
+- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個只 source `~/.bashrc` 的 `~/.profile`，
+  讓 `bash -l` 開的終端機也會切過去
+- `TERM` 沒設時，`.zshrc` 補成 `xterm-256color`
+
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
 
 系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，
@@ -362,7 +380,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／p10k／插件與預設 shell）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
-| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
+| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的憑證（勾了用得到的工具才問）與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
