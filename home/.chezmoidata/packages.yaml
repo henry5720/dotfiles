@@ -19,9 +19,17 @@ packages:
     - openssh
     - jq
     - python
+  # macOS,brew 的 formula 名(run_onchange_before_install-packages-darwin 交給 brew bundle)。
+  # git、python3 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,只缺 jq
+  # (macOS 15 起系統也有 /usr/bin/jq,舊版沒有)。brews 是 formula、casks 是 app,
+  # 照 chezmoi 官方 brew bundle 範例的結構;Homebrew 本身不由 chezmoi 裝(見 Runbook)。
+  darwin:
+    brews:
+      - jq
+    casks: []
 
-# 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
-# 有勾才裝,跟上面的清單一起由同一支套件腳本處理。
+# 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt／pkg／brew 的:工具名 → 套件。
+# 有勾才裝,跟上面的清單一起由同一支套件腳本處理(macOS 是 install-packages-darwin)。
 # 要加 apt 來源、curl installer 的工具不放這裡,各自一支 run_onchange_after_install-<工具>.sh.tmpl。
 toolPackages:
   ubuntu:
@@ -65,3 +73,30 @@ toolPackages:
       - bat
     ripgrep:
       - ripgrep
+  # macOS 全部走 brew(一樣是 formula 名)。zsh、vim 系統內建,不列;codegraph、playwright-cli 的 Node
+  # 由 nvm 裝,mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 不在 mac 的選單上。
+  # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
+  # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
+  darwin:
+    eza:
+      - eza
+    fzf:
+      - fzf
+    bat:
+      - bat
+    ripgrep:
+      - ripgrep
+    fastfetch:
+      - fastfetch
+    btop:
+      - btop
+    gh:
+      - gh
+    code-server:
+      - code-server
+    ttyd:
+      - ttyd
+    claude:
+      - poppler
+    ffmpeg:
+      - ffmpeg

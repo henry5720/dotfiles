@@ -568,6 +568,38 @@ scenario_ubuntu() {
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
+  # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
+  bold "▶ (渲染)macOS 出用途選單、沒有 tailscale,套件走 brew bundle"
+  local mac='{"chezmoi":{"os":"darwin"}}'
+  local mac_full=${FULL_TOOLS/\/tailscale\///}; mac_full=${mac_full/\/headless-chrome\/playwright-cli/}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(沒有 tailscale、headless-chrome、playwright-cli)" \
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice 完整)") > /tmp/mac.toml && $(printf "$use_is" 完整 /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
+  check "macOS 選精簡:精簡濾掉 tailscale" \
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice 精簡)") > /tmp/mac-lean.toml && $(printf "$use_is" 精簡 /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
+  for t in tailscale headless-chrome playwright-cli; do
+    check "macOS 的選單沒有 $t(勾了會報 invalid choice)" \
+      "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$(menu_choice $t)") 2>&1 | grep -q 'invalid choice'"
+  done
+  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","claude","ttyd","code-server","herdr"]}'
+  check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,語法對" \
+    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"ttyd\"' ]"
+  check "brew bundle 腳本在 Linux 渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "brew bundle 腳本在 Termux 渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
+  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
+  for f in run_onchange_before_install-packages run_once_after_set-default-shell run_onchange_after_install-cli-tools \
+           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-ttyd \
+           run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
+           run_onchange_after_npm-install-playwright-cli run_after_zz-root-skipped-summary; do
+    check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell)" \
+      "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
+  done
+  check "macOS 的 wakatime 抓 darwin 版" \
+    "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
+  check "macOS 部署 tools 指令" \
+    "chezmoi --config /tmp/mac.toml managed --override-data '$mac' | grep -qx .local/bin/tools"
+
   # ffmpeg 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才裝、而且語法對。
   bold "▶ (渲染)ffmpeg"
   check "沒勾時套件腳本不含 ffmpeg" \

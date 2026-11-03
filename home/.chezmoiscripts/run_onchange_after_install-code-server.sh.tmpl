@@ -1,6 +1,7 @@
-{{- if has "code-server" (index . "tools") -}}
+{{- if and (has "code-server" (index . "tools")) (ne .chezmoi.os "darwin") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 code-server(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# macOS 走 brew(install-packages-darwin),這支渲染成空的。
 # 設定檔由 chezmoi 部署(dot_config/private_code-server);臨時用直接跑 code-server,
 # 要常駐見 docs/code-server-remote.md。
 set -eu

@@ -2,7 +2,7 @@
 
 ## 適用範圍
 
-Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）與原生 Termux。目的是把一台全新的機器帶到
+Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）、原生 Termux 與 macOS。目的是把一台全新的機器帶到
 這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
 ```text
@@ -43,6 +43,14 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 ### 雲端主機
 
 能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](#沒有-root-的機器)）。字型裝在你連線那端的終端機。
+
+### macOS
+
+1. 照 [Homebrew 官網](https://brew.sh/)的指令裝 Homebrew（要管理員密碼，會順便裝 Xcode Command Line Tools，
+   git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
+   chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
+2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單不列 tailscale。
+3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font（例如 Hack Nerd Font）。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 
@@ -112,6 +120,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 |---|---|
 | Ubuntu（WSL、雲端主機、proot Ubuntu） | `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720` |
 | 原生 Termux | `pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720` |
+| macOS（先做完第 1 步的 Homebrew） | `brew install chezmoi && chezmoi init --apply henry5720` |
 
 - Ubuntu 那行在家目錄跑：`/lb` 把 chezmoi 裝到**目前目錄**的 `.local/bin`（不帶 `/lb` 會裝到 `./bin`）。
 - 不帶 `--ssh`：dotfiles 是公開 repo，chezmoi 用 `https://github.com/henry5720/dotfiles.git` clone，
@@ -124,13 +133,13 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **用途（只有 Ubuntu）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+- **用途（只有 Ubuntu 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
+- **選裝工具選單（只有 Ubuntu 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
 
 | 用途 | 給誰 | 預設勾哪些 |
 |---|---|---|
-| 完整 | 開發主力機 | 選單上全部（WSL、非 amd64 本來就不列 `headless-chrome`、`playwright-cli`） |
+| 完整 | 開發主力機 | 選單上全部（WSL、非 amd64 本來就不列 `headless-chrome`、`playwright-cli`；macOS 另外不列 `tailscale`） |
 | 精簡 | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
 | 自訂 | 有特殊需求 | 都不勾，自己選 |
 
@@ -153,7 +162,9 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 選單上每一項後面都有一句說明，清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。WSL 和非 amd64 的機器不列
-`headless-chrome`、`playwright-cli`。
+`headless-chrome`、`playwright-cli`。macOS 不列 `tailscale`、`headless-chrome`、`playwright-cli`；
+有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
+herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
 
 勾了 zsh 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
 

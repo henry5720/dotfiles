@@ -1,5 +1,5 @@
-{{- /* 只有出選單的機器(Debian 系 Linux)才部署;其他機器渲染成空的,chezmoi 不建這個檔。 */ -}}
-{{- if includeTemplate "is-debian" . -}}
+{{- /* 只有出選單的機器(Debian 系 Linux、macOS)才部署;其他機器渲染成空的,chezmoi 不建這個檔。 */ -}}
+{{- if or (includeTemplate "is-debian" .) (eq .chezmoi.os "darwin") -}}
 #!/bin/sh
 # 重問用途、重出選裝工具選單,勾完直接裝。兩個問題在 chezmoi 的 config 樣板(.chezmoi.toml.tmpl)。
 #

@@ -9,31 +9,33 @@
 # 而且照檔名順序,install-claude 等腳本已經先跑完。
 # wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。zip 用基底的 python3 解(python3 -m zipfile),不用 unzip。
 #
-# wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-linux-<arch>,
+# wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-<os>-<arch>
+# (os 是 linux 或 darwin;Termux 用 linux 版),
 # 再 symlink 成 ~/.wakatime/wakatime-cli。各 agent／編輯器的 WakaTime plugin 預設找這支、
 # 還會自己更新它,已經有了就不重抓。
 set -eu
 # 沒有 root 的機器,jq 可能是套件腳本從 GitHub 抓到 ~/.local/bin 的,而 chezmoi 跑腳本時的 PATH 不一定有它
 command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
 {{ template "sh-arch" . }}
-# 1. wakatime-cli
+# 1. wakatime-cli。Apple Silicon 的 uname -m 是 arm64,不是 aarch64
 case "$(uname -m)" in
   x86_64) asset=amd64 ;;
-  aarch64) asset=arm64 ;;
+  aarch64 | arm64) asset=arm64 ;;
   *) skip_arch wakatime-cli ;;
 esac
+asset={{ if eq .chezmoi.os "darwin" }}darwin{{ else }}linux{{ end }}-$asset
 dir="$HOME/.wakatime"
-bin="$dir/wakatime-cli-linux-$asset"
+bin="$dir/wakatime-cli-$asset"
 if [ -x "$bin" ]; then
   echo "wakatime-cli 已安裝,跳過"
 else
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/wakatime.zip" \
-    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-linux-$asset.zip"
+    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip"
   python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp"
   mkdir -p "$dir"
-  install -m 755 "$tmp/wakatime-cli-linux-$asset" "$bin"
+  install -m 755 "$tmp/wakatime-cli-$asset" "$bin"
 fi
 ln -sfn "$bin" "$dir/wakatime-cli"
 
@@ -45,7 +47,7 @@ fi
 {{- if has "claude" (index . "tools") }}
 
 # 3. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
-#    plugin 找 ~/.wakatime/wakatime-cli-linux-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
+#    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
 #    plugin 的 hook 用 node 跑,要有 node(勾了 codegraph 或 playwright-cli 才會一併裝 nvm;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
 #    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
