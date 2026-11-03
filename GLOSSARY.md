@@ -79,7 +79,7 @@ _Avoid_: 必裝、核心套件
 _Avoid_: 外掛、optional packages、模組
 
 **用途**:
-`chezmoi init` 第一個問題的答案：完整、精簡或自訂。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。
+`chezmoi init` 第一個問題的答案：完整、精簡或自訂（打字和 config 用英文代號 `full`、`minimal`、`custom`）。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。
 _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 
 **預設組合**:

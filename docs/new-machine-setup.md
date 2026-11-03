@@ -131,7 +131,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。
+- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。打英文代號 `full`／`minimal`／`custom`（開頭字母就夠），直接 Enter 是精簡。
 - **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
@@ -143,7 +143,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
-  --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" \
+  --promptChoice "用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）=minimal" \
   --promptString "git user.email=<email>" henry5720
 ```
 
@@ -175,7 +175,7 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 | 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
 | tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
-| nvm 與 Node（codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+| nvm 與 Node（勾了 `node` 或要 Node 的工具才有這項；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 
 不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
 系統沒有 jq 時從 GitHub release 裝到 `~/.local/bin`（非 Debian 系 Linux 也一樣）。

@@ -6,7 +6,7 @@
 # agent 操作瀏覽器用它(ADR 0001)。瀏覽器用的是 headless-chrome 裝的 /opt/google/chrome/chrome,
 # 沒有那支就報錯,不會自己下載。
 #
-# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-nvm 之後。
+# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-node 之後。
 set -eu
 
 # 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
@@ -29,7 +29,7 @@ skip_root "playwright-cli" "要 Node,跟著上面「nvm 與 Node」那項"
 exit 0
 {{ end -}}
 # 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-nvm 應該已經裝好,看它的輸出" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
 npm install -g @playwright/cli
 
 # 4. 沒有 Chrome 只提醒,不算失敗:CLI 本身裝好了,之後補勾 headless-chrome 就能用

@@ -94,12 +94,15 @@ toolPackages:
     ffmpeg:
       - ffmpeg
 
-# 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-nvm),
-# nvm 不在選單上,免得漏勾讓 apply 半路失敗。判斷在 .chezmoitemplates/needs-node。
+# 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
+# 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
+# 判斷在 .chezmoitemplates/needs-node。
+#   node:選單上的 nvm＋Node LTS
 #   codegraph、playwright-cli:npm 全域套件
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
 nodeTools:
+  - node
   - codegraph
   - playwright-cli
   - opencode
