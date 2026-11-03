@@ -11,6 +11,12 @@
 # 明講別用 terminal plugin,時間改由各 agent 的官方 plugin 記(#176)。這份是以前 install-wakatime
 # 腳本 clone 的、只有 dot_zshrc 會載入它,刪掉不影響別的東西;chezmoi 移除 target 的官方做法就是列在這裡。
 .config/zsh/wakatime-zsh-plugin
+# local-artifact-intake skill 和強制載入它的 orchestrator 附加規則拿掉了(#209):
+# gateway 的 GPT 已經能直接讀 PDF。personal route 指到 oh-my-opencode-slim 目錄的 symlink 只為了
+# 共用這份附加規則,一起拿掉;oh-my-opencode-slim 目錄本身留著(OmO 自己可能也放東西)。
+.config/opencode/skills/local-artifact-intake
+.config/opencode/oh-my-opencode-slim/orchestrator_append.md
+.config/opencode/routes/personal/oh-my-opencode-slim
 # skill chrome-mcp 改名 remote-chrome,指令跟著改名;舊 symlink 指向的 skill 目錄已不存在,留著只會是斷掉的連結。
 .local/bin/chrome-mcp
 .local/bin/chrome-headless

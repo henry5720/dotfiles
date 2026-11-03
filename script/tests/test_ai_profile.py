@@ -109,8 +109,6 @@ class AiProfileTest(unittest.TestCase):
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").read_text())
         self.assertNotIn("acpAgents", (ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_text())
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_skills.tmpl").read_text())
-        self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_oh-my-opencode-slim.tmpl").read_text())
-        self.assertFalse((ROOT / "home/dot_config/opencode/routes/personal/skills/symlink_local-artifact-intake.tmpl").exists())
 
     def test_rendered_personal_route_models_and_common_role_metadata(self):
         with tempfile.TemporaryDirectory() as d:

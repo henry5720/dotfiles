@@ -161,7 +161,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 
 chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
 installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
-bundled skills（要先有 `npx`，也就是勾了 `nvm`）：
+bundled skills（要先有 `npx`：勾了 `codegraph` 或 `playwright-cli` 才會一併裝 nvm）：
 
 ```bash
 npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-subagents=no --companion=no

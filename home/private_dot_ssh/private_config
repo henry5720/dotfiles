@@ -22,7 +22,7 @@ Host henry-desktop
     IdentityFile ~/.ssh/henry5720
 
 Host nettop
-    HostName 100.111.240.34
+    HostName 100.111.46.87
     User henry
     IdentityFile ~/.ssh/henry5720
 
