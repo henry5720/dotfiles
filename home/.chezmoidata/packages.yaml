@@ -31,21 +31,20 @@ toolPackages:
       - vim
     btop:
       - btop
-    # nvm 本體是 curl installer(run_onchange_after_install-nvm);它裝的 Node 官方 binary 要 libatomic.so.1。
-    # 以前 build-essential(gcc)順帶裝了,基底拿掉它之後要自己列,不然 node 一執行就 exit 127
-    nvm:
+    # codegraph、playwright-cli 要 Node:nvm(run_onchange_after_install-nvm)跟著它們自動裝,
+    # 它裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
+    # 基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+    codegraph:
+      - libatomic1
+    playwright-cli:
       - libatomic1
     # Claude Code 本體是 native installer(run_onchange_after_install-claude);
     # 它的 Read tool 讀 PDF 時固定呼叫 pdftoppm,沒裝會直接報錯,不會退回 mutool
     claude:
       - poppler-utils
-    # 文件／影音,給 local-artifact-intake skill:影音轉檔、讀 PDF(mutool)、轉文件格式
+    # 影音轉檔、抽音軌與影格
     ffmpeg:
       - ffmpeg
-    mupdf-tools:
-      - mupdf-tools
-    pandoc:
-      - pandoc
     # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
     # 沒這兩個字型,中文和 emoji 截圖全是方框
     headless-chrome:

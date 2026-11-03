@@ -1,6 +1,8 @@
-{{- if has "nvm" (index . "tools") -}}
+{{- $tools := index . "tools" -}}
+{{- if or (has "codegraph" $tools) (has "playwright-cli" $tools) -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 nvm + Node LTS(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# nvm + Node LTS。不是選單上的選項:勾了要 npm 的 codegraph 或 playwright-cli 就一併裝,
+# 免得漏勾 nvm 讓 apply 半路失敗。兩個都沒勾就渲染成空的,chezmoi 不跑。
 # dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
 # 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
 set -eu

@@ -199,9 +199,10 @@ menu_choice() {
   (IFS=/; echo "$TOOLS_PROMPT=${out[*]}")
 }
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
-# ffmpeg、mupdf-tools、pandoc 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
+# ffmpeg 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
+# nvm 不是選項:勾了 codegraph 或 playwright-cli 就自動裝,這裡刻意只勾它們、不勾 nvm(見 check_tool nvm)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們)。
-TOOLS_FIRST=zsh/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # agent-config 的預設 remote 是 GitHub 的 HTTPS(check_git_remotes 驗)。安裝測試用
 # AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),內容可控、不受上游變動影響;
@@ -221,6 +222,7 @@ declare -A TOOL_CHECK=(
   [btop]="dpkg-query -W -f='\${Status}' btop | grep -q 'install ok installed'"
   # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
   [gh]="command -v gh && [ -f /etc/apt/preferences.d/github-cli ] && apt-cache policy gh | grep -A1 '^ \*\*\*' | grep -q cli.github.com"
+  # nvm 不在選單上,跟著 codegraph、playwright-cli 自動裝;留在這裡是為了驗它有裝、腳本名進 TOOL_SCRIPT_RE
   [nvm]=". ~/.nvm/nvm.sh && node --version"
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
@@ -232,8 +234,6 @@ declare -A TOOL_CHECK=(
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
-  [mupdf-tools]="dpkg-query -W -f='\${Status}' mupdf-tools 2>/dev/null | grep -q 'install ok installed'"
-  [pandoc]="dpkg-query -W -f='\${Status}' pandoc 2>/dev/null | grep -q 'install ok installed'"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -320,12 +320,12 @@ scenario_ubuntu() {
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
+  # 選單沒勾 nvm,勾了 codegraph、playwright-cli 就要自動帶入
+  check_tool nvm
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
   check_no_tool ffmpeg
-  check_no_tool mupdf-tools
-  check_no_tool pandoc
   # agent 有裝、wakatime 沒勾:不裝 plugin
   for a in "${!WAKA_PLUGIN[@]}"; do check_no_waka_plugin "$a"; done
   check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
@@ -350,7 +350,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -471,14 +471,42 @@ scenario_ubuntu() {
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
-  # ffmpeg、mupdf-tools、pandoc 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾哪個才裝哪個、而且語法對。
-  bold "▶ (渲染)ffmpeg、mupdf-tools、pandoc"
+  # ffmpeg 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才裝、而且語法對。
+  bold "▶ (渲染)ffmpeg"
   check "沒勾時套件腳本不含 ffmpeg" \
     "! chezmoi execute-template < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
-  check "只勾 pandoc 時套件腳本只多 pandoc" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && ! grep -qE 'ffmpeg|mupdf-tools' /tmp/dm.sh && sh -n /tmp/dm.sh"
-  check "三個都勾時套件腳本裝 ffmpeg、mupdf-tools、pandoc" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\",\"mupdf-tools\",\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+  check "勾 ffmpeg 時套件腳本裝 ffmpeg" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && sh -n /tmp/dm.sh"
+
+  # nvm、mupdf-tools、pandoc 拿掉了(#209):選單沒有、舊機器存著也不報 invalid choice。
+  bold "▶ (渲染)選單沒有 nvm、mupdf-tools、pandoc,舊 config 存著會被濾掉"
+  check "tool-menu 沒有 nvm、mupdf-tools、pandoc" \
+    "! grep -qE '^(nvm|mupdf-tools|pandoc) ' $tmpl/.chezmoitemplates/tool-menu"
+  check "套件清單沒有 mupdf-tools、pandoc" \
+    "! grep -qE 'mupdf-tools|pandoc' $tmpl/.chezmoidata/packages.yaml"
+  # 舊 config:tools 存著 nvm、mupdf-tools、pandoc(還有更舊的 document-media)
+  step "放一份舊 config" \
+    "sed 's/^    tools = .*/    tools = [\"nvm\", \"mupdf-tools\", \"pandoc\", \"document-media\", \"codegraph\"]/' ~/.config/chezmoi/chezmoi.toml > /tmp/old.toml && grep -q mupdf-tools /tmp/old.toml"
+  check "舊 config 再 init(不帶 --prompt)濾掉拿掉的項目" \
+    "cp /tmp/old.toml /tmp/old-init.toml && chezmoi --config /tmp/old-init.toml init --no-tty </dev/null && grep -qx '    tools = \\[\"codegraph\", \"ffmpeg\"\\]' /tmp/old-init.toml"
+  check "舊 config 跑 tools 那條(init --prompt)不報 invalid choice、濾掉拿掉的項目" \
+    "cp /tmp/old.toml /tmp/old-prompt.toml && chezmoi --config /tmp/old-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && grep -qx '    tools = \\[\"codegraph\", \"ffmpeg\"\\]' /tmp/old-prompt.toml"
+
+  # 只勾 codegraph(沒勾 playwright-cli 等其他 node 相關項)也要先裝 nvm 再裝 codegraph。
+  # 第一次 apply 已經裝了 nvm,這裡換一個空的 HOME,照 chezmoi 的順序(install-nvm 排在 npm-install-codegraph 前)
+  # 把兩支渲染出來的腳本真的跑一次。
+  bold "▶ 只勾 codegraph 也會自動裝 nvm"
+  local only_cg='{"tools":["codegraph"]}'
+  check "只勾 codegraph:install-nvm 不是空的" \
+    "[ -n \"\$(chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "只勾 playwright-cli:install-nvm 不是空的" \
+    "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "沒勾 codegraph、playwright-cli:install-nvm 是空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"opencode\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "腳本順序:install-nvm 排在 npm-install-codegraph 前" \
+    "[ \"\$(ls $scripts | grep -E 'install-nvm|npm-install-codegraph' | sort | head -n1)\" = run_onchange_after_install-nvm.sh.tmpl ]"
+  check "只勾 codegraph:在空的 HOME 照順序跑兩支腳本,exit 0、codegraph 能跑" \
+    "chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-nvm.sh.tmpl > /tmp/cg-1.sh && chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_npm-install-codegraph.sh.tmpl > /tmp/cg-2.sh && rm -rf /tmp/only-cg && mkdir /tmp/only-cg && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin sh -c 'sh /tmp/cg-1.sh && sh /tmp/cg-2.sh' && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin bash -c '. ~/.nvm/nvm.sh && codegraph --version'"
 
   # 基底只剩 git、curl、jq、python3;zsh、vim 走 toolPackages,eza 等走下載腳本,都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"

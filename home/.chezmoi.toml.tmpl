@@ -68,9 +68,9 @@
 {{-     end -}}
 {{-     $_ := set $stored "tools" $current -}}
 {{-   end -}}
-{{- /* 舊的 document-media 已拆成三項,舊機器的勾選照樣帶過去。 */ -}}
+{{- /* 舊的 document-media 拆出來只剩 ffmpeg,舊機器的勾選照樣帶過去。 */ -}}
 {{-   if has "document-media" $current -}}
-{{-     $current = concat $current (list "ffmpeg" "mupdf-tools" "pandoc") -}}
+{{-     $current = append $current "ffmpeg" -}}
 {{-   end -}}
 {{-   $toolDefaults := list -}}
 {{-   range $current -}}
@@ -79,11 +79,21 @@
 {{-     end -}}
 {{-   end -}}
 {{- /* 選單回傳的是選單文字(已經存過時是存著的工具名),只留第一個空白前的工具名。
+       拿掉的選項(nvm 改成跟著 codegraph、playwright-cli 自動裝;mupdf-tools、pandoc 沒人用)
+       舊機器可能還存著,濾掉;document-media 換成 ffmpeg(見上面)。
        「已經存過」看的是 $stored(加過 $baseSplit 的舊勾選),不是 config 裡的原值:
        不加 --prompt 的 init 不出選單,遷移也要生效。 */ -}}
+{{-   $removed := list "nvm" "mupdf-tools" "pandoc" "document-media" -}}
+{{-   $picked := promptMultichoiceOnce $stored "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
+{{-   if has "document-media" $picked -}}
+{{-     $picked = append $picked "ffmpeg" -}}
+{{-   end -}}
 {{-   $tools = list -}}
-{{-   range promptMultichoiceOnce $stored "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
-{{-     $tools = append $tools (index (splitList " " .) 0) -}}
+{{-   range $picked -}}
+{{-     $name := index (splitList " " .) 0 -}}
+{{-     if not (or (has $name $removed) (has $name $tools)) -}}
+{{-       $tools = append $tools $name -}}
+{{-     end -}}
 {{-   end -}}
 {{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}

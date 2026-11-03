@@ -4,7 +4,7 @@ agent 要點、填表、跑流程、截圖時用 `playwright-cli`;查原因(慢�
 分工見 [ADR 0001](adr/0001-browser-tools-drive-vs-debug.md)。
 
 ```text
-選裝工具 playwright-cli ── npm install -g @playwright/cli(要一起勾 nvm)
+選裝工具 playwright-cli ── npm install -g @playwright/cli(會一併裝 nvm)
         │
         └─ 開瀏覽器 ──→ /opt/google/chrome/chrome ←── 選裝工具 headless-chrome 裝的那支
 skill ──────────── 不在這個 repo,agent-config 用 skillshare 發
