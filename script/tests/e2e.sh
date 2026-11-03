@@ -98,14 +98,18 @@ check_git_remotes() {
 
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
 # 所以要跟 home/.chezmoi.toml.tmpl 的提示文字一字不差;漏了會在 init 時看到 EOF 和那句提示。
-INIT_FLAGS=(
+# 憑證只在勾了用得到的工具時才問(#213),多給的旗標沒問到就不用。
+SECRET_FLAGS=(
   --promptString 'code-server 密碼=e2e'
   --promptString 'codex-lb API key=e2e'
   --promptString 'Context7 API key（可留空）='
   --promptString 'WakaTime API key（可留空）='
+)
+GIT_FLAGS=(
   --promptString 'git user.name=e2e'
   --promptString 'git user.email=e2e@example.com'
 )
+INIT_FLAGS=("${SECRET_FLAGS[@]}" "${GIT_FLAGS[@]}")
 
 # ===============================================================
 # 共用檢查
@@ -435,8 +439,13 @@ scenario_ubuntu() {
     "out=\$(chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl | sh 2>&1) && echo \"\$out\" && ! grep -q 'Successfully' <<<\"\$out\" && [ \"\$(grep -c 'plugin 已安裝,跳過' <<<\"\$out\")\" = ${#WAKA_PLUGIN[@]} ]"
   check_no_tool ttyd
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
-  check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
-    "chezmoi init --no-tty </dev/null && grep -q '^    tools = .*\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml && grep -qF '\"agent-config\", \"wakatime\"]' ~/.config/chezmoi/chezmoi.toml"
+  # 第一次沒勾 wakatime,所以 WakaTime key 沒問過、config 裡沒有(#213);勾了之後 init 才問
+  check "(對照)第一次沒勾 wakatime:config 裡沒有 wakatimeApiKey" "! grep -q wakatimeApiKey ~/.config/chezmoi/chezmoi.toml"
+  check "之後 init 不給 WakaTime key:會問(--no-tty 讀到 EOF 失敗)" \
+    "! out=\$(chezmoi init --no-tty </dev/null 2>&1) && echo \"\$out\" && grep -q 'WakaTime API key' <<<\"\$out\""
+  check "之後 init(不帶 --prompt)只給 WakaTime key:存下來、tools 不變" \
+    "chezmoi init --no-tty --promptString 'WakaTime API key（可留空）=e2e-waka' </dev/null && grep -qx '    wakatimeApiKey = \"e2e-waka\"' ~/.config/chezmoi/chezmoi.toml && grep -q '^    tools = .*\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml && grep -qF '\"agent-config\", \"wakatime\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "WakaTime key 寫進 ~/.wakatime.cfg" "chezmoi cat ~/.wakatime.cfg | grep -qx 'api_key = e2e-waka'"
 
   # skillshare 的 targets、extras 每次 apply 都照選單釘回去(#211)
   bold "▶ 手動 skillshare target add,再 apply"
@@ -522,10 +531,39 @@ scenario_ubuntu() {
     "sed 's/^    tools = .*/    tools = [\"gh\"]/' /tmp/lean.toml > /tmp/lean-stale.toml && chezmoi --config /tmp/lean-stale.toml init --no-tty </dev/null && $(printf "$use_is" 精簡 /tmp/lean-stale.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-stale.toml"
   check "存精簡的機器跑 tools 那條(init --prompt --promptDefaults):保留精簡與勾選" \
     "cp /tmp/lean.toml /tmp/lean-prompt.toml && chezmoi --config /tmp/lean-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && $(printf "$use_is" 精簡 /tmp/lean-prompt.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-prompt.toml"
+  # 精簡沒問過憑證,改成完整就要問(給 SECRET_FLAGS)
   check "存精簡的機器在 tools 改選完整:選單預設帶完整的組合" \
-    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice 完整)") </dev/null && $(printf "$use_is" 完整 /tmp/lean-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/lean-full.toml"
+    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice 完整)") </dev/null && $(printf "$use_is" 完整 /tmp/lean-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/lean-full.toml"
   check "只有 tools(有 toolsSchema)、沒有用途的舊 config:init 不問、存自訂、tools 不變" \
     "sed '/^    machineUse = /d' $cfg > /tmp/no-use.toml && ! grep -q machineUse /tmp/no-use.toml && chezmoi --config /tmp/no-use.toml init --no-tty </dev/null && $(printf "$use_is" 自訂 /tmp/no-use.toml) && [ \"\$(grep '^    tools = ' /tmp/no-use.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
+
+  # 憑證只問用得到的(#213)。execute-template 沒給旗標時不會停下來問,而是把提示文字當答案,
+  # 所以「有問」=「config 裡有那個 key」(全新 config、只給 git 身分)。
+  bold "▶ (渲染)憑證只問用得到的"
+  local secret_keys='codeServerPassword|codexLbApiKey|context7ApiKey|wakatimeApiKey'
+  # secrets_asked <用途> [勾選] → 印出渲染指令,輸出問到的憑證 key(照樣板順序,空白分隔)
+  secrets_asked() {
+    local flags=(--promptChoice "$(use_choice "$1")")
+    [ -n "${2:-}" ] && flags+=(--promptMultichoice "$(menu_choice "$2")")
+    echo "chezmoi --config /tmp/s-none.toml execute-template --init --no-tty $(printf '%q ' "${GIT_FLAGS[@]}" "${flags[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl | grep -oE '^    ($secret_keys) = ' | awk '{print \$1}' | paste -sd' '"
+  }
+  check "選精簡:只問 git 身分,一個憑證都不問" "[ -z \"\$($(secrets_asked 精簡))\" ]"
+  check "README 免回答安裝那一行(--promptDefaults、只給用途與 git email)跑得完、不問憑證" \
+    "chezmoi --config /tmp/s-readme.toml init --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice 精簡)") --promptString 'git user.email=e2e@example.com' </dev/null && cat /tmp/s-readme.toml && ! grep -qE '$secret_keys' /tmp/s-readme.toml && grep -qx '    gitUserName = \"henry\"' /tmp/s-readme.toml"
+  check "勾 code-server:只問 code-server 密碼" "[ \"\$($(secrets_asked 自訂 code-server))\" = codeServerPassword ]"
+  check "勾 opencode(沒勾 codex):只問 codex-lb key" "[ \"\$($(secrets_asked 自訂 opencode))\" = codexLbApiKey ]"
+  check "勾 codex:只問 codex-lb key" "[ \"\$($(secrets_asked 自訂 codex))\" = codexLbApiKey ]"
+  check "勾 agent-config、wakatime:問 Context7、WakaTime key" \
+    "[ \"\$($(secrets_asked 自訂 wakatime/agent-config))\" = 'context7ApiKey wakatimeApiKey' ]"
+  check "選完整:四個憑證都問" \
+    "[ \"\$($(secrets_asked 完整))\" = 'codeServerPassword codexLbApiKey context7ApiKey wakatimeApiKey' ]"
+  # 存過的值不管現在勾不勾都留著(第一次 init 存的四項;改成精簡也不刪)
+  check "已存的憑證在改成精簡後保留(init --prompt 改用途)" \
+    "cp $cfg /tmp/s-keep.toml && chezmoi --config /tmp/s-keep.toml init --prompt --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice 精簡)") </dev/null && $(printf "$use_is" 精簡 /tmp/s-keep.toml) && grep -qx '    codeServerPassword = \"e2e\"' /tmp/s-keep.toml && grep -qx '    codexLbApiKey = \"e2e\"' /tmp/s-keep.toml && grep -qx '    wakatimeApiKey = \"e2e-waka\"' /tmp/s-keep.toml && grep -qx '    context7ApiKey = \"\"' /tmp/s-keep.toml"
+  check "沒勾 code-server:不部署 ~/.config/code-server(它要的密碼沒問)" \
+    "! chezmoi --config /tmp/lean.toml managed | grep -q '^\\.config/code-server'"
+  check "精簡(沒有任何憑證)的 config 渲染得了所有檔案" \
+    "chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --no-tty --exclude externals,scripts"
 
   # 原生 Termux 不出選單、不跑選裝腳本。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
   # 真的在 termux 容器跑 init 由 termux 目標負責。
@@ -587,6 +625,48 @@ scenario_ubuntu() {
   done
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
+
+  # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
+  bold "▶ (渲染)macOS 出用途選單、沒有 tailscale,套件走 brew bundle"
+  local mac='{"chezmoi":{"os":"darwin"}}'
+  local mac_full=${FULL_TOOLS/\/tailscale\///}; mac_full=${mac_full/\/headless-chrome\/playwright-cli/}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(沒有 tailscale、headless-chrome、playwright-cli)" \
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice 完整)") > /tmp/mac.toml && $(printf "$use_is" 完整 /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
+  check "macOS 選精簡:精簡濾掉 tailscale" \
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice 精簡)") > /tmp/mac-lean.toml && $(printf "$use_is" 精簡 /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
+  for t in tailscale headless-chrome playwright-cli; do
+    check "macOS 的選單沒有 $t(勾了會報 invalid choice)" \
+      "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$(menu_choice $t)") 2>&1 | grep -q 'invalid choice'"
+  done
+  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","claude","ttyd","code-server","herdr"]}'
+  check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,語法對" \
+    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"ttyd\"' ]"
+  check "brew bundle 腳本在 Linux 渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "brew bundle 腳本在 Termux 渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
+  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
+  for f in run_onchange_before_install-packages run_once_after_set-default-shell run_onchange_after_install-cli-tools \
+           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-ttyd \
+           run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
+           run_onchange_after_npm-install-playwright-cli run_after_zz-root-skipped-summary; do
+    check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell)" \
+      "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
+  done
+  check "macOS 的 wakatime 抓 darwin 版" \
+    "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
+  check "macOS 部署 tools 指令" \
+    "chezmoi --config /tmp/mac.toml managed --override-data '$mac' | grep -qx .local/bin/tools"
+  # 憑證照勾選問(#213):用全新 config、只給 git 身分,看 config 寫了哪些 key
+  local mac_secrets="chezmoi --config /tmp/s-mac-none.toml execute-template --init --no-tty --override-data '$mac' $(printf '%q ' "${GIT_FLAGS[@]}")"
+  local mac_secret_keys='^    (codeServerPassword|codexLbApiKey|context7ApiKey|wakatimeApiKey) = '
+  check "macOS 選精簡:一個憑證都不問" \
+    "$mac_secrets --promptChoice $(printf '%q' "$(use_choice 精簡)") < $tmpl/.chezmoi.toml.tmpl > /tmp/mac-s-lean.toml && $(printf "$use_is" 精簡 /tmp/mac-s-lean.toml) && ! grep -qE '$mac_secret_keys' /tmp/mac-s-lean.toml"
+  check "macOS 選完整:四個憑證都問" \
+    "[ \"\$($mac_secrets --promptChoice $(printf '%q' "$(use_choice 完整)") < $tmpl/.chezmoi.toml.tmpl | grep -oE '$mac_secret_keys' | awk '{print \$1}' | paste -sd' ')\" = 'codeServerPassword codexLbApiKey context7ApiKey wakatimeApiKey' ]"
+  # .bashrc 切 zsh、補 .profile(#215)只給沒有 root 的 Linux;mac 勾了 zsh 也不部署
+  check "macOS 勾 zsh 也不部署 .bashrc、.profile" \
+    "grep -q '\"zsh\"' /tmp/mac.toml && ! chezmoi --config /tmp/mac.toml managed --override-data '$mac' | grep -qxE '\\.bashrc|\\.profile'"
 
   # ffmpeg 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才裝、而且語法對。
   bold "▶ (渲染)ffmpeg"

@@ -1,0 +1,39 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!{{ lookPath "sh" }}
+# macOS 的系統套件:照 chezmoi 官方「Install packages declaratively」的 brew bundle 範例
+# (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/),
+# 把 .chezmoidata/packages.yaml 的 darwin 欄(基底 + tools 有勾的 toolPackages)交給 brew bundle。
+# 其他 OS 渲染成空的,chezmoi 不跑;Linux／Termux 是 install-packages 那支。
+#
+# 跟官方範例不同的地方:
+# - 名字帶 before_:跟 install-packages 一樣要在 modify_ 腳本之前跑完(它們要 jq)。
+# - shebang 用 sh(這個 repo 的規則);heredoc 在 sh 一樣能用。
+# - 找不到 brew 時直接停:Homebrew 是前置步驟(要管理員密碼、互動),不由 chezmoi 裝,見 docs/new-machine-setup.md。
+# run_onchange_:清單沒變就不會再跑;brew bundle 本身也只裝缺的。
+set -eu
+
+# 1. 找 brew。chezmoi 跑腳本時的 PATH 不一定有 Homebrew(Apple Silicon 在 /opt/homebrew,Intel 在 /usr/local)
+if ! command -v brew >/dev/null 2>&1; then
+  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    [ -x "$b" ] && eval "$("$b" shellenv)" && break
+  done
+fi
+command -v brew >/dev/null 2>&1 || {
+  echo "找不到 Homebrew。先照 docs/new-machine-setup.md 的 macOS 前置步驟裝好,再跑 chezmoi apply" >&2
+  exit 1
+}
+
+# 2. 裝
+{{- $brews := .packages.darwin.brews }}
+{{- range $tool, $tp := .toolPackages.darwin }}
+{{-   if has $tool (index $ "tools") }}{{ $brews = concat $brews $tp }}{{ end }}
+{{- end }}
+brew bundle --file=/dev/stdin <<EOF
+{{ range $brews | uniq -}}
+brew {{ . | quote }}
+{{ end -}}
+{{ range .packages.darwin.casks -}}
+cask {{ . | quote }}
+{{ end -}}
+EOF
+{{ end -}}

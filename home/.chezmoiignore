@@ -5,6 +5,7 @@
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
 .zshrc
 .p10k.zsh
+.config/zsh/env.zsh
 {{ end }}
 {{ if or (ne .chezmoi.os "linux") (not (has "zsh" (index . "tools"))) (includeTemplate "has-root" .) }}
 # 只有沒有 root 的 Linux、勾了 zsh 才要:互動式 bash 切 zsh(modify_dot_bashrc.tmpl)與補 .profile。
@@ -32,6 +33,8 @@
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
+# code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
+{{ if not (has "code-server" $tools) }}.config/code-server{{ end }}
 
 # apt 用得了的機器(有 root 的 Debian 系、Termux)不碰 mise:不部署它的清單,也不建空的 ~/.config/mise。
 {{ if not (includeTemplate "use-mise" .) }}.config/mise{{ end }}

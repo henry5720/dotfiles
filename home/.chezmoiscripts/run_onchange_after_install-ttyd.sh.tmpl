@@ -1,6 +1,7 @@
-{{- if has "ttyd" (index . "tools") -}}
+{{- if and (has "ttyd" (index . "tools")) (ne .chezmoi.os "darwin") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 ttyd(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# macOS 走 brew(install-packages-darwin),這支渲染成空的:release 只有 Linux 的執行檔。
 # 把 terminal 開成網頁,臨時給沒有 tailscale／ssh key 的人用。
 # 怎麼開、怎麼收見 docs/share-with-guest.md(用 share-shell)。
 # 抓 GitHub release 的單一執行檔,chezmoi 不負責更新它。

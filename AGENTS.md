@@ -50,8 +50,10 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 **這個 repo 是公開的。** 秘密不進 git,一律在 `chezmoi init` 時問,值存在
 `~/.config/chezmoi/chezmoi.toml`(repo 外),在 `.tmpl` 裡以 `{{ .someKey }}` 帶入。
 
-新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 開頭的清單加一項 `(list "key" "提示文字" "預設值")`
-(沒有預設值給 `""`),`[data]` 加一行,再從用到它的 `.tmpl` 引用。已經存過的值不會再問,
+新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 憑證那段的清單加一項 `(list "key" "提示文字" "預設值" (list "工具"…))`
+(沒有預設值給 `""`;勾了其中一個工具才問,空的 `(list)` = 一定問),再從用到它的 `.tmpl` 引用。
+沒問過的 key 不會寫進 `[data]`:引用的樣板要用 `index . "key"` 取值,或跟著工具被 `.chezmoiignore` 排除,
+不然沒勾那個工具的機器 apply 會報 `map has no entry for key`。已經存過的值不會再問,
 `chezmoi init --prompt` 也不會 —— `--prompt` 只重問用途與選單,`tools` 指令靠這個。
 
 樣板寫錯是在 `chezmoi init` 時才炸 —— 平常 `chezmoi apply` 不會重新渲染 config 樣板,

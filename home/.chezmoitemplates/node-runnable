@@ -1,8 +1,10 @@
 {{- /* nvm 裝的 Node 官方 binary 跑不跑得起來:能就輸出 true,否則空字串。
        Node 要系統的 libatomic.so.1(packages.yaml 的 toolPackages 列了 libatomic1)。有 root 的 Debian 系套件腳本會先裝好,
-       直接算能;沒有 root、或非 Debian 系(沒有套件腳本)就看系統本來有沒有(ldconfig -p)。
+       直接算能;沒有 root、或非 Debian 系(沒有套件腳本)就看系統本來有沒有(ldconfig -p)。macOS 的 Node 不需要 libatomic,一律算能。
        在樣板裡判斷:管理員之後補裝了 libatomic1,引用它的腳本內容會變,下次 apply 自己重跑。 */ -}}
-{{- if and (includeTemplate "has-root" .) (includeTemplate "is-debian" .) -}}
+{{- if eq .chezmoi.os "darwin" -}}
+true
+{{- else if and (includeTemplate "has-root" .) (includeTemplate "is-debian" .) -}}
 true
 {{- else if trim (output "sh" "-c" "{ /sbin/ldconfig -p 2>/dev/null || ldconfig -p 2>/dev/null; } | grep -q 'libatomic\\.so\\.1' && echo true || :") -}}
 true

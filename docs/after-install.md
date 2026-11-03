@@ -31,10 +31,11 @@
 |---|---|---|
 | `wakatimeApiKey` | `~/.wakatime.cfg`（留空就不部署） | — |
 | `codexLbApiKey` | `~/.codex/config.toml`、`~/.config/opencode/opencode.json` | — |
-| `context7ApiKey` | `~/.config/zsh/env.zsh` | 開新的 zsh |
-| `codeServerPassword` | `~/.config/code-server/config.yaml` | 重啟 code-server |
+| `context7ApiKey` | `~/.config/zsh/env.zsh`（留空或沒勾 zsh 就不部署） | 開新的 zsh |
+| `codeServerPassword` | `~/.config/code-server/config.yaml`（沒勾 code-server 就不部署） | 重啟 code-server |
 | `gitUserName`、`gitUserEmail` | `~/.gitconfig` | — |
 
 - 不要直接改右欄的檔案：下次 `chezmoi apply` 會被蓋回 `chezmoi.toml` 裡的值。
 - `~/.config/chezmoi/chezmoi.toml` 有明文的 key，不要 `cat` 出來貼給別人或 agent。
-- `tools` 不會重問憑證；只有 `chezmoi edit-config` 改得到。
+- 憑證只在勾了用得到它的工具時才問（對照表在[新機器設定](new-machine-setup.md)），沒問過的 key 不會出現在 `[data]`。
+  `tools` 新勾的工具用得到、還沒存過的憑證，會在 `tools` 時問；存過的不重問、取消勾選也不刪，只有 `chezmoi edit-config` 改得到。
