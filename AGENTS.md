@@ -52,7 +52,7 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 
 新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 開頭的清單加一項 `(list "key" "提示文字" "預設值")`
 (沒有預設值給 `""`),`[data]` 加一行,再從用到它的 `.tmpl` 引用。已經存過的值不會再問,
-`chezmoi init --prompt` 也不會 —— `--prompt` 只重問選單,`tools` 指令靠這個。
+`chezmoi init --prompt` 也不會 —— `--prompt` 只重問用途與選單,`tools` 指令靠這個。
 
 樣板寫錯是在 `chezmoi init` 時才炸 —— 平常 `chezmoi apply` 不會重新渲染 config 樣板,
 所以這種錯很容易漏到新機器上才發現。改完一定跑下面的 `execute-template --init`。
@@ -110,7 +110,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 看檔案是哪一種,兩種不要互相看齊:
 
-- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config`、
+- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config.tmpl`、
   `private_config.yaml.tmpl`)—— 一堆彼此無關的設定並排、會跳著找,
   用 `# ===` 橫幅 + 編號當目錄
 - **流程腳本**(`script/` 底下的 `.sh`、`home/.chezmoiscripts/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。

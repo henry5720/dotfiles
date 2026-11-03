@@ -9,9 +9,9 @@
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
+| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
 | 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、eza、fzf、bat、ripgrep、vim、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/new-machine-setup.md#沒有-root-的機器)。
 
@@ -21,11 +21,14 @@
 |---|---|---|
 | 更新系統 | 可選，跳過也裝得起來 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
 | 放 SSH key | 可選，要 push 或連其他機器才需要；裝完再放也行 | 見[新機器設定 2.2](docs/new-machine-setup.md#22可選放-ssh-key) |
-| 裝 chezmoi 與 dotfiles | 必做 | 下面兩行挑一行 |
+| 裝 chezmoi 與 dotfiles | 必做 | 下面三行挑一行 |
 
 ```bash
 # Ubuntu（WSL、雲端主機、proot Ubuntu），在家目錄跑
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
+
+# Ubuntu，免回答用途與選單：直接套精簡（用途提示要一字不差，見新機器設定）
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" --promptString "git user.email=<email>" henry5720
 
 # 原生 Termux
 pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
@@ -39,7 +42,7 @@ clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會�
 裝完之後最常用的兩個（其他見[裝完之後](docs/after-install.md)）：
 
 ```bash
-tools                                  # 加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
+tools                                  # 改用途、加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 
@@ -83,7 +86,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 ## fork 前要改什麼
 
-- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
+- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config.tmpl`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
 - [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
 - [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
 - [ ] ssh config 裡的 Tailscale 主機與平板

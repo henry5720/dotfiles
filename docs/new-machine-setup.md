@@ -124,8 +124,29 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。基底只有 git、curl、jq、python3，
-  要 zsh + p10k、eza、fzf、bat、ripgrep、vim 也要在這裡勾；原生 Termux 和其他 Linux 不出選單，這六項自動帶入。
+- **用途（只有 Ubuntu）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
+- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+  zsh + p10k 也是選裝工具，要在這裡勾。
+
+| 用途 | 給誰 | 預設勾哪些 |
+|---|---|---|
+| 完整 | 開發主力機 | 選單上全部（WSL、非 amd64 本來就不列 `headless-chrome`、`playwright-cli`） |
+| 精簡 | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
+| 自訂 | 有特殊需求 | 都不勾，自己選 |
+
+選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
+改過勾選就存成自訂，照你勾的、不再跟著預設組合走。原生 Termux 和其他 Linux 不問，直接套精簡、
+濾掉 tailscale、btop。
+
+要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
+
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
+  --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" \
+  --promptString "git user.email=<email>" henry5720
+```
+
+`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。憑證目前還是會問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
@@ -170,6 +191,43 @@ jq 從 GitHub release 裝到 `~/.local/bin`。
 有沒有 root 都一樣，不會叫 sudo。
 
 不要用 `sudo chezmoi …`：以 root 執行、`$HOME` 又不屬於 root 時，chezmoi 一開頭就停，免得家目錄的檔案變成 root 擁有。
+
+沒有 `ssh` 的機器（例：TeamSync 工作區）不分用途自動補 ssh client：apt 不用 root 把 openssh-client
+抓下來解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。
+只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝。
+
+tailscale 走 userspace 的機器（勾了 tailscale、沒有 root、系統 tailscaled 沒在跑），`~/.ssh/config` 的
+`company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`。照彙整的手動步驟把
+userspace tailscaled 跑起來、登入之後，`ssh company-ec2` 就經 tailnet 連過去。其他機器的 ssh config 不變。
+
+### TeamSync 工作區：連 company-ec2 的專用 key（一次性）
+
+company-ec2 關了密碼登入，也沒開 Tailscale SSH，工作區要一把 key。不要把 `henry5720` 或 AWS 發的 pem
+複製進工作區：產一把工作區專用的，外洩或不用了只要在 company-ec2 刪一行。
+
+1. 在工作區產 key。檔名用 `~/.ssh/company-henry.pem`：ssh config 的 `company-ec2` 寫死這個 IdentityFile。
+   這把是工作區自己的 key，跟其他機器上同名的 AWS pem 不是同一把：
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -C "teamsync-ws $(date +%F)" -f ~/.ssh/company-henry.pem
+   cat ~/.ssh/company-henry.pem.pub
+   ```
+
+2. 在已經連得上 company-ec2 的機器，把那行公鑰加進 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
+
+   ```bash
+   ssh company-ec2 'cat >> ~/.ssh/authorized_keys'
+   # 貼上一行:from="100.64.0.0/10" <第 1 步印出的公鑰>,換行後 Ctrl-D
+   ```
+
+3. 回工作區，先 `export TERM=xterm-256color` 再 `ssh company-ec2`：工作區的 bash 沒有 export `TERM`，
+   遠端 zsh 的行編輯會壞（字元重複）。
+4. 撤銷：在 company-ec2 跑 `sed -i '/teamsync-ws/d' ~/.ssh/authorized_keys`。
+
+p10k 的圖示在 TeamSync 工作區的網頁終端機變成方塊，不是 dotfiles 壞了：它用通用的 `monospace` 字型，
+實際用哪個字型看的是**你看畫面那台 Chrome** 的等寬字型設定。在那台裝 Hack Nerd Font
+（Windows 見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)），到 `chrome://settings/fonts`
+把「固定寬度字型」改成 `Hack Nerd Font`，重新整理頁面。
 
 ### 2.4 裝完之後
 

@@ -45,6 +45,6 @@ skip_root tailscale "改用 userspace 模式,不用 root:
     2. 啟動:tailscaled --tun=userspace-networking --statedir=\$HOME/.local/state/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock --port=0 &
     3. 登入:tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock up
     4. 常駐,依序挑做得到的:systemd user service(要 loginctl enable-linger,通常要管理員)、crontab 的 @reboot、login shell 裡沒在跑就啟動
-    5. ssh 連 tailnet 的機器:ssh config 的 ProxyCommand 用 tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc %h %p"
+    5. ssh 連 tailnet 的機器:ProxyCommand 用 tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc %h %p(~/.ssh/config 的 company-ec2 已經帶了)"
 {{- end }}
 {{ end -}}
