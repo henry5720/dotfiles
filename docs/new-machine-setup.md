@@ -131,29 +131,13 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
+- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。
 - **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
-
-  | 勾了 | 問 |
-  |---|---|
-  | code-server | `code-server 密碼` |
-  | codex 或 opencode | `codex-lb API key` |
-  | agent-config | `Context7 API key`（可留空） |
-  | wakatime | `WakaTime API key`（可留空） |
-
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
-| 用途 | 給誰 | 預設勾哪些 |
-|---|---|---|
-| 完整 | 開發主力機 | 選單上全部（WSL、非 amd64 本來就不列 `headless-chrome`、`playwright-cli`；macOS 另外不列 `tailscale`） |
-| 精簡 | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
-| 自訂 | 有特殊需求 | 都不勾，自己選 |
-
-選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
-改過勾選就存成自訂，照你勾的、不再跟著預設組合走。原生 Termux 不問，直接套精簡、
-濾掉 tailscale、btop。非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見下一節）。
+各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](machine-use.md)。
 
 要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
 
@@ -191,17 +175,17 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 | 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
 | tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
-| nvm 與 Node（codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+| nvm 與 Node（codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 
 不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
-jq 從 GitHub release 裝到 `~/.local/bin`。
+系統沒有 jq 時從 GitHub release 裝到 `~/.local/bin`（非 Debian 系 Linux 也一樣）。
 
-勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`。不能 `chsh`，改成：
+勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`（非 Debian 系 Linux 也一樣，有 root 也是）。不 `chsh`，改成：
 
 - `~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間）：互動式 bash 一啟動就 `exec zsh`；
   `bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh
-- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個只 source `~/.bashrc` 的 `~/.profile`，
-  讓 `bash -l` 開的終端機也會切過去
+- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個 `~/.profile`：把 `~/.local/bin` 加進 PATH、
+  source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去
 - `TERM` 沒設時，`.zshrc` 補成 `xterm-256color`
 
 本來走 apt 的 vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，
@@ -220,7 +204,7 @@ jq 從 GitHub release 裝到 `~/.local/bin`。
 
 沒有 `ssh` 的機器（例：TeamSync 工作區）不分用途自動補 ssh client：apt 不用 root 把 openssh-client
 抓下來解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。
-只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝。
+抓不到或解不開時不讓 apply 失敗，記進略過彙整。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝。
 
 tailscale 走 userspace 的機器（勾了 tailscale、沒有 root、系統 tailscaled 沒在跑），`~/.ssh/config` 的
 `company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`。照彙整的手動步驟把
@@ -281,7 +265,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 
 chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
 installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
-bundled skills（要先有 `npx`：勾了 `codegraph` 或 `playwright-cli` 才會一併裝 nvm）：
+bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 nvm）：
 
 ```bash
 npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-subagents=no --companion=no

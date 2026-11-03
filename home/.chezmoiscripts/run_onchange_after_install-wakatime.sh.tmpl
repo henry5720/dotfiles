@@ -14,8 +14,7 @@
 # 再 symlink 成 ~/.wakatime/wakatime-cli。各 agent／編輯器的 WakaTime plugin 預設找這支、
 # 還會自己更新它,已經有了就不重抓。
 set -eu
-# 沒有 root 的機器,jq 可能是套件腳本從 GitHub 抓到 ~/.local/bin 的,而 chezmoi 跑腳本時的 PATH 不一定有它
-command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
+{{ template "sh-jq-path" . }}
 {{ template "sh-arch" . }}
 # 1. wakatime-cli。Apple Silicon 的 uname -m 是 arm64,不是 aarch64
 case "$(uname -m)" in

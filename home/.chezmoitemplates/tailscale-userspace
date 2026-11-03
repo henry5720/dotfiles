@@ -2,11 +2,11 @@
        三條都成立才算,跟 install-tailscale 腳本印 userspace 手動步驟的條件一樣:
          1. Linux 而且勾了 tailscale
          2. 沒有 root(.chezmoitemplates/has-root),系統層的 tailscale 裝不了
-         3. 系統層的 tailscaled 沒在跑(tailscale status 不是 Running、systemctl is-active tailscaled 不是 active);
+         3. 系統層的 tailscaled 沒在跑(.chezmoitemplates/sh-tailscale-running,跟 install-tailscale 同一段判斷);
             在跑的話(例如管理員裝好的機器)直接用系統那份,不用 userspace
        userspace 的 tailscaled 用自己的 socket,tailscale status 走預設 socket 看不到它,所以跑起來之後結果也不變。 */ -}}
 {{- if and (eq .chezmoi.os "linux") (has "tailscale" (index . "tools")) (not (includeTemplate "has-root" .)) -}}
-{{-   $running := output "sh" "-c" "{ command -v tailscale >/dev/null 2>&1 && tailscale status --json 2>/dev/null | grep -Eq '\"BackendState\": *\"Running\"'; } || { command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tailscaled 2>/dev/null; } && echo running || :" -}}
+{{-   $running := output "sh" "-c" (printf "%s\ntailscale_running && echo running || :" (includeTemplate "sh-tailscale-running" .)) -}}
 {{-   if not (trim $running) -}}
 true
 {{-   end -}}

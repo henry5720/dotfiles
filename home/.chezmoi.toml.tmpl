@@ -20,7 +20,9 @@
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
          4. 存「自訂」的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
-       原本裝的東西不會少;寫回 config 時帶 toolsSchema = 2,之後就照存的勾選。 */ -}}
+       原本裝的東西不會少;寫回 config 時帶 toolsSchema = 2,之後就照存的勾選。
+       toolsSchema 是 tools 的格式版本:沒有這個 key = 第 1 版(這六項還在基底、不在 tools 裡),
+       2 = 這六項也要在 tools 裡勾才裝。key 名與值已經寫在各台的 config,不要改;格式再變就加到 3。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
 {{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
        用途的提示文字會出現在 README 免回答安裝那一行(--promptChoice 的 key),改了要一起改;
@@ -112,7 +114,7 @@
 {{-     end -}}
 {{-   end -}}
 {{- /* 選單回傳的是選單文字(已經存過時是存著的工具名),只留第一個空白前的工具名。
-       拿掉的選項(nvm 改成跟著 codegraph、playwright-cli 自動裝;mupdf-tools、pandoc 沒人用)
+       拿掉的選項(nvm 改成跟著要 Node 的工具自動裝,見 packages.yaml 的 nodeTools;mupdf-tools、pandoc 沒人用)
        舊機器可能還存著,濾掉;document-media 換成 ffmpeg(見上面)。 */ -}}
 {{-   $removed := list "nvm" "mupdf-tools" "pandoc" "document-media" -}}
 {{-   $picked := promptMultichoiceOnce $toolsStored "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}

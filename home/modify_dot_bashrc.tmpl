@@ -1,7 +1,7 @@
 #!{{ lookPath "sh" }}
-# 沒有 root 的 Linux、勾了選裝工具 zsh 才部署(.chezmoiignore):不能 chsh,
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)、勾了選裝工具 zsh 才部署(.chezmoiignore):不用 chsh,
 # 改成互動式 bash 一啟動就 exec zsh。非互動的 bash(bash -c、scp、ssh 帶指令)留在 bash。
-# zsh 優先用 zsh-bin 裝的 ~/.local/bin/zsh(run_onchange_before_install-packages),
+# zsh 優先用 zsh-bin 裝的 ~/.local/bin/zsh(run_onchange_before_install-home-jq-zsh),
 # 這時 PATH 不一定有 ~/.local/bin;沒有就找 PATH 上的(例如管理員裝的)。都沒有就留在 bash。
 #
 # modify_:現有的 ~/.bashrc 從 stdin 進來,輸出成新內容。先拿掉上次加的那段、再接在最後,

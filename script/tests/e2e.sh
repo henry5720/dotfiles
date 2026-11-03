@@ -623,6 +623,16 @@ scenario_ubuntu() {
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
+  # jq、zsh 不走 mise:jq 要在 modify_ 之前就有,zsh 用 zsh-bin(spec US42)
+  local fedora_zsh='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["zsh"]}'
+  check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
+    "chezmoi execute-template --override-data '$fedora_zsh' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hjz.sh && sh -n /tmp/fedora-hjz.sh && grep -q 'jq-linux-' /tmp/fedora-hjz.sh && grep -q 'romkatv/zsh-bin' /tmp/fedora-hjz.sh"
+  check "非 Debian 系沒勾 zsh:install-home-jq-zsh 只裝 jq" \
+    "chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hj.sh && sh -n /tmp/fedora-hj.sh && grep -q 'jq-linux-' /tmp/fedora-hj.sh && ! grep -q zsh-bin /tmp/fedora-hj.sh"
+  check "非 Debian 系勾 zsh:部署 .bashrc(互動式 bash 切 zsh)" \
+    "chezmoi managed --override-data '$fedora_zsh' | grep -qx .bashrc"
+  check "(對照)有 root 的 Ubuntu:install-home-jq-zsh 渲染成空的、不部署 .bashrc" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"zsh\"]}' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl | tr -d '[:space:]')\" ] && ! chezmoi managed --override-data '{\"tools\":[\"zsh\"]}' | grep -qx .bashrc"
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
@@ -692,14 +702,18 @@ scenario_ubuntu() {
   # 只勾 codegraph(沒勾 playwright-cli 等其他 node 相關項)也要先裝 nvm 再裝 codegraph。
   # 第一次 apply 已經裝了 nvm,這裡換一個空的 HOME,照 chezmoi 的順序(install-nvm 排在 npm-install-codegraph 前)
   # 把兩支渲染出來的腳本真的跑一次。
-  bold "▶ 只勾 codegraph 也會自動裝 nvm"
+  bold "▶ 勾了要 Node 的工具(codegraph、playwright-cli、opencode、wakatime)會自動裝 nvm"
   local only_cg='{"tools":["codegraph"]}'
   check "只勾 codegraph:install-nvm 不是空的" \
     "[ -n \"\$(chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
   check "只勾 playwright-cli:install-nvm 不是空的" \
     "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "沒勾 codegraph、playwright-cli:install-nvm 是空的" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"opencode\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ]"
+  for t in opencode wakatime; do
+    check "只勾 $t:install-nvm 不是空的、套件腳本加 libatomic1" \
+      "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ] && chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
+  done
+  check "沒勾要 Node 的工具:install-nvm 是空的、套件腳本沒有 libatomic1" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"codex\"]}' < $scripts/run_onchange_after_install-nvm.sh.tmpl | tr -d '[:space:]')\" ] && ! chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"codex\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -qw libatomic1"
   check "腳本順序:install-nvm 排在 npm-install-codegraph 前" \
     "[ \"\$(ls $scripts | grep -E 'install-nvm|npm-install-codegraph' | sort | head -n1)\" = run_onchange_after_install-nvm.sh.tmpl ]"
   check "只勾 codegraph:在空的 HOME 照順序跑兩支腳本,exit 0、codegraph 能跑" \
@@ -1001,9 +1015,9 @@ noroot_slim_checks() {
   check "~/.bashrc 原本的內容還在、切 zsh 那段只有一份" \
     "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:互動式 bash 切到 zsh >>>' ~/.bashrc)\" = 1 ]"
   # skel 本來就有 ~/.profile;拿掉它再 apply 一次,看會不會補、login bash 會不會切成 zsh,最後放回去
-  # (補的 .profile 只 source .bashrc,不加 ~/.local/bin 到 PATH,後面的檢查要 skel 那份)
-  check "沒有 ~/.profile 時補一個 source ~/.bashrc 的;login 互動 bash 會切成 zsh" \
-    "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
+  # 非互動 login bash 用 env -i 起:不帶外面這層 login shell 已經設好的 PATH
+  check "沒有 ~/.profile 時補一個:login bash 找得到 ~/.local/bin 的 chezmoi、login 互動 bash 會切成 zsh" \
+    "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && [ \"\$(env -i HOME=\$HOME PATH=/usr/bin:/bin bash -lc 'command -v chezmoi')\" = \"\$HOME/.local/bin/chezmoi\" ] && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
   check_mise btop
   check_mise_skips_system_vim
@@ -1129,6 +1143,14 @@ noroot_ssh_present_checks() {
 echo "OpenSSH_stub"
 SH
   use_user wheeluser
+  # apt-get 用 stub 讓它失敗:apply 不能因此失敗,改記進略過彙整
+  put_root_file /opt/e2e-stub/aptfail/apt-get 755 <<'SH'
+#!/bin/sh
+echo "E: e2e stub 失敗" >&2
+exit 100
+SH
+  check "apt-get 失敗:install-ssh-client exit 0、記進略過彙整、家目錄沒有半套 ssh" \
+    "chezmoi --source /opt/e2e-src --config /tmp/none.toml execute-template < /opt/e2e-src/home/.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl > /tmp/ssh-client.sh && rm -f ~/.local/state/dotfiles/root-skipped && out=\$(PATH=/opt/e2e-stub/aptfail:\$PATH sh /tmp/ssh-client.sh 2>&1) && echo \"\$out\" && grep -q '略過 ssh' <<<\"\$out\" && grep -q '^- ssh:' ~/.local/state/dotfiles/root-skipped && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]; r=\$?; rm -f ~/.local/state/dotfiles/root-skipped; exit \$r"
   check "install-ssh-client 跳過、exit 0、家目錄沒有多出 ssh" \
     "chezmoi --source /opt/e2e-src --config /tmp/none.toml execute-template < /opt/e2e-src/home/.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl > /tmp/ssh-client.sh && [ -s /tmp/ssh-client.sh ] && out=\$(PATH=/opt/e2e-stub/ssh:\$PATH sh /tmp/ssh-client.sh 2>&1) && echo \"\$out\" && grep -q '已經有 ssh' <<<\"\$out\" && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   use_user slim

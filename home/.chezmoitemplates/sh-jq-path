@@ -1,0 +1,3 @@
+# apt 用不了的機器,jq 可能是 run_onchange_before_install-home-jq-zsh 抓到 ~/.local/bin 的,
+# 而 chezmoi 跑腳本時的 PATH 不一定有它:找不到 jq 就把 ~/.local/bin 加進 PATH。
+command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"

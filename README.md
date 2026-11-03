@@ -47,7 +47,7 @@ clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會�
 裝完之後最常用的兩個（其他見[裝完之後](docs/after-install.md)）：
 
 ```bash
-tools                                  # 改用途、加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
+tools                                  # 改用途、加減選裝工具（Linux、macOS；Termux 沒有）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 
@@ -108,6 +108,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 |---|---|
 | [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
 | [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
+| [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 
 **主題文件**
 

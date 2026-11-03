@@ -1,0 +1,6 @@
+{{- /* 這台有沒有勾要 Node 的選裝工具:有就輸出 true,否則空字串。用法:{{ if includeTemplate "needs-node" . }}
+       清單是 .chezmoidata/packages.yaml 的 nodeTools(為什麼要 Node 也寫在那裡)。
+       install-nvm 照它決定裝不裝 nvm,套件腳本照它加 nodePackages(libatomic1)。 */ -}}
+{{- range .nodeTools -}}
+{{-   if has . (index $ "tools") }}true{{ break }}{{ end -}}
+{{- end -}}
