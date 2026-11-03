@@ -86,6 +86,10 @@ _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。這台不支援的項目（WSL、ARM 的 headless-chrome、playwright-cli）不算在內。
 _Avoid_: preset、套餐
 
+**環境**:
+機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及哪些選裝工具在這台不列。跟用途分開。
+_Avoid_: 用途（兩者是分開的）、機器類型
+
 ## 文件
 
 **Runbook**:
