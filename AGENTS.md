@@ -112,7 +112,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 看檔案是哪一種,兩種不要互相看齊:
 
-- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config`、
+- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config.tmpl`、
   `private_config.yaml.tmpl`)—— 一堆彼此無關的設定並排、會跳著找,
   用 `# ===` 橫幅 + 編號當目錄
 - **流程腳本**(`script/` 底下的 `.sh`、`home/.chezmoiscripts/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。

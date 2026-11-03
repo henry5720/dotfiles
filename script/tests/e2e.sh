@@ -365,6 +365,9 @@ scenario_ubuntu() {
   check "沒勾 opencode:沒有 ~/.config/opencode、extras 沒有 opencode 的路徑" \
     "[ ! -e ~/.config/opencode ] && ! grep -q opencode ~/.config/skillshare/config.yaml"
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
+  # ssh client 補裝與 userspace tailscale 的 ProxyCommand 只給沒有 root 的機器(#216)
+  check "有 root:ssh config 沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
+    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
@@ -751,6 +754,9 @@ scenario_termux() {
     "chezmoi cat --override-data '$agents' ~/.config/opencode/opencode.json | jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}'"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
+  # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
+  check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
+    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -859,6 +865,18 @@ check_skipped() {
   check "略過彙整列出 $1" "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- $1:'"
 }
 
+# 容器沒有 ssh(git 的 Recommends 沒裝):apply 要把 openssh-client 解到家目錄(#216)
+check_ssh_client() {
+  check "系統沒有 ssh、補裝的 ssh 在 ~/.local/bin" \
+    "[ ! -e /usr/bin/ssh ] && [ \"\$(command -v ssh)\" = \"\$HOME/.local/bin/ssh\" ] && [ -d ~/.local/opt/openssh ]"
+  check "ssh -V 能跑" "ssh -V 2>&1 | grep -q OpenSSH"
+  check "ssh-keygen 能產 key、讀回公鑰" \
+    "rm -f /tmp/k-\$(id -un)* && ssh-keygen -q -t ed25519 -N '' -f /tmp/k-\$(id -un) && ssh-keygen -y -f /tmp/k-\$(id -un) | grep -q '^ssh-ed25519 '"
+  # scp 預設呼叫 /usr/bin/ssh;wrapper 要讓它改用補裝的 ssh。連 127.0.0.1:22 被拒 = 真的叫到了 ssh
+  check "scp 叫得到補裝的 ssh(不是找 /usr/bin/ssh)" \
+    "out=\$(scp -o BatchMode=yes -o ConnectTimeout=3 /etc/hostname 127.0.0.1:/tmp/x 2>&1); echo \"\$out\"; grep -qi 'connection refused' <<<\"\$out\""
+}
+
 noroot_slim_checks() {
   check_skipped "系統套件"
   check "套件的手動方式是 sudo apt-get install,含 zsh vim btop、不含已經裝到家目錄的 jq" \
@@ -871,6 +889,12 @@ noroot_slim_checks() {
   check "沒裝到的套件不會被當成已裝(btop 不存在)" "! command -v btop"
   for t in eza fzf bat ripgrep; do check_tool "$t"; done
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+  check_ssh_client
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
+  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
+    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
+    "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
 
   bold "▶ 精簡:第二次 apply"
   # 略過的步驟記在 run_onchange_ 的狀態裡,沒有 root 的狀況沒變就不重跑、不重印,也不重新下載
@@ -888,6 +912,7 @@ noroot_full_checks() {
     "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
   for t in eza fzf bat ripgrep herdr ttyd wakatime claude codex opencode agent-config; do check_tool "$t"; done
+  check_ssh_client
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0" "chezmoi apply --no-tty"
@@ -919,6 +944,7 @@ SH
 exit 0
 SH
   local tmpl='~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl'
+  local ssh_tmpl='~/.local/share/chezmoi/home/private_dot_ssh/private_config.tmpl'
   local d how
   for d in running active; do
     for how in noroot root; do
@@ -926,7 +952,16 @@ SH
       check "($d,$how 的渲染)tailscale 腳本整段跳過、exit 0、沒有叫 sudo" \
         "rm -f /tmp/e2e-sudo.log; ${pre}chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $tmpl > /tmp/ts.sh && out=\$(PATH=/opt/e2e-stub/$d:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '已經在跑' <<<\"\$out\" && ! grep -q 略過 <<<\"\$out\" && [ ! -e /tmp/e2e-sudo.log ]"
     done
+    # 系統 tailscaled 在跑就不是 userspace,ssh config 不加 ProxyCommand(#216)
+    check "($d)ssh config 渲染出來沒有 ProxyCommand" \
+      "! PATH=/opt/e2e-stub/$d:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -i ProxyCommand"
   done
+  check "(對照,沒有 stub)ssh config 渲染出來有 ProxyCommand" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -q ProxyCommand"
+  check "沒勾 tailscale:ssh config 渲染出來沒有 ProxyCommand" \
+    "! chezmoi execute-template --override-data '{\"tools\":[]}' < $ssh_tmpl | grep -i ProxyCommand"
+  check "有 root(sudo 免密碼):ssh config 渲染出來沒有 ProxyCommand" \
+    "! PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -i ProxyCommand"
 }
 
 # root 判斷(.chezmoitemplates/has-root)只看樣板輸出。chezmoi 與 source 放到大家讀得到的地方,
@@ -946,6 +981,20 @@ SH
   check "不在群組 + sudo 要密碼:判為沒有 root" "[ -z \"\$(PATH=/opt/e2e-stub/sudo-pw:\$PATH $has_root)\" ]"
   check "不在群組 + sudo 免密碼(sudo -n true 成功):判為有 root" "[ \"\$(PATH=/opt/e2e-stub/sudo-ok:\$PATH $has_root)\" = true ]"
   check "沒有 sudo:判為沒有 root" "[ -z \"\$($has_root)\" ]"
+}
+
+# 已經有 ssh 的機器(stub 放在 PATH 前面)不補裝:用沒跑過 apply 的 wheeluser(沒有 root、家目錄乾淨),
+# 渲染 install-ssh-client 直接跑。chezmoi 與 source 用 noroot_has_root_checks 放好的那份。
+noroot_ssh_present_checks() {
+  bold "▶ 已經有 ssh:不補裝"
+  put_root_file /opt/e2e-stub/ssh/ssh 755 <<'SH'
+#!/bin/sh
+echo "OpenSSH_stub"
+SH
+  use_user wheeluser
+  check "install-ssh-client 跳過、exit 0、家目錄沒有多出 ssh" \
+    "chezmoi --source /opt/e2e-src --config /tmp/none.toml execute-template < /opt/e2e-src/home/.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl > /tmp/ssh-client.sh && [ -s /tmp/ssh-client.sh ] && out=\$(PATH=/opt/e2e-stub/ssh:\$PATH sh /tmp/ssh-client.sh 2>&1) && echo \"\$out\" && grep -q '已經有 ssh' <<<\"\$out\" && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
+  use_user slim
 }
 
 # root 帶著一般使用者的 HOME 跑(sudo -E chezmoi apply 這類誤用):一開頭就停、exit 非 0、家目錄沒有 root 的檔
@@ -974,6 +1023,7 @@ scenario_noroot() {
   noroot_full_checks
 
   noroot_has_root_checks
+  noroot_ssh_present_checks
   noroot_root_foreign_home_checks
 }
 
