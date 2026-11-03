@@ -1,5 +1,22 @@
 # 依機器種類排除。路徑是 target 名稱(去掉 dot_、run_once_after_ 這類前綴與 .tmpl)。
 # 腳本放在 .chezmoiscripts/,target 名稱要帶這層目錄,只寫檔名會擋不到。
+{{ if not (has "zsh" (index . "tools")) }}
+# 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
+# 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
+.zshrc
+.p10k.zsh
+.config/zsh/env.zsh
+{{ end }}
+{{ if or (not (has "zsh" (index . "tools"))) (not (includeTemplate "use-mise" .)) }}
+# 只有 apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)、勾了 zsh 才要:
+# zsh 是 zsh-bin 裝到家目錄的,改由互動式 bash 切 zsh(modify_dot_bashrc.tmpl)與補 .profile。
+# 有 root 的 Debian 系、Termux 走 chsh(run_once_after_set-default-shell),macOS 不改,都不碰這兩個檔。
+.bashrc
+.profile
+{{ else if or (stat (joinPath .chezmoi.homeDir ".bash_profile")) (stat (joinPath .chezmoi.homeDir ".bash_login")) }}
+# 已經有 ~/.bash_profile 或 ~/.bash_login:login bash 讀的是它們、不讀 .profile,補了也沒用,不補。
+.profile
+{{ end }}
 {{ if eq .chezmoi.os "android" }}
 # 原生 Termux:移除舊 chezmoi MCP 條目的一次性遷移只對已經部署過舊版的 Ubuntu 機器有意義,
 # 而且要 python3;Termux 是新機器,排除掉。
@@ -9,3 +26,16 @@
 # 排除整個目錄,不然 chezmoi 會在其他機器建出空的 ~/.local/share/fonts。
 .local/share/fonts
 {{ end }}
+
+# 沒勾的 client 不部署它的設定目錄;取消勾選時,已經部署的檔案留著(chezmoi 只是不再管它)。
+# skillshare 的 config.yaml 跟著 agent-config,連到各 client 的指令檔見 .chezmoitemplates/skillshare-pinned。
+{{ $tools := index . "tools" -}}
+{{ if not (has "claude" $tools) }}.claude{{ end }}
+{{ if not (has "codex" $tools) }}.codex{{ end }}
+{{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
+{{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
+# code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
+{{ if not (has "code-server" $tools) }}.config/code-server{{ end }}
+
+# apt 用得了的機器(有 root 的 Debian 系、Termux)不碰 mise:不部署它的清單,也不建空的 ~/.config/mise。
+{{ if not (includeTemplate "use-mise" .) }}.config/mise{{ end }}

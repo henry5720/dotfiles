@@ -9,6 +9,7 @@
 {{- $main := index (index $active "orchestrator") "model" -}}
 {{- $small := index (index $active "explorer") "model" -}}
 set -eu
+{{ template "sh-jq-path" . }}
 
 # 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,墊一個空物件給 jq。
 existing=$(cat)

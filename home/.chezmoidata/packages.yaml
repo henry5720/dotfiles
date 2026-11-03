@@ -2,55 +2,142 @@
 # 依平台分開列,這份本身就是對照表(同一個工具在兩邊名字不同就各寫各的)。
 # 加套件只改這裡;改了之後下一次 chezmoi apply 只會裝缺的那幾個。
 packages:
+  # 基底:只放 chezmoi 自己要的。git 給 git-repo external,curl 給各安裝腳本,
+  # jq、python3 給 home/ 的 modify_ 與 run_ 腳本(jq 改 JSON、python3 改 TOML、解 zip)。
+  # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
+  # 其他東西(zsh、vim、eza…)都是選裝工具,放下面的 toolPackages 或各自的安裝腳本。
   # Ubuntu(WSL、雲端主機、proot Ubuntu),apt 的套件名
   ubuntu:
-    - zsh
     - git
     - curl
-    - vim
-    - build-essential
-    - unzip
-    # 下面兩個是 home/ 的 modify_ 與 run_ 腳本自己要用的(jq 改 JSON、python3 改 TOML)。
-    # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
     - jq
     - python3
-  # 原生 Termux,pkg 的套件名
+  # 原生 Termux,pkg 的套件名。python 套件提供 python3 指令;openssh 給 sshd 與 authorized_keys。
   termux:
-    - zsh
     - git
     - curl
-    - vim
     - openssh
-    - fastfetch
-    # 同上,modify_ 要用。Termux 的 python 套件提供 python3 指令。
     - jq
     - python
-    # 預設安裝的命令列工具。Linux 不走 apt,由 run_onchange_after_install-cli-tools 從 GitHub release 下載
-    - eza
-    - fzf
-    - bat
-    - ripgrep
+  # macOS,brew 的 formula 名(run_onchange_before_install-packages-darwin 交給 brew bundle)。
+  # git、python3 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,只缺 jq
+  # (macOS 15 起系統也有 /usr/bin/jq,舊版沒有)。brews 是 formula、casks 是 app,
+  # 照 chezmoi 官方 brew bundle 範例的結構;Homebrew 本身不由 chezmoi 裝(見 Runbook)。
+  darwin:
+    brews:
+      - jq
+    casks: []
 
-# 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
-# 有勾才裝,跟上面的清單一起由同一支套件腳本處理。
+# 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt／pkg／brew 的:工具名 → 套件。
+# 有勾才裝,跟上面的清單一起由同一支套件腳本處理(macOS 是 install-packages-darwin)。
 # 要加 apt 來源、curl installer 的工具不放這裡,各自一支 run_onchange_after_install-<工具>.sh.tmpl。
 toolPackages:
   ubuntu:
+    zsh:
+      - zsh
+    vim:
+      - vim
     btop:
       - btop
     # Claude Code 本體是 native installer(run_onchange_after_install-claude);
     # 它的 Read tool 讀 PDF 時固定呼叫 pdftoppm,沒裝會直接報錯,不會退回 mutool
     claude:
       - poppler-utils
-    # 文件／影音,給 local-artifact-intake skill:影音轉檔、讀 PDF(mutool)、轉文件格式
+    # 影音轉檔、抽音軌與影格
     ffmpeg:
       - ffmpeg
-    mupdf-tools:
-      - mupdf-tools
-    pandoc:
-      - pandoc
     # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
     # 沒這兩個字型,中文和 emoji 截圖全是方框
     headless-chrome:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
+  # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
+  # eza、fzf、bat、ripgrep 在 Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載,Termux 走 pkg。
+  termux:
+    zsh:
+      - zsh
+    vim:
+      - vim
+    eza:
+      - eza
+    fzf:
+      - fzf
+    bat:
+      - bat
+    ripgrep:
+      - ripgrep
+  # macOS 全部走 brew(一樣是 formula 名)。zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
+  # mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 不在 mac 的選單上。
+  # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
+  # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
+  darwin:
+    eza:
+      - eza
+    fzf:
+      - fzf
+    bat:
+      - bat
+    ripgrep:
+      - ripgrep
+    fastfetch:
+      - fastfetch
+    btop:
+      - btop
+    gh:
+      - gh
+    code-server:
+      - code-server
+    ttyd:
+      - ttyd
+    claude:
+      - poppler
+    ffmpeg:
+      - ffmpeg
+
+# 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-nvm),
+# nvm 不在選單上,免得漏勾讓 apply 半路失敗。判斷在 .chezmoitemplates/needs-node。
+#   codegraph、playwright-cli:npm 全域套件
+#   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
+#   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
+nodeTools:
+  - codegraph
+  - playwright-cli
+  - opencode
+  - wakatime
+# 勾了 nodeTools 其中一個時一起裝的系統套件(套件腳本只在 apt 那條路用;Termux、macOS 不用)。
+# nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
+# 基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+nodePackages:
+  ubuntu:
+    - libatomic1
+
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)改用 mise 裝到家目錄的選裝工具:
+# 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。系統已經有 cmd 的不裝。
+# 判斷與清單在 .chezmoitemplates/use-mise、mise-tools;部署成 ~/.config/mise/conf.d/dotfiles.toml,
+# run_onchange_after_install-mise 跑 mise install。
+# eza、fzf、bat、ripgrep 不在這裡:不分機器都由 install-cli-tools 從 GitHub release 下載。
+# tool 寫 mise registry 的短名(mise registry <名字> 查 backend);registry 沒有的寫完整 backend,
+# 例如 code-server 只寫 code-server 會模糊比對到不相干的工具。
+miseTools:
+  vim:
+    tool: vim                       # conda:vim
+    cmd: vim
+  btop:
+    tool: btop                      # aqua:aristocratos/btop
+    cmd: btop
+  ffmpeg:
+    tool: ffmpeg                    # conda:ffmpeg
+    cmd: ffmpeg
+  # Claude Code 讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)
+  claude:
+    tool: poppler                   # conda:poppler
+    cmd: pdftoppm
+  gh:
+    tool: gh                        # aqua:cli/cli
+    cmd: gh
+  fastfetch:
+    tool: fastfetch                 # aqua:fastfetch-cli/fastfetch
+    cmd: fastfetch
+  code-server:
+    tool: github:coder/code-server  # registry 沒有
+    cmd: code-server

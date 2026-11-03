@@ -1,0 +1,26 @@
+#!{{ lookPath "sh" }}
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)、勾了選裝工具 zsh 才部署(.chezmoiignore):不用 chsh,
+# 改成互動式 bash 一啟動就 exec zsh。非互動的 bash(bash -c、scp、ssh 帶指令)留在 bash。
+# zsh 優先用 zsh-bin 裝的 ~/.local/bin/zsh(run_onchange_before_install-home-jq-zsh),
+# 這時 PATH 不一定有 ~/.local/bin;沒有就找 PATH 上的(例如管理員裝的)。都沒有就留在 bash。
+#
+# modify_:現有的 ~/.bashrc 從 stdin 進來,輸出成新內容。先拿掉上次加的那段、再接在最後,
+# 所以重跑內容不變;要拿掉就刪掉標記之間的那段(並取消勾選 zsh,不然下次 apply 又會加回來)。
+set -eu
+begin='# >>> dotfiles:互動式 bash 切到 zsh >>>'
+end='# <<< dotfiles:互動式 bash 切到 zsh <<<'
+awk -v b="$begin" -v e="$end" '$0 == b {skip = 1} !skip {print} $0 == e {skip = 0}'
+cat <<'BASHRC'
+# >>> dotfiles:互動式 bash 切到 zsh >>>
+if [ -z "${ZSH_VERSION:-}" ]; then
+  case $- in
+    *i*)
+      for z in "$HOME/.local/bin/zsh" "$(command -v zsh 2>/dev/null)"; do
+        if [ -n "$z" ] && [ -x "$z" ]; then export SHELL="$z"; exec "$z" -l; fi
+      done
+      unset z
+      ;;
+  esac
+fi
+# <<< dotfiles:互動式 bash 切到 zsh <<<
+BASHRC

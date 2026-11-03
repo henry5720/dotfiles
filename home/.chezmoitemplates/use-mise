@@ -1,0 +1,6 @@
+{{- /* 選裝工具要不要改用 mise 裝到家目錄:apt 用不了的 Linux 輸出 true,否則空字串。
+       用法:{{ if includeTemplate "use-mise" . }}
+       apt 用不了 = 沒有 root(.chezmoitemplates/has-root),或不是 Debian 系(套件名對不上,不加 dnf／pacman 欄)。
+       有 root 的 Debian 系照主路線走 apt,完全不碰 mise;原生 Termux 走 pkg,也不碰。
+       哪些工具走 mise 看 .chezmoidata/packages.yaml 的 miseTools。 */ -}}
+{{- if and (eq .chezmoi.os "linux") (or (not (includeTemplate "is-debian" .)) (not (includeTemplate "has-root" .))) }}true{{ end -}}

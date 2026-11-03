@@ -1,0 +1,8 @@
+# 系統層的 tailscaled 是不是已經在跑(例如管理員裝好的機器):tailscale status 的 BackendState 是 Running,
+# 或 systemd 的 tailscaled 是 active。install-tailscale 在執行時用它;.chezmoitemplates/tailscale-userspace
+# 在渲染時用同一段判斷。
+tailscale_running() {
+  { command -v tailscale >/dev/null 2>&1 &&
+    tailscale status --json 2>/dev/null | grep -Eq '"BackendState": *"Running"'; } ||
+    { command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tailscaled 2>/dev/null; }
+}

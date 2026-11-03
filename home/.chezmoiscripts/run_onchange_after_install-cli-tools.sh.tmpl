@@ -1,12 +1,17 @@
-{{- if eq .chezmoi.os "linux" -}}
+{{- $want := list -}}
+{{- range list "eza" "fzf" "bat" "ripgrep" -}}
+{{-   if has . (index $ "tools") }}{{ $want = append $want . }}{{ end -}}
+{{- end -}}
+{{- if and (eq .chezmoi.os "linux") $want -}}
 #!{{ lookPath "sh" }}
-# 預設安裝的命令列工具(不進選單):從 GitHub release 的 latest 下載到 ~/.local/bin。
-# Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml),
+# 選裝工具 eza、fzf、bat、ripgrep(選單見 .chezmoi.toml.tmpl):有勾的才從 GitHub release 的 latest
+# 下載到 ~/.local/bin,一個都沒勾就渲染成空的。
+# Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml 的 toolPackages),
 # 這支和 Linux 以外的系統(例如 macOS)都渲染成空的。
 # chezmoi 不負責更新、也不釘版本。alias 與 shell 整合在 home/dot_zshrc。
 #
-# 加一個預設工具要動:這支加一段、packages.yaml 的 termux 清單、
-# script/tests/e2e.sh 的 CLI_TOOLS 與 TERMUX_BASE。
+# 加一個這類工具要動:這支開頭的清單與一段、tool-menu、packages.yaml 的 toolPackages.termux、
+# script/tests/e2e.sh 的 CLI_TOOLS。
 #
 # 「已經裝過」只看 ~/.local/bin/<工具> 在不在,不用 command -v:Ubuntu 可能有 apt 裝的舊版
 # (例如 fzf 0.44 沒有 `fzf --zsh`),找到它就跳過的話,每次開 shell 都會報錯。
@@ -57,12 +62,16 @@ want() {
   fi
 }
 
+{{- if has "eza" $want }}
+
 # 2. eza
 install_eza() {
   fetch eza "https://github.com/eza-community/eza/releases/latest/download/eza_$eza_target.tar.gz" &&
     put eza "$tmp/eza/eza"
 }
 want eza install_eza
+{{- end }}
+{{- if has "fzf" $want }}
 
 # 3. fzf:Go 靜態 binary。tag 是 v0.xx.x,檔名裡的版本不帶 v
 install_fzf() {
@@ -71,6 +80,8 @@ install_fzf() {
     put fzf "$tmp/fzf/fzf"
 }
 want fzf install_fzf
+{{- end }}
+{{- if has "bat" $want }}
 
 # 4. bat:靜態連結的 musl 版。指令名是 bat(apt 版叫 batcat)。tag 是 v0.xx.x,檔名也帶 v
 install_bat() {
@@ -80,6 +91,8 @@ install_bat() {
     put bat "$tmp/bat/$name/bat"
 }
 want bat install_bat
+{{- end }}
+{{- if has "ripgrep" $want }}
 
 # 5. ripgrep(指令 rg):靜態連結的 musl 版。tag 不帶 v
 install_rg() {
@@ -89,4 +102,5 @@ install_rg() {
     put rg "$tmp/ripgrep/$name/rg"
 }
 want rg install_rg
+{{- end }}
 {{ end -}}

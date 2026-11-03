@@ -9,11 +9,13 @@
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、zsh、選裝工具選單（不列 headless Chrome、playwright-cli） |
-| 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
+| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
+| 雲端主機、proot Ubuntu | 其他 Debian 系 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
+| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
+| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 
-機器種類自動判斷，不用回答。Ubuntu 機器要能 `sudo`。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/new-machine-setup.md#沒有-root-的機器)。
 
 ## 新機器
 
@@ -21,14 +23,20 @@
 |---|---|---|
 | 更新系統 | 可選，跳過也裝得起來 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
 | 放 SSH key | 可選，要 push 或連其他機器才需要；裝完再放也行 | 見[新機器設定 2.2](docs/new-machine-setup.md#22可選放-ssh-key) |
-| 裝 chezmoi 與 dotfiles | 必做 | 下面兩行挑一行 |
+| 裝 chezmoi 與 dotfiles | 必做 | 下面四行挑一行 |
 
 ```bash
 # Ubuntu（WSL、雲端主機、proot Ubuntu），在家目錄跑
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 
+# Ubuntu，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" --promptString "git user.email=<email>" henry5720
+
 # 原生 Termux
 pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
+
+# macOS（先裝 Homebrew，見新機器設定）
+brew install chezmoi && chezmoi init --apply henry5720
 ```
 
 ![打上面 Ubuntu 那行、在選裝工具選單勾幾項、裝完](docs/demo/menu.gif)
@@ -39,7 +47,7 @@ clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會�
 裝完之後最常用的兩個（其他見[裝完之後](docs/after-install.md)）：
 
 ```bash
-tools                                  # 加減選裝工具（只有 Ubuntu）；取消勾選不會解除安裝
+tools                                  # 改用途、加減選裝工具（Linux、macOS；Termux 沒有）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 
@@ -57,8 +65,8 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_p10k.zsh                → ~/.p10k.zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
-├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
-├── dot_codex/                  → ~/.codex/：同上
+├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
+├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
 ├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
@@ -74,7 +82,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
   [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
-  skillshare 的 `config.yaml`，其中 extras 段決定規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
+  skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 - `wsl/` 怎麼交給 Windows 上的 chezmoi，見
   [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
@@ -83,7 +91,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 ## fork 前要改什麼
 
-- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
+- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config.tmpl`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
 - [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
 - [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
 - [ ] ssh config 裡的 Tailscale 主機與平板
@@ -100,6 +108,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 |---|---|
 | [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
 | [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
+| [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 
 **主題文件**
 

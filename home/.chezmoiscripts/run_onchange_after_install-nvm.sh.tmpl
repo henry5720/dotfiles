@@ -1,6 +1,8 @@
-{{- if has "nvm" (index . "tools") -}}
+{{- if includeTemplate "needs-node" . -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 nvm + Node LTS(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# nvm + Node LTS。不是選單上的選項:勾了要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
+# codegraph、playwright-cli、opencode、wakatime)就一併裝,免得漏勾 nvm 讓 apply 半路失敗、
+# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
 # dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
 # 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
 set -eu
@@ -11,6 +13,13 @@ if [ -d "$HOME/.nvm" ]; then
   exit 0
 fi
 
+{{ if not (includeTemplate "node-runnable" .) -}}
+# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
+# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
+{{ template "sh-skip" . }}
+skip_root "nvm 與 Node" "Node 官方 binary 要系統函式庫 libatomic.so.1,這台沒有。請有 root 的人跑 sudo apt-get install -y libatomic1(或系統的同名套件),之後 chezmoi apply 會自己補裝"
+exit 0
+{{ end -}}
 # 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
 #    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
 tmp=$(mktemp -d)

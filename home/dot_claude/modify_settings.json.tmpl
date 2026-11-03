@@ -14,6 +14,7 @@
 # attribution 只釘 commit，PR 標記與其他工具自行寫入的設定照留。
 
 set -eu
+{{ template "sh-jq-path" . }}
 
 # 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的。
 existing=$(cat)

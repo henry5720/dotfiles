@@ -50,9 +50,11 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 **這個 repo 是公開的。** 秘密不進 git,一律在 `chezmoi init` 時問,值存在
 `~/.config/chezmoi/chezmoi.toml`(repo 外),在 `.tmpl` 裡以 `{{ .someKey }}` 帶入。
 
-新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 開頭的清單加一項 `(list "key" "提示文字" "預設值")`
-(沒有預設值給 `""`),`[data]` 加一行,再從用到它的 `.tmpl` 引用。已經存過的值不會再問,
-`chezmoi init --prompt` 也不會 —— `--prompt` 只重問選單,`tools` 指令靠這個。
+新增一個秘密 = 在 `home/.chezmoi.toml.tmpl` 憑證那段的清單加一項 `(list "key" "提示文字" "預設值" (list "工具"…))`
+(沒有預設值給 `""`;勾了其中一個工具才問,空的 `(list)` = 一定問),再從用到它的 `.tmpl` 引用。
+沒問過的 key 不會寫進 `[data]`:引用的樣板要用 `index . "key"` 取值,或跟著工具被 `.chezmoiignore` 排除,
+不然沒勾那個工具的機器 apply 會報 `map has no entry for key`。已經存過的值不會再問,
+`chezmoi init --prompt` 也不會 —— `--prompt` 只重問用途與選單,`tools` 指令靠這個。
 
 樣板寫錯是在 `chezmoi init` 時才炸 —— 平常 `chezmoi apply` 不會重新渲染 config 樣板,
 所以這種錯很容易漏到新機器上才發現。改完一定跑下面的 `execute-template --init`。
@@ -68,10 +70,11 @@ bash -n script/*/*.sh                           # 腳本語法(shellcheck 未安
 python3 -m unittest discover -s script/tests   # modify_ 與 ai-profile 的單元測試
 bash script/tests/e2e.sh ubuntu                # 容器 e2e:全新 ubuntu:24.04 照 README 官方指令 init --apply
 bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86_64
+bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使用者、沒有 sudo
 ```
 
 容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、README 的安裝指令時唯一能從零驗證的
-方法,兩種容器都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
+方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改),不碰本機家目錄。檢查清單與環境變數(`E2E_TAG`、
 `E2E_KEEP`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
 
@@ -109,7 +112,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 看檔案是哪一種,兩種不要互相看齊:
 
-- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config`、
+- **設定檔**(`home/dot_zshrc`、`home/private_dot_ssh/private_config.tmpl`、
   `private_config.yaml.tmpl`)—— 一堆彼此無關的設定並排、會跳著找,
   用 `# ===` 橫幅 + 編號當目錄
 - **流程腳本**(`script/` 底下的 `.sh`、`home/.chezmoiscripts/run_*`)—— 從上到下跑一次、步驟有先後,用純 `# 1.` `# 2.` 編號。

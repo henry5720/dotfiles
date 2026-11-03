@@ -3,8 +3,17 @@
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 不會執行 tailscale up,登入與設定自己來。
 set -eu
+
+# 1. 系統層的 tailscaled 已經在跑(例如管理員裝好的機器)就整段跳過:不裝、不 enable、不走 userspace,
+#    所以不需要 root。
+{{ template "sh-tailscale-running" . }}
+if tailscale_running; then
+  echo "系統層的 tailscaled 已經在跑,跳過"
+  exit 0
+fi
+{{- if includeTemplate "has-root" . }}
 {{ template "sh-sudo" . }}
-# 1. 裝(官方 installer 會加 apt 來源)
+# 2. 裝(官方 installer 會加 apt 來源)
 if command -v tailscale >/dev/null 2>&1; then
   echo "tailscale 已安裝,跳過安裝"
 else
@@ -15,11 +24,23 @@ else
   sh "$tmp/install.sh"
 fi
 
-# 2. 開機自動啟動 tailscaled。PID 1 不是 systemd(沒開 systemd 的 WSL、容器)就跳過,不算失敗
+# 3. 開機自動啟動 tailscaled。PID 1 不是 systemd(沒開 systemd 的 WSL、容器)就跳過,不算失敗
 if [ -d /run/systemd/system ]; then
   $SUDO systemctl enable --now tailscaled
 else
   echo "PID 1 不是 systemd,已安裝但未啟動 tailscaled;WSL 請在 /etc/wsl.conf 開 systemd 後再 apply 一次或手動啟動"
 fi
 echo "不會執行 tailscale up;請自行登入與設定。"
+{{- else }}
+{{ template "sh-skip" . }}
+# 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
+#    印 userspace 模式的手動步驟:tailscaled 變成只給這個使用者用的 proxy,不用 root。
+#    常駐要不要自動設定這版不做,只列選項。
+skip_root tailscale "改用 userspace 模式,不用 root:
+    1. 從 https://pkgs.tailscale.com/stable/#static 下載 tailscale_<版本>_<架構>.tgz,把 tailscale、tailscaled 放進 ~/.local/bin
+    2. 啟動:tailscaled --tun=userspace-networking --statedir=\$HOME/.local/state/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock --port=0 &
+    3. 登入:tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock up
+    4. 常駐,依序挑做得到的:systemd user service(要 loginctl enable-linger,通常要管理員)、crontab 的 @reboot、login shell 裡沒在跑就啟動
+    5. ssh 連 tailnet 的機器:ProxyCommand 用 tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc %h %p(~/.ssh/config 的 company-ec2 已經帶了)"
+{{- end }}
 {{ end -}}

@@ -22,7 +22,7 @@ Host henry-desktop
     IdentityFile ~/.ssh/henry5720
 
 Host nettop
-    HostName 100.111.240.34
+    HostName 100.111.46.87
     User henry
     IdentityFile ~/.ssh/henry5720
 
@@ -107,6 +107,11 @@ Host company-ec2
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
     IdentitiesOnly yes
+{{- if includeTemplate "tailscale-userspace" . }}
+    # 這台的 tailscale 走 userspace(沒有 root,見 .chezmoitemplates/tailscale-userspace),
+    # 沒有 tailnet 的網卡,連線經 tailscaled 轉過去。tailscaled 怎麼啟動見 apply 的略過彙整
+    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
+{{- end }}
 
 # 專門把本機 Windows Chrome 的 9222 帶到 EC2,給那邊的 chrome-devtools MCP 用
 # (見 agent-config 的 docs/skills/remote-chrome.md)。remote-chrome 開 Chrome 後在前景跑

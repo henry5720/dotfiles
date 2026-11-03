@@ -35,7 +35,7 @@ cleanup() {
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
 #                        origin 是 GitHub 的 HTTPS URL
 #   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md)
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 make_fixtures() {
   FIX=$CTR_HOME/e2e-fixtures
@@ -56,6 +56,8 @@ make_fixtures() {
   printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
   mkdir -p "$tmp/ac/instructions/agents-md"
   printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"
+  mkdir -p "$tmp/ac/instructions/agent-commit"
+  printf 'e2e-agent-commit\n' > "$tmp/ac/instructions/agent-commit/instructions.md"
   git -C "$tmp/ac" init -q -b main
   git -C "$tmp/ac" add -A
   git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init

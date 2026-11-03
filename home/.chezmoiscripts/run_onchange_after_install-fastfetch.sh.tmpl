@@ -1,6 +1,7 @@
-{{- if and (has "fastfetch" (index . "tools")) (includeTemplate "is-debian" .) -}}
+{{- if and (has "fastfetch" (index . "tools")) (includeTemplate "is-debian" .) (includeTemplate "has-root" .) -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 fastfetch(選單見 .chezmoi.toml.tmpl)。沒勾、或不是 Debian 系就渲染成空的,chezmoi 不跑。
+# 選裝工具 fastfetch(選單見 .chezmoi.toml.tmpl)。沒勾、不是 Debian 系、或沒有 root 就渲染成空的,chezmoi 不跑;
+# 後兩種改由 mise 裝到家目錄(run_onchange_after_install-mise)。
 # 抓 GitHub release 的 .deb:Ubuntu 24.04 的套件庫沒有 fastfetch。chezmoi 不負責更新它。
 set -eu
 {{ template "sh-apt" . }}

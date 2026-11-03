@@ -2,7 +2,7 @@
 
 ## 適用範圍
 
-Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）與原生 Termux。目的是把一台全新的機器帶到
+Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）、原生 Termux 與 macOS。目的是把一台全新的機器帶到
 這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
 ```text
@@ -36,13 +36,21 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 
 ### WSL2
 
-- Windows 裝好 WSL2 Ubuntu，進到一般使用者的 shell，帳號能 `sudo`。
+- Windows 裝好 WSL2 Ubuntu，進到一般使用者的 shell。
 - 終端機字型裝在 Windows 那側，見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)。
 - `.wslconfig` 參考 [`wsl/.wslconfig`](../wsl/.wslconfig)，手動放到 Windows 使用者目錄。
 
 ### 雲端主機
 
-能 SSH 進去、帳號能 `sudo` 就好。字型裝在你連線那端的終端機。
+能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](#沒有-root-的機器)）。字型裝在你連線那端的終端機。
+
+### macOS
+
+1. 照 [Homebrew 官網](https://brew.sh/)的指令裝 Homebrew（要管理員密碼，會順便裝 Xcode Command Line Tools，
+   git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
+   chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
+2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單不列 tailscale。
+3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font（例如 Hack Nerd Font）。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 
@@ -112,6 +120,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 |---|---|
 | Ubuntu（WSL、雲端主機、proot Ubuntu） | `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720` |
 | 原生 Termux | `pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720` |
+| macOS（先做完第 1 步的 Homebrew） | `brew install chezmoi && chezmoi init --apply henry5720` |
 
 - Ubuntu 那行在家目錄跑：`/lb` 把 chezmoi 裝到**目前目錄**的 `.local/bin`（不帶 `/lb` 會裝到 `./bin`）。
 - 不帶 `--ssh`：dotfiles 是公開 repo，chezmoi 用 `https://github.com/henry5720/dotfiles.git` clone，
@@ -122,18 +131,113 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
-- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。
+- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。
+- **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+  zsh + p10k 也是選裝工具，要在這裡勾。
+- 憑證：只問勾了的工具用得到的，精簡一個都不問。
+- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
+
+各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](machine-use.md)。
+
+要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
+
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
+  --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" \
+  --promptString "git user.email=<email>" henry5720
+```
+
+`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。精簡用不到憑證，所以只剩 git email 要給。
+之後勾了用得到憑證的工具，`tools` 會在那時問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
 
 選單上每一項後面都有一句說明，清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。WSL 和非 amd64 的機器不列
-`headless-chrome`、`playwright-cli`。
+`headless-chrome`、`playwright-cli`。macOS 不列 `tailscale`、`headless-chrome`、`playwright-cli`；
+有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
+herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
 
-apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+勾了 zsh 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+
+### 沒有 root 的機器
+
+別人給的帳號、公司的工作區常常不能 `sudo`。chezmoi 自己判斷這台有沒有 root，不用回答：
+本來就是 root、在 `sudo`／`admin`／`wheel` 群組（要密碼的照樣算，apply 時會問）、或 `sudo -n true`
+成功，三條都不符才算沒有 root。
+
+沒有 root 時，要 root 的步驟不會讓 apply 失敗：每一步印一行「略過什麼、手動怎麼做」，apply 最後再彙整一次
+（`== 沒有 root,以下步驟已略過` 底下），整個 apply 照樣 exit 0。目前會略過的：
+
+| 略過什麼 | 手動方式（彙整裡有完整指令） |
+|---|---|
+| 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
+| tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
+| headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
+| nvm 與 Node（codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+
+不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+系統沒有 jq 時從 GitHub release 裝到 `~/.local/bin`（非 Debian 系 Linux 也一樣）。
+
+勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`（非 Debian 系 Linux 也一樣，有 root 也是）。不 `chsh`，改成：
+
+- `~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間）：互動式 bash 一啟動就 `exec zsh`；
+  `bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh
+- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個 `~/.profile`：把 `~/.local/bin` 加進 PATH、
+  source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去
+- `TERM` 沒設時，`.zshrc` 補成 `xterm-256color`
+
+本來走 apt 的 vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，
+改用 [mise](https://mise.jdx.dev/) 裝到家目錄（非 Debian 系 Linux 也一樣）：
+
+- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；系統已經有的指令不列，不會重裝一份
+- 指令在 `~/.local/share/mise/shims`，zsh 已加進 PATH；`mise ls` 看裝了什麼，`mise upgrade` 更新
+- mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
+
+略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
+
+系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，
+有沒有 root 都一樣，不會叫 sudo。
+
+不要用 `sudo chezmoi …`：以 root 執行、`$HOME` 又不屬於 root 時，chezmoi 一開頭就停，免得家目錄的檔案變成 root 擁有。
+
+沒有 `ssh` 的機器（例：TeamSync 工作區）不分用途自動補 ssh client：apt 不用 root 把 openssh-client
+抓下來解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。
+抓不到或解不開時不讓 apply 失敗，記進略過彙整。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝。
+
+tailscale 走 userspace 的機器（勾了 tailscale、沒有 root、系統 tailscaled 沒在跑），`~/.ssh/config` 的
+`company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`。照彙整的手動步驟把
+userspace tailscaled 跑起來、登入之後，`ssh company-ec2` 就經 tailnet 連過去。其他機器的 ssh config 不變。
+
+### TeamSync 工作區：連 company-ec2 的專用 key（一次性）
+
+company-ec2 關了密碼登入，也沒開 Tailscale SSH，工作區要一把 key。不要把 `henry5720` 或 AWS 發的 pem
+複製進工作區：產一把工作區專用的，外洩或不用了只要在 company-ec2 刪一行。
+
+1. 在工作區產 key。檔名用 `~/.ssh/company-henry.pem`：ssh config 的 `company-ec2` 寫死這個 IdentityFile。
+   這把是工作區自己的 key，跟其他機器上同名的 AWS pem 不是同一把：
+
+   ```bash
+   ssh-keygen -t ed25519 -N '' -C "teamsync-ws $(date +%F)" -f ~/.ssh/company-henry.pem
+   cat ~/.ssh/company-henry.pem.pub
+   ```
+
+2. 在已經連得上 company-ec2 的機器，把那行公鑰加進 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
+
+   ```bash
+   ssh company-ec2 'cat >> ~/.ssh/authorized_keys'
+   # 貼上一行:from="100.64.0.0/10" <第 1 步印出的公鑰>,換行後 Ctrl-D
+   ```
+
+3. 回工作區，先 `export TERM=xterm-256color` 再 `ssh company-ec2`：工作區的 bash 沒有 export `TERM`，
+   遠端 zsh 的行編輯會壞（字元重複）。
+4. 撤銷：在 company-ec2 跑 `sed -i '/teamsync-ws/d' ~/.ssh/authorized_keys`。
+
+p10k 的圖示在 TeamSync 工作區的網頁終端機變成方塊，不是 dotfiles 壞了：它用通用的 `monospace` 字型，
+實際用哪個字型看的是**你看畫面那台 Chrome** 的等寬字型設定。在那台裝 Hack Nerd Font
+（Windows 見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)），到 `chrome://settings/fonts`
+把「固定寬度字型」改成 `Hack Nerd Font`，重新整理頁面。
 
 ### 2.4 裝完之後
 
@@ -161,7 +265,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 
 chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
 installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
-bundled skills（要先有 `npx`，也就是勾了 `nvm`）：
+bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 nvm）：
 
 ```bash
 npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-subagents=no --companion=no
@@ -265,8 +369,8 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具、zsh／p10k／插件、預設 shell、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
-| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
+| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／p10k／插件與預設 shell）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
+| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的憑證（勾了用得到的工具才問）與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 

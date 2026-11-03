@@ -1,7 +1,7 @@
 # codegraph
 
 [codegraph](https://github.com/colbymchenry/codegraph) 把程式碼建成 symbol 圖,agent 用 `codegraph_explore`
-一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。CLI 要勾選裝工具 `codegraph`(要一起勾 `nvm`);
+一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。CLI 要勾選裝工具 `codegraph`(會一併裝 nvm);
 共用 git hook 和 `codegraph-setup-repo` 每台都部署,找不到 `codegraph` 時什麼都不做。
 它同時是 CLI、MCP server 和背景 daemon,三樣東西由不同地方管:
 

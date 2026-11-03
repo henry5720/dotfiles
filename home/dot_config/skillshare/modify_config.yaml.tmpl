@@ -1,46 +1,24 @@
 #!{{ lookPath "sh" }}
 # skillshare 的全域設定。skills 與 MCP 的內容在 agent-config repo,這份只告訴 skillshare 去哪找、寫到哪。
-# config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放。
+# config.yaml 不進 agent-config(root 模式會自動 ignore 它),所以由 chezmoi 放;
+# 沒勾 agent-config 的機器不放(.chezmoiignore)。
 #
 # 用 modify_ 而不是 create_:skillshare init 與 extras 指令會改寫這個檔(加 schema 註解、重排 key),
-# 所以只釘 extras 段與 Claude target 的 agents 路徑,其餘照 skillshare 寫的留著;
-# 新機器(檔案不存在)才從整份基底開始。
+# 所以只釘 targets 與 extras 兩段(內容在 .chezmoitemplates/skillshare-pinned,照勾的 client 產生),
+# 其餘照 skillshare 寫的留著;新機器(檔案不存在)才從整份基底開始。
+# 兩段每次 apply 都整段換掉:手動 `skillshare target add` 加的 target 會被蓋掉,真相只在 repo。
 # extras 是給模型讀的指令檔(Instructions):內容在 agent-config 的 instructions/,
 # 由 skillshare 連到各 client 讀的位置(決策見 docs/adr/0003-*.md)。
-# 改了 extras 段,run_onchange_after_sync-skillshare-extras 會在 apply 後跑 skillshare sync extras。
+# 兩段變了,run_onchange_after_sync-skillshare 會在 apply 後跑 skillshare sync --all。
+# 取消勾選 client 時,已經同步出去的 skill 與連結留著(跟「取消勾選不會解除安裝」一致)。
 #
-# extras 的欄位順序照 skillshare 存檔的樣子(name、source、file、targets),段內也不放註解(它存檔會拿掉),
-# 它改寫後再 apply 才不會出現只有排版不同的 diff。
-# agents-md 是一份 AGENTS.md 給四個 client,Claude 讀的檔名是 CLAUDE.md;
-# agent-commit、opencode-commit 的目標路徑要對上 AGENTS.md 與 opencode.json 引用的位置。
 # sources 不列 agents:不寫 skillshare 也預設看 ~/.config/skillshare/agents(agent-config 的 agents/),
-# 目錄不存在時 sync 只印「No agents folder」。agents 路徑只給 Claude:Codex 的 subagent 是 TOML,
-# native agents target 不能轉檔,要用時得走 extras 的 codex-agents extension。
-# agents 放在 claude 的 skills 後面,跟 skillshare 存檔的順序一樣。
+# 目錄不存在時 sync 只印「No agents folder」。
 
 set -eu
 
-extras=$(cat <<'EOF'
-extras:
-  - name: agents-md
-    source: ~/.config/skillshare/instructions/agents-md
-    file: AGENTS.md
-    targets:
-      - path: ~/.claude
-        as: CLAUDE.md
-      - path: ~/.codex
-      - path: ~/.config/opencode
-      - path: ~/.config/opencode/routes/personal
-  - name: agent-commit
-    source: ~/.config/skillshare/instructions/agent-commit
-    file: instructions.md
-    targets:
-      - path: ~/.config/agent-commit
-  - name: opencode-commit
-    source: ~/.config/skillshare/instructions/opencode-commit
-    file: commit-instructions.md
-    targets:
-      - path: ~/.config/opencode
+pinned=$(cat <<'EOF'
+{{ includeTemplate "skillshare-pinned" . }}
 EOF
 )
 
@@ -54,36 +32,38 @@ preserve_tilde_on_save: true
 sources:
   skills: ~/.config/skillshare/skills
   mcp: ~/.config/skillshare/mcp.yaml
-targets:
-  claude:
-    skills:
-      path: ~/.claude/skills
-  codex:
-    skills:
-      path: ~/.agents/skills
 EOF
 )
 fi
 
-# 2. 已有 extras 段就原地換掉(到下一個頂層 key 為止),沒有就接在最後;
-#    targets 底下 claude 的 agents 子段先拿掉,在 claude 段結尾補上釘的那份。
-#    段落之間的空行先暫存,段落結束時才印,留給下一個 key。
-printf '%s\n' "$existing" | awk -v extras="$extras" '
-  function end_claude() { if (claude) { print "    agents:"; print "      path: ~/.claude/agents"; claude = 0 } }
-  /^[[:space:]]*$/ { if (claude || skip) { blank = blank $0 "\n"; next } print; next }
-  /^[^ \t-]/ {
-    end_claude(); skip = 0; printf "%s", blank; blank = ""
-    if (/^extras:/) { print extras; skip = 1; done = 1; next }
-    top = $0; print; next
+# 2. 現有的 targets、extras 段(到下一個頂層 key 為止)原地換成釘的那份,沒有就接在最後;
+#    釘的那份沒有這段(例如沒勾任何 agent 時的 extras)就整段拿掉。
+#    段落之間的空行先暫存,遇到下一個 key 才印;整段拿掉時沿用它前面的空行,不會多出兩行空白。
+printf '%s\n' "$existing" | PINNED="$pinned" awk '
+  BEGIN {
+    owned["targets"] = owned["extras"] = 1
+    n = split(ENVIRON["PINNED"], lines, "\n")
+    for (i = 1; i <= n; i++) {
+      if (lines[i] ~ /^[^ \t#-]/) { key = lines[i]; sub(/:.*/, "", key); order[++k] = key }
+      if (lines[i] != "") body[key] = body[key] lines[i] "\n"
+    }
+  }
+  /^[[:space:]]*$/ { blank = blank $0 "\n"; next }
+  /^[^ \t#-]/ {
+    if (dropped) { blank = kept; dropped = 0 }
+    skip = 0
+    key = $0; sub(/:.*/, "", key)
+    if (key in owned) {
+      skip = 1; done[key] = 1
+      if (key in body) { printf "%s%s", blank, body[key] } else { dropped = 1; kept = blank }
+      blank = ""; next
+    }
+    printf "%s", blank; blank = ""; print; next
   }
   skip { blank = ""; next }
-  top == "targets:" && /^  [^ ]/ {
-    end_claude(); printf "%s", blank; blank = ""
-    if ($0 == "  claude:") { claude = 1; sub_agents = 0 }
-    print; next
-  }
-  claude && /^    [^ ]/ { sub_agents = ($0 == "    agents:") }
-  claude && sub_agents { blank = ""; next }
   { printf "%s", blank; blank = ""; print }
-  END { end_claude(); if (!done) { print ""; print extras } }
+  END {
+    if (!dropped) printf "%s", blank
+    for (i = 1; i <= k; i++) if (!(order[i] in done)) { print ""; printf "%s", body[order[i]] }
+  }
 '

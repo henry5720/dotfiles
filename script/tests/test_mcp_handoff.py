@@ -2,6 +2,7 @@
 """MCP 交給 skillshare 之後(#34),chezmoi 這側不能搶它寫的條目。"""
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import tomllib
@@ -88,6 +89,8 @@ class McpHandoffTest(unittest.TestCase):
             company["presets"]["fixture-active"]["orchestrator"]["model"] = "codex-lb-gcp/fixture-main"
             company["presets"]["fixture-active"]["explorer"]["model"] = "codex-lb-gcp/fixture-small"
             company_path.write_text(json.dumps(company), encoding="utf-8")
+            # modify_ 腳本引用的共用片段(sh-jq-path)也要在這份暫時的 source 裡
+            shutil.copytree(ROOT / "home/.chezmoitemplates", source / ".chezmoitemplates")
             rendered = subprocess.check_output([
                 "chezmoi", "--source", str(source), "--config", str(self.cfg),
                 "--destination", str(self.home), "execute-template",
