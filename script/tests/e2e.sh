@@ -355,6 +355,8 @@ scenario_ubuntu() {
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
+  check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
+    "! grep -q 'dotfiles:互動式 bash 切到 zsh' ~/.bashrc && ! grep -q 'dotfiles' ~/.profile"
   check_cli_tools
 
   bold "▶ 第二次 init／apply"
@@ -746,6 +748,39 @@ noroot_init() {  # noroot_init <情境> <選單勾選>
     "grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | sed 1d | grep -vE '^(- |    |\$)'"
 }
 
+# pty_bash <bash 參數>:印出容器內指令 —— 在 pty 裡開 bash,等輸出停下來後印 ZSH_VERSION 再 exit,
+# 整段輸出存進 $out。互動式 bash 會被 ~/.bashrc 切成 zsh,ZV=:...: 中間就是 zsh 版本。
+# heredoc 的結尾 PY 要自己一行,所以連 out=$( ) 一起印(呼叫端的 $( ) 會吃掉結尾換行)。
+pty_bash() {
+  echo "out=\$(python3 - $* <<'PY'
+import os, pty, select, signal, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp('bash', ['bash'] + sys.argv[1:])
+out, sent, end = b'', False, time.time() + 30
+while time.time() < end:
+    if select.select([fd], [], [], 1)[0]:
+        try:
+            d = os.read(fd, 4096)
+        except OSError:
+            break
+        if not d:
+            break
+        out += d
+    elif not sent:
+        os.write(fd, b'echo ZV=:\$ZSH_VERSION:; exit\\n')
+        sent = True
+for _ in range(30):
+    if os.waitpid(pid, os.WNOHANG)[0]:
+        break
+    time.sleep(0.1)
+else:
+    os.kill(pid, signal.SIGKILL)
+sys.stdout.write(out.decode(errors='replace'))
+PY
+)"
+}
+
 # check_skipped <項目>:彙整裡有「- <項目>:」這一行
 check_skipped() {
   check "略過彙整列出 $1" "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- $1:'"
@@ -753,21 +788,37 @@ check_skipped() {
 
 noroot_slim_checks() {
   check_skipped "系統套件"
-  check "套件的手動方式是 sudo apt-get install,含 zsh vim btop、不含已經裝到家目錄的 jq" \
-    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw zsh /tmp/pkgs && grep -qw vim /tmp/pkgs && grep -qw btop /tmp/pkgs && ! grep -qw jq /tmp/pkgs"
+  check "套件的手動方式是 sudo apt-get install,含 vim btop、不含已經裝到家目錄的 jq、zsh" \
+    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw vim /tmp/pkgs && grep -qw btop /tmp/pkgs && ! grep -qw jq /tmp/pkgs && ! grep -qw zsh /tmp/pkgs"
   check_skipped "tailscale"
   check "tailscale 的手動方式是 userspace 模式(啟動、登入、常駐、ssh ProxyCommand)" \
     "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q -- '--tun=userspace-networking' <<<\"\$s\" && grep -q ' up\$' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\""
-  check_skipped "把預設 shell 換成 zsh"
+  check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
+  check "zsh 用 zsh-bin 裝到 ~/.local/bin,版本 5.8" "~/.local/bin/zsh --version | grep -q '^zsh 5\.8 '"
+  check "zsh -i 下 p10k 有載入" "$(zsh_ok '(( ${+functions[p10k]} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  check "TERM 沒設時 zsh 裡是 xterm-256color" "[ \"\$(env -u TERM ~/.local/bin/zsh -i -c 'print -r -- \$TERM' 2>/dev/null)\" = xterm-256color ]"
+  check "pty 開互動 bash 會切成 zsh" "$(pty_bash -i); echo \"\$out\" | tail -n 5; grep -q 'ZV=:5\.8:' <<<\"\$out\""
+  check "非互動 bash 留在 bash(bash -c、bash -lc)" \
+    "[ \"\$(bash -c 'echo \${ZSH_VERSION:-none}')\" = none ] && [ \"\$(bash -lc 'echo \${ZSH_VERSION:-none}')\" = none ]"
+  check "~/.bashrc 原本的內容還在、切 zsh 那段只有一份" \
+    "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:互動式 bash 切到 zsh >>>' ~/.bashrc)\" = 1 ]"
+  # skel 本來就有 ~/.profile;拿掉它再 apply 一次,看會不會補、login bash 會不會切成 zsh,最後放回去
+  # (補的 .profile 只 source .bashrc,不加 ~/.local/bin 到 PATH,後面的檢查要 skel 那份)
+  check "沒有 ~/.profile 時補一個 source ~/.bashrc 的;login 互動 bash 會切成 zsh" \
+    "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
   check "沒裝到的套件不會被當成已裝(btop 不存在)" "! command -v btop"
   for t in eza fzf bat ripgrep; do check_tool "$t"; done
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
 
   bold "▶ 精簡:第二次 apply"
+  step "放時間標記(之後看 zsh-bin 有沒有重裝)" "touch ~/.e2e-marker2"
   # 略過的步驟記在 run_onchange_ 的狀態裡,沒有 root 的狀況沒變就不重跑、不重印,也不重新下載
   check "第二次 apply exit 0、沒有任何略過或下載" \
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -qE '略過|安裝|下載' <<<\"\$out\""
+  check "第二次 apply 沒有重裝 zsh-bin" \
+    "[ ! ~/.local/bin/zsh -nt ~/.e2e-marker2 ] && [ ! ~/.local/share/zsh -nt ~/.e2e-marker2 ]"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
 }
@@ -776,6 +827,7 @@ noroot_full_checks() {
   for s in tailscale headless-chrome gh fastfetch code-server "nvm 與 Node" codegraph playwright-cli 系統套件; do
     check_skipped "$s"
   done
+  check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
   check "headless-chrome 的說明寫了缺系統函式庫" \
     "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
@@ -862,6 +914,8 @@ scenario_noroot() {
   noroot_tailscale_running_checks
 
   use_user full
+  # 「已經有 .bash_profile 就不補 .profile」:把 skel 的 .profile 改名成 .bash_profile(內容照用,PATH 一樣)
+  step "完整:只有 ~/.bash_profile、沒有 ~/.profile" "mv ~/.profile ~/.bash_profile"
   noroot_init 完整 "$NOROOT_FULL"
   noroot_full_checks
 

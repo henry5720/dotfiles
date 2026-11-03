@@ -147,14 +147,23 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 | 略過什麼 | 手動方式（彙整裡有完整指令） |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 zsh、vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq 例外：從 GitHub release 裝到 `~/.local/bin`，不用 root |
-| 改預設 shell | 有 zsh 之後自己 `chsh` |
+| 系統套件（基底的 git、curl、python3，與 vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
 | tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
 | gh、fastfetch、code-server | 從 GitHub release 或官方 installer 的 standalone 模式裝到 `~/.local` |
 | nvm 與 Node（codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 
 不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+jq 從 GitHub release 裝到 `~/.local/bin`。
+
+勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`。不能 `chsh`，改成：
+
+- `~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間）：互動式 bash 一啟動就 `exec zsh`；
+  `bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh
+- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個只 source `~/.bashrc` 的 `~/.profile`，
+  讓 `bash -l` 開的終端機也會切過去
+- `TERM` 沒設時，`.zshrc` 補成 `xterm-256color`
+
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
 
 系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，
