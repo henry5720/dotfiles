@@ -366,6 +366,9 @@ scenario_ubuntu() {
   check "沒勾 opencode:沒有 ~/.config/opencode、extras 沒有 opencode 的路徑" \
     "[ ! -e ~/.config/opencode ] && ! grep -q opencode ~/.config/skillshare/config.yaml"
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
+  # ssh client 補裝與 userspace tailscale 的 ProxyCommand 只給沒有 root 的機器(#216)
+  check "有 root:ssh config 沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
+    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
@@ -378,6 +381,8 @@ scenario_ubuntu() {
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
+  check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
+    "! grep -q 'dotfiles:互動式 bash 切到 zsh' ~/.bashrc && ! grep -q 'dotfiles' ~/.profile"
   check_cli_tools
 
   bold "▶ 第二次 init／apply"
@@ -728,6 +733,9 @@ scenario_termux() {
     "chezmoi cat --override-data '$agents' ~/.config/opencode/opencode.json | jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}'"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
+  # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
+  check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
+    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -845,29 +853,96 @@ check_mise_skips_system_vim() {
     "! grep -qw vim ~/.config/mise/conf.d/dotfiles.toml && ! ~/.local/bin/mise ls --json | jq -e 'has(\"vim\")' && [ ! -e $MISE_SHIMS/vim ] && vim | grep -q 'e2e system stub'"
 }
 
+# pty_bash <bash 參數>:印出容器內指令 —— 在 pty 裡開 bash,等輸出停下來後印 ZSH_VERSION 再 exit,
+# 整段輸出存進 $out。互動式 bash 會被 ~/.bashrc 切成 zsh,ZV=:...: 中間就是 zsh 版本。
+# heredoc 的結尾 PY 要自己一行,所以連 out=$( ) 一起印(呼叫端的 $( ) 會吃掉結尾換行)。
+pty_bash() {
+  echo "out=\$(python3 - $* <<'PY'
+import os, pty, select, signal, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp('bash', ['bash'] + sys.argv[1:])
+out, sent, end = b'', False, time.time() + 30
+while time.time() < end:
+    if select.select([fd], [], [], 1)[0]:
+        try:
+            d = os.read(fd, 4096)
+        except OSError:
+            break
+        if not d:
+            break
+        out += d
+    elif not sent:
+        os.write(fd, b'echo ZV=:\$ZSH_VERSION:; exit\\n')
+        sent = True
+for _ in range(30):
+    if os.waitpid(pid, os.WNOHANG)[0]:
+        break
+    time.sleep(0.1)
+else:
+    os.kill(pid, signal.SIGKILL)
+sys.stdout.write(out.decode(errors='replace'))
+PY
+)"
+}
+
 # check_skipped <項目>:彙整裡有「- <項目>:」這一行
 check_skipped() {
   check "略過彙整列出 $1" "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- $1:'"
 }
 
+# 容器沒有 ssh(git 的 Recommends 沒裝):apply 要把 openssh-client 解到家目錄(#216)
+check_ssh_client() {
+  check "系統沒有 ssh、補裝的 ssh 在 ~/.local/bin" \
+    "[ ! -e /usr/bin/ssh ] && [ \"\$(command -v ssh)\" = \"\$HOME/.local/bin/ssh\" ] && [ -d ~/.local/opt/openssh ]"
+  check "ssh -V 能跑" "ssh -V 2>&1 | grep -q OpenSSH"
+  check "ssh-keygen 能產 key、讀回公鑰" \
+    "rm -f /tmp/k-\$(id -un)* && ssh-keygen -q -t ed25519 -N '' -f /tmp/k-\$(id -un) && ssh-keygen -y -f /tmp/k-\$(id -un) | grep -q '^ssh-ed25519 '"
+  # scp 預設呼叫 /usr/bin/ssh;wrapper 要讓它改用補裝的 ssh。連 127.0.0.1:22 被拒 = 真的叫到了 ssh
+  check "scp 叫得到補裝的 ssh(不是找 /usr/bin/ssh)" \
+    "out=\$(scp -o BatchMode=yes -o ConnectTimeout=3 /etc/hostname 127.0.0.1:/tmp/x 2>&1); echo \"\$out\"; grep -qi 'connection refused' <<<\"\$out\""
+}
+
 noroot_slim_checks() {
-  check_skipped "系統套件"
-  check "套件的手動方式是 sudo apt-get install,含 zsh、不含 mise 裝的 vim btop 與已經裝到家目錄的 jq" \
-    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw zsh /tmp/pkgs && ! grep -qwE 'vim|btop|jq' /tmp/pkgs"
+  # 精簡要 apt 的只剩 jq、zsh、vim、btop:jq、zsh 從 release 裝到家目錄,vim 系統已有,btop 走 mise
+  check "精簡沒有要略過的系統套件(jq、zsh 裝到家目錄,vim、btop 交給 mise)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
   check_skipped "tailscale"
   check "tailscale 的手動方式是 userspace 模式(啟動、登入、常駐、ssh ProxyCommand)" \
     "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q -- '--tun=userspace-networking' <<<\"\$s\" && grep -q ' up\$' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\""
-  check_skipped "把預設 shell 換成 zsh"
+  check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
+  check "zsh 用 zsh-bin 裝到 ~/.local/bin,版本 5.8" "~/.local/bin/zsh --version | grep -q '^zsh 5\.8 '"
+  check "zsh -i 下 p10k 有載入" "$(zsh_ok '(( ${+functions[p10k]} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  check "TERM 沒設時 zsh 裡是 xterm-256color" "[ \"\$(env -u TERM ~/.local/bin/zsh -i -c 'print -r -- \$TERM' 2>/dev/null)\" = xterm-256color ]"
+  check "pty 開互動 bash 會切成 zsh" "$(pty_bash -i); echo \"\$out\" | tail -n 5; grep -q 'ZV=:5\.8:' <<<\"\$out\""
+  check "非互動 bash 留在 bash(bash -c、bash -lc)" \
+    "[ \"\$(bash -c 'echo \${ZSH_VERSION:-none}')\" = none ] && [ \"\$(bash -lc 'echo \${ZSH_VERSION:-none}')\" = none ]"
+  check "~/.bashrc 原本的內容還在、切 zsh 那段只有一份" \
+    "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:互動式 bash 切到 zsh >>>' ~/.bashrc)\" = 1 ]"
+  # skel 本來就有 ~/.profile;拿掉它再 apply 一次,看會不會補、login bash 會不會切成 zsh,最後放回去
+  # (補的 .profile 只 source .bashrc,不加 ~/.local/bin 到 PATH,後面的檢查要 skel 那份)
+  check "沒有 ~/.profile 時補一個 source ~/.bashrc 的;login 互動 bash 會切成 zsh" \
+    "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
   check_mise btop
   check_mise_skips_system_vim
   for t in eza fzf bat ripgrep; do check_tool "$t"; done
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+  check_ssh_client
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
+  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
+    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
+    "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
 
   bold "▶ 精簡:第二次 apply"
+  step "放時間標記(之後看 zsh-bin 有沒有重裝)" "touch ~/.e2e-marker2"
   # 略過的步驟記在 run_onchange_ 的狀態裡,沒有 root 的狀況沒變就不重跑、不重印,也不重新下載
   check "第二次 apply exit 0、沒有任何略過或下載" \
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -qE '略過|安裝|下載' <<<\"\$out\""
+  check "第二次 apply 沒有重裝 zsh-bin" \
+    "[ ! ~/.local/bin/zsh -nt ~/.e2e-marker2 ] && [ ! ~/.local/share/zsh -nt ~/.e2e-marker2 ]"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
 }
@@ -876,6 +951,9 @@ noroot_full_checks() {
   for s in tailscale headless-chrome "nvm 與 Node" codegraph playwright-cli 系統套件; do
     check_skipped "$s"
   done
+  check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
+  check "系統套件的手動方式不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' | grep -qwE 'vim|btop|ffmpeg|poppler-utils|jq|zsh'"
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
@@ -888,6 +966,7 @@ noroot_full_checks() {
     "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
   for t in eza fzf bat ripgrep herdr ttyd wakatime claude codex opencode agent-config; do check_tool "$t"; done
+  check_ssh_client
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
@@ -922,6 +1001,7 @@ SH
 exit 0
 SH
   local tmpl='~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl'
+  local ssh_tmpl='~/.local/share/chezmoi/home/private_dot_ssh/private_config.tmpl'
   local d how
   for d in running active; do
     for how in noroot root; do
@@ -929,7 +1009,16 @@ SH
       check "($d,$how 的渲染)tailscale 腳本整段跳過、exit 0、沒有叫 sudo" \
         "rm -f /tmp/e2e-sudo.log; ${pre}chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $tmpl > /tmp/ts.sh && out=\$(PATH=/opt/e2e-stub/$d:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '已經在跑' <<<\"\$out\" && ! grep -q 略過 <<<\"\$out\" && [ ! -e /tmp/e2e-sudo.log ]"
     done
+    # 系統 tailscaled 在跑就不是 userspace,ssh config 不加 ProxyCommand(#216)
+    check "($d)ssh config 渲染出來沒有 ProxyCommand" \
+      "! PATH=/opt/e2e-stub/$d:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -i ProxyCommand"
   done
+  check "(對照,沒有 stub)ssh config 渲染出來有 ProxyCommand" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -q ProxyCommand"
+  check "沒勾 tailscale:ssh config 渲染出來沒有 ProxyCommand" \
+    "! chezmoi execute-template --override-data '{\"tools\":[]}' < $ssh_tmpl | grep -i ProxyCommand"
+  check "有 root(sudo 免密碼):ssh config 渲染出來沒有 ProxyCommand" \
+    "! PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $ssh_tmpl | grep -i ProxyCommand"
 }
 
 # root 判斷(.chezmoitemplates/has-root)只看樣板輸出。chezmoi 與 source 放到大家讀得到的地方,
@@ -949,6 +1038,20 @@ SH
   check "不在群組 + sudo 要密碼:判為沒有 root" "[ -z \"\$(PATH=/opt/e2e-stub/sudo-pw:\$PATH $has_root)\" ]"
   check "不在群組 + sudo 免密碼(sudo -n true 成功):判為有 root" "[ \"\$(PATH=/opt/e2e-stub/sudo-ok:\$PATH $has_root)\" = true ]"
   check "沒有 sudo:判為沒有 root" "[ -z \"\$($has_root)\" ]"
+}
+
+# 已經有 ssh 的機器(stub 放在 PATH 前面)不補裝:用沒跑過 apply 的 wheeluser(沒有 root、家目錄乾淨),
+# 渲染 install-ssh-client 直接跑。chezmoi 與 source 用 noroot_has_root_checks 放好的那份。
+noroot_ssh_present_checks() {
+  bold "▶ 已經有 ssh:不補裝"
+  put_root_file /opt/e2e-stub/ssh/ssh 755 <<'SH'
+#!/bin/sh
+echo "OpenSSH_stub"
+SH
+  use_user wheeluser
+  check "install-ssh-client 跳過、exit 0、家目錄沒有多出 ssh" \
+    "chezmoi --source /opt/e2e-src --config /tmp/none.toml execute-template < /opt/e2e-src/home/.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl > /tmp/ssh-client.sh && [ -s /tmp/ssh-client.sh ] && out=\$(PATH=/opt/e2e-stub/ssh:\$PATH sh /tmp/ssh-client.sh 2>&1) && echo \"\$out\" && grep -q '已經有 ssh' <<<\"\$out\" && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
+  use_user slim
 }
 
 # root 帶著一般使用者的 HOME 跑(sudo -E chezmoi apply 這類誤用):一開頭就停、exit 非 0、家目錄沒有 root 的檔
@@ -973,10 +1076,13 @@ scenario_noroot() {
   noroot_tailscale_running_checks
 
   use_user full
+  # 「已經有 .bash_profile 就不補 .profile」:把 skel 的 .profile 改名成 .bash_profile(內容照用,PATH 一樣)
+  step "完整:只有 ~/.bash_profile、沒有 ~/.profile" "mv ~/.profile ~/.bash_profile"
   noroot_init 完整
   noroot_full_checks
 
   noroot_has_root_checks
+  noroot_ssh_present_checks
   noroot_root_foreign_home_checks
 }
 

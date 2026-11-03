@@ -1,0 +1,6 @@
+# 由 dotfiles 補上(沒有 root 的 Linux、勾了 zsh,而且原本沒有 ~/.profile、~/.bash_profile、~/.bash_login)。
+# login bash(例如 bash -l 開的工作區)只讀這三個之一、不讀 ~/.bashrc;
+# 這裡轉去讀 ~/.bashrc,互動式的就會在那裡切到 zsh。
+if [ -n "${BASH_VERSION:-}" ] && [ -f "$HOME/.bashrc" ]; then
+  . "$HOME/.bashrc"
+fi

@@ -87,7 +87,7 @@ ssh phone
 ```
 
 前提是 phone 的 proot Ubuntu 裝了 code-server，且發起端能以 `Host phone` 連到 phone 的 Termux；目前
-`home/private_dot_ssh/private_config` 的 `LocalForward 8080 localhost:8080`
+`home/private_dot_ssh/private_config.tmpl` 的 `LocalForward 8080 localhost:8080`
 會把 phone 的 8080 映射到發起端。
 
 `LocalForward` 左邊在**執行 ssh 的那台**開 port，右邊的 `localhost` 在 **phone 上**解析。

@@ -1,0 +1,67 @@
+{{- if and (includeTemplate "is-debian" .) (not (includeTemplate "has-root" .)) -}}
+#!{{ lookPath "sh" }}
+# 沒有 root 又沒有 ssh 的機器(例:TeamSync 工作區)把 openssh-client 解到家目錄。不分用途、不在選單上。
+# 有 root 的機器渲染成空的(要 ssh 就用系統套件);非 Debian 系沒有 apt-get download,也渲染成空的。
+# 做法:apt 用私有目錄抓清單和 .deb(不用 root、不碰系統的 apt),dpkg -x 解到 ~/.local/opt/openssh,
+# ssh、ssh-keygen、scp 在 ~/.local/bin 各包一層 LD_LIBRARY_PATH(krb5 等相依函式庫也解在那裡)。
+set -eu
+
+opt=$HOME/.local/opt/openssh
+bin=$HOME/.local/bin
+
+# 1. 已經有 ssh 就不動:系統本來就有,或上次解好的那份還能跑
+if [ -x "$bin/ssh" ] && "$bin/ssh" -V >/dev/null 2>&1; then
+  echo "ssh 已經在 ~/.local/bin,跳過"
+  exit 0
+fi
+if p=$(command -v ssh) && [ "$p" != "$bin/ssh" ]; then
+  echo "已經有 ssh($p),跳過"
+  exit 0
+fi
+
+# 2. 私有的 apt 清單與快取,放暫存目錄,用完就刪(清單約 50M)
+echo "沒有 ssh 也沒有 root:下載 openssh-client 解到 ~/.local/opt/openssh"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/lists/partial" "$tmp/cache/archives/partial"
+apt_user() { apt-get -o Dir::State::Lists="$tmp/lists" -o Dir::Cache="$tmp/cache" -o Debug::NoLocking=1 "$@"; }
+# 成功時不印:docker 映像的 apt 清理 hook 會對系統快取目錄報 Permission denied,不影響結果
+if ! out=$(apt_user update 2>&1); then
+  printf '%s\n' "$out"
+  exit 1
+fi
+
+# 3. 要抓哪些套件:模擬安裝(不用 root),列出系統還沒有的相依(krb5 那幾個常常缺)
+pkgs=$(apt_user -s install --no-install-recommends openssh-client | sed -n 's/^Inst \([^ ]*\) .*/\1/p')
+if [ -z "$pkgs" ]; then
+  echo "apt 找不到 openssh-client(套件來源連不上?),這次沒裝 ssh;下次 apply 會再試" >&2
+  exit 1
+fi
+# shellcheck disable=SC2086 # 套件名要分開成多個參數
+(cd "$tmp" && apt_user download $pkgs)
+
+# 4. 解到 ~/.local/opt/openssh(先清掉上次留下的半套)
+rm -rf "$opt"
+mkdir -p "$opt"
+for f in "$tmp"/*.deb; do
+  dpkg -x "$f" "$opt"
+done
+
+# 5. wrapper:函式庫目錄 = 解出來的檔案裡有 .so 的目錄。
+#    scp 預設呼叫 /usr/bin/ssh,這台沒有,用 -S 指到 wrapper
+libs=$(find "$opt" -name '*.so*' -exec dirname {} \; | sort -u | paste -sd:)
+mkdir -p "$bin"
+for c in ssh ssh-keygen scp; do
+  extra=""
+  [ "$c" = scp ] && extra="-S $bin/ssh "
+  cat > "$bin/$c" <<EOF
+#!/bin/sh
+# chezmoi 的 install-ssh-client 產生:沒有 root 時解到 ~/.local/opt/openssh 的 openssh-client
+LD_LIBRARY_PATH=$libs\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH} exec $opt/usr/bin/$c $extra"\$@"
+EOF
+  chmod 755 "$bin/$c"
+done
+
+# 6. 確認真的能跑(缺函式庫時 ssh -V 會失敗,apply 跟著失敗,下次 apply 重試)
+"$bin/ssh" -V
+{{ end -}}

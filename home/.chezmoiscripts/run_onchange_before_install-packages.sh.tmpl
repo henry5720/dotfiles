@@ -4,7 +4,7 @@
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
 # 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages;Termux 的 tools 是自動帶入的)。
 #
-# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整),只有 jq 改從 GitHub release 裝到家目錄;
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整),只有 jq、zsh 改從 GitHub release 裝到家目錄;
 # vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,不算在缺的裡面。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
@@ -49,7 +49,7 @@ apt_get install -y $missing
 # jq 是 modify_ 腳本必要的(沒有它 apply 會在部署 ~/.claude/settings.json 這類檔案時失敗),
 # 而 jqlang/jq 官方有靜態 binary,不用 root:放到 ~/.local/bin 頂著。
 # 用到 jq 的腳本找不到 jq 時會自己把 ~/.local/bin 加進 PATH(chezmoi 跑腳本時的 PATH 不一定有它)。
-drop_jq() { m=; for p in $missing; do [ "$p" = jq ] || m="$m $p"; done; missing=$m; }
+drop() { m=; for p in $missing; do [ "$p" = "$1" ] || m="$m $p"; done; missing=$m; }  # drop <套件>:從 missing 拿掉
 case " $missing " in
   *" jq "*)
     case "$(uname -m)" in
@@ -58,14 +58,28 @@ case " $missing " in
       *) jq_asset= ;;
     esac
     if [ -x "$HOME/.local/bin/jq" ]; then
-      drop_jq
+      drop jq
     elif [ -n "$jq_asset" ] && mkdir -p "$HOME/.local/bin" &&
       curl -fsSL -o "$HOME/.local/bin/.jq.tmp" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$jq_asset" &&
       chmod 755 "$HOME/.local/bin/.jq.tmp" && mv -f "$HOME/.local/bin/.jq.tmp" "$HOME/.local/bin/jq"; then
       echo "jq 從 GitHub release 裝到 ~/.local/bin"
-      drop_jq
+      drop jq
     else
       rm -f "$HOME/.local/bin/.jq.tmp"
+    fi
+    ;;
+esac
+# zsh(勾了選裝工具 zsh 才會在 missing 裡)改用 zsh-bin:官方說不用 root、靜態連結,裝到 ~/.local
+# (~/.local/bin/zsh)。-e no:不碰 /etc/shells。安裝腳本釘版本,裡面有每個 tarball 的 sha256。
+# 沒辦法 chsh,改由 ~/.bashrc 在互動式 bash 啟動時切過去(home/modify_dot_bashrc.tmpl)。
+case " $missing " in
+  *" zsh "*)
+    if [ -x "$HOME/.local/bin/zsh" ]; then
+      drop zsh
+    elif zsh_bin=$(curl -fsSL https://raw.githubusercontent.com/romkatv/zsh-bin/v6.1.1/install) &&
+      sh -c "$zsh_bin" -- -d "$HOME/.local" -e no -q; then
+      echo "zsh 用 zsh-bin 裝到 ~/.local/bin"
+      drop zsh
     fi
     ;;
 esac
