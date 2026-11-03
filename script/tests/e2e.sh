@@ -236,6 +236,9 @@ declare -A TOOL_CHECK=(
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json && [ -L ~/.claude/CLAUDE.md ] && grep -q e2e-agents ~/.claude/CLAUDE.md"
 )
 check_tool()     { check "選裝工具 $1 已安裝" "${TOOL_CHECK[$1]}"; }
+
+# skillshare 的 targets 名稱(排序後的 JSON 陣列)等於後面接的值:check "..." "$SS_TARGETS_IS '[\"claude\"]'"
+SS_TARGETS_IS="test \"\$(skillshare target list --json | jq -c '[.targets[].name] | sort')\" ="
 check_no_tool()  { check "選裝工具 $1 沒有安裝" "! { ${TOOL_CHECK[$1]}; }"; }
 
 # 各 agent／編輯器的官方 WakaTime plugin:wakatime 和那個工具都勾了才裝(#172、#173、#174)。
@@ -320,6 +323,12 @@ scenario_ubuntu() {
   # 腳本找不到 config.yaml 會失敗;apply 有跑完、上面 agent-config 的檢查過了,就代表順序對。
   check "agent-config 用的是 chezmoi 放的 skillshare 設定(targets 有 claude、codex)" \
     "grep -q 'path: ~/.claude/skills' ~/.config/skillshare/config.yaml && [ -e ~/.agents/skills/e2e-hello ]"
+  # skillshare 照勾的 client 產生 targets、extras(#211):勾了 claude、codex,沒勾 opencode
+  check "skillshare targets 只有 claude、codex" "$SS_TARGETS_IS '[\"claude\",\"codex\"]'"
+  check "指令檔連到 Claude、Codex 與 agent-commit" \
+    "[ -L ~/.claude/CLAUDE.md ] && [ -L ~/.codex/AGENTS.md ] && [ -L ~/.config/agent-commit/instructions.md ]"
+  check "沒勾 opencode:沒有 ~/.config/opencode、extras 沒有 opencode 的路徑" \
+    "[ ! -e ~/.config/opencode ] && ! grep -q opencode ~/.config/skillshare/config.yaml"
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
@@ -385,6 +394,34 @@ scenario_ubuntu() {
   check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
   check "之後 init(不帶 --prompt、不給任何 prompt 旗標)不問、tools 不變" \
     "chezmoi init --no-tty </dev/null && grep -q '^    tools = .*\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml && grep -qF '\"agent-config\", \"wakatime\"]' ~/.config/chezmoi/chezmoi.toml"
+
+  # skillshare 的 targets、extras 每次 apply 都照選單釘回去(#211)
+  bold "▶ 手動 skillshare target add,再 apply"
+  step "手動加一個 gemini target" "mkdir -p ~/.gemini/skills && skillshare target add gemini ~/.gemini/skills"
+  check "(對照)加進去了" "grep -q gemini ~/.config/skillshare/config.yaml"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check "手動加的 target 被蓋掉" "$SS_TARGETS_IS '[\"claude\",\"codex\"]' && ! grep -q gemini ~/.config/skillshare/config.yaml"
+  check "chezmoi verify 通過" "chezmoi verify"
+
+  # 新機器只勾一部分時不部署哪些檔:不用另開容器,用 --override-data 換 tools 看 chezmoi 會管哪些檔
+  bold "▶ 沒勾的 client 不部署設定目錄"
+  check "(對照)現在的勾選會管 ~/.codex、skillshare 的 config.yaml" \
+    "chezmoi managed | grep -qx .codex && chezmoi managed | grep -qx .config/skillshare/config.yaml"
+  check "只勾 claude + agent-config:不管 ~/.codex、~/.config/opencode" \
+    "out=\$(chezmoi managed --override-data '{\"tools\":[\"claude\",\"agent-config\"]}') && grep -qx .claude <<<\"\$out\" && grep -qx .config/skillshare/config.yaml <<<\"\$out\" && ! grep -qE '^(\\.codex|\\.config/opencode)(/|\$)' <<<\"\$out\""
+  check "沒勾 agent-config:不放 skillshare 的 config.yaml" \
+    "! chezmoi managed --override-data '{\"tools\":[\"claude\",\"codex\"]}' | grep -q '^\\.config/skillshare'"
+
+  bold "▶ 取消勾選 codex"
+  step "config 的 tools 拿掉 codex" \
+    "sed -i 's/, \"codex\"//' ~/.config/chezmoi/chezmoi.toml && ! grep -q '\"codex\"' ~/.config/chezmoi/chezmoi.toml"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check "skillshare targets 只剩 claude" "$SS_TARGETS_IS '[\"claude\"]'"
+  check "extras 不再連 ~/.codex" "! grep -q 'path: ~/.codex' ~/.config/skillshare/config.yaml"
+  check "chezmoi 不再管 ~/.codex" "! chezmoi managed | grep -q '^\\.codex'"
+  check "已經同步出去的檔案留著(~/.codex 的設定、AGENTS.md、~/.agents/skills)" \
+    "[ -f ~/.codex/config.toml ] && [ -e ~/.codex/AGENTS.md ] && [ -e ~/.agents/skills/e2e-hello ]"
+  check "chezmoi verify 通過" "chezmoi verify"
 
   bold "▶ 套件清單加一個套件"
   step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
@@ -515,15 +552,21 @@ scenario_termux() {
   for p in "${TERMUX_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
-  check "modify_ 產物:~/.claude/settings.json 關掉 chrome-devtools plugin" \
-    "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
-  check "modify_ 產物:~/.codex/config.toml 有 codex-lb provider" \
-    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"model_provider\"]==\"codex-lb-gcp\" and \"codex-lb-gcp\" in c[\"model_providers\"]' ~/.codex/config.toml"
-  check_codex_permissions
-  check "modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
-    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"forced_login_method\"]==\"chatgpt\"' ~/.codex/personal.config.toml"
-  check "modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
-    "jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}' ~/.config/opencode/opencode.json"
+  # Termux 沒有選單、沒勾任何 agent:client 的設定目錄都不部署(#211)。
+  check "沒勾的 client 不部署設定目錄(~/.claude、~/.codex、~/.config/opencode、skillshare 的 config.yaml)" \
+    "[ ! -e ~/.claude ] && [ ! -e ~/.codex ] && [ ! -e ~/.config/opencode ] && [ ! -e ~/.config/skillshare/config.yaml ]"
+  # modify_ 腳本在 Termux 上照樣跑得動(shebang、jq、python3):用 chezmoi cat 假裝勾了三個 client,
+  # 看它算出來的內容,不實際部署。
+  # codexLbApiKey 一併給:沒勾 codex、opencode 的機器不會問這個秘密(#210)
+  local agents='{"tools":["claude","codex","opencode"],"codexLbApiKey":"e2e"}'
+  check "(勾 claude 時)modify_ 產物:~/.claude/settings.json 關掉 chrome-devtools plugin" \
+    "chezmoi cat --override-data '$agents' ~/.claude/settings.json | jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false'"
+  check "(勾 codex 時)modify_ 產物:~/.codex/config.toml 有 codex-lb provider" \
+    "chezmoi cat --override-data '$agents' ~/.codex/config.toml | python3 -c 'import tomllib,sys; c=tomllib.loads(sys.stdin.read()); assert c[\"model_provider\"]==\"codex-lb-gcp\" and \"codex-lb-gcp\" in c[\"model_providers\"]'"
+  check "(勾 codex 時)modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
+    "chezmoi cat --override-data '$agents' ~/.codex/personal.config.toml | python3 -c 'import tomllib,sys; c=tomllib.loads(sys.stdin.read()); assert c[\"forced_login_method\"]==\"chatgpt\"'"
+  check "(勾 opencode 時)modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
+    "chezmoi cat --override-data '$agents' ~/.config/opencode/opencode.json | jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}'"
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \

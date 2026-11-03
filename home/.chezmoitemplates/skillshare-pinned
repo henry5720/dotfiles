@@ -1,0 +1,64 @@
+{{- /* skillshare config.yaml 裡由 chezmoi 釘的兩段:targets 與 extras,照選單勾的 client 產生。
+       dot_config/skillshare/modify_config.yaml.tmpl 拿它整段換掉現有的;
+       run_onchange_after_sync-skillshare.sh.tmpl 拿它的 hash 判斷要不要重新 sync。
+       欄位順序照 skillshare 存檔的樣子(targets 底下 skills 再 agents;extras 是 name、source、file、targets),
+       段內也不放註解(它存檔會拿掉),它改寫後再 apply 才不會出現只有排版不同的 diff。
+       沒有 target 時 skillshare 存成 `targets: {}`;沒有 extras 時它整段不寫,這裡也不輸出。
+
+       targets:claude → skills 與 agents;codex → skills(Codex 的 subagent 是 TOML,native agents
+       target 不能轉檔,要用時得走 extras 的 codex-agents extension);opencode 不加 target ——
+       OpenCode 本來就會讀 ~/.claude/skills 與 ~/.agents/skills,再加一個同一支 skill 會出現三次。
+       extras:agents-md 是一份 AGENTS.md 給各 client,Claude 讀的檔名是 CLAUDE.md;
+       agent-commit 任一個 agent 都要;agent-commit、opencode-commit 的目標路徑要對上
+       AGENTS.md 與 opencode.json 引用的位置。 */ -}}
+{{- $tools := index . "tools" -}}
+{{- $claude := has "claude" $tools -}}
+{{- $codex := has "codex" $tools -}}
+{{- $opencode := has "opencode" $tools -}}
+{{- if or $claude $codex }}
+targets:
+{{- if $claude }}
+  claude:
+    skills:
+      path: ~/.claude/skills
+    agents:
+      path: ~/.claude/agents
+{{- end }}
+{{- if $codex }}
+  codex:
+    skills:
+      path: ~/.agents/skills
+{{- end }}
+{{- else }}
+targets: {}
+{{- end }}
+{{- if or $claude $codex $opencode }}
+extras:
+  - name: agents-md
+    source: ~/.config/skillshare/instructions/agents-md
+    file: AGENTS.md
+    targets:
+{{- if $claude }}
+      - path: ~/.claude
+        as: CLAUDE.md
+{{- end }}
+{{- if $codex }}
+      - path: ~/.codex
+{{- end }}
+{{- if $opencode }}
+      - path: ~/.config/opencode
+      - path: ~/.config/opencode/routes/personal
+{{- end }}
+  - name: agent-commit
+    source: ~/.config/skillshare/instructions/agent-commit
+    file: instructions.md
+    targets:
+      - path: ~/.config/agent-commit
+{{- if $opencode }}
+  - name: opencode-commit
+    source: ~/.config/skillshare/instructions/opencode-commit
+    file: commit-instructions.md
+    targets:
+      - path: ~/.config/opencode
+{{- end }}
+{{- end }}
