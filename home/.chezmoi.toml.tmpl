@@ -1,10 +1,12 @@
 {{- /* 以 root 執行、$HOME 又不屬於 root 時,init 一開頭就停(見 .chezmoitemplates/home-owner-guard)。 */ -}}
 {{- includeTemplate "home-owner-guard" . -}}
 {{- /* 用途與選裝工具:先問這台的用途(完整／精簡／自訂),再出選裝工具選單,照用途的預設組合勾好,可以再調。
+       用途在 config 與提示上是英文代號 full／minimal／custom:chezmoi 的 promptChoice 是打字的輸入框、不是清單,
+       中文選項得切輸入法;代號打開頭一個字母就夠(f、m、c),Enter 用預設。
        只在 Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)
        與 macOS 問。原生 Termux 不問,自動套用精簡,選單不列的項目(下面 $skip)濾掉。
        存法:選單結果等於這台的預設組合(已濾掉 $skip)時存用途,之後預設組合改了,跑 `chezmoi init` 就跟上;
-       有改就存「自訂」,tools 照勾的存、不再跟著預設組合走。
+       有改就存自訂(custom),tools 照勾的存、不再跟著預設組合走。
        不管存哪種,[data] 都寫展開後的 tools:其他樣板一律看 .tools,不認得用途。
        之後要改:打 `tools`(home/dot_local/bin/executable_tools.tmpl)重出兩個問題,預設帶現在的用途與勾選
        (不在這台選單裡的會被濾掉),勾完直接 apply。新勾的會裝,取消勾選、改用途都不會解除安裝。
@@ -18,19 +20,22 @@
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
             要 root 的步驟(apt、sudo)包在 {{ if includeTemplate "has-root" . }} 裡;沒有 root 時
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
-         4. 存「自訂」的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
+         4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
        原本裝的東西不會少;寫回 config 時帶 toolsSchema = 2,之後就照存的勾選。
        toolsSchema 是 tools 的格式版本:沒有這個 key = 第 1 版(這六項還在基底、不在 tools 裡),
        2 = 這六項也要在 tools 裡勾才裝。key 名與值已經寫在各台的 config,不要改;格式再變就加到 3。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
 {{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
-       用途的提示文字會出現在 README 免回答安裝那一行(--promptChoice 的 key),改了要一起改;
+       用途的提示文字會出現在 README 免回答安裝那一行(--promptChoice 的 key),改了要一起改
+       (還有 Runbook、docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
 {{- $lean := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
-{{- $usePrompt := "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）" -}}
-{{- $useChoices := list "完整" "精簡" "自訂" -}}
-{{- $use := "精簡" -}}
+{{- $usePrompt := "用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）" -}}
+{{- $useChoices := list "full" "minimal" "custom" -}}
+{{- /* #222 以前 config 存的是中文,init 時換成代號,勾選不變。 */ -}}
+{{- $legacyUse := dict "完整" "full" "精簡" "minimal" "自訂" "custom" -}}
+{{- $use := "minimal" -}}
 {{- $tools := list -}}
 {{- if not (has .chezmoi.os (list "linux" "darwin")) -}}
 {{- /* 不出選單的機器:原生 Termux 沒有 tailscale、btop 的套件腳本。濾完剩下的就是 $baseSplit。 */ -}}
@@ -63,17 +68,18 @@
 {{-       $full = append $full $name -}}
 {{-     end -}}
 {{-   end -}}
-{{-   $presets := dict "完整" $full "精簡" (list) "自訂" (list) -}}
+{{-   $presets := dict "full" $full "minimal" (list) "custom" (list) -}}
 {{-   range $lean -}}
-{{-     if has . $full }}{{ $_ := set $presets "精簡" (append (get $presets "精簡") .) }}{{ end -}}
+{{-     if has . $full }}{{ $_ := set $presets "minimal" (append (get $presets "minimal") .) }}{{ end -}}
 {{-   end -}}
 {{- /* 現在的用途與勾選(兩個問題的預設值從它算)。只有 tools、沒有用途的舊 config 算自訂。
        存完整、精簡的,勾選就是現在的預設組合,不看 config 裡那份展開過的 tools。 */ -}}
 {{-   $storedUse := "" -}}
 {{-   if hasKey . "machineUse" -}}
 {{-     $storedUse = .machineUse -}}
+{{-     if hasKey $legacyUse $storedUse }}{{ $storedUse = get $legacyUse $storedUse }}{{ end -}}
 {{-   else if hasKey . "tools" -}}
-{{-     $storedUse = "自訂" -}}
+{{-     $storedUse = "custom" -}}
 {{-   end -}}
 {{-   if not (hasKey $presets $storedUse) }}{{ $storedUse = "" }}{{ end -}}
 {{- /* 自訂的勾選:舊 config(沒有 toolsSchema)在這裡補上 $baseSplit。 */ -}}
@@ -86,21 +92,27 @@
 {{-       end -}}
 {{-     end -}}
 {{-   end -}}
-{{-   if and $storedUse (ne $storedUse "自訂") -}}
+{{-   if and $storedUse (ne $storedUse "custom") -}}
 {{-     $current = get $presets $storedUse -}}
 {{-   end -}}
-{{- /* 舊的 document-media 拆出來只剩 ffmpeg,舊機器的勾選照樣帶過去。 */ -}}
+{{- /* 舊的 document-media 拆出來只剩 ffmpeg,舊機器的勾選照樣帶過去。
+       nvm 改名 node(#209 拿掉、#222 放回選單),還存著 nvm 的換成 node。 */ -}}
 {{-   if has "document-media" $current -}}
 {{-     $current = append $current "ffmpeg" -}}
+{{-   end -}}
+{{-   if has "nvm" $current -}}
+{{-     $renamed := list -}}
+{{-     range $current }}{{ $renamed = append $renamed (ternary "node" . (eq . "nvm")) }}{{ end -}}
+{{-     $current = $renamed -}}
 {{-   end -}}
 {{- /* 用途:存過就沿用(init --prompt 才重問,預設帶現在的);第一次預設精簡:直接 Enter 也有 zsh 與常用 CLI,不會裝出只有基底的機器。 */ -}}
 {{-   $useStored := dict -}}
 {{-   if $storedUse }}{{ $_ := set $useStored "machineUse" $storedUse }}{{ end -}}
-{{-   $use = promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (default "精簡" $storedUse) -}}
+{{-   $use = promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (default "minimal" $storedUse) -}}
 {{- /* 選單預設值:用途沒變、或改成自訂,帶現在的勾選;改成完整或精簡,帶那個用途的預設組合。
        用途沒變時才把勾選當成「已經存過」:不加 --prompt 的 init 不出選單,遷移也照樣生效。 */ -}}
 {{-   $defaultNames := $current -}}
-{{-   if and (ne $use $storedUse) (ne $use "自訂") -}}
+{{-   if and (ne $use $storedUse) (ne $use "custom") -}}
 {{-     $defaultNames = get $presets $use -}}
 {{-   end -}}
 {{-   $toolsStored := dict -}}
@@ -114,9 +126,9 @@
 {{-     end -}}
 {{-   end -}}
 {{- /* 選單回傳的是選單文字(已經存過時是存著的工具名),只留第一個空白前的工具名。
-       拿掉的選項(nvm 改成跟著要 Node 的工具自動裝,見 packages.yaml 的 nodeTools;mupdf-tools、pandoc 沒人用)
-       舊機器可能還存著,濾掉;document-media 換成 ffmpeg(見上面)。 */ -}}
-{{-   $removed := list "nvm" "mupdf-tools" "pandoc" "document-media" -}}
+       拿掉的選項(mupdf-tools、pandoc 沒人用)舊機器可能還存著,濾掉;document-media 換成 ffmpeg、
+       nvm 換成 node(見上面)。 */ -}}
+{{-   $removed := list "mupdf-tools" "pandoc" "document-media" -}}
 {{-   $picked := promptMultichoiceOnce $toolsStored "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
 {{-   if has "document-media" $picked -}}
 {{-     $picked = append $picked "ffmpeg" -}}
@@ -128,13 +140,13 @@
 {{-     end -}}
 {{-   end -}}
 {{- /* 勾的跟用途的預設組合不一樣(多勾、少勾都算)就存成自訂。 */ -}}
-{{-   if ne $use "自訂" -}}
+{{-   if ne $use "custom" -}}
 {{-     $preset := get $presets $use -}}
 {{-     $same := eq (len $tools) (len $preset) -}}
 {{-     range $tools -}}
 {{-       if not (has . $preset) }}{{ $same = false }}{{ end -}}
 {{-     end -}}
-{{-     if not $same }}{{ $use = "自訂" }}{{ end -}}
+{{-     if not $same }}{{ $use = "custom" }}{{ end -}}
 {{-   end -}}
 {{- end -}}
 {{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,

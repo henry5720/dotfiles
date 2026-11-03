@@ -21,6 +21,7 @@ claude Claude Code CLI
 codex Codex CLI
 opencode OpenCode CLI(會一併裝 nvm)
 ffmpeg 影音轉檔、抽音軌與影格
+node nvm＋Node LTS（勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）
 codegraph 程式碼索引給 agent 查(npm 裝,會一併裝 nvm)
 headless-chrome 沒有畫面的 Chrome,給 agent 開網頁
 playwright-cli agent 操作瀏覽器(用 headless-chrome,會一併裝 nvm)
