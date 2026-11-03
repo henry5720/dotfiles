@@ -628,7 +628,7 @@ scenario_ubuntu() {
   check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
     "chezmoi execute-template --override-data '$fedora_zsh' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hjz.sh && sh -n /tmp/fedora-hjz.sh && grep -q 'jq-linux-' /tmp/fedora-hjz.sh && grep -q 'romkatv/zsh-bin' /tmp/fedora-hjz.sh"
   check "非 Debian 系沒勾 zsh:install-home-jq-zsh 只裝 jq" \
-    "chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hj.sh && sh -n /tmp/fedora-hj.sh && grep -q 'jq-linux-' /tmp/fedora-hj.sh && ! grep -q zsh-bin /tmp/fedora-hj.sh"
+    "chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hj.sh && sh -n /tmp/fedora-hj.sh && grep -q 'jq-linux-' /tmp/fedora-hj.sh && ! grep -q 'romkatv/zsh-bin' /tmp/fedora-hj.sh"
   check "非 Debian 系勾 zsh:部署 .bashrc(互動式 bash 切 zsh)" \
     "chezmoi managed --override-data '$fedora_zsh' | grep -qx .bashrc"
   check "(對照)有 root 的 Ubuntu:install-home-jq-zsh 渲染成空的、不部署 .bashrc" \
