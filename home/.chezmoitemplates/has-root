@@ -1,0 +1,19 @@
+{{- /* 這台能不能用 root 裝東西:能就輸出 true,否則空字串。用法:{{ if includeTemplate "has-root" . }}
+       三條任一條成立就算有 root:
+         1. 本來就是 root(uid 0,例如 proot 裡還沒建使用者、容器)
+         2. 有 sudo,而且在 sudo／admin／wheel 群組(要密碼的照樣算,apply 時 sudo 會問)
+         3. sudo -n true 成功(sudoers 給了免密碼,但不在上面的群組)
+       不能只看 sudo -n true:剛輸入過密碼的五分鐘內才會成功,判斷結果會跟著快取變。
+       群組先看:不在 sudoers 的帳號跑 sudo 會被記一筆 incident,能不跑就不跑。
+       在樣板裡判斷(不是腳本執行時):有沒有 root 一變,引用它的 run_onchange_ 腳本內容跟著變,下次 apply 會重跑。
+       原生 Termux 的 pkg 不用 root,android 的分支不看它。 */ -}}
+{{- if eq (toString .chezmoi.uid) "0" -}}
+true
+{{- else if lookPath "sudo" -}}
+{{-   $groups := splitList " " (trim (output "id" "-nG")) -}}
+{{-   if or (has "sudo" $groups) (has "admin" $groups) (has "wheel" $groups) -}}
+true
+{{-   else if trim (output "sh" "-c" "sudo -n true >/dev/null 2>&1 && echo true || :") -}}
+true
+{{-   end -}}
+{{- end -}}

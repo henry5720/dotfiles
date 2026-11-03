@@ -68,10 +68,11 @@ bash -n script/*/*.sh                           # 腳本語法(shellcheck 未安
 python3 -m unittest discover -s script/tests   # modify_ 與 ai-profile 的單元測試
 bash script/tests/e2e.sh ubuntu                # 容器 e2e:全新 ubuntu:24.04 照 README 官方指令 init --apply
 bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86_64
+bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使用者、沒有 sudo
 ```
 
 容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、README 的安裝指令時唯一能從零驗證的
-方法,兩種容器都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
+方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改),不碰本機家目錄。檢查清單與環境變數(`E2E_TAG`、
 `E2E_KEEP`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
 

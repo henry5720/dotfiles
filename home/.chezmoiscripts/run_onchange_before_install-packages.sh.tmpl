@@ -4,6 +4,8 @@
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
 # 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages;Termux 的 tools 是自動帶入的)。
 #
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整),只有 jq 改從 GitHub release 裝到家目錄。
+#
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
 # run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
@@ -32,11 +34,39 @@ echo "安裝缺少的套件:$missing"
 DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confold
 # shellcheck disable=SC2086 # 要拆成多個參數
 DEBIAN_FRONTEND=noninteractive pkg install -y $missing
-{{- else }}
+{{- else if includeTemplate "has-root" . }}
 {{ template "sh-apt" . }}
 # 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
 apt_get update
 # shellcheck disable=SC2086 # 要拆成多個參數
 apt_get install -y $missing
+{{- else }}
+# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印手動指令,apply 繼續。
+{{ template "sh-skip" . }}
+# jq 是 modify_ 腳本必要的(沒有它 apply 會在部署 ~/.claude/settings.json 這類檔案時失敗),
+# 而 jqlang/jq 官方有靜態 binary,不用 root:放到 ~/.local/bin 頂著。
+# 用到 jq 的腳本找不到 jq 時會自己把 ~/.local/bin 加進 PATH(chezmoi 跑腳本時的 PATH 不一定有它)。
+drop_jq() { m=; for p in $missing; do [ "$p" = jq ] || m="$m $p"; done; missing=$m; }
+case " $missing " in
+  *" jq "*)
+    case "$(uname -m)" in
+      x86_64) jq_asset=amd64 ;;
+      aarch64) jq_asset=arm64 ;;
+      *) jq_asset= ;;
+    esac
+    if [ -x "$HOME/.local/bin/jq" ]; then
+      drop_jq
+    elif [ -n "$jq_asset" ] && mkdir -p "$HOME/.local/bin" &&
+      curl -fsSL -o "$HOME/.local/bin/.jq.tmp" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$jq_asset" &&
+      chmod 755 "$HOME/.local/bin/.jq.tmp" && mv -f "$HOME/.local/bin/.jq.tmp" "$HOME/.local/bin/jq"; then
+      echo "jq 從 GitHub release 裝到 ~/.local/bin"
+      drop_jq
+    else
+      rm -f "$HOME/.local/bin/.jq.tmp"
+    fi
+    ;;
+esac
+[ -n "$missing" ] || exit 0
+skip_root 系統套件 "缺$missing,請有 root 的人跑 sudo apt-get install -y$missing"
 {{- end }}
 {{ end -}}

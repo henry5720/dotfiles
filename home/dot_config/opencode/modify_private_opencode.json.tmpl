@@ -9,6 +9,8 @@
 {{- $main := index (index $active "orchestrator") "model" -}}
 {{- $small := index (index $active "explorer") "model" -}}
 set -eu
+# 沒有 root 的機器,jq 可能是套件腳本從 GitHub 抓到 ~/.local/bin 的,而 chezmoi 跑腳本時的 PATH 不一定有它
+command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
 
 # 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的,墊一個空物件給 jq。
 existing=$(cat)

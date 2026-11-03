@@ -5,7 +5,13 @@
 # 其他 Linux 沒有套件腳本、不保證有 zsh,渲染成空的,自己 chsh。
 # run_once_:跑成功一次就不再跑;已經是 zsh 的機器直接結束,不叫 sudo。
 set -eu
-
+{{ if and (ne .chezmoi.os "android") (not (includeTemplate "has-root" .)) -}}
+{{ template "sh-skip" . }}
+# 沒有 root(.chezmoitemplates/has-root):不叫 sudo chsh,略過並印手動方式。
+# 有沒有 root 一變,這支的內容就變,run_once_ 會再跑一次。
+skip_root "把預設 shell 換成 zsh" "有 zsh 之後自己跑 chsh -s \"\$(command -v zsh)\"(問的是你自己的密碼;不允許 chsh 的機器請管理員改)"
+{{- else -}}
+{{/* 有 root,或原生 Termux */}}
 zsh_path=$(command -v zsh)
 {{ if eq .chezmoi.os "android" -}}
 # Termux 沒有 passwd,chsh 改的是 ~/.termux/shell 這個 symlink,不需要 sudo、不互動。
@@ -18,5 +24,6 @@ current=$(getent passwd "$(id -un)" | cut -d: -f7)
 [ "$(readlink -f "$current")" = "$(readlink -f "$zsh_path")" ] && exit 0
 echo "預設 shell 換成 $zsh_path"
 $SUDO chsh -s "$zsh_path" "$(id -un)"
+{{- end }}
 {{- end }}
 {{ end -}}

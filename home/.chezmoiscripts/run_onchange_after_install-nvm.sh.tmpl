@@ -13,6 +13,13 @@ if [ -d "$HOME/.nvm" ]; then
   exit 0
 fi
 
+{{ if not (includeTemplate "node-runnable" .) -}}
+# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
+# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
+{{ template "sh-skip" . }}
+skip_root "nvm 與 Node" "Node 官方 binary 要系統函式庫 libatomic.so.1,這台沒有。請有 root 的人跑 sudo apt-get install -y libatomic1(或系統的同名套件),之後 chezmoi apply 會自己補裝"
+exit 0
+{{ end -}}
 # 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
 #    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
 tmp=$(mktemp -d)

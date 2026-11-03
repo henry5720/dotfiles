@@ -13,7 +13,7 @@
 | 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、eza、fzf、bat、ripgrep、vim、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
 
-機器種類自動判斷，不用回答。Ubuntu 機器要能 `sudo`。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/new-machine-setup.md#沒有-root-的機器)。
 
 ## 新機器
 

@@ -13,6 +13,12 @@ if command -v google-chrome >/dev/null 2>&1; then
   exit 0
 fi
 
+{{ if not (includeTemplate "has-root" .) -}}
+# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
+{{ template "sh-skip" . }}
+skip_root headless-chrome "Chrome 要十幾個系統函式庫(libnss3、libgbm、libasound2…)與中文／emoji 字型,只能用 apt 裝;下載 Chrome for Testing 也一樣缺函式庫跑不起來。請有 root 的人裝 https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+exit 0
+{{ end -}}
 # 2. 下載官方 .deb 再交給 apt 裝(apt 會一起裝依賴,也會加 Google 的 apt 來源讓之後跟著更新)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
