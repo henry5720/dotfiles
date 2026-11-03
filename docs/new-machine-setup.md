@@ -122,11 +122,19 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
-- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
 - **用途（只有 Ubuntu）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
 - **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
+- 憑證：只問勾了的工具用得到的，精簡一個都不問。
+
+  | 勾了 | 問 |
+  |---|---|
+  | code-server | `code-server 密碼` |
+  | codex 或 opencode | `codex-lb API key` |
+  | agent-config | `Context7 API key`（可留空） |
+  | wakatime | `WakaTime API key`（可留空） |
+
+- Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
 | 用途 | 給誰 | 預設勾哪些 |
 |---|---|---|
@@ -146,7 +154,8 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
   --promptString "git user.email=<email>" henry5720
 ```
 
-`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。憑證目前還是會問。
+`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。精簡用不到憑證，所以只剩 git email 要給。
+之後勾了用得到憑證的工具，`tools` 會在那時問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
@@ -314,7 +323,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 | 類別 | 內容 |
 |---|---|
 | **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／p10k／插件與預設 shell）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
-| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
+| **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的憑證（勾了用得到的工具才問）與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
 
