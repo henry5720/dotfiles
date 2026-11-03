@@ -68,6 +68,24 @@ _Avoid_: role（單獨使用時）、persona
 CLI 自帶、不用寫設定就能派的 subagent，例如 Claude 的 Explore、Plan、general-purpose，Codex 的 default、explorer、worker。自己寫一個同名的原生角色會蓋掉它。
 _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
 
+## 裝機
+
+**基底**:
+每台機器都裝、不能不勾的套件，只有 chezmoi 自己要用的 git、curl、jq、python3（Termux 另加 openssh）。
+_Avoid_: 必裝、核心套件
+
+**選裝工具**:
+基底以外、要在選單上勾了才裝的工具，例如 zsh、tailscale、claude。取消勾選不會解除安裝。
+_Avoid_: 外掛、optional packages、模組
+
+**用途**:
+`chezmoi init` 第一個問題的答案：完整、精簡或自訂。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。
+_Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
+
+**預設組合**:
+一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。這台不支援的項目（WSL、ARM 的 headless-chrome、playwright-cli）不算在內。
+_Avoid_: preset、套餐
+
 ## 文件
 
 **Runbook**:

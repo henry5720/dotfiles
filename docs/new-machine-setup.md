@@ -124,8 +124,29 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。基底只有 git、curl、jq、python3，
-  要 zsh + p10k、eza、fzf、bat、ripgrep、vim 也要在這裡勾；原生 Termux 和其他 Linux 不出選單，這六項自動帶入。
+- **用途（只有 Ubuntu）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
+- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+  zsh + p10k 也是選裝工具，要在這裡勾。
+
+| 用途 | 給誰 | 預設勾哪些 |
+|---|---|---|
+| 完整 | 開發主力機 | 選單上全部（WSL、非 amd64 本來就不列 `headless-chrome`、`playwright-cli`） |
+| 精簡 | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
+| 自訂 | 有特殊需求 | 都不勾，自己選 |
+
+選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
+改過勾選就存成自訂，照你勾的、不再跟著預設組合走。原生 Termux 和其他 Linux 不問，直接套精簡、
+濾掉 tailscale、btop。
+
+要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
+
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
+  --promptChoice "用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）=精簡" \
+  --promptString "git user.email=<email>" henry5720
+```
+
+`--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。憑證目前還是會問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。

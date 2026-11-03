@@ -186,7 +186,10 @@ PY
 ); echo \"\$out\" | tail -n 15; ! grep -qiE 'configuration wizard|ZSH-DID-NOT-EXIT' <<<\"\$out\""
 }
 
-# 選裝工具選單。--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
+# 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
+# 用途的提示文字也在 README 免回答安裝那一行,三處要一字不差。
+USE_PROMPT='用途（完整：全部選裝工具／精簡：zsh、常用 CLI、tailscale、btop／自訂：自己勾）'
+use_choice() { echo "$USE_PROMPT=$1"; }  # use_choice 精簡 → --promptChoice 的值
 TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
 # 選單上的選項是「工具名 + 說明」(home/.chezmoitemplates/tool-menu),--promptMultichoice 要給這串。
 # menu_choice a/b → 「$TOOLS_PROMPT=a 的選單文字/b 的選單文字」;排版要跟 .chezmoi.toml.tmpl 的 printf 一樣。
@@ -203,6 +206,21 @@ menu_choice() {
 # nvm 不是選項:勾了 codegraph 或 playwright-cli 就自動裝,這裡刻意只勾它們、不勾 nvm(見 check_tool nvm)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們)。
 TOOLS_FIRST=zsh/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+
+# 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
+LEAN_TOML='    tools = ["zsh", "eza", "fzf", "bat", "ripgrep", "vim", "tailscale", "btop"]'
+FULL_TOOLS=$(grep -E '^[a-z]' "$REPO/home/.chezmoitemplates/tool-menu" | cut -d' ' -f1 | paste -sd/)
+toml_list() {  # toml_list a/b/c → config 裡 tools 那一行
+  local t out=()
+  for t in ${1//\// }; do out+=("\"$t\""); done
+  local IFS=,; echo "    tools = [${out[*]}]" | sed 's/,/, /g'
+}
+# render_cmd <config> [chezmoi 參數...]:印出「用這份 config 渲染 config 樣板」的容器內指令(秘密給假值)。
+# config 不存在時兩個問題都會真的問,沒給旗標就是預設值(--no-tty)。
+render_cmd() {
+  local cfg=$1; shift
+  echo "chezmoi --config $cfg execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}" "$@") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl"
+}
 
 # agent-config 的預設 remote 是 GitHub 的 HTTPS(check_git_remotes 驗)。安裝測試用
 # AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),內容可控、不受上游變動影響;
@@ -308,8 +326,8 @@ check_cli_tools() {
 # - nvm／code-server／herdr／fastfetch／wakatime 都會連網抓上游 installer 或 release;
 #   上游掛掉測試就會紅,這是預期的(它就是要驗真的裝得起來)。
 scenario_ubuntu() {
-  step "全新機器跑 README 的官方安裝指令,init --apply(選單只勾一部分)" \
-    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$(menu_choice "$TOOLS_FIRST")")"
+  step "全新機器跑 README 的官方安裝指令,init --apply(用途選自訂,選單只勾一部分)" \
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptChoice "$(use_choice 自訂)" --promptMultichoice "$(menu_choice "$TOOLS_FIRST")")"
   check "chezmoi 裝在 ~/.local/bin,家目錄沒多出 bin/" "[ -x ~/.local/bin/chezmoi ] && [ ! -e ~/bin ]"
   check_git_remotes
   # 真的連 GitHub(HTTPS,不用 key):README 那行給的是 henry5720,chezmoi 自己猜 URL。
@@ -362,6 +380,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
+  check "用途存自訂" "grep -qx '    machineUse = \"自訂\"' ~/.config/chezmoi/chezmoi.toml"
   check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
@@ -380,6 +399,7 @@ scenario_ubuntu() {
   check "gitUserName 保留 e2e" "grep -qx '    gitUserName = \"e2e\"' ~/.config/chezmoi/chezmoi.toml"
   check "gitUserEmail 保留 e2e@example.com" "grep -qx '    gitUserEmail = \"e2e@example.com\"' ~/.config/chezmoi/chezmoi.toml"
   check "tools 保留原本的勾選" "grep -qxFf /tmp/tools-before ~/.config/chezmoi/chezmoi.toml"
+  check "用途保留自訂" "grep -qx '    machineUse = \"自訂\"' ~/.config/chezmoi/chezmoi.toml"
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 
   # 不經選單、直接用 chezmoi edit-config 改 [data] tools 那一行再 apply,也要能裝。
@@ -449,23 +469,63 @@ scenario_ubuntu() {
   # 舊機器:config 是拆基底之前存的(tools 沒有那六項、沒有 toolsSchema)。
   # init 不加 --prompt 也要把六項補進 tools,不然下一次 apply 就不再管 .zshrc。
   bold "▶ 舊 config(拆基底之前)跑 init"
-  step "把 config 改回舊格式:tools 拿掉六項、刪 toolsSchema" \
-    "sed -i -e '/^    toolsSchema = /d' -e '/^    tools = /{s/\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", //}' ~/.config/chezmoi/chezmoi.toml && ! grep -qE 'toolsSchema|\"zsh\"' ~/.config/chezmoi/chezmoi.toml"
+  step "把 config 改回舊格式:tools 拿掉六項、刪 toolsSchema、machineUse" \
+    "sed -i -e '/^    toolsSchema = /d' -e '/^    machineUse = /d' -e '/^    tools = /{s/\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", //}' ~/.config/chezmoi/chezmoi.toml && ! grep -qE 'toolsSchema|machineUse|\"zsh\"' ~/.config/chezmoi/chezmoi.toml"
   check "init(不帶 --prompt、不給任何 prompt 旗標)exit 0" "chezmoi init --no-tty </dev/null"
   for t in zsh eza fzf bat ripgrep vim; do
     check "升級後 tools 有 $t" "grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -qF '\"$t\"'"
   done
   check "升級後寫回 toolsSchema = 2" "grep -qx '    toolsSchema = 2' ~/.config/chezmoi/chezmoi.toml"
+  check "只有 tools、沒有用途的舊 config 存成自訂" "grep -qx '    machineUse = \"自訂\"' ~/.config/chezmoi/chezmoi.toml"
   check "chezmoi diff 不刪也不改 zsh 設定" "[ -z \"\$(chezmoi diff ~/.zshrc ~/.p10k.zsh ~/.config/zsh)\" ] && chezmoi managed | grep -qx .zshrc"
   check "再 init 一次 tools 不變(不會重複加)" \
     "before=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml) && chezmoi init --no-tty </dev/null && [ \"\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml)\" = \"\$before\" ]"
+
+  # 用途(#212):選了用途、選單沒改存用途,改了存自訂;WSL／ARM 拿濾過的預設組合比。
+  bold "▶ (渲染)用途:預設組合展開、沒改存用途、有改存自訂"
+  local cfg='~/.config/chezmoi/chezmoi.toml'   # 加引號:~ 留到容器裡才展開
+  local use_is="grep -qx '    machineUse = \"%s\"' %s"   # printf "$use_is" <用途> <config>
+  check "選精簡、選單不改:存精簡,tools 是精簡那八項" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice 精簡)") > /tmp/lean.toml && $(printf "$use_is" 精簡 /tmp/lean.toml) && grep -qxF '$LEAN_TOML' /tmp/lean.toml"
+  check "精簡的機器樣板看到的 .tools 就是那八項" \
+    "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh eza fzf bat ripgrep vim tailscale btop' ]"
+  check "精簡的機器裝的是那八項:套件腳本有 zsh、vim、btop,下載腳本是 eza、fzf、bat、ripgrep" \
+    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-cli-tools.sh.tmpl | grep -E '^want ' | cut -d' ' -f2 | paste -sd' ')\" = 'eza fzf bat rg' ]"
+  check "精簡的機器選裝腳本只跑 tailscale(其他選裝工具的腳本都不跑)" \
+    "[ \"\$(chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/$TOOL_SCRIPT_RE' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-tailscale ]"
+  check "選完整、選單不改:存完整,tools 是選單上全部" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice 完整)") > /tmp/full.toml && $(printf "$use_is" 完整 /tmp/full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/full.toml"
+  local full_no_ttyd=${FULL_TOOLS/\/ttyd\///}
+  check "選完整後取消 ttyd:存自訂加 tools 清單" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice 完整)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" 自訂 /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
+  check "選精簡後多勾 gh:存自訂" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice 精簡)" --promptMultichoice "$(menu_choice zsh/eza/fzf/bat/ripgrep/vim/tailscale/btop/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" 自訂 /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
+  local full_filtered=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
+  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 headless-chrome、playwright-cli)" \
+    "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice 完整)") > /tmp/full-wsl.toml && $(printf "$use_is" 完整 /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-wsl.toml"
+  check "ARM 選完整、選單不改:判斷為沒改" \
+    "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice 完整)") > /tmp/full-arm.toml && $(printf "$use_is" 完整 /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
+  # README 免回答安裝那一行的 --promptChoice 要跟樣板一字不差,不然 init 會報錯或停下來問
+  check "README 免回答安裝那一行的用途提示跟樣板一致" \
+    "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice 精簡)\"") ~/.local/share/chezmoi/README.md"
+  check "用途不是三個之一時報 invalid choice" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice server)") 2>&1 | grep -q 'invalid choice'"
+  # 存用途的機器:預設組合改了(這裡用「config 裡的 tools 是舊的」模擬),init 就跟上
+  check "存精簡的機器,init(不帶 --prompt)tools 照現在的預設組合重算" \
+    "sed 's/^    tools = .*/    tools = [\"gh\"]/' /tmp/lean.toml > /tmp/lean-stale.toml && chezmoi --config /tmp/lean-stale.toml init --no-tty </dev/null && $(printf "$use_is" 精簡 /tmp/lean-stale.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-stale.toml"
+  check "存精簡的機器跑 tools 那條(init --prompt --promptDefaults):保留精簡與勾選" \
+    "cp /tmp/lean.toml /tmp/lean-prompt.toml && chezmoi --config /tmp/lean-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && $(printf "$use_is" 精簡 /tmp/lean-prompt.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-prompt.toml"
+  check "存精簡的機器在 tools 改選完整:選單預設帶完整的組合" \
+    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice 完整)") </dev/null && $(printf "$use_is" 完整 /tmp/lean-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/lean-full.toml"
+  check "只有 tools(有 toolsSchema)、沒有用途的舊 config:init 不問、存自訂、tools 不變" \
+    "sed '/^    machineUse = /d' $cfg > /tmp/no-use.toml && ! grep -q machineUse /tmp/no-use.toml && chezmoi --config /tmp/no-use.toml init --no-tty </dev/null && $(printf "$use_is" 自訂 /tmp/no-use.toml) && [ \"\$(grep '^    tools = ' /tmp/no-use.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
 
   # 原生 Termux 不出選單、不跑選裝腳本。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
   # 真的在 termux 容器跑 init 由 termux 目標負責。
   bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
   local android='{"chezmoi":{"os":"android"}}'
-  check "android 的 config 樣板不問選單,tools 是以前基底的那六項" \
-    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/android.toml"
+  check "android 的 config 樣板不問用途與選單,套精簡、濾掉 tailscale、btop(剩以前基底的那六項)" \
+    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/android.toml && grep -qx '    machineUse = \"精簡\"' /tmp/android.toml"
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
@@ -584,6 +644,15 @@ scenario_ubuntu() {
   bold "▶ (渲染)playwright-cli"
   check "沒勾時安裝腳本是空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[]}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
+
+  # 放最後:這之後 config 是精簡,上面的渲染檢查有幾項看的是現在的 config
+  bold "▶ tools 把用途改成精簡:已經裝的工具不移除"
+  check "tools 選精簡、選單直接 Enter,exit 0" \
+    "~/.local/bin/tools --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice 精簡)") </dev/null"
+  check "用途存精簡、tools 是精簡那八項" \
+    "$(printf "$use_is" 精簡 "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
+  for t in claude gh herdr codegraph; do check_tool "$t"; done
+  check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 
 # ===============================================================
@@ -661,7 +730,9 @@ scenario_termux() {
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的六項、選裝腳本一支都沒跑
-  check "沒有選裝工具選單(config 的 tools 是自動帶入的六項)" "grep -qxF '$BASE_SPLIT_TOML' ~/.config/chezmoi/chezmoi.toml"
+  check "沒有用途與選裝工具選單(config 存精簡、tools 是濾掉 tailscale、btop 的六項)" \
+    "grep -qxF '$BASE_SPLIT_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"精簡\"' ~/.config/chezmoi/chezmoi.toml"
+  check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
   for t in zsh eza fzf bat ripgrep vim; do check_tool "$t"; done
   check "選裝工具的腳本一支都沒跑" \
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
@@ -729,19 +800,18 @@ put_root_file() {  # put_root_file <路徑> <權限>
   docker exec -i -u 0 "$CTR" sh -c "mkdir -p \"\$(dirname '$1')\" && cat > '$1' && chmod $2 '$1'"
 }
 
-# 精簡、完整的選單勾選。完整 = tool-menu 的每一項(這個容器是 amd64、不是 WSL,選單全列)。
-# #212 把選單換成用途之後,這裡改成答用途。
-NOROOT_SLIM=zsh/eza/fzf/bat/ripgrep/vim/tailscale/btop
-NOROOT_FULL=$(awk '/\*\//{f=1;next} f{print $1}' "$REPO/home/.chezmoitemplates/tool-menu" | paste -sd/)
 SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
-# 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整
-noroot_init() {  # noroot_init <情境> <選單勾選>
+# 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
+# 情境就是用途(精簡、完整),跟 README 免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
+# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,選單全列)。
+noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
   step "沒有 sudo(command -v sudo 失敗)" "! command -v sudo"
   step "放時間標記(之後找家目錄外的新檔)" "touch ~/.e2e-marker"
   step "$1:init --apply exit 0" \
-    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptMultichoice "$(menu_choice "$2")")"
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptDefaults --promptChoice "$(use_choice "$1")")"
+  check "$1:config 存用途 $1" "grep -qx '    machineUse = \"$1\"' ~/.config/chezmoi/chezmoi.toml"
   # /tmp 不算:上游的東西會留在那裡(get.chezmoi.io 的下載暫存目錄、Claude Code 的 socket),
   # 要守的是 /etc、/usr、/opt 這些系統目錄
   check "家目錄與 /tmp 以外沒有屬於這個使用者的新檔" \
@@ -906,12 +976,12 @@ noroot_root_foreign_home_checks() {
 
 scenario_noroot() {
   use_user slim
-  noroot_init 精簡 "$NOROOT_SLIM"
+  noroot_init 精簡
   noroot_slim_checks
   noroot_tailscale_running_checks
 
   use_user full
-  noroot_init 完整 "$NOROOT_FULL"
+  noroot_init 完整
   noroot_full_checks
 
   noroot_has_root_checks
