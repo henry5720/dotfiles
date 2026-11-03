@@ -57,8 +57,8 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_p10k.zsh                → ~/.p10k.zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
-├── dot_claude/                 → ~/.claude/：設定；全域規則只放 symlink
-├── dot_codex/                  → ~/.codex/：同上
+├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
+├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
 ├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
@@ -74,7 +74,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
   [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
-  skillshare 的 `config.yaml`，其中 extras 段決定規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
+  skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 - `wsl/` 怎麼交給 Windows 上的 chezmoi，見
   [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。

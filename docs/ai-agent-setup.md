@@ -6,7 +6,7 @@
 
 ```text
 dotfiles(chezmoi)
-  ├─ 裝 skillshare、放它的 config.yaml(之後只釘 extras 段)─→ agent-config
+  ├─ 裝 skillshare、放它的 config.yaml(之後只釘 targets、extras 段)─→ agent-config
   └─ client 本身的設定 ──────────────────────────────┐
 agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode
   └─ 規則內容與連結(extras)、skills、MCP ──────────────┘
@@ -32,18 +32,20 @@ Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ C
 ## 規則
 
 只有一份真的檔案,其他都是 skillshare extras 建的 symlink;連到哪寫在本 repo 的
-`home/dot_config/skillshare/modify_config.yaml.tmpl`(決策見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)):
+`home/.chezmoitemplates/skillshare-pinned`,照選單勾了哪些 client 產生,由
+`home/dot_config/skillshare/modify_config.yaml.tmpl` 釘進 config.yaml(決策見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md))。
+下面是三個 client 都勾的樣子;沒勾的 client 沒有它那幾條,`agent-commit` 勾任一個 agent 就有:
 
 ```text
 agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
-   ├── ~/.claude/CLAUDE.md
-   ├── ~/.codex/AGENTS.md
-   ├── ~/.config/opencode/AGENTS.md
-   └── ~/.config/opencode/routes/personal/AGENTS.md
+   ├── ~/.claude/CLAUDE.md                          (claude)
+   ├── ~/.codex/AGENTS.md                           (codex)
+   ├── ~/.config/opencode/AGENTS.md                 (opencode)
+   └── ~/.config/opencode/routes/personal/AGENTS.md (opencode)
 agent-config/instructions/agent-commit/instructions.md
    └── ~/.config/agent-commit/instructions.md
 agent-config/instructions/opencode-commit/commit-instructions.md
-   └── ~/.config/opencode/commit-instructions.md   (opencode.json 的 instructions 引用它)
+   └── ~/.config/opencode/commit-instructions.md    (opencode;opencode.json 的 instructions 引用它)
 ```
 
 agent-config 在本機 clone 在 `~/.config/skillshare/`,symlink 指的就是那裡。
@@ -51,13 +53,16 @@ agent-config 在本機 clone 在 `~/.config/skillshare/`,symlink 指的就是那
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改規則內容 | 改 agent-config 的檔案、在 agent-config commit;其他機器 `skillshare pull` |
-| 改「連到哪」(新增或搬動連結) | 改本 repo 的 `modify_config.yaml.tmpl`,`chezmoi apply`(apply 後會自動 `skillshare sync extras`) |
+| 改「連到哪」(新增或搬動連結) | 改本 repo 的 `.chezmoitemplates/skillshare-pinned`,`chezmoi apply`(apply 後會自動 `skillshare sync --all`) |
+| 多勾或取消一個 client | 打 `tools` 勾選;skillshare 的 targets、extras 跟著換。取消勾選時已經連出去的檔案留著 |
 | 從舊的 `symlink_` 模板做法換過來 | `skillshare pull`、`chezmoi apply` |
 | 檢查連結 | `skillshare extras list`,或 dashboard 的 Extras |
 | 確認規則有生效 | 開新 session 打 `/context`,看 **Memory files** 那區 |
 
 新機器不用為規則另外做事:選裝工具 `agent-config` 的 after 腳本 clone 完 agent-config 後跑 `skillshare sync --all`,
-連結一起建好。沒勾 `agent-config` 的機器沒有 skillshare,各 client 不會有這幾個檔。
+連結一起建好。沒勾 `agent-config` 的機器沒有 skillshare,也不放 `config.yaml`,各 client 不會有這幾個檔。
+targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、codex → `codex`,opencode 不加 target
+(OpenCode 也讀前兩份,再加一份同一支 skill 會出現三次)。用 `skillshare target add` 手動加的 target,下次 `chezmoi apply` 會被蓋掉。
 
 ## plugin
 

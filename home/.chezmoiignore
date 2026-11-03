@@ -15,3 +15,11 @@
 # 排除整個目錄,不然 chezmoi 會在其他機器建出空的 ~/.local/share/fonts。
 .local/share/fonts
 {{ end }}
+
+# 沒勾的 client 不部署它的設定目錄;取消勾選時,已經部署的檔案留著(chezmoi 只是不再管它)。
+# skillshare 的 config.yaml 跟著 agent-config,連到各 client 的指令檔見 .chezmoitemplates/skillshare-pinned。
+{{ $tools := index . "tools" -}}
+{{ if not (has "claude" $tools) }}.claude{{ end }}
+{{ if not (has "codex" $tools) }}.codex{{ end }}
+{{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
+{{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
