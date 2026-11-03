@@ -11,7 +11,8 @@
 | 精簡 | `minimal` | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
 | 自訂 | `custom` | 有特殊需求 | 都不勾，自己選 |
 
-用途那題是打字的，不是清單：打代號（開頭字母 `f`、`m`、`c` 就夠），不用切輸入法。config 的 `machineUse` 存的也是代號；
+用途那題按一個字母 `f`、`m`、`c` 就送出（chezmoi 的單選輸入對到唯一選項就送出，不等 Enter），不用切輸入法；直接 Enter 是精簡。
+選錯用途時在下一題的選單按 Ctrl+C，整個 init 不存檔，重來一次（Esc 會照目前勾選送出，不是取消）。config 的 `machineUse` 存代號；
 以前存中文（`完整`／`精簡`／`自訂`）的機器，下次 `chezmoi init` 會換成代號，勾選不變。
 第一次 init 預設停在精簡，直接 Enter 就是精簡。
 

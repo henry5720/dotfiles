@@ -31,8 +31,12 @@
        (還有 Runbook、docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
 {{- $lean := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
-{{- $usePrompt := "用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）" -}}
-{{- $useChoices := list "full" "minimal" "custom" -}}
+{{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）" -}}
+{{- /* chezmoi 的 promptChoice 輸入對到唯一選項就送出、不等 Enter,灰字是選項值本身:
+       選項值用字母,灰字就顯示要按的 f/m/c;存進 config 的還是 full／minimal／custom。 */ -}}
+{{- $useChoices := list "f" "m" "c" -}}
+{{- $useLetter := dict "full" "f" "minimal" "m" "custom" "c" -}}
+{{- $letterUse := dict "f" "full" "m" "minimal" "c" "custom" -}}
 {{- /* #222 以前 config 存的是中文,init 時換成代號,勾選不變。 */ -}}
 {{- $legacyUse := dict "完整" "full" "精簡" "minimal" "自訂" "custom" -}}
 {{- $use := "minimal" -}}
@@ -105,10 +109,11 @@
 {{-     range $current }}{{ $renamed = append $renamed (ternary "node" . (eq . "nvm")) }}{{ end -}}
 {{-     $current = $renamed -}}
 {{-   end -}}
-{{- /* 用途:存過就沿用(init --prompt 才重問,預設帶現在的);第一次預設精簡:直接 Enter 也有 zsh 與常用 CLI,不會裝出只有基底的機器。 */ -}}
+{{- /* 用途:存過就沿用(init --prompt 才重問,預設帶現在的);第一次預設精簡:直接 Enter 也有 zsh 與常用 CLI,不會裝出只有基底的機器。
+       問的是字母、存的是代號:存過的用途換成字母當預設,選到的字母換回代號。 */ -}}
 {{-   $useStored := dict -}}
-{{-   if $storedUse }}{{ $_ := set $useStored "machineUse" $storedUse }}{{ end -}}
-{{-   $use = promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (default "minimal" $storedUse) -}}
+{{-   if $storedUse }}{{ $_ := set $useStored "machineUse" (get $useLetter $storedUse) }}{{ end -}}
+{{-   $use = get $letterUse (promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (get $useLetter (default "minimal" $storedUse))) -}}
 {{- /* 選單預設值:用途沒變、或改成自訂,帶現在的勾選;改成完整或精簡,帶那個用途的預設組合。
        用途沒變時才把勾選當成「已經存過」:不加 --prompt 的 init 不出選單,遷移也照樣生效。 */ -}}
 {{-   $defaultNames := $current -}}
@@ -129,7 +134,7 @@
        拿掉的選項(mupdf-tools、pandoc 沒人用)舊機器可能還存著,濾掉;document-media 換成 ffmpeg、
        nvm 換成 node(見上面)。 */ -}}
 {{-   $removed := list "mupdf-tools" "pandoc" "document-media" -}}
-{{-   $picked := promptMultichoiceOnce $toolsStored "tools" "選裝工具（空白鍵勾選，Enter 確定）" $toolChoices $toolDefaults -}}
+{{-   $picked := promptMultichoiceOnce $toolsStored "tools" "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）" $toolChoices $toolDefaults -}}
 {{-   if has "document-media" $picked -}}
 {{-     $picked = append $picked "ffmpeg" -}}
 {{-   end -}}

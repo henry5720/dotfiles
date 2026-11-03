@@ -195,9 +195,14 @@ PY
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 # 用途的提示文字也在 README 免回答安裝那一行,三處要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
-USE_PROMPT='用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）'
-use_choice() { echo "$USE_PROMPT=$1"; }  # use_choice minimal → --promptChoice 的值
-TOOLS_PROMPT='選裝工具（空白鍵勾選，Enter 確定）'
+USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）'
+# 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
+use_choice() {  # use_choice minimal → --promptChoice 的值(…=m)
+  local l=$1
+  case $1 in full) l=f ;; minimal) l=m ;; custom) l=c ;; esac
+  echo "$USE_PROMPT=$l"
+}
+TOOLS_PROMPT='選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）'
 # 選單上的選項是「工具名 + 說明」(home/.chezmoitemplates/tool-menu),--promptMultichoice 要給這串。
 # menu_choice a/b → 「$TOOLS_PROMPT=a 的選單文字/b 的選單文字」;排版要跟 .chezmoi.toml.tmpl 的 printf 一樣。
 menu_choice() {
@@ -528,7 +533,7 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/s-default.toml init --no-tty --promptDefaults --promptString 'git user.email=e2e@example.com' </dev/null && $(printf "$use_is" minimal /tmp/s-default.toml)"
   check "README 免回答安裝那一行的用途提示跟樣板一致" \
     "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/README.md"
-  # 用途那題是打字的輸入框:打代號的開頭字母就夠,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
+  # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
   # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
   check "用途那題打 m 得到 minimal" \
     "printf 'm\\n\\n\\n' | chezmoi --config /tmp/use-m.toml init --no-tty --promptString 'git user.email=e2e@example.com' && $(printf "$use_is" minimal /tmp/use-m.toml) && grep -qxF '$LEAN_TOML' /tmp/use-m.toml"

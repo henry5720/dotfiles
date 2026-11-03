@@ -131,7 +131,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 `chezmoi init` 會問：
 
-- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。打英文代號 `full`／`minimal`／`custom`（開頭字母就夠），直接 Enter 是精簡。
+- **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。按一個字母 `f`／`m`／`c`（按下就送出，不用 Enter），直接 Enter 是精簡；config 存 `full`／`minimal`／`custom`。選錯用途時在下一題的選單按 Ctrl+C，整個 init 不存檔，重來一次（Esc 會照目前勾選送出，不是取消）。
 - **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
@@ -143,7 +143,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
-  --promptChoice "用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）=minimal" \
+  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" \
   --promptString "git user.email=<email>" henry5720
 ```
 

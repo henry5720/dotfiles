@@ -30,7 +30,7 @@
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 
 # Ubuntu，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
-sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途：決定下一題預設勾哪些（full 完整／minimal 精簡：zsh 和常用 CLI／custom 自訂）=minimal" --promptString "git user.email=<email>" henry5720
+sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" --promptString "git user.email=<email>" henry5720
 
 # 原生 Termux
 pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
