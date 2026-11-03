@@ -522,6 +522,8 @@ scenario_ubuntu() {
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice 完整)") > /tmp/full-arm.toml && $(printf "$use_is" 完整 /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
   # README 免回答安裝那一行的 --promptChoice 要跟樣板一字不差,不然 init 會報錯或停下來問
+  check "第一次 init 用途預設精簡(--promptDefaults、不給用途)" \
+    "chezmoi --config /tmp/s-default.toml init --no-tty --promptDefaults --promptString 'git user.email=e2e@example.com' </dev/null && $(printf "$use_is" 精簡 /tmp/s-default.toml)"
   check "README 免回答安裝那一行的用途提示跟樣板一致" \
     "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice 精簡)\"") ~/.local/share/chezmoi/README.md"
   check "用途不是三個之一時報 invalid choice" \
@@ -585,8 +587,8 @@ scenario_ubuntu() {
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   # 加引號:~ 要留到容器裡才展開(容器的家目錄是 /home/ubuntu,不是跑 e2e 這台的)
   local tmpl='~/.local/share/chezmoi/home' scripts='~/.local/share/chezmoi/home/.chezmoiscripts'
-  check "選單預設都不勾(沒給旗標 = tools 是空的)" \
-    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -qx '    tools = \\[\\]'"
+  check "沒給旗標 = 用途預設精簡、選單勾精簡那八項" \
+    "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$LEAN_TOML'"
   check "(對照)非 WSL 的選單有 headless-chrome、playwright-cli" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome/playwright-cli)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
   check "WSL 的選單照常列 AI 工具" \

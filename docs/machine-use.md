@@ -11,6 +11,8 @@
 | 精簡 | ssh viewer、server | zsh、eza、fzf、bat、ripgrep、vim、tailscale、btop |
 | 自訂 | 有特殊需求 | 都不勾，自己選 |
 
+第一次 init 預設停在精簡，直接 Enter 就是精簡。
+
 選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
 改過勾選就存成自訂，照你勾的、不再跟著預設組合走。
 

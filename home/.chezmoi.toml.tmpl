@@ -93,10 +93,10 @@
 {{-   if has "document-media" $current -}}
 {{-     $current = append $current "ffmpeg" -}}
 {{-   end -}}
-{{- /* 用途:存過就沿用(init --prompt 才重問,預設帶現在的);第一次預設自訂(什麼都不勾)。 */ -}}
+{{- /* 用途:存過就沿用(init --prompt 才重問,預設帶現在的);第一次預設精簡:直接 Enter 也有 zsh 與常用 CLI,不會裝出只有基底的機器。 */ -}}
 {{-   $useStored := dict -}}
 {{-   if $storedUse }}{{ $_ := set $useStored "machineUse" $storedUse }}{{ end -}}
-{{-   $use = promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (default "自訂" $storedUse) -}}
+{{-   $use = promptChoiceOnce $useStored "machineUse" $usePrompt $useChoices (default "精簡" $storedUse) -}}
 {{- /* 選單預設值:用途沒變、或改成自訂,帶現在的勾選;改成完整或精簡,帶那個用途的預設組合。
        用途沒變時才把勾選當成「已經存過」:不加 --prompt 的 init 不出選單,遷移也照樣生效。 */ -}}
 {{-   $defaultNames := $current -}}
