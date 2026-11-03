@@ -35,12 +35,12 @@ echo "不會執行 tailscale up;請自行登入與設定。"
 {{ template "sh-skip" . }}
 # 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
 #    印 userspace 模式的手動步驟:tailscaled 變成只給這個使用者用的 proxy,不用 root。
-#    常駐要不要自動設定這版不做,只列選項。
+#    常駐:照手動步驟起過、登入過之後,.zshrc 開 zsh 時沒在跑就背景起 tailscaled;開機就起的做法只列選項。
 skip_root tailscale "改用 userspace 模式,不用 root:
     1. 從 https://pkgs.tailscale.com/stable/#static 下載 tailscale_<版本>_<架構>.tgz,把 tailscale、tailscaled 放進 ~/.local/bin
     2. 啟動:tailscaled --tun=userspace-networking --statedir=\$HOME/.local/state/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock --port=0 &
     3. 登入:tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock up
-    4. 常駐,依序挑做得到的:systemd user service(要 loginctl enable-linger,通常要管理員)、crontab 的 @reboot、login shell 裡沒在跑就啟動
+    4. 常駐:之後開 zsh 時沒在跑會自己背景起來(~/.zshrc 已經帶了);要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
     5. ssh 連 tailnet 的機器:ProxyCommand 用 tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc %h %p(~/.ssh/config 的 company-ec2 已經帶了)"
 {{- end }}
 {{ end -}}

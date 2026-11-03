@@ -173,7 +173,7 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 | 略過什麼 | 手動方式（彙整裡有完整指令） |
 |---|---|
 | 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
-| tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
+| tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、ssh 的 `tailscale nc` ProxyCommand；之後開 zsh 時 tailscaled 沒在跑會自己背景起來（`.zshrc`） |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
 | nvm 與 Node（勾了 `node` 或要 Node 的工具才有這項；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 

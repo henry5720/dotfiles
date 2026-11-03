@@ -1069,6 +1069,10 @@ noroot_slim_checks() {
     "[ ! ~/.local/bin/zsh -nt ~/.e2e-marker2 ] && [ ! ~/.local/share/zsh -nt ~/.e2e-marker2 ]"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
+  # userspace tailscaled 常駐:用一支叫 tailscaled 的假程式(只會等),看開 zsh 時沒在跑會不會被起來、在跑時不會多起一支
+  check "userspace tailscaled 沒在跑時,開 zsh 會背景起來;已在跑不會多起" \
+    "printf '#!/bin/sh\\nwhile :; do sleep 1; done\\n' > ~/.local/bin/tailscaled && chmod +x ~/.local/bin/tailscaled && mkdir -p ~/.local/state/tailscale && ! pgrep -xu \"\$(id -u)\" tailscaled && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ] && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ]; r=\$?; pkill -xu \"\$(id -u)\" tailscaled; rm -rf ~/.local/bin/tailscaled ~/.local/state/tailscale; exit \$r"
+  check "zsh 的 PATH 沒有重複" "[ -z \"\$(~/.local/bin/zsh -i -c 'print -l \$path' 2>/dev/null | sort | uniq -d)\" ]"
 }
 
 noroot_full_checks() {

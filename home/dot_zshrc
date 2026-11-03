@@ -35,6 +35,17 @@ export PATH="$HOME/.local/bin:$PATH"
 # 用 append:mise 只裝系統沒有的,系統那份優先。
 [[ -d $HOME/.local/share/mise/shims ]] && export PATH="$PATH:$HOME/.local/share/mise/shims"
 
+# userspace tailscale(沒有 root、照略過彙整手動起的):tailscaled 不會常駐,工作區待命回來就沒了。
+# 開 zsh 時沒在跑就背景起來;登入狀態在 statedir,不用重新登入。輸出全導到 log,不干擾 instant prompt。
+# 只看「~/.local/bin 有 tailscaled、statedir 存在」:用系統 tailscale 的機器不會走到這裡。
+if [[ -x $HOME/.local/bin/tailscaled && -d $HOME/.local/state/tailscale ]] && (( $+commands[pgrep] )) \
+    && ! pgrep -xu "$UID" tailscaled >/dev/null; then
+  nohup "$HOME/.local/bin/tailscaled" --tun=userspace-networking \
+    --statedir="$HOME/.local/state/tailscale" \
+    --socket="$HOME/.local/state/tailscale/tailscaled.sock" --port=0 \
+    >>"$HOME/.local/state/tailscale/tailscaled.log" 2>&1 &!
+fi
+
 # 啟用 OpenCode 背景 subagents
 export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
 # 啟用 Exa 搜尋
@@ -53,6 +64,9 @@ export PATH="$PATH:/snap/bin"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# 上面各處都往 PATH 加 ~/.local/bin,login shell 的 .profile 也加過一次:去掉重複的。
+typeset -U path PATH
 
 # ===============================================================
 # 4. 歷史紀錄設定 (History)
