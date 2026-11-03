@@ -10,7 +10,8 @@
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
 | WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
-| 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
+| 雲端主機、proot Ubuntu | 其他 Debian 系 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
+| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/new-machine-setup.md#沒有-root-的機器)。

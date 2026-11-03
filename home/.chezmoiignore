@@ -23,3 +23,6 @@
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
+
+# apt 用得了的機器(有 root 的 Debian 系、Termux)不碰 mise:不部署它的清單,也不建空的 ~/.config/mise。
+{{ if not (includeTemplate "use-mise" .) }}.config/mise{{ end }}

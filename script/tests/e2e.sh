@@ -39,8 +39,10 @@ FAILED=()
 # ===============================================================
 # 在容器裡以一般使用者執行(login shell,~/.local/bin 會在 PATH 上)。
 # 輸出存進 $OUT,呼叫端決定要不要印。CTR_USER／CTR_HOME 由 setup_<目標> 設定。
+# 主機有 GITHUB_TOKEN 就帶進去(只給變數名,值不出現在指令列):mise、chezmoi 的 gitHub* 函式打 GitHub API,
+# 未登入每小時 60 次,noroot 完整那段一次就用掉不少。本機跑:GITHUB_TOKEN=$(gh auth token) bash script/tests/e2e.sh noroot
 in_ctr() {
-  OUT=$(docker exec -u "$CTR_USER" -w "$CTR_HOME" "$CTR" bash -lc "$1" 2>&1)
+  OUT=$(docker exec ${GITHUB_TOKEN:+-e GITHUB_TOKEN} -u "$CTR_USER" -w "$CTR_HOME" "$CTR" bash -lc "$1" 2>&1)
 }
 
 step() {  # step <描述> <容器內指令>
@@ -343,6 +345,9 @@ scenario_ubuntu() {
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
   # 選單沒勾 nvm,勾了 codegraph、playwright-cli 就要自動帶入
   check_tool nvm
+  # mise 只給 apt 用不了的機器(noroot 目標驗);有 root 的 Debian 系照主路線,完全不碰
+  check "有 root:沒有 mise(沒裝、沒有清單、沒有 ~/.config/mise)" \
+    "! command -v mise && [ ! -e ~/.local/bin/mise ] && [ ! -e ~/.local/share/mise ] && [ ! -e ~/.config/mise ]"
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
@@ -554,10 +559,20 @@ scenario_ubuntu() {
 
   # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
-  bold "▶ (渲染)非 Debian 系 Linux 不出選單、apt 腳本渲染成空的"
+  bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
-  check "非 Debian 系的 config 樣板不問選單,tools 是以前基底的那六項" \
-    "chezmoi --config /tmp/fresh-fedora.toml execute-template --init --no-tty --override-data '$fedora' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/fedora.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/fedora.toml"
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部(不列 headless-chrome、playwright-cli)" \
+    "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice 完整)") > /tmp/fedora.toml && grep -qx '    machineUse = \"完整\"' /tmp/fedora.toml && grep -qxF '$(toml_list "${FULL_TOOLS/\/headless-chrome\/playwright-cli/}")' /tmp/fedora.toml"
+  check "非 Debian 系的選單沒有 headless-chrome(勾了會報 invalid choice)" \
+    "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptMultichoice "$(menu_choice headless-chrome)") 2>&1 | grep -q 'invalid choice'"
+  check "非 Debian 系有 tools 指令可以重出選單" \
+    "chezmoi execute-template --override-data '$fedora' < $tmpl/dot_local/bin/executable_tools.tmpl | grep -q 'chezmoi init --prompt'"
+  # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 btop,ffmpeg 沒勾、沒裝:mise 清單只該有 ffmpeg
+  local fedora_mise='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["ffmpeg","btop"]}'
+  check "非 Debian 系(就算有 root)選裝工具走 mise:清單有系統沒有的 ffmpeg、沒有系統已有的 btop" \
+    "chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q btop /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
+  check "非 Debian 系不忽略 ~/.config/mise;(對照)有 root 的 Ubuntu 忽略" \
+    "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
   local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
@@ -761,6 +776,7 @@ scenario_termux() {
 # 目標:noroot(沒有 root 的 Ubuntu,代表別人給的帳號、TeamSync 工作區)
 # ===============================================================
 # 映像模擬雲端映像本來就有的東西:curl、ca-certificates、git、python3;**不裝 sudo**。
+# 另放一支假的 vim 在 /usr/local/bin:代表「系統已經有的指令」,mise 不該再裝一份。
 # 每個情境一個新使用者(家目錄是全新的),不在 sudo／admin／wheel 群組;wheeluser 只給 root 判斷的樣板檢查用。
 # 要加檢查:精簡、完整各一個 noroot_<情境>_checks,照順序加在裡面,其他地方不用動。
 NOROOT_USERS=(slim full wheeluser)
@@ -774,7 +790,8 @@ RUN apt-get update \
  && groupadd wheel \
  && useradd -m -s /bin/bash slim \
  && useradd -m -s /bin/bash full \
- && useradd -m -s /bin/bash -G wheel wheeluser
+ && useradd -m -s /bin/bash -G wheel wheeluser \
+ && printf '#!/bin/sh\necho "VIM - e2e system stub"\n' > /usr/local/bin/vim && chmod 755 /usr/local/bin/vim
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
   docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
@@ -816,6 +833,18 @@ noroot_init() {  # noroot_init <用途>
     "grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | sed 1d | grep -vE '^(- |    |\$)'"
 }
 
+# 沒有 root 時走 apt 的選裝工具改由 mise 裝(#217)。check_mise <指令> [--version 以外的參數]:
+# 經 shims(不靠 PATH 設定)跑得起來,而且真的是 mise 管的那份。
+MISE_SHIMS='~/.local/share/mise/shims'
+check_mise() {  # check_mise <指令> [參數,預設 --version]
+  check "$1 經 mise 的 shim 跑得起來" "$MISE_SHIMS/$1 ${2:---version} && ~/.local/bin/mise which $1"
+}
+# 系統已經有 vim(映像放的假 vim):mise 清單沒有它、shim 也沒有
+check_mise_skips_system_vim() {
+  check "系統已有的 vim 不在 mise 清單(conf.d 與 mise ls 都沒有)、vim 還是系統那支" \
+    "! grep -qw vim ~/.config/mise/conf.d/dotfiles.toml && ! ~/.local/bin/mise ls --json | jq -e 'has(\"vim\")' && [ ! -e $MISE_SHIMS/vim ] && vim | grep -q 'e2e system stub'"
+}
+
 # check_skipped <項目>:彙整裡有「- <項目>:」這一行
 check_skipped() {
   check "略過彙整列出 $1" "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- $1:'"
@@ -823,14 +852,15 @@ check_skipped() {
 
 noroot_slim_checks() {
   check_skipped "系統套件"
-  check "套件的手動方式是 sudo apt-get install,含 zsh vim btop、不含已經裝到家目錄的 jq" \
-    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw zsh /tmp/pkgs && grep -qw vim /tmp/pkgs && grep -qw btop /tmp/pkgs && ! grep -qw jq /tmp/pkgs"
+  check "套件的手動方式是 sudo apt-get install,含 zsh、不含 mise 裝的 vim btop 與已經裝到家目錄的 jq" \
+    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw zsh /tmp/pkgs && ! grep -qwE 'vim|btop|jq' /tmp/pkgs"
   check_skipped "tailscale"
   check "tailscale 的手動方式是 userspace 模式(啟動、登入、常駐、ssh ProxyCommand)" \
     "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q -- '--tun=userspace-networking' <<<\"\$s\" && grep -q ' up\$' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\""
   check_skipped "把預設 shell 換成 zsh"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
-  check "沒裝到的套件不會被當成已裝(btop 不存在)" "! command -v btop"
+  check_mise btop
+  check_mise_skips_system_vim
   for t in eza fzf bat ripgrep; do check_tool "$t"; done
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
 
@@ -843,16 +873,27 @@ noroot_slim_checks() {
 }
 
 noroot_full_checks() {
-  for s in tailscale headless-chrome gh fastfetch code-server "nvm 與 Node" codegraph playwright-cli 系統套件; do
+  for s in tailscale headless-chrome "nvm 與 Node" codegraph playwright-cli 系統套件; do
     check_skipped "$s"
   done
+  check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server):'"
+  # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
+  for t in btop gh fastfetch code-server; do check_mise "$t"; done
+  check_mise ffmpeg -version
+  check_mise pdftoppm -v
+  check_mise_skips_system_vim
+  check "zsh 會把 mise 的 shims 加進 PATH" "grep -q 'mise/shims' ~/.zshrc"
   check "headless-chrome 的說明寫了缺系統函式庫" \
     "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
   for t in eza fzf bat ripgrep herdr ttyd wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
-  check "第二次 apply exit 0" "chezmoi apply --no-tty"
+  check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
+    "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -q 'mise' <<<\"\$out\""
+  check "再跑 mise install 不重新下載(mise 回報都已安裝)" \
+    "~/.local/bin/mise install 2>&1 | tee /dev/stderr | grep -q 'all tools are installed'"
 }
 
 # 用 stub 模擬「系統層 tailscaled 已經在跑」:渲染 tailscale 腳本、在 PATH 前面放 stub 跑它。

@@ -124,8 +124,8 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **用途（只有 Ubuntu）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+- **用途（只有 Linux）**：完整、精簡或自訂，決定下一題預設勾哪些（見下表）。
+- **選裝工具選單（只有 Linux）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
   zsh + p10k 也是選裝工具，要在這裡勾。
 
 | 用途 | 給誰 | 預設勾哪些 |
@@ -135,8 +135,8 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 | 自訂 | 有特殊需求 | 都不勾，自己選 |
 
 選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
-改過勾選就存成自訂，照你勾的、不再跟著預設組合走。原生 Termux 和其他 Linux 不問，直接套精簡、
-濾掉 tailscale、btop。
+改過勾選就存成自訂，照你勾的、不再跟著預設組合走。原生 Termux 不問，直接套精簡、
+濾掉 tailscale、btop。非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見下一節）。
 
 要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
 
@@ -168,14 +168,20 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 | 略過什麼 | 手動方式（彙整裡有完整指令） |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 zsh、vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq 例外：從 GitHub release 裝到 `~/.local/bin`，不用 root |
+| 系統套件（基底的 git、curl、python3，與 zsh） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq 例外：從 GitHub release 裝到 `~/.local/bin`，不用 root |
 | 改預設 shell | 有 zsh 之後自己 `chsh` |
 | tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
-| gh、fastfetch、code-server | 從 GitHub release 或官方 installer 的 standalone 模式裝到 `~/.local` |
 | nvm 與 Node（codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 
 不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+
+本來走 apt 的 vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，
+改用 [mise](https://mise.jdx.dev/) 裝到家目錄（非 Debian 系 Linux 也一樣）：
+
+- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；系統已經有的指令不列，不會重裝一份
+- 指令在 `~/.local/share/mise/shims`，zsh 已加進 PATH；`mise ls` 看裝了什麼，`mise upgrade` 更新
+- mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
 
 系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，

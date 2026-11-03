@@ -1,0 +1,15 @@
+{{- /* 這台要交給 mise 裝的工具:一行一項 `"<mise 工具名>" = "latest"`,沒有就是空字串。
+       不看 use-mise,呼叫端自己判斷。
+       有勾、在 .chezmoidata/packages.yaml 的 miseTools 裡,而且系統找不到它的指令才列。
+       「系統找得到」排除 mise 自己的目錄(shims、installs):裝過一次之後 PATH 上的 shim 不算,
+       不然下次渲染就把自己裝的那份從清單拿掉。
+       在樣板裡判斷:系統之後補裝了同一個指令,清單會少一項(mise 不會解除安裝,只是不再管它)。 */ -}}
+{{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
+{{- range $name, $m := .miseTools -}}
+{{-   if has $name (index $ "tools") -}}
+{{-     $p := lookPath $m.cmd -}}
+{{-     if or (not $p) (hasPrefix $own $p) }}
+{{ $m.tool | quote }} = "latest"
+{{-     end -}}
+{{-   end -}}
+{{- end -}}

@@ -79,8 +79,10 @@ fi
 
 # 5. code-server 的 WakaTime 擴充:code-server FAQ 的 --install-extension,預設從 Open VSX 抓
 #    WakaTime.vscode-wakatime。擴充跑在 server 端,用這台的 ~/.wakatime/wakatime-cli 與 ~/.wakatime.cfg。
-#    code-server 不在 PATH 的話(非 apt 安裝)找 installer 的 standalone 位置。
+#    code-server 不在 PATH 的話(非 apt 安裝)找 installer 的 standalone 位置,再找 mise 的 shim
+#    (apt 用不了的機器由 run_onchange_after_install-mise 裝,排在這支前面)。
 cs=$(command -v code-server || echo "$HOME/.local/bin/code-server")
+[ -x "$cs" ] || cs="$HOME/.local/share/mise/shims/code-server"
 if [ ! -x "$cs" ]; then
   echo "找不到 code-server,跳過 code-server 的 WakaTime 擴充"
 elif "$cs" --list-extensions </dev/null | grep -qix 'wakatime.vscode-wakatime'; then

@@ -65,3 +65,34 @@ toolPackages:
       - bat
     ripgrep:
       - ripgrep
+
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)改用 mise 裝到家目錄的選裝工具:
+# 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。系統已經有 cmd 的不裝。
+# 判斷與清單在 .chezmoitemplates/use-mise、mise-tools;部署成 ~/.config/mise/conf.d/dotfiles.toml,
+# run_onchange_after_install-mise 跑 mise install。
+# eza、fzf、bat、ripgrep 不在這裡:不分機器都由 install-cli-tools 從 GitHub release 下載。
+# tool 寫 mise registry 的短名(mise registry <名字> 查 backend);registry 沒有的寫完整 backend,
+# 例如 code-server 只寫 code-server 會模糊比對到不相干的工具。
+miseTools:
+  vim:
+    tool: vim                       # conda:vim
+    cmd: vim
+  btop:
+    tool: btop                      # aqua:aristocratos/btop
+    cmd: btop
+  ffmpeg:
+    tool: ffmpeg                    # conda:ffmpeg
+    cmd: ffmpeg
+  # Claude Code 讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)
+  claude:
+    tool: poppler                   # conda:poppler
+    cmd: pdftoppm
+  gh:
+    tool: gh                        # aqua:cli/cli
+    cmd: gh
+  fastfetch:
+    tool: fastfetch                 # aqua:fastfetch-cli/fastfetch
+    cmd: fastfetch
+  code-server:
+    tool: github:coder/code-server  # registry 沒有
+    cmd: code-server

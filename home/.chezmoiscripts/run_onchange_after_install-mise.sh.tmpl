@@ -1,0 +1,34 @@
+{{- $list := includeTemplate "mise-tools" . -}}
+{{- if and (includeTemplate "use-mise" .) $list -}}
+#!{{ lookPath "sh" }}
+# apt 用不了的 Linux(沒有 root,或非 Debian 系;見 .chezmoitemplates/use-mise):有勾、走 apt 的選裝工具
+# 改用 mise 裝到家目錄。清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
+# 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
+# (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
+# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它加進 PATH。
+#
+# run_onchange_:下面這份清單沒變就不重跑;重跑時 mise 只裝缺的,已裝的不重新下載。
+# 清單:
+{{ $list | trim | comment "#   " }}
+#
+# 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
+# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 移除:mise uninstall <工具>;連 mise 一起清掉:mise implode。
+set -eu
+
+# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
+mise=$(command -v mise || echo "$HOME/.local/bin/mise")
+if [ ! -x "$mise" ]; then
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://mise.run
+  sh "$tmp/install.sh"
+  mise="$HOME/.local/bin/mise"
+fi
+
+# 2. 照清單裝(順便建 shims)
+if ! "$mise" install; then
+  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+fi
+{{ end -}}

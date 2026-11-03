@@ -1,6 +1,7 @@
-{{- if and (has "gh" (index . "tools")) (includeTemplate "is-debian" .) -}}
+{{- if and (has "gh" (index . "tools")) (includeTemplate "is-debian" .) (includeTemplate "has-root" .) -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾、或不是 Debian 系就渲染成空的,chezmoi 不跑。
+# 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾、不是 Debian 系、或沒有 root 就渲染成空的,chezmoi 不跑;
+# 後兩種改由 mise 裝到家目錄(run_onchange_after_install-mise)。
 #
 # daily-worklog、slack-list 兩支 skill 會叫 gh(見 agent-config 的 SKILL.md)。
 # 走 GitHub 官方 apt 源,不用 Ubuntu 套件庫:那版太舊,GitHub 停掉 Projects (classic) 後
@@ -20,12 +21,6 @@ if [ "$(dpkg-query -W -f='${Maintainer}' gh 2>/dev/null)" = GitHub ]; then
   exit 0
 fi
 
-{{ if not (includeTemplate "has-root" .) -}}
-# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
-{{ template "sh-skip" . }}
-skip_root gh "官方 apt 源要 root。改從 https://github.com/cli/cli/releases/latest 下載 gh_<版本>_linux_<架構>.tar.gz,把 bin/gh 放進 ~/.local/bin"
-exit 0
-{{ end -}}
 # 2. 加 apt 來源與 pin
 #    key 先下載到暫存檔:接 pipe 的話 curl 失敗會被吞掉,留下空的 keyring
 tmp=$(mktemp -d)

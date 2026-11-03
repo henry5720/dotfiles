@@ -5,13 +5,14 @@
 ```text
 想做什麼？
 │
-├─ 改用途、加減選裝工具（只有 Ubuntu）
+├─ 改用途、加減選裝工具（Linux）
 │    tools ──→ 用途（預設帶現在的）──→ 選單（預設帶現在的勾選；改成完整或精簡就帶那組）
 │          ──→ Enter ──→ 自動 apply，新勾的才裝；改用途也不會移除已裝的
 │
 ├─ 移除工具
 │    取消勾選不會解除安裝 ──→ 用它自己的方式移除 ──→ 再打 tools 取消勾選
 │                              sudo apt remove btop
+│                              mise uninstall btop（沒有 root、非 Debian 系由 mise 裝的）
 │                              npm uninstall -g <套件>
 │
 ├─ 改 API key、密碼、Git 身分

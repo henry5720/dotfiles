@@ -1,6 +1,7 @@
-{{- if has "code-server" (index . "tools") -}}
+{{- if and (has "code-server" (index . "tools")) (not (includeTemplate "use-mise" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 code-server(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)也渲染成空的,改由 mise 裝(run_onchange_after_install-mise)。
 # 設定檔由 chezmoi 部署(dot_config/private_code-server);臨時用直接跑 code-server,
 # 要常駐見 docs/code-server-remote.md。
 set -eu
@@ -9,12 +10,6 @@ if command -v code-server >/dev/null 2>&1; then
   echo "code-server 已安裝,跳過"
   exit 0
 fi
-{{ if not (includeTemplate "has-root" .) -}}
-# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
-{{ template "sh-skip" . }}
-skip_root code-server "官方 installer 預設裝 .deb 要 root。改裝到家目錄:curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=\$HOME/.local"
-exit 0
-{{ end -}}
 # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

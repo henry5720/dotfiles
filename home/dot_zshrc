@@ -2,7 +2,10 @@
 # 1. 開場系統資訊
 # ===============================================================
 # 會輸出到終端，必須放在 Powerlevel10k Instant Prompt 之前。
-command -v fastfetch &>/dev/null && fastfetch
+# mise 裝的(apt 用不了的機器)要到第 3 段才進 PATH,這裡直接找 shim。
+if command -v fastfetch &>/dev/null; then fastfetch
+elif [[ -x $HOME/.local/share/mise/shims/fastfetch ]]; then $HOME/.local/share/mise/shims/fastfetch
+fi
 
 # ===============================================================
 # 2. Powerlevel10k 快速啟動 (Instant Prompt)
@@ -21,6 +24,10 @@ export PATH="$PNPM_HOME:$PATH"
 # opencode / claude 之類的工具裝在這兩處
 export PATH="$HOME/.opencode/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
+
+# apt 用不了的機器(沒有 root、非 Debian 系)由 mise 裝的選裝工具(vim、gh、btop…),經 shims 找得到。
+# 用 append:mise 只裝系統沒有的,系統那份優先。
+[[ -d $HOME/.local/share/mise/shims ]] && export PATH="$PATH:$HOME/.local/share/mise/shims"
 
 # 啟用 OpenCode 背景 subagents
 export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
