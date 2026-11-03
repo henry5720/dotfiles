@@ -20,6 +20,12 @@ if [ "$(dpkg-query -W -f='${Maintainer}' gh 2>/dev/null)" = GitHub ]; then
   exit 0
 fi
 
+{{ if not (includeTemplate "has-root" .) -}}
+# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
+{{ template "sh-skip" . }}
+skip_root gh "官方 apt 源要 root。改從 https://github.com/cli/cli/releases/latest 下載 gh_<版本>_linux_<架構>.tar.gz,把 bin/gh 放進 ~/.local/bin"
+exit 0
+{{ end -}}
 # 2. 加 apt 來源與 pin
 #    key 先下載到暫存檔:接 pipe 的話 curl 失敗會被吞掉,留下空的 keyring
 tmp=$(mktemp -d)

@@ -1,0 +1,16 @@
+{{- if and (eq .chezmoi.os "linux") (not (includeTemplate "has-root" .)) -}}
+#!{{ lookPath "sh" }}
+# 沒有 root 的機器才有這支(有 root 的機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 各腳本用 skip_root(.chezmoitemplates/sh-skip)略過要 root 的步驟時,會把「略過什麼、手動怎麼做」
+# 記進 ~/.local/state/dotfiles/root-skipped;這支在 apply 最後印一次彙整再刪掉。
+# 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
+# run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
+set -eu
+
+f="$HOME/.local/state/dotfiles/root-skipped"
+[ -s "$f" ] || exit 0
+echo
+echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+cat "$f"
+rm -f "$f"
+{{ end -}}

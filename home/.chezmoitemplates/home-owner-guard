@@ -1,0 +1,10 @@
+{{- /* 以 root 執行、$HOME 的擁有者卻不是 root 時直接停(fail,chezmoi exit 非 0)。
+       常見情況是 sudo chezmoi 帶著一般使用者的 HOME:繼續跑下去,家目錄的檔案會變成 root 擁有。
+       一般使用者不檢查:TeamSync 工作區的 $HOME 擁有者本來就是 root。
+       .chezmoi.toml.tmpl(init 時最先渲染)與 run_before_00-check-home-owner(每次 apply 最先跑)都引用它。 */ -}}
+{{- if eq (toString .chezmoi.uid) "0" -}}
+{{-   $owner := trim (output "sh" "-c" "ls -ldn \"$1\" 2>/dev/null | awk '{print $3}'" "sh" .chezmoi.homeDir) -}}
+{{-   if and $owner (ne $owner "0") -}}
+{{-     fail (printf "以 root 執行,但 $HOME(%s)的擁有者是 uid %s:繼續跑家目錄的檔案會變成 root 擁有,已停止。請用那個使用者自己跑 chezmoi,不要加 sudo。" .chezmoi.homeDir $owner) -}}
+{{-   end -}}
+{{- end -}}

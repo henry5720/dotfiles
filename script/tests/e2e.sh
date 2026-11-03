@@ -3,7 +3,7 @@
 # `chezmoi init --apply`,檢查機器上看得到的結果。
 #
 # 用法:
-#   bash script/tests/e2e.sh [ubuntu|termux]     # 預設 ubuntu
+#   bash script/tests/e2e.sh [ubuntu|termux|noroot]     # 預設 ubuntu;noroot = 沒有 root 的 Ubuntu
 #
 # 環境變數:
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
@@ -758,11 +758,193 @@ scenario_termux() {
 }
 
 # ===============================================================
+# 目標:noroot(沒有 root 的 Ubuntu,代表別人給的帳號、TeamSync 工作區)
+# ===============================================================
+# 映像模擬雲端映像本來就有的東西:curl、ca-certificates、git、python3;**不裝 sudo**。
+# 每個情境一個新使用者(家目錄是全新的),不在 sudo／admin／wheel 群組;wheeluser 只給 root 判斷的樣板檢查用。
+# 要加檢查:精簡、完整各一個 noroot_<情境>_checks,照順序加在裡面,其他地方不用動。
+NOROOT_USERS=(slim full wheeluser)
+
+setup_noroot() {
+  docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
+FROM ubuntu:24.04
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates git python3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd wheel \
+ && useradd -m -s /bin/bash slim \
+ && useradd -m -s /bin/bash full \
+ && useradd -m -s /bin/bash -G wheel wheeluser
+DOCKERFILE
+  docker rm -f "$CTR" >/dev/null 2>&1 || true
+  docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
+  local u
+  for u in "${NOROOT_USERS[@]}"; do use_user "$u"; make_fixtures; done
+}
+
+# 之後的 step／check 以這個使用者、在他的家目錄跑(make_fixtures 的 $FIX 也跟著換)
+use_user() {
+  CTR_USER=$1
+  CTR_HOME=/home/$1
+  FIX=$CTR_HOME/e2e-fixtures
+}
+
+# 在容器裡以 root 寫一個檔(內容從 stdin),給 stub 與共用的 source 用
+put_root_file() {  # put_root_file <路徑> <權限>
+  docker exec -i -u 0 "$CTR" sh -c "mkdir -p \"\$(dirname '$1')\" && cat > '$1' && chmod $2 '$1'"
+}
+
+SKIP_HEADER='== 沒有 root,以下步驟已略過'
+
+# 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
+# 情境就是用途(精簡、完整),跟 README 免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
+# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,選單全列)。
+noroot_init() {  # noroot_init <用途>
+  bold "▶ $1:沒有 root 跑 README 的安裝指令"
+  step "沒有 sudo(command -v sudo 失敗)" "! command -v sudo"
+  step "放時間標記(之後找家目錄外的新檔)" "touch ~/.e2e-marker"
+  step "$1:init --apply exit 0" \
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptDefaults --promptChoice "$(use_choice "$1")")"
+  check "$1:config 存用途 $1" "grep -qx '    machineUse = \"$1\"' ~/.config/chezmoi/chezmoi.toml"
+  # /tmp 不算:上游的東西會留在那裡(get.chezmoi.io 的下載暫存目錄、Claude Code 的 socket),
+  # 要守的是 /etc、/usr、/opt 這些系統目錄
+  check "家目錄與 /tmp 以外沒有屬於這個使用者的新檔" \
+    "out=\$(find / -xdev -user \$(id -un) -newer ~/.e2e-marker -not -path \"\$HOME\" -not -path \"\$HOME/*\" -not -path '/tmp/*' -not -path /tmp 2>/dev/null); echo \"\$out\"; [ -z \"\$out\" ]"
+  check "/etc/shells 沒被改" "[ ! /etc/shells -nt ~/.e2e-marker ]"
+  # 彙整之後不能再有別的輸出:看標頭之後每一行都是彙整的格式(「- 項目:」、縮排的續行)
+  check "輸出最後是略過彙整" \
+    "grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | sed 1d | grep -vE '^(- |    |\$)'"
+}
+
+# check_skipped <項目>:彙整裡有「- <項目>:」這一行
+check_skipped() {
+  check "略過彙整列出 $1" "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- $1:'"
+}
+
+noroot_slim_checks() {
+  check_skipped "系統套件"
+  check "套件的手動方式是 sudo apt-get install,含 zsh vim btop、不含已經裝到家目錄的 jq" \
+    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' > /tmp/pkgs && grep -q 'sudo apt-get install -y' /tmp/pkgs && grep -qw zsh /tmp/pkgs && grep -qw vim /tmp/pkgs && grep -qw btop /tmp/pkgs && ! grep -qw jq /tmp/pkgs"
+  check_skipped "tailscale"
+  check "tailscale 的手動方式是 userspace 模式(啟動、登入、常駐、ssh ProxyCommand)" \
+    "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q -- '--tun=userspace-networking' <<<\"\$s\" && grep -q ' up\$' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\""
+  check_skipped "把預設 shell 換成 zsh"
+  check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
+  check "沒裝到的套件不會被當成已裝(btop 不存在)" "! command -v btop"
+  for t in eza fzf bat ripgrep; do check_tool "$t"; done
+  check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+
+  bold "▶ 精簡:第二次 apply"
+  # 略過的步驟記在 run_onchange_ 的狀態裡,沒有 root 的狀況沒變就不重跑、不重印,也不重新下載
+  check "第二次 apply exit 0、沒有任何略過或下載" \
+    "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -qE '略過|安裝|下載' <<<\"\$out\""
+  check "待跑的腳本只有略過彙整那支" \
+    "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
+}
+
+noroot_full_checks() {
+  for s in tailscale headless-chrome gh fastfetch code-server "nvm 與 Node" codegraph playwright-cli 系統套件; do
+    check_skipped "$s"
+  done
+  check "headless-chrome 的說明寫了缺系統函式庫" \
+    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
+  # 不用 root 的照常裝好
+  for t in eza fzf bat ripgrep herdr ttyd wakatime claude codex opencode agent-config; do check_tool "$t"; done
+  check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
+    "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
+  check "第二次 apply exit 0" "chezmoi apply --no-tty"
+}
+
+# 用 stub 模擬「系統層 tailscaled 已經在跑」:渲染 tailscale 腳本、在 PATH 前面放 stub 跑它。
+# sudo 也放一支會記錄呼叫的 stub,證明整段跳過、沒有叫 sudo。
+noroot_tailscale_running_checks() {
+  bold "▶ 系統層 tailscaled 已經在跑:整段跳過、不叫 sudo"
+  put_root_file /opt/e2e-stub/running/tailscale 755 <<'SH'
+#!/bin/sh
+[ "$1" = status ] && { echo '{"BackendState": "Running"}'; exit 0; }
+exit 1
+SH
+  put_root_file /opt/e2e-stub/active/systemctl 755 <<'SH'
+#!/bin/sh
+[ "$*" = "is-active --quiet tailscaled" ]
+SH
+  for d in running active; do
+    put_root_file "/opt/e2e-stub/$d/sudo" 755 <<'SH'
+#!/bin/sh
+echo "sudo $*" >> /tmp/e2e-sudo.log
+exit 1
+SH
+  done
+  # 沒有 root 時渲染出來的那版,與有 root 時那版(PATH 放一支會成功的 sudo,讓 has-root 判斷成有)都要跳過
+  put_root_file /opt/e2e-stub/sudo-ok/sudo 755 <<'SH'
+#!/bin/sh
+exit 0
+SH
+  local tmpl='~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl'
+  local d how
+  for d in running active; do
+    for how in noroot root; do
+      local pre=""; [ $how = root ] && pre="PATH=/opt/e2e-stub/sudo-ok:\$PATH "
+      check "($d,$how 的渲染)tailscale 腳本整段跳過、exit 0、沒有叫 sudo" \
+        "rm -f /tmp/e2e-sudo.log; ${pre}chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < $tmpl > /tmp/ts.sh && out=\$(PATH=/opt/e2e-stub/$d:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '已經在跑' <<<\"\$out\" && ! grep -q 略過 <<<\"\$out\" && [ ! -e /tmp/e2e-sudo.log ]"
+    done
+  done
+}
+
+# root 判斷(.chezmoitemplates/has-root)只看樣板輸出。chezmoi 與 source 放到大家讀得到的地方,
+# sudo 用 stub:exit 1 = 要密碼(或不在 sudoers),exit 0 = 免密碼。
+noroot_has_root_checks() {
+  bold "▶ (樣板)有沒有 root 的判斷"
+  docker exec -u 0 "$CTR" sh -c "install -m 755 /home/slim/.local/bin/chezmoi /usr/local/bin/chezmoi && rm -rf /opt/e2e-src && cp -a /home/slim/e2e-fixtures/dotfiles /opt/e2e-src && chmod -R a+rX /opt/e2e-src"
+  put_root_file /opt/e2e-stub/sudo-pw/sudo 755 <<'SH'
+#!/bin/sh
+exit 1
+SH
+  local has_root="chezmoi --source /opt/e2e-src --config /tmp/none.toml execute-template '{{ includeTemplate \"has-root\" . }}'"
+  use_user wheeluser
+  check "wheel 群組 + sudo 要密碼:判為有 root" "[ \"\$(PATH=/opt/e2e-stub/sudo-pw:\$PATH $has_root)\" = true ]"
+  check "wheel 群組但沒有 sudo:判為沒有 root" "[ -z \"\$($has_root)\" ]"
+  use_user slim
+  check "不在群組 + sudo 要密碼:判為沒有 root" "[ -z \"\$(PATH=/opt/e2e-stub/sudo-pw:\$PATH $has_root)\" ]"
+  check "不在群組 + sudo 免密碼(sudo -n true 成功):判為有 root" "[ \"\$(PATH=/opt/e2e-stub/sudo-ok:\$PATH $has_root)\" = true ]"
+  check "沒有 sudo:判為沒有 root" "[ -z \"\$($has_root)\" ]"
+}
+
+# root 帶著一般使用者的 HOME 跑(sudo -E chezmoi apply 這類誤用):一開頭就停、exit 非 0、家目錄沒有 root 的檔
+noroot_root_foreign_home_checks() {
+  bold "▶ 以 root 執行、\$HOME 是 slim 的家目錄"
+  local cz="/home/slim/.local/bin/chezmoi"
+  CTR_USER=root
+  check "chezmoi apply 一開頭就停、exit 非 0、說明原因" \
+    "export HOME=/home/slim; out=\$($cz apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r != 0 ] && grep -q '以 root 執行' <<<\"\$out\""
+  check "chezmoi init 也一開頭就停、exit 非 0" \
+    "export HOME=/home/slim; out=\$($cz init --no-tty </dev/null 2>&1); r=\$?; echo \"\$out\"; [ \$r != 0 ] && grep -q '以 root 執行' <<<\"\$out\""
+  check "家目錄沒有 root 擁有的檔" "out=\$(find /home/slim -user root); echo \"\$out\"; [ -z \"\$out\" ]"
+  check "(對照)root 自己的家目錄照常渲染(不會被擋)" \
+    "export HOME=/root; [ -z \"\$($cz --source /opt/e2e-src --config /tmp/none.toml execute-template '{{ template \"home-owner-guard\" . }}' 2>&1)\" ]"
+  use_user slim
+}
+
+scenario_noroot() {
+  use_user slim
+  noroot_init 精簡
+  noroot_slim_checks
+  noroot_tailscale_running_checks
+
+  use_user full
+  noroot_init 完整
+  noroot_full_checks
+
+  noroot_has_root_checks
+  noroot_root_foreign_home_checks
+}
+
+# ===============================================================
 # 主流程
 # ===============================================================
 case "$TARGET" in
-  ubuntu|termux) ;;
-  *) red "用法:$0 [ubuntu|termux]"; exit 2 ;;
+  ubuntu|termux|noroot) ;;
+  *) red "用法:$0 [ubuntu|termux|noroot]"; exit 2 ;;
 esac
 
 trap cleanup EXIT

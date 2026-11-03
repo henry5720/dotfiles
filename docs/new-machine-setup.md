@@ -36,13 +36,13 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 
 ### WSL2
 
-- Windows 裝好 WSL2 Ubuntu，進到一般使用者的 shell，帳號能 `sudo`。
+- Windows 裝好 WSL2 Ubuntu，進到一般使用者的 shell。
 - 終端機字型裝在 Windows 那側，見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)。
 - `.wslconfig` 參考 [`wsl/.wslconfig`](../wsl/.wslconfig)，手動放到 Windows 使用者目錄。
 
 ### 雲端主機
 
-能 SSH 進去、帳號能 `sudo` 就好。字型裝在你連線那端的終端機。
+能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](#沒有-root-的機器)）。字型裝在你連線那端的終端機。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 
@@ -156,6 +156,32 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 `headless-chrome`、`playwright-cli`。
 
 勾了 zsh 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+
+### 沒有 root 的機器
+
+別人給的帳號、公司的工作區常常不能 `sudo`。chezmoi 自己判斷這台有沒有 root，不用回答：
+本來就是 root、在 `sudo`／`admin`／`wheel` 群組（要密碼的照樣算，apply 時會問）、或 `sudo -n true`
+成功，三條都不符才算沒有 root。
+
+沒有 root 時，要 root 的步驟不會讓 apply 失敗：每一步印一行「略過什麼、手動怎麼做」，apply 最後再彙整一次
+（`== 沒有 root,以下步驟已略過` 底下），整個 apply 照樣 exit 0。目前會略過的：
+
+| 略過什麼 | 手動方式（彙整裡有完整指令） |
+|---|---|
+| 系統套件（基底的 git、curl、python3，與 zsh、vim、btop、ffmpeg 等走 apt 的選裝工具） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq 例外：從 GitHub release 裝到 `~/.local/bin`，不用 root |
+| 改預設 shell | 有 zsh 之後自己 `chsh` |
+| tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、常駐、ssh 的 `tailscale nc` ProxyCommand |
+| headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
+| gh、fastfetch、code-server | 從 GitHub release 或官方 installer 的 standalone 模式裝到 `~/.local` |
+| nvm 與 Node（codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+
+不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
+
+系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，
+有沒有 root 都一樣，不會叫 sudo。
+
+不要用 `sudo chezmoi …`：以 root 執行、`$HOME` 又不屬於 root 時，chezmoi 一開頭就停，免得家目錄的檔案變成 root 擁有。
 
 ### 2.4 裝完之後
 

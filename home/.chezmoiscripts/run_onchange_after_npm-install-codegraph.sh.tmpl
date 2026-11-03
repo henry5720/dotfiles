@@ -18,6 +18,13 @@ if command -v codegraph >/dev/null 2>&1; then
   exit 0
 fi
 
+{{ if not (includeTemplate "node-runnable" .) -}}
+# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
+# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
+{{ template "sh-skip" . }}
+skip_root "codegraph" "要 Node,跟著上面「nvm 與 Node」那項"
+exit 0
+{{ end -}}
 # 3. 安裝
 command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:install-nvm 應該已經裝好,看它的輸出" >&2; exit 1; }
 npm install -g @colbymchenry/codegraph

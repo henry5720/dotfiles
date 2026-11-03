@@ -9,6 +9,12 @@ if command -v code-server >/dev/null 2>&1; then
   echo "code-server 已安裝,跳過"
   exit 0
 fi
+{{ if not (includeTemplate "has-root" .) -}}
+# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
+{{ template "sh-skip" . }}
+skip_root code-server "官方 installer 預設裝 .deb 要 root。改裝到家目錄:curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=\$HOME/.local"
+exit 0
+{{ end -}}
 # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

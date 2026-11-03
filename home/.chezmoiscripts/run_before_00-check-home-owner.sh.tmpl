@@ -1,0 +1,4 @@
+{{- /* 以 root 執行、$HOME 的擁有者不是 root 時,渲染這支就 fail,apply 在寫任何檔案之前停下來
+       (before_ 腳本最先跑,00- 讓它排在其他 before_ 前面)。其他情況渲染成空的,chezmoi 不跑、chezmoi diff 也看不到。
+       檢查本身在 .chezmoitemplates/home-owner-guard。 */ -}}
+{{- template "home-owner-guard" . -}}

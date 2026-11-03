@@ -1,3 +1,5 @@
+{{- /* 以 root 執行、$HOME 又不屬於 root 時,init 一開頭就停(見 .chezmoitemplates/home-owner-guard)。 */ -}}
+{{- includeTemplate "home-owner-guard" . -}}
 {{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,
        https://www.chezmoi.io/user-guide/setup/)。不用 promptStringOnce:`chezmoi init --prompt`
        會讓它重問,而這裡要 --prompt 只重問選單(`tools` 指令靠這個)。
@@ -36,6 +38,8 @@
             .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
             {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
+            要 root 的步驟(apt、sudo)包在 {{ if includeTemplate "has-root" . }} 裡;沒有 root 時
+            用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
          4. 存「自訂」的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
        原本裝的東西不會少;寫回 config 時帶 toolsSchema = 2,之後就照存的勾選。 */ -}}
