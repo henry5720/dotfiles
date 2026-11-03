@@ -5,8 +5,9 @@
 # 會直接被接手。沒設 refreshPeriod:平常 apply 不連網更新,要更新就 `chezmoi apply -R`。
 
 # ===============================================================
-# 1. zsh 主題與插件(home/dot_zshrc 從這些路徑 source)
+# 1. zsh 主題與插件(home/dot_zshrc 從這些路徑 source;沒勾選裝工具 zsh 就不下載)
 # ===============================================================
+{{- if has "zsh" (index . "tools") }}
 [".config/zsh/powerlevel10k"]
     type = "git-repo"
     url = "https://github.com/romkatv/powerlevel10k.git"
@@ -30,6 +31,7 @@
     url = "https://github.com/zsh-users/zsh-syntax-highlighting.git"
     clone.args = ["--depth", "1"]
     pull.args = ["--ff-only"]
+{{- end }}
 
 # ===============================================================
 # 2. Termux 終端機字型(只有 android)

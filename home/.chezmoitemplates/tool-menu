@@ -3,6 +3,12 @@
        script/tests/e2e.sh 也讀這份組出選單上的文字。
        說明從「用哪個工具做」寫起;不要用 /(e2e 的 --promptMultichoice 拿它分隔選項)。
        哪些機器不列哪幾項(WSL、ARM)寫在 .chezmoi.toml.tmpl。 */ -}}
+zsh zsh、p10k 主題、自動建議／跳目錄／語法上色外掛,並改成預設 shell
+eza 彩色、帶圖示的 ls(ll、la、lt 用它)
+fzf 模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案
+bat 有語法上色的 cat
+ripgrep rg:比 grep 快的全文搜尋
+vim 終端機文字編輯器
 fastfetch 終端機印出系統資訊
 btop 終端機看 CPU、記憶體、行程
 gh GitHub CLI(官方 apt 源),裝完 gh auth login

@@ -2,42 +2,39 @@
 # 依平台分開列,這份本身就是對照表(同一個工具在兩邊名字不同就各寫各的)。
 # 加套件只改這裡;改了之後下一次 chezmoi apply 只會裝缺的那幾個。
 packages:
+  # 基底:只放 chezmoi 自己要的。git 給 git-repo external,curl 給各安裝腳本,
+  # jq、python3 給 home/ 的 modify_ 與 run_ 腳本(jq 改 JSON、python3 改 TOML、解 zip)。
+  # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
+  # 其他東西(zsh、vim、eza…)都是選裝工具,放下面的 toolPackages 或各自的安裝腳本。
   # Ubuntu(WSL、雲端主機、proot Ubuntu),apt 的套件名
   ubuntu:
-    - zsh
     - git
     - curl
-    - vim
-    - build-essential
-    - unzip
-    # 下面兩個是 home/ 的 modify_ 與 run_ 腳本自己要用的(jq 改 JSON、python3 改 TOML)。
-    # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
     - jq
     - python3
-  # 原生 Termux,pkg 的套件名
+  # 原生 Termux,pkg 的套件名。python 套件提供 python3 指令;openssh 給 sshd 與 authorized_keys。
   termux:
-    - zsh
     - git
     - curl
-    - vim
     - openssh
-    - fastfetch
-    # 同上,modify_ 要用。Termux 的 python 套件提供 python3 指令。
     - jq
     - python
-    # 預設安裝的命令列工具。Linux 不走 apt,由 run_onchange_after_install-cli-tools 從 GitHub release 下載
-    - eza
-    - fzf
-    - bat
-    - ripgrep
 
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理。
 # 要加 apt 來源、curl installer 的工具不放這裡,各自一支 run_onchange_after_install-<工具>.sh.tmpl。
 toolPackages:
   ubuntu:
+    zsh:
+      - zsh
+    vim:
+      - vim
     btop:
       - btop
+    # nvm 本體是 curl installer(run_onchange_after_install-nvm);它裝的 Node 官方 binary 要 libatomic.so.1。
+    # 以前 build-essential(gcc)順帶裝了,基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+    nvm:
+      - libatomic1
     # Claude Code 本體是 native installer(run_onchange_after_install-claude);
     # 它的 Read tool 讀 PDF 時固定呼叫 pdftoppm,沒裝會直接報錯,不會退回 mutool
     claude:
@@ -54,3 +51,18 @@ toolPackages:
     headless-chrome:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
+  # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
+  # eza、fzf、bat、ripgrep 在 Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載,Termux 走 pkg。
+  termux:
+    zsh:
+      - zsh
+    vim:
+      - vim
+    eza:
+      - eza
+    fzf:
+      - fzf
+    bat:
+      - bat
+    ripgrep:
+      - ripgrep

@@ -124,7 +124,8 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - 憑證：`code-server 密碼`、`codex-lb API key`、`Context7 API key`、`WakaTime API key`（後兩者可留空）。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`。
-- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。
+- **選裝工具選單（只有 Ubuntu）**：空白鍵勾選、Enter 確定，**預設都不勾**。基底只有 git、curl、jq、python3，
+  要 zsh + p10k、eza、fzf、bat、ripgrep、vim 也要在這裡勾；原生 Termux 和其他 Linux 不出選單，這六項自動帶入。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
@@ -133,7 +134,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。WSL 和非 amd64 的機器不列
 `headless-chrome`、`playwright-cli`。
 
-apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+勾了 zsh 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
 
 ### 2.4 裝完之後
 
@@ -265,7 +266,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具、zsh／p10k／插件、預設 shell、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
+| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／p10k／插件與預設 shell）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
 | **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的 4 個憑證與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |

@@ -2,7 +2,7 @@
 #!{{ lookPath "sh" }}
 # 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# Ubuntu 另外加上選單有勾、走 apt 的選裝工具(toolPackages);Termux 沒有選單。
+# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages;Termux 的 tools 是自動帶入的)。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
@@ -12,9 +12,10 @@ set -eu
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
 {{- $pkgs := .packages.ubuntu }}
-{{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ end }}
-{{- range $tool, $toolPkgs := .toolPackages.ubuntu }}
-{{-   if and (ne $.chezmoi.os "android") (has $tool (index $ "tools")) }}{{ $pkgs = concat $pkgs $toolPkgs }}{{ end }}
+{{- $toolPkgs := .toolPackages.ubuntu }}
+{{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ $toolPkgs = .toolPackages.termux }}{{ end }}
+{{- range $tool, $tp := $toolPkgs }}
+{{-   if has $tool (index $ "tools") }}{{ $pkgs = concat $pkgs $tp }}{{ end }}
 {{- end }}
 for pkg in {{ $pkgs | uniq | join " " }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \

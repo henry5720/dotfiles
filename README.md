@@ -9,9 +9,9 @@
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、zsh、選裝工具選單（不列 headless Chrome、playwright-cli） |
+| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
 | 雲端主機、proot Ubuntu | 其他 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、zsh、eza、fzf、bat、ripgrep、vim、終端機字型、`authorized_keys`；**沒有**選單（開發環境放 proot Ubuntu） |
 
 機器種類自動判斷，不用回答。Ubuntu 機器要能 `sudo`。
 

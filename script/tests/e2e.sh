@@ -200,7 +200,8 @@ menu_choice() {
 }
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ffmpeg、mupdf-tools、pandoc 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
-TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+# zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們)。
+TOOLS_FIRST=zsh/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # agent-config 的預設 remote 是 GitHub 的 HTTPS(check_git_remotes 驗)。安裝測試用
 # AGENT_CONFIG_REMOTE 換成 $FIX/agent-config.git(見 make_fixtures),內容可控、不受上游變動影響;
@@ -208,6 +209,14 @@ TOOLS_FIRST=fastfetch/btop/gh/nvm/code-server/tailscale/herdr/claude/codex/codeg
 
 # 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
 declare -A TOOL_CHECK=(
+  # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、p10k 等細項在 check_zsh_env
+  [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+  # Linux 從 GitHub release 下載到 ~/.local/bin(install-cli-tools);Termux 走 pkg
+  [eza]="command -v eza"
+  [fzf]="command -v fzf"
+  [bat]="command -v bat"
+  [ripgrep]="command -v rg"
+  [vim]="command -v vim"
   [fastfetch]="command -v fastfetch"
   [btop]="dpkg-query -W -f='\${Status}' btop | grep -q 'install ok installed'"
   # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
@@ -260,9 +269,13 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 
 # 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
 # 不然 yaml 少列一個測試也照樣過。
-UBUNTU_BASE=(zsh git curl vim build-essential unzip jq python3)
+UBUNTU_BASE=(git curl jq python3)
 
-# 預設安裝的命令列工具:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
+# 以前在基底、拆成選裝工具的六項。不出選單的機器(Termux、非 Debian 系)自動帶入;
+# 舊 config(沒有 toolsSchema)升級時自動加進 tools。config 裡那一行應該長這樣:
+BASE_SPLIT_TOML='    tools = ["zsh", "eza", "fzf", "bat", "ripgrep", "vim"]'
+
+# 選裝工具 eza、fzf、bat、ripgrep:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
 CLI_TOOLS=(eza fzf bat rg)
 
 check_cli_tools() {
@@ -337,7 +350,7 @@ scenario_ubuntu() {
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
-  check "選擇沒變" "grep -qF 'tools = [\"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"nvm\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -393,12 +406,26 @@ scenario_ubuntu() {
   check "只裝了 tree" "tail -n 20 /var/log/apt/history.log | grep '^Commandline:' | tail -n 1 | grep -qx 'Commandline: apt-get install -y tree'"
   check "tree 已安裝" "dpkg-query -W -f='\${Status}' tree | grep -q 'install ok installed'"
 
+  # 舊機器:config 是拆基底之前存的(tools 沒有那六項、沒有 toolsSchema)。
+  # init 不加 --prompt 也要把六項補進 tools,不然下一次 apply 就不再管 .zshrc。
+  bold "▶ 舊 config(拆基底之前)跑 init"
+  step "把 config 改回舊格式:tools 拿掉六項、刪 toolsSchema" \
+    "sed -i -e '/^    toolsSchema = /d' -e '/^    tools = /{s/\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", //}' ~/.config/chezmoi/chezmoi.toml && ! grep -qE 'toolsSchema|\"zsh\"' ~/.config/chezmoi/chezmoi.toml"
+  check "init(不帶 --prompt、不給任何 prompt 旗標)exit 0" "chezmoi init --no-tty </dev/null"
+  for t in zsh eza fzf bat ripgrep vim; do
+    check "升級後 tools 有 $t" "grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -qF '\"$t\"'"
+  done
+  check "升級後寫回 toolsSchema = 2" "grep -qx '    toolsSchema = 2' ~/.config/chezmoi/chezmoi.toml"
+  check "chezmoi diff 不刪也不改 zsh 設定" "[ -z \"\$(chezmoi diff ~/.zshrc ~/.p10k.zsh ~/.config/zsh)\" ] && chezmoi managed | grep -qx .zshrc"
+  check "再 init 一次 tools 不變(不會重複加)" \
+    "before=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml) && chezmoi init --no-tty </dev/null && [ \"\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml)\" = \"\$before\" ]"
+
   # 原生 Termux 不出選單、不跑選裝腳本。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
   # 真的在 termux 容器跑 init 由 termux 目標負責。
   bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
   local android='{"chezmoi":{"os":"android"}}'
-  check "android 的 config 樣板不問選單,tools 是空的" \
-    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qx '    tools = \[\]' /tmp/android.toml"
+  check "android 的 config 樣板不問選單,tools 是以前基底的那六項" \
+    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/android.toml"
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
@@ -432,8 +459,8 @@ scenario_ubuntu() {
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
   bold "▶ (渲染)非 Debian 系 Linux 不出選單、apt 腳本渲染成空的"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
-  check "非 Debian 系的 config 樣板不問選單,tools 是空的" \
-    "chezmoi --config /tmp/fresh-fedora.toml execute-template --init --no-tty --override-data '$fedora' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/fedora.toml && grep -qx '    tools = \[\]' /tmp/fedora.toml"
+  check "非 Debian 系的 config 樣板不問選單,tools 是以前基底的那六項" \
+    "chezmoi --config /tmp/fresh-fedora.toml execute-template --init --no-tty --override-data '$fedora' $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl > /tmp/fedora.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/fedora.toml"
   local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
@@ -452,6 +479,27 @@ scenario_ubuntu() {
     "chezmoi execute-template --override-data '{\"tools\":[\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && ! grep -qE 'ffmpeg|mupdf-tools' /tmp/dm.sh && sh -n /tmp/dm.sh"
   check "三個都勾時套件腳本裝 ffmpeg、mupdf-tools、pandoc" \
     "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\",\"mupdf-tools\",\"pandoc\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && grep -q mupdf-tools /tmp/dm.sh && grep -q pandoc /tmp/dm.sh && sh -n /tmp/dm.sh"
+
+  # 基底只剩 git、curl、jq、python3;zsh、vim 走 toolPackages,eza 等走下載腳本,都是勾了才有。
+  bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
+  local none='{"tools":[]}'
+  # 前面「套件清單加一個套件」在 yaml 的 ubuntu 清單加了 tree,所以這裡是四項 + tree
+  check "沒勾任何工具時套件腳本只有基底四項" \
+    "chezmoi execute-template --override-data '$none' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/base.sh && sh -n /tmp/base.sh && grep -qx 'for pkg in git curl jq python3 tree; do' /tmp/base.sh"
+  check "只勾 vim 時套件腳本多 vim、沒有 zsh" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw vim && ! chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw zsh"
+  check "沒勾 zsh:不部署 .zshrc、.p10k.zsh、zsh 外掛" \
+    "! chezmoi managed --include all --override-data '$none' | grep -xE '\.zshrc|\.p10k\.zsh|\.config/zsh/(powerlevel10k|zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)'"
+  check "(對照)勾 zsh:.zshrc、.p10k.zsh、四個外掛都在" \
+    "[ \"\$(chezmoi managed --include all --override-data '{\"tools\":[\"zsh\"]}' | grep -cxE '\.zshrc|\.p10k\.zsh|\.config/zsh/(powerlevel10k|zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)')\" = 6 ]"
+  check "沒勾 zsh:改預設 shell 的腳本渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_once_after_set-default-shell.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "eza、fzf、bat、ripgrep 都沒勾時下載腳本渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "只勾 fzf 時下載腳本只下載 fzf" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli.sh && sh -n /tmp/cli.sh && [ \"\$(grep -E '^want ' /tmp/cli.sh)\" = 'want fzf install_fzf' ]"
+  check "wakatime 腳本不用 unzip(用 python3 -m zipfile)" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && ! grep -v '^ *#' /tmp/waka.sh | grep -qw unzip && grep -q '^ *python3 -m zipfile' /tmp/waka.sh"
 
   # 只勾 wakatime、沒勾 agent:不碰 agent 的 plugin。實裝那半在上面(agent 先勾、之後補勾 wakatime)。
   bold "▶ (渲染)只勾 wakatime 不裝 agent 的 WakaTime plugin"
@@ -491,10 +539,9 @@ DOCKERFILE
   make_fixtures
 }
 
-# Termux 基底:spec 的 zsh git curl vim openssh fastfetch,
-# 加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,指令是 python3),
-# 以及預設安裝的命令列工具(Linux 走下載腳本,Termux 走 pkg)。
-TERMUX_BASE=(zsh git curl vim openssh fastfetch jq python eza fzf bat ripgrep)
+# Termux 基底:git curl openssh,加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,
+# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 是自動帶入的選裝工具,走 pkg(toolPackages.termux)。
+TERMUX_BASE=(git curl openssh jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
 # (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。
@@ -536,8 +583,9 @@ scenario_termux() {
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
-  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是空清單、選裝腳本一支都沒跑
-  check "沒有選裝工具選單(config 的 tools 是空的)" "grep -qx '    tools = \\[\\]' ~/.config/chezmoi/chezmoi.toml"
+  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的六項、選裝腳本一支都沒跑
+  check "沒有選裝工具選單(config 的 tools 是自動帶入的六項)" "grep -qxF '$BASE_SPLIT_TOML' ~/.config/chezmoi/chezmoi.toml"
+  for t in zsh eza fzf bat ripgrep vim; do check_tool "$t"; done
   check "選裝工具的腳本一支都沒跑" \
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
