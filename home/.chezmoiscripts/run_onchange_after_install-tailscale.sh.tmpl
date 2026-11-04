@@ -34,13 +34,55 @@ echo "不會執行 tailscale up;請自行登入與設定。"
 {{- else }}
 {{ template "sh-skip" . }}
 # 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
-#    印 userspace 模式的手動步驟:tailscaled 變成只給這個使用者用的 proxy,不用 root。
-#    常駐:照手動步驟起過、登入過之後,.zshrc 開 zsh 時沒在跑就背景起 tailscaled;開機就起的做法只列選項。
-skip_root tailscale "改用 userspace 模式,不用 root:
-    1. 從 https://pkgs.tailscale.com/stable/#static 下載 tailscale_<版本>_<架構>.tgz,把 tailscale、tailscaled 放進 ~/.local/bin
-    2. 啟動:tailscaled --tun=userspace-networking --statedir=\$HOME/.local/state/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock --port=0 &
-    3. 登入:tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock up
-    4. 常駐:之後開 zsh 時沒在跑會自己背景起來(~/.zshrc 已經帶了);要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
-    5. ssh 連 tailnet 的機器:ProxyCommand 用 tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc %h %p(~/.ssh/config 的 company-ec2 已經帶了)"
+#    改走 userspace 模式(tailscaled 變成只給這個使用者用的 proxy,不用 root):官方 static tarball 的
+#    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。之後開 zsh 時 tailscaled 沒在跑
+#    就背景起來(.zshrc)。登入要人打開網址核准,記進略過彙整。
+#    跟 jq、ttyd 一樣抓最新版,chezmoi 不負責更新。下載失敗不讓 apply 失敗(沒有 root 時整個 apply 照樣
+#    exit 0),記進略過彙整。
+bin=$HOME/.local/bin
+state=$HOME/.local/state/tailscale
+sock='$HOME/.local/state/tailscale/tailscaled.sock' # 給人複製的字串,$HOME 留著不展開
+login="登入:開一個新的 zsh(tailscaled 沒在跑會自己背景起來),跑 tailscale --socket=$sock up,打開印出的網址核准
+    常駐:之後每次開 zsh 都會檢查;要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
+    ssh 連 tailnet 的機器:~/.ssh/config 的 company-ec2 已經帶 ProxyCommand(tailscale --socket=$sock nc %h %p)"
+
+# 2.1 已經裝過就不重新下載(腳本內容改了、run_onchange 重跑時)。還沒登入才再提醒一次
+if [ -x "$bin/tailscale" ] && [ -x "$bin/tailscaled" ]; then
+  echo "userspace tailscale 已經裝過(~/.local/bin),不重新下載"
+  mkdir -p "$state"
+  "$bin/tailscale" --socket="$state/tailscaled.sock" status >/dev/null 2>&1 || skip_root tailscale "$login"
+  exit 0
+fi
+
+# 2.2 架構對到官方 tarball 的名字
+case "$(uname -m)" in
+  x86_64) arch=amd64 ;;
+  aarch64 | arm64) arch=arm64 ;;
+  armv6l | armv7l) arch=arm ;;
+  i386 | i686) arch=386 ;;
+  *)
+    skip_root tailscale "官方沒有 $(uname -m) 的 static tarball,沒有裝 userspace tailscale"
+    exit 0
+    ;;
+esac
+url="https://pkgs.tailscale.com/stable/tailscale_latest_$arch.tgz"
+
+# 2.3 下載、解到暫存目錄,確認跑得起來才放進 ~/.local/bin;哪一步失敗都不留半套
+echo "沒有 root:下載官方 static tarball,把 tailscale、tailscaled 裝到 ~/.local/bin(userspace 模式)"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+if ! { curl -fsSL -o "$tmp/ts.tgz" "$url" && tar -xzf "$tmp/ts.tgz" -C "$tmp" &&
+  src=$(echo "$tmp"/tailscale_*_"$arch") && "$src/tailscale" version >/dev/null; }; then
+  skip_root tailscale "下載失敗($url),沒有裝 userspace tailscale。網路好了手動:下載那個 tgz,把裡面的 tailscale、tailscaled 放進 ~/.local/bin,再照下面登入
+    $login"
+  exit 0
+fi
+mkdir -p "$bin" "$state"
+cp "$src/tailscale" "$bin/.tailscale.tmp"
+cp "$src/tailscaled" "$bin/.tailscaled.tmp"
+mv -f "$bin/.tailscale.tmp" "$bin/tailscale"
+mv -f "$bin/.tailscaled.tmp" "$bin/tailscaled"
+echo "tailscale $("$bin/tailscale" version | head -n 1) 裝到 ~/.local/bin"
+skip_root tailscale "$login"
 {{- end }}
 {{ end -}}
