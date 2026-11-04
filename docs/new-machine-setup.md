@@ -2,7 +2,7 @@
 
 ## 適用範圍
 
-Linux、macOS 與原生 Termux。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
+Linux、macOS、原生 Termux 與 Windows 主機（WSL 外面那層 Windows）。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
 mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同一套步驟，有沒有 root 都行。
 目的是把一台全新的機器帶到這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
@@ -12,6 +12,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
 
@@ -20,7 +21,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 ```
 
 `chezmoi init --apply` 之後的套件、zsh、選裝工具全由 chezmoi 處理；這份只寫 chezmoi 之外要人做的事。
-Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密不會由文件代替你決定，
+SSH private key、各服務帳號登入、秘密不會由文件代替你決定，
 需要人工確認的地方會停下來。
 
 ## 交給 coding agent
@@ -52,7 +53,7 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 WSL2 另外做兩件事（都在 Windows 那側）：
 
 - 終端機字型裝在 Windows，見[終端機字型](fonts.md#windows-terminal)。
-- `.wslconfig` 參考 [`wsl/.wslconfig`](../wsl/.wslconfig)，手動放到 Windows 使用者目錄。
+- `.wslconfig` 由 Windows 主機上的 chezmoi 部署：在 Windows 照下面「[Windows 主機](#windows-主機)」那節 `chezmoi init --apply`。
 
 平板上的 proot Ubuntu 先照下面「平板」那節進到 proot，之後跟一般 Linux 一樣。
 
@@ -63,6 +64,31 @@ WSL2 另外做兩件事（都在 Windows 那側）：
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
 2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單不列 tailscale。
 3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
+
+### Windows 主機
+
+Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`。這節一路做到裝好，不用再看第 2 步。
+
+1. 在 PowerShell 用 winget 裝工具：
+
+   ```powershell
+   winget install twpayne.chezmoi Microsoft.PowerShell Starship.Starship Fastfetch-cli.Fastfetch ajeetdsouza.zoxide
+   ```
+
+   winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
+   `C:\Program Files\PowerShell\7`。git、tailscale 這類 GUI app 照舊從官網裝。
+2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](windows.md#documents-移出-onedrive)。
+3. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
+4. 開一次 Windows Terminal 再關掉：讓它產生 pwsh 7 的設定檔。沒開過的話，apply 只設得了字型，
+   預設設定檔要等下次 apply 才改成 pwsh 7。
+5. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
+
+   ```powershell
+   chezmoi init --apply henry5720
+   ```
+
+   不問任何問題。部署了什麼、裝完要在實機確認哪幾項，見[Windows 主機](windows.md)。
+6. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 

@@ -17,7 +17,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 ![打上面那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
 
 會問用途（完整／精簡／自訂）和要勾哪些選裝工具；勾到要憑證的工具才問憑證。clone 走 HTTPS，不用 key。
-macOS、Termux、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)。
+macOS、Termux、Windows 主機、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)。
 
 ## 裝完之後
 
@@ -46,7 +46,8 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
 | [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
 | [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
-| [WSL 常用指令](wsl/command.md) | port 轉發、mirrored 模式 |
+| [Windows 主機](docs/windows.md) | Windows 上的 chezmoi 部署什麼、改完要在實機確認哪幾項 |
+| [WSL 網路](docs/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
 
 **coding agent**
@@ -94,6 +95,9 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_zshrc                   → ~/.zshrc
 ├── modify_dot_bashrc.tmpl      → ~/.bashrc 最後加段落：starship、沒有 root 時切 zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
+├── dot_wslconfig               → Windows 主機的 %USERPROFILE%\.wslconfig（只部署到 Windows）
+├── Documents/                  → Windows 主機的 Documents\：pwsh 7 與 5.1 的 PowerShell profile（只部署到 Windows）
+├── AppData/                    → Windows 主機的 %LOCALAPPDATA%：Windows Terminal 的預設設定檔與字型（只部署到 Windows）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
@@ -106,7 +110,6 @@ script/                         不部署，自己手動跑
 ├── tests/                      容器 e2e 與單元測試
 └── demo/                       重錄 README 與工具一覽的截圖、安裝 GIF
 docs/                           說明（見上面的文件索引）
-wsl/                            Windows 側參考檔，之後由 Windows 上的 chezmoi 管
 ```
 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
@@ -114,8 +117,8 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
   skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
-- `wsl/` 怎麼交給 Windows 上的 chezmoi，見
-  [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
+- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案，見[Windows 主機](docs/windows.md)；
+  為什麼這樣分見 [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
 - chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 
 ### fork 前要改什麼

@@ -99,7 +99,7 @@ ssh phone
 
 **全部都能用。B 最省事。**
 
-作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（`wsl/.wslconfig`），
+作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（[`home/dot_wslconfig`](../home/dot_wslconfig)），
 eth0 上直接掛著 tailnet IP `100.119.136.27`，WSL 裡的服務綁 `127.0.0.1`，
 Windows 側也看得到，中間不用接任何東西。
 

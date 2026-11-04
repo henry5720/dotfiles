@@ -69,7 +69,7 @@ npm 全域套件綁在當前 node 版本(`npm config get prefix` 是 `~/.nvm/ver
 後兩個不值得:54 個檔 agent 直接讀還更準。dotfiles 這種幾乎只有 shell script 和設定檔的 repo
 特別不值得 —— codegraph 不解析那兩種。
 
-⚠️ **峰值記憶體 2.9 GB。** `wsl/.wslconfig` 給 16 GB,別讓兩三個 init 同時跑。
+⚠️ **峰值記憶體 2.9 GB。** [`.wslconfig`](../home/dot_wslconfig) 給 16 GB,別讓兩三個 init 同時跑。
 
 ## 每個 repo 接上
 
