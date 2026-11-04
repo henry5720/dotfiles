@@ -2,8 +2,9 @@
 
 ## 適用範圍
 
-Ubuntu（WSL2、雲端主機、平板上的 proot Ubuntu）、原生 Termux 與 macOS。目的是把一台全新的機器帶到
-這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
+Linux、macOS 與原生 Termux。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
+mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同一套步驟，有沒有 root 都行。
+目的是把一台全新的機器帶到這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
 ```text
 機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
@@ -34,15 +35,17 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 
 ## 1. 前置（機器本身）
 
-### WSL2
+### Linux（Ubuntu 等）
 
-- Windows 裝好 WSL2 Ubuntu，進到一般使用者的 shell。
-- 終端機字型裝在 Windows 那側，見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)。
+拿到一個一般使用者的 shell 就好：本機、SSH 進雲端主機、WSL2 都一樣。帳號不一定要能 `sudo`
+（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台。
+
+WSL2 另外做兩件事（都在 Windows 那側）：
+
+- 終端機字型裝在 Windows，見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)。
 - `.wslconfig` 參考 [`wsl/.wslconfig`](../wsl/.wslconfig)，手動放到 Windows 使用者目錄。
 
-### 雲端主機
-
-能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你連線那端的終端機。
+平板上的 proot Ubuntu 先照下面「平板」那節進到 proot，之後跟一般 Linux 一樣。
 
 ### macOS
 
@@ -70,7 +73,7 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
    ```
 
    腳本會建一般使用者、裝 sudo 與 curl、設密碼，可以重跑。登入後把它當成一台 Ubuntu，跑第 2 步
-   Ubuntu 那行。
+   Linux 那行。
 
 ## 2. 裝 chezmoi 與 dotfiles
 
@@ -118,11 +121,11 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 | 機器 | 指令 |
 |---|---|
-| Ubuntu（WSL、雲端主機、proot Ubuntu） | `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720` |
+| Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都一樣） | `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720` |
 | 原生 Termux | `pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720` |
 | macOS（先做完第 1 步的 Homebrew） | `brew install chezmoi && chezmoi init --apply henry5720` |
 
-- Ubuntu 那行在家目錄跑：`/lb` 把 chezmoi 裝到**目前目錄**的 `.local/bin`（不帶 `/lb` 會裝到 `./bin`）。
+- Linux 那行在家目錄跑：`/lb` 把 chezmoi 裝到**目前目錄**的 `.local/bin`（不帶 `/lb` 會裝到 `./bin`）。
 - 不帶 `--ssh`：dotfiles 是公開 repo，chezmoi 用 `https://github.com/henry5720/dotfiles.git` clone，
   不用 key。`--ssh` 一定要 key。
 - Termux 先 `pkg upgrade`：Termux 不支援部分升級，套件版本對不上會裝失敗。`get.chezmoi.io`
