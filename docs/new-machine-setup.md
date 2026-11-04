@@ -38,11 +38,11 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 ### Linux（Ubuntu 等）
 
 拿到一個一般使用者的 shell 就好：本機、SSH 進雲端主機、WSL2 都一樣。帳號不一定要能 `sudo`
-（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台。
+（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台（見[終端機字型](fonts.md)）。
 
 WSL2 另外做兩件事（都在 Windows 那側）：
 
-- 終端機字型裝在 Windows，見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)。
+- 終端機字型裝在 Windows，見[終端機字型](fonts.md#windows-terminal)。
 - `.wslconfig` 參考 [`wsl/.wslconfig`](../wsl/.wslconfig)，手動放到 Windows 使用者目錄。
 
 平板上的 proot Ubuntu 先照下面「平板」那節進到 proot，之後跟一般 Linux 一樣。
@@ -53,7 +53,7 @@ WSL2 另外做兩件事（都在 Windows 那側）：
    git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
 2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單不列 tailscale。
-3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font（例如 Hack Nerd Font）。
+3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 

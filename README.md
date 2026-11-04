@@ -113,7 +113,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | 文件 | 什麼時候看 |
 |---|---|
 | [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
-| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key、字型 |
+| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
 | [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
 | [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 
@@ -121,6 +121,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 | 文件 | 什麼時候看 |
 |---|---|
+| [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 | [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
 | [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
@@ -131,7 +132,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
 | [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
-| [WSL 常用指令](wsl/command.md) | Windows 終端機字型、port 轉發 |
+| [WSL 常用指令](wsl/command.md) | port 轉發、mirrored 模式 |
 | [Issue 生命週期](docs/issue-lifecycle.md) | 看 issue 從待接到完成在 GitHub 上留什麼 |
 
 **背景與決策**
