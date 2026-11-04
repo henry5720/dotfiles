@@ -130,6 +130,23 @@ Host company-ec2-attach
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
 
+# 網站擋機房 IP、agent 要借這台的對外 IP 時才連:`ssh -N company-ec2-socks`,用完 Ctrl-C 關掉。
+# RemoteForward 只寫 port、不寫目的地 = 反向 SOCKS:EC2 的 127.0.0.1:1080 進來的連線由這台的 ssh 代連出去,
+# EC2 上的 headless Chrome 帶 proxy 指到 1080(agent-config 的 personal-pc-tunnel skill)。不放進一般的
+# company-ec2:平常 agent 的流量不該經過這台,EC2 的 1080 也只有一個位子。位子被占著就直接失敗。
+Host company-ec2-socks
+    HostName 100.98.146.109
+    User ubuntu
+    IdentityFile ~/.ssh/company-henry.pem
+    IdentitiesOnly yes
+    RemoteForward 127.0.0.1:1080
+    ExitOnForwardFailure yes
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+{{- if includeTemplate "tailscale-userspace" . }}
+    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
+{{- end }}
+
 # 備用:EC2 的 tailscale 掛掉時走公網 IP。
 Host company-ec2-public
     HostName 18.141.90.104

@@ -131,6 +131,14 @@ check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有裝 a
   fi
 }
 
+# 擋機房 IP:a1 經人那台的反向 SOCKS(#265)。ssh config 有只在要用時連的 company-ec2-socks
+# (RemoteForward 1080 不帶目的地 = 人那台當 SOCKS proxy,只綁 EC2 的 127.0.0.1、ExitOnForwardFailure)。
+check_personal_pc_socks() {
+  # 新版 OpenSSH 的 ssh -G 把反向 SOCKS 印成 [127.0.0.1]:1080 [socks]:0,比對前拿掉括號和 socks 那欄
+  check "ssh config 的 company-ec2-socks:RemoteForward 只有 127.0.0.1:1080(反向 SOCKS)、ExitOnForwardFailure yes" \
+    "c=\$(ssh -G company-ec2-socks) && grep -i '^remoteforward' <<<\"\$c\" && [ \"\$(grep -i '^remoteforward' <<<\"\$c\" | tr -d '[]' | sed 's/ socks:0\$//')\" = 'remoteforward 127.0.0.1:1080' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\" && ! grep -Ei '^(localforward|dynamicforward) ' <<<\"\$c\""
+}
+
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
 # 所以要跟 home/.chezmoi.toml.tmpl 的提示文字一字不差;漏了會在 init 時看到 EOF 和那句提示。
 # 憑證只在勾了用得到的工具時才問(#213),多給的旗標沒問到就不用。
@@ -487,6 +495,7 @@ scenario_ubuntu() {
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_remote_chrome yes
   check_personal_chrome_attach yes
+  check_personal_pc_socks
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -1011,6 +1020,7 @@ scenario_termux() {
   # Termux 沒勾 agent-config:symlink 照部署,指不到檔案是預期的
   check_remote_chrome no
   check_personal_chrome_attach no
+  check_personal_pc_socks
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1278,6 +1288,7 @@ noroot_full_checks() {
   check_ssh_client
   check_remote_chrome yes
   check_personal_chrome_attach yes
+  check_personal_pc_socks
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

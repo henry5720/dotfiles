@@ -59,7 +59,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
 | [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
 | [remote-chrome](https://github.com/henry5720/agent-config/blob/main/skills/remote-chrome/reference.md)（在 agent-config） | 查原因前開 headless Chrome 給 chrome-devtools MCP、排錯 9222 |
-| [personal-pc-tunnel](https://github.com/henry5720/agent-config/blob/main/docs/skills/personal-pc-tunnel.md)（在 agent-config） | 一定要你自己的 Chrome 時（passkey、硬體金鑰、裝置 SSO）讓 agent 接上：`personal-chrome-attach` + `ssh -N company-ec2-attach` |
+| [personal-pc-tunnel](https://github.com/henry5720/agent-config/blob/main/docs/skills/personal-pc-tunnel.md)（在 agent-config） | 一定要你自己的 Chrome 時（passkey、硬體金鑰、裝置 SSO）讓 agent 接上：`personal-chrome-attach` + `ssh -N company-ec2-attach`；網站擋機房 IP 時借你那台的對外 IP：`ssh -N company-ec2-socks` |
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 
 **連線與分享**
