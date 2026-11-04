@@ -101,7 +101,7 @@ check_git_remotes() {
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
-# remote-chrome 只剩 a1(#261):ssh config 不再有把桌機 Chrome 的 9222 帶到遠端的 Host,
+# remote-chrome 只剩 headless 瀏覽器(#261):ssh config 不再有把個人電腦 Chrome 的 9222 帶到遠端的 Host,
 # ~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
 # 有裝 agent-config 才看得到腳本(fixture 放了一支假的);沒裝時只看 symlink 指向哪。
 RC_HEADLESS_TARGET='$HOME/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless'
@@ -117,25 +117,29 @@ check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no
   fi
 }
 
-# a2:接人日常的 Chrome(#264)。ssh config 有只在要用時連的 company-ec2-attach(LocalForward 9555,
-# 只綁 127.0.0.1、ExitOnForwardFailure),一般的 company-ec2 不帶轉發;~/.local/bin/personal-chrome-attach
-# 指向 agent-config 的 personal-pc-tunnel skill(fixture 放的是 agent-config 的真腳本,見 container.sh)。
-A2_TARGET='$HOME/.config/skillshare/skills/personal-pc-tunnel/scripts/personal-chrome-attach'
-check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有裝 agent-config:yes|no>
+# 接個人電腦日常的 Chrome(#264)。ssh config 有只在要用時連的 company-ec2-attach(LocalForward 9555,
+# 只綁 127.0.0.1、ExitOnForwardFailure),一般的 company-ec2 不帶轉發。
+# ~/.local/bin/personal-chrome-attach 指向 agent-config 的 personal-pc-tunnel skill,勾了 playwright-cli
+# 和 agent-config 才部署(.chezmoiignore);fixture 放的是 agent-config 的真腳本,見 container.sh。
+ATTACH_TARGET='$HOME/.config/skillshare/skills/personal-pc-tunnel/scripts/personal-chrome-attach'
+check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有勾 playwright-cli 和 agent-config:yes|no>
   # 新版 OpenSSH(Termux)的 ssh -G 把位址印成 [127.0.0.1]:9555,比對前拿掉括號
   check "ssh config 的 company-ec2-attach:LocalForward 只有 127.0.0.1:9555、ExitOnForwardFailure yes" \
     "c=\$(ssh -G company-ec2-attach) && grep -i '^localforward' <<<\"\$c\" && [ \"\$(grep -i '^localforward' <<<\"\$c\" | tr -d '[]')\" = 'localforward 127.0.0.1:9555 127.0.0.1:9555' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\""
   check "一般的 company-ec2 不帶任何轉發" \
     "! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
-  check "personal-chrome-attach 指向 agent-config 的腳本" \
-    "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$A2_TARGET\" ]"
   if [ "$1" = yes ]; then
+    check "personal-chrome-attach 指向 agent-config 的腳本" \
+      "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$ATTACH_TARGET\" ]"
     check "personal-chrome-attach 指得到檔案、可執行" "[ -f ~/.local/bin/personal-chrome-attach ] && [ -x ~/.local/bin/personal-chrome-attach ]"
+  else
+    check "沒有 ~/.local/bin/personal-chrome-attach(沒勾 playwright-cli、agent-config 不部署)" \
+      "[ ! -e ~/.local/bin/personal-chrome-attach ] && [ ! -L ~/.local/bin/personal-chrome-attach ]"
   fi
 }
 
-# 擋機房 IP:a1 經人那台的反向 SOCKS(#265)。ssh config 有只在要用時連的 company-ec2-socks
-# (RemoteForward 1080 不帶目的地 = 人那台當 SOCKS proxy,只綁 EC2 的 127.0.0.1、ExitOnForwardFailure)。
+# 擋機房 IP:headless 瀏覽器經個人電腦的反向 SOCKS(#265)。ssh config 有只在要用時連的 company-ec2-socks
+# (RemoteForward 1080 不帶目的地 = 個人電腦當 SOCKS proxy,只綁 EC2 的 127.0.0.1、ExitOnForwardFailure)。
 check_personal_pc_socks() {
   # 新版 OpenSSH 的 ssh -G 把反向 SOCKS 印成 [127.0.0.1]:1080 [socks]:0,比對前拿掉括號和 socks 那欄
   check "ssh config 的 company-ec2-socks:RemoteForward 只有 127.0.0.1:1080(反向 SOCKS)、ExitOnForwardFailure yes" \
@@ -1021,7 +1025,8 @@ scenario_termux() {
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
     "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
-  # Termux 沒勾 agent-config:symlink 照部署,指不到檔案是預期的
+  # Termux 沒勾 agent-config:remote-chrome-headless 照部署(指不到檔案是預期的);
+  # personal-chrome-attach 要勾 playwright-cli 和 agent-config 才部署,Termux 沒有
   check_remote_chrome no
   check_personal_chrome_attach no
   check_personal_pc_socks
