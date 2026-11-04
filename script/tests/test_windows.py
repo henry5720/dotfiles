@@ -3,7 +3,7 @@
 在 Linux 上驗 chezmoi 對這個 repo 會管哪些 target、config 樣板渲染出什麼(spec #254 的 Testing Decisions)。
 
 Windows 白名單多一個檔案時:改 home/.chezmoiignore 的 Windows 段,再把 target 加進下面的 WINDOWS_TARGETS。
-實機才驗得到的(PowerShell 讀不讀 profile、Terminal 讀不讀 settings.json)在 docs/windows.md 的實機清單。
+實機才驗得到的(PowerShell 讀不讀 profile、Terminal 讀不讀 settings.json)在 AGENTS.md「怎麼驗證」的實機清單。
 """
 import json
 import subprocess

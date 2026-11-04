@@ -27,7 +27,7 @@ macOS、Termux、Windows 主機、免回答的裝法、事前準備、各種機�
 | 知道裝了什麼、各自怎麼用 | [工具一覽](docs/tools.md) |
 | 從個人電腦連進這台、開 herdr 與 coding agent、傳檔案 | [操作已配置主機](docs/configured-host.md) |
 | 加減選裝工具、改 API key 與密碼、拉最新版 | [改設定與更新](docs/after-install.md) |
-| Windows 主機：拉最新版、PowerShell 的 `z`、補全、灰字建議 | [Windows 主機的裝完之後](docs/windows.md#裝完之後) |
+| Windows 主機：裝了什麼、PowerShell 的 `z`、補全、灰字建議 | [Windows 主機：裝了什麼、怎麼用](docs/windows.md#裝了什麼怎麼用) |
 
 最常用的兩個：
 
@@ -48,7 +48,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
 | [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
 | [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
-| [Windows 主機](docs/windows.md) | Windows 上的 chezmoi 部署什麼、裝完怎麼用、改完要在實機確認哪幾項、怎麼在實機測分支 |
+| [Windows 主機](docs/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
 | [WSL 網路](docs/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
 
