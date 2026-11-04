@@ -75,8 +75,11 @@ bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使�
 
 容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、README 的安裝指令時唯一能從零驗證的
 方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
-測的是工作目錄(含未 commit 的修改),不碰本機家目錄。檢查清單與環境變數(`E2E_TAG`、
-`E2E_KEEP`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
+測的是工作目錄(含未 commit 的修改)加上 `AGENT_CONFIG_DIR` 指定的 agent-config checkout
+(預設 `~/.config/skillshare`,找不到就直接失敗),不碰本機家目錄。agent-config 在容器裡是假 remote:
+`personal-chrome-attach` 從那份 checkout 複製真腳本,其他 skill 與腳本是 fixture 自己寫的假檔
+(`script/tests/container.sh` 的 `make_fixtures`)。改 agent-config 那支腳本時,`AGENT_CONFIG_DIR` 指到自己的 worktree。
+檢查清單與環境變數(`E2E_TAG`、`E2E_KEEP`、`AGENT_CONFIG_DIR`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。

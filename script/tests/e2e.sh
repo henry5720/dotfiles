@@ -8,10 +8,13 @@
 # 環境變數:
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
-#   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),fixture 從這裡拿
-#                    personal-chrome-attach 的真腳本;改 agent-config 那支時指到自己的 worktree
+#   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),找不到就直接失敗。
+#                    改 agent-config 的 personal-chrome-attach 時指到自己的 worktree
 #
-# 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub:
+# 測的是 repo 的工作目錄(含未 commit 的修改)加上 AGENT_CONFIG_DIR 指定的 agent-config checkout,不經過 GitHub。
+# agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):personal-chrome-attach 是從那份 checkout
+# 複製的真腳本(工作目錄的現況,含未 commit),其他 skill、remote-chrome-headless 都是 fixture 自己寫的假檔。
+# dotfiles 這邊:
 # 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
 # 再照抄 README 那行:source 已經在,chezmoi init 就不 clone,直接用它渲染、apply。
 # (不把路徑直接給 init:clone 本機路徑要外部 git,連 go-git 也是,但全新機器還沒有 git。
