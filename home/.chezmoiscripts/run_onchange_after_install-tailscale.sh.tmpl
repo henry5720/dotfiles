@@ -13,8 +13,9 @@ if tailscale_running; then
 fi
 {{- if includeTemplate "has-root" . }}
 {{ template "sh-sudo" . }}
-# 2. 裝(官方 installer 會加 apt 來源)
-if command -v tailscale >/dev/null 2>&1; then
+# 2. 裝(官方 installer 會加 apt 來源)。~/.local/bin 那份是沒有 root 時裝的 userspace 版,不算:
+#    它沒有系統的 tailscaled unit,下面 systemctl enable 會失敗
+if p=$(command -v tailscale) && [ "$p" != "$HOME/.local/bin/tailscale" ]; then
   echo "tailscale 已安裝,跳過安裝"
 else
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
@@ -35,22 +36,31 @@ echo "不會執行 tailscale up;請自行登入與設定。"
 {{ template "sh-skip" . }}
 # 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
 #    改走 userspace 模式(tailscaled 變成只給這個使用者用的 proxy,不用 root):官方 static tarball 的
-#    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。之後開 zsh 時 tailscaled 沒在跑
-#    就背景起來(.zshrc)。登入要人打開網址核准,記進略過彙整。
+#    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。勾了 zsh 的話,之後開 zsh 時
+#    tailscaled 沒在跑就背景起來(.zshrc);沒勾 zsh 就沒有 .zshrc,提示裡給手動啟動的指令。
+#    登入要人打開網址核准,記進略過彙整。
 #    跟 jq、ttyd 一樣抓最新版,chezmoi 不負責更新。下載失敗不讓 apply 失敗(沒有 root 時整個 apply 照樣
 #    exit 0),記進略過彙整。
 bin=$HOME/.local/bin
 state=$HOME/.local/state/tailscale
 sock='$HOME/.local/state/tailscale/tailscaled.sock' # 給人複製的字串,$HOME 留著不展開
-login="登入:開一個新的 zsh(tailscaled 沒在跑會自己背景起來),跑 tailscale --socket=$sock up,打開印出的網址核准
-    常駐:之後每次開 zsh 都會檢查;要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
+{{- if has "zsh" (index . "tools") }}
+start="開一個新的 zsh(tailscaled 沒在跑會自己背景起來)"
+keep="之後每次開 zsh 都會檢查"
+{{- else }}
+start="啟動 tailscaled --tun=userspace-networking --statedir=\$HOME/.local/state/tailscale --socket=$sock --port=0 &"
+keep="沒勾 zsh,不會自己起來,每次要用先照上面啟動"
+{{- end }}
+login_hint="登入:$start,再跑 tailscale --socket=$sock up,打開印出的網址核准
+    常駐:$keep;要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
     ssh 連 tailnet 的機器:~/.ssh/config 的 company-ec2 已經帶 ProxyCommand(tailscale --socket=$sock nc %h %p)"
 
 # 2.1 已經裝過就不重新下載(腳本內容改了、run_onchange 重跑時)。還沒登入才再提醒一次
+#     (tailscaled 沒在跑時 status 也失敗,會多提醒一次,不影響結果)
 if [ -x "$bin/tailscale" ] && [ -x "$bin/tailscaled" ]; then
   echo "userspace tailscale 已經裝過(~/.local/bin),不重新下載"
   mkdir -p "$state"
-  "$bin/tailscale" --socket="$state/tailscaled.sock" status >/dev/null 2>&1 || skip_root tailscale "$login"
+  "$bin/tailscale" --socket="$state/tailscaled.sock" status >/dev/null 2>&1 || skip_root tailscale "$login_hint"
   exit 0
 fi
 
@@ -74,7 +84,7 @@ trap 'rm -rf "$tmp"' EXIT
 if ! { curl -fsSL -o "$tmp/ts.tgz" "$url" && tar -xzf "$tmp/ts.tgz" -C "$tmp" &&
   src=$(echo "$tmp"/tailscale_*_"$arch") && "$src/tailscale" version >/dev/null; }; then
   skip_root tailscale "下載失敗($url),沒有裝 userspace tailscale。網路好了手動:下載那個 tgz,把裡面的 tailscale、tailscaled 放進 ~/.local/bin,再照下面登入
-    $login"
+    $login_hint"
   exit 0
 fi
 mkdir -p "$bin" "$state"
@@ -83,6 +93,6 @@ cp "$src/tailscaled" "$bin/.tailscaled.tmp"
 mv -f "$bin/.tailscale.tmp" "$bin/tailscale"
 mv -f "$bin/.tailscaled.tmp" "$bin/tailscaled"
 echo "tailscale $("$bin/tailscale" version | head -n 1) 裝到 ~/.local/bin"
-skip_root tailscale "$login"
+skip_root tailscale "$login_hint"
 {{- end }}
 {{ end -}}

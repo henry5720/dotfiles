@@ -926,7 +926,9 @@ RUN apt-get update \
  && printf '#!/bin/sh\necho "VIM - e2e system stub"\n' > /usr/local/bin/vim && chmod 755 /usr/local/bin/vim
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
+  # --init:PID 1 換成會回收子程序的 tini。apply 裝的 userspace tailscaled 會被 zsh 背景起來,
+  # 測試停掉它之後,sleep 當 PID 1 不回收,留下的 zombie 讓 pgrep 以為還在跑
+  docker run -d --init --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
   local u
   for u in "${NOROOT_USERS[@]}"; do use_user "$u"; make_fixtures; done
 }
@@ -1083,6 +1085,14 @@ SH
   # 同一支渲染好的腳本,換一個空的 HOME 跑:沒裝過、curl 失敗
   check "tailscale 下載失敗:記進略過彙整、exit 0、不留半套" \
     "rm -rf /tmp/ts-home && mkdir -p /tmp/ts-home && out=\$(HOME=/tmp/ts-home PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home/.local/state/dotfiles/root-skipped && [ ! -e /tmp/ts-home/.local/bin/tailscale ] && [ ! -e /tmp/ts-home/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home; exit \$r"
+  # 之後拿到 root:~/.local/bin 的 userspace 版不算已安裝(它沒有系統 unit,systemctl enable 會失敗),要走官方 installer。
+  # 用會成功的 sudo stub 渲染成有 root 那版,curl stub 記錄呼叫(一定失敗,腳本停在下載)
+  put_root_file /opt/e2e-stub/sudo-ok/sudo 755 <<'SH'
+#!/bin/sh
+exit 0
+SH
+  check "有 root 時不把 ~/.local/bin 的 userspace tailscale 當成已安裝,改跑官方 installer" \
+    "rm -f /tmp/e2e-curl.log && PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-root.sh && out=\$(PATH=/opt/e2e-stub/curl-log:/opt/e2e-stub/sudo-ok:\$PATH sh /tmp/ts-root.sh 2>&1); echo \"\$out\"; ! grep -q '已安裝' <<<\"\$out\" && grep -q 'tailscale.com/install.sh' /tmp/e2e-curl.log"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
   # userspace tailscaled 常駐:用一支叫 tailscaled 的假程式(只會等),看開 zsh 時沒在跑會不會被起來、在跑時不會多起一支。

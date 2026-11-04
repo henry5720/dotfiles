@@ -34,14 +34,14 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 | 項目 | 沒有 root 時怎麼做 |
 |---|---|
-| jq | 系統沒有就從 GitHub release 裝到 `~/.local/bin` |
+| jq | 系統沒有就從 GitHub release 裝到 `~/.local/bin`；非 Debian 系 Linux 也一樣 |
 | zsh（勾了才有） | 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`；有 root、非 Debian 系也一樣 |
 | bash 切 zsh | 不 `chsh`：`~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間），互動式 bash 一啟動就 `exec zsh`；`bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh |
 | `~/.profile` | 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時補一個：把 `~/.local/bin` 加進 PATH、source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去 |
 | `TERM` | 沒設時 `.zshrc` 補成 `xterm-256color` |
-| ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。只做 Debian 系 |
-| 本來走 apt 的工具 | vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄 |
-| tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
+| ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝 |
+| 本來走 apt 的工具 | vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
+| tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
 mise 的細節：
 
@@ -61,7 +61,7 @@ mise 的細節：
 | 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
 | headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
-| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph、playwright-cli 跟著略過） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 | ssh | 解不開 openssh-client 時才有，請有 root 的人裝 |
 
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
@@ -70,19 +70,27 @@ mise 的細節：
 
 ## 2. 登入 tailscale
 
-系統的 tailscaled 已經在跑（例如管理員裝好的機器）時，chezmoi 整段跳過、直接用系統那份，這一步也不用做。
+系統的 tailscaled 已經在跑（例如管理員裝好的機器；`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，
+chezmoi 整段跳過、直接用系統那份，有沒有 root 都一樣、不會叫 sudo，這一步也不用做。
 
 否則 tailscaled 走 userspace 模式：只給這個使用者用的 proxy，不用 root，有自己的 socket。
 
-1. 開一個新的 zsh（或 `exec zsh`）：tailscaled 沒在跑會自己背景起來，log 在 `~/.local/state/tailscale/tailscaled.log`
+1. 起 tailscaled。勾了 zsh：開一個新的 zsh（或 `exec zsh`），沒在跑會自己背景起來，log 在
+   `~/.local/state/tailscale/tailscaled.log`。沒勾 zsh：自己起，
+
+   ```bash
+   tailscaled --tun=userspace-networking --statedir=$HOME/.local/state/tailscale \
+     --socket=$HOME/.local/state/tailscale/tailscaled.sock --port=0 &
+   ```
+
 2. 登入，打開印出的網址核准：
 
    ```bash
    tailscale --socket=$HOME/.local/state/tailscale/tailscaled.sock up
    ```
 
-之後每次開 zsh 都會檢查、沒在跑就起來；登入狀態在 `~/.local/state/tailscale`，不用重新登入。
-要開機就起，用 systemd user service（要 `loginctl enable-linger`，通常要管理員）或 crontab 的 `@reboot`。
+登入狀態在 `~/.local/state/tailscale`，不用重新登入。勾了 zsh 的話之後每次開 zsh 都會檢查、沒在跑就起來；
+沒勾 zsh 就每次用之前照第 1 步起。要開機就起，用 systemd user service（要 `loginctl enable-linger`，通常要管理員）或 crontab 的 `@reboot`。
 
 `~/.ssh/config` 的 `company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`，
 登入之後 `ssh company-ec2` 就經 tailnet 連過去。其他 Host 不變。
