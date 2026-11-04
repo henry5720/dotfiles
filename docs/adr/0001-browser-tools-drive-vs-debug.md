@@ -10,11 +10,11 @@
 
 常見的接法：用 `playwright-cli` 驗收 → 卡在「為什麼」就換 chrome-devtools-mcp → 修好 → 值得防回歸的才寫成 e2e，一次性的修正不寫。
 
-company-ec2 上的 headless（a1）留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
+company-ec2 上的 headless 瀏覽器留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
 
 - **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。
-- **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=9222`，讓 MCP 在 ec2 自己開 Chrome 的話，a2 就接不上。
-- **人要看 a1 畫面**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
+- **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=http://127.0.0.1:9222`，MCP 只負責接、不自己開 Chrome：Chrome 由這支開、用完收掉，9222 只在查原因時佔著。
+- **人要看畫面、接手**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
 
 一定要人自己的瀏覽器時（passkey、硬體金鑰、裝置 SSO），操作還是 Playwright：`playwright-cli attach --extension=chrome` 接人在個人電腦上日常的 Chrome（2026-11-04 實測，[#248](https://github.com/henry5720/dotfiles/issues/248)）。
 agent-config 的 `personal-pc-tunnel` skill 附的 `personal-chrome-attach` 把 relay 固定在 127.0.0.1:9555，人開 `ssh -N company-ec2-attach`、把網址貼進新分頁；agent 只看得到那一個分頁，用完 `detach`，Chrome 和分頁留著。
