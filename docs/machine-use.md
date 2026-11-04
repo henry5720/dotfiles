@@ -16,7 +16,7 @@
 以前存中文（`完整`／`精簡`／`自訂`）的機器，下次 `chezmoi init` 會換成代號，勾選不變。
 第一次 init 預設停在精簡，直接 Enter 就是精簡。
 
-選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上。
+選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上（拉新版時用 `chezmoi update --init`，見[裝完之後](after-install.md)）。
 改過勾選就存成自訂，照你勾的、不再跟著預設組合走。
 
 - 原生 Termux 不問，直接套精簡、濾掉 tailscale、btop。

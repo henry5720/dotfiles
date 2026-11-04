@@ -19,7 +19,9 @@
 │    chezmoi edit-config ──→ 改 [data] 那一行 ──→ chezmoi apply ──→ 寫進下表右欄
 │
 ├─ 拉 repo 最新版
-│    chezmoi update（= git pull + apply）
+│    chezmoi update --init（= git pull + 照新的 config 樣板重算勾選 + apply）
+│    不加 --init，apply 用的是舊的勾選：repo 新加進預設組合的工具不會裝，
+│    換掉的工具卻照樣被清掉（例如 #194：p10k 先被刪，starship 要等下次 init 才裝）
 │
 └─ 不小心直接改了家目錄的檔
      chezmoi re-add <檔案> ──→ 收回 repo（不收，下次 apply 會被蓋回去）
