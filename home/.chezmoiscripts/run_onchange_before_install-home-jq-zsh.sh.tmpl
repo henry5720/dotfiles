@@ -3,7 +3,7 @@
 # apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)把 jq 與 zsh 裝到家目錄。
 # 其他機器渲染成空的:有 root 的 Debian 系、Termux 由 install-packages 用 apt／pkg 裝,macOS 走 brew。
 # 這兩個不交給 mise:jq 要在 modify_ 之前就有(mise 是 after_ 才裝);zsh 用 zsh-bin,不用 conda 版
-# (會帶 CONDA_PREFIX,p10k 一直多顯示 anaconda)。
+# (會帶 CONDA_PREFIX,以前 p10k 因此一直多顯示 anaconda)。
 #
 # 名字帶 before_:在 modify_ 腳本(要 jq)之前跑;排在 install-packages 前面,
 # 沒有 root 的 Debian 系那支就不再把 jq、zsh 算成缺的套件。

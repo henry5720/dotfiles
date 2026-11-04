@@ -49,7 +49,7 @@ mise 的細節：
 - 指令在 `~/.local/share/mise/shims`，zsh 已加進 PATH；`mise ls` 看裝了什麼，`mise upgrade` 更新
 - mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
 
-不用 root 的工具照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+不用 root 的工具照常裝好（eza、fzf、bat、ripgrep、starship、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
 
 ### 略過彙整怎麼看
 
@@ -128,7 +128,7 @@ company-ec2 關了密碼登入，也沒開 Tailscale SSH，這台要一把 key�
 
 ## 字型（可選）
 
-p10k 的圖示變成方塊，不是 dotfiles 壞了：要改的是**你看畫面的那個終端機**的字型，跟 shell 在哪台機器無關。
+提示列（starship）的圖示變成方塊，不是 dotfiles 壞了：要改的是**你看畫面的那個終端機**的字型，跟 shell 在哪台機器無關。
 設成 Nerd Font（例 Hack Nerd Font）就好；不改也能用，只是圖示是方塊。
 
 | 你看畫面用的是 | 怎麼改 |

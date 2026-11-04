@@ -2,9 +2,9 @@
 
 ## 終端機字型（Hack Nerd Font）
 
-WSL 的畫面是 Windows Terminal 畫的，字型要裝在 Windows 那側，chezmoi 不管。沒裝的話 p10k
-的圖示會變方框或問號（`~/.p10k.zsh` 用 `nerdfont-v3`，任何 Nerd Font v3 都行，這裡跟
-Termux 一樣用 Hack）。每台 Windows 做一次：
+WSL 的畫面是 Windows Terminal 畫的，字型要裝在 Windows 那側，chezmoi 不管。沒裝的話 starship
+提示列和 eza 的圖示會變方框或問號（`~/.config/starship.toml` 的 tokyo-night preset 用 Nerd Font v3 的圖示，
+任何 Nerd Font v3 都行，這裡跟 Termux 一樣用 Hack）。每台 Windows 做一次：
 
 1. 下載 nerd-fonts v3.5.1 的
    [`Hack.zip`](https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.zip)，解壓縮。
@@ -13,7 +13,7 @@ Termux 一樣用 Hack）。每台 Windows 做一次：
    `HackNerdFontPropo-*`，那是另外兩種字寬。
 3. Windows Terminal：設定 → 設定檔「預設值」→ 外觀 → 字體，選 `Hack Nerd Font` → 儲存。
    只想改 Ubuntu 那個設定檔就改在它底下。
-4. 開一個新的 WSL 分頁，p10k 提示列的圖示應該正常顯示。
+4. 開一個新的 WSL 分頁，starship 提示列的圖示應該正常顯示。
 
 雲端主機不用裝：畫面是你連線那端的終端機畫的，字型裝在那一端。
 

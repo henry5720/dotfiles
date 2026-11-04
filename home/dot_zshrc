@@ -7,21 +7,13 @@
 # ===============================================================
 # 1. 開場系統資訊
 # ===============================================================
-# 會輸出到終端，必須放在 Powerlevel10k Instant Prompt 之前。
-# mise 裝的(apt 用不了的機器)要到第 3 段才進 PATH,這裡直接找 shim。
+# mise 裝的(apt 用不了的機器)要到第 2 段才進 PATH,這裡直接找 shim。
 if command -v fastfetch &>/dev/null; then fastfetch
 elif [[ -x $HOME/.local/share/mise/shims/fastfetch ]]; then $HOME/.local/share/mise/shims/fastfetch
 fi
 
 # ===============================================================
-# 2. Powerlevel10k 快速啟動 (Instant Prompt)
-# ===============================================================
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# ===============================================================
-# 3. 環境變數與路徑 (Path Settings)
+# 2. 環境變數與路徑 (Path Settings)
 # ===============================================================
 # 如果你有使用 pnpm (Senior Engineer 標配)
 export PNPM_HOME="$HOME/.local/share/pnpm"
@@ -36,7 +28,7 @@ export PATH="$HOME/.local/bin:$PATH"
 [[ -d $HOME/.local/share/mise/shims ]] && export PATH="$PATH:$HOME/.local/share/mise/shims"
 
 # userspace tailscale(沒有 root 時 install-tailscale 裝到 ~/.local/bin 的):tailscaled 不會常駐,工作區待命回來就沒了。
-# 開 zsh 時沒在跑就背景起來;登入狀態在 statedir,不用重新登入。輸出全導到 log,不干擾 instant prompt。
+# 開 zsh 時沒在跑就背景起來;登入狀態在 statedir,不用重新登入。輸出全導到 log,不印到終端機。
 # 只看「~/.local/bin 有 tailscaled、statedir 存在」:用系統 tailscale 的機器不會走到這裡。
 if [[ -x $HOME/.local/bin/tailscaled && -d $HOME/.local/state/tailscale ]] && (( $+commands[pgrep] )) \
     && ! pgrep -xu "$UID" tailscaled >/dev/null; then
@@ -69,7 +61,7 @@ export NVM_DIR="$HOME/.nvm"
 typeset -U path PATH
 
 # ===============================================================
-# 4. 歷史紀錄設定 (History)
+# 3. 歷史紀錄設定 (History)
 # ===============================================================
 HISTFILE=~/.zsh_history
 HISTSIZE=10000
@@ -82,14 +74,14 @@ setopt HIST_IGNORE_DUPS       # 忽略重複
 setopt HIST_IGNORE_SPACE      # 空格開頭不紀錄
 
 # ===============================================================
-# 5. 載入主題與個人化設定 (已搬移至 .config)
+# 4. 提示列 (starship)
 # ===============================================================
-[ -f ~/.config/zsh/powerlevel10k/powerlevel10k.zsh-theme ] \
-  && source ~/.config/zsh/powerlevel10k/powerlevel10k.zsh-theme
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# 選裝工具 starship 裝的,設定在 ~/.config/starship.toml(bash 用同一份,見 modify_dot_bashrc.tmpl)。
+# 沒裝就用 zsh 預設的提示列。放在第 2 段之後:~/.local/bin、mise shims 那時才在 PATH 上。
+(( $+commands[starship] )) && eval "$(starship init zsh)"
 
 # ===============================================================
-# 6. 補全系統與外掛 (Completion & Plugins)
+# 5. 補全系統與外掛 (Completion & Plugins)
 # ===============================================================
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
@@ -114,7 +106,7 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
   && source ~/.config/zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # ===============================================================
-# 7. 自定義別名 (Aliases)
+# 6. 自定義別名 (Aliases)
 # ===============================================================
 # ls、grep 只加顏色,不換成 eza、rg(參數意思不同);cat 也不換成 bat
 alias ls='ls --color=auto'

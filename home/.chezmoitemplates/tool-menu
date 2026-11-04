@@ -3,7 +3,8 @@
        script/tests/e2e.sh 也讀這份組出選單上的文字。
        說明從「用哪個工具做」寫起;不要用 /(e2e 的 --promptMultichoice 拿它分隔選項)。
        哪些機器不列哪幾項(WSL、ARM)寫在 .chezmoi.toml.tmpl。 */ -}}
-zsh zsh、p10k 主題、自動建議／跳目錄／語法上色外掛,並改成預設 shell
+zsh zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell
+starship 提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定
 eza 彩色、帶圖示的 ls(ll、la、lt 用它)
 fzf 模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案
 bat 有語法上色的 cat

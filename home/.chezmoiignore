@@ -4,14 +4,23 @@
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
 .zshrc
-.p10k.zsh
 .config/zsh/env.zsh
 {{ end }}
-{{ if or (not (has "zsh" (index . "tools"))) (not (includeTemplate "use-mise" .)) }}
-# 只有 apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)、勾了 zsh 才要:
-# zsh 是 zsh-bin 裝到家目錄的,改由互動式 bash 切 zsh(modify_dot_bashrc.tmpl)與補 .profile。
-# 有 root 的 Debian 系、Termux 走 chsh(run_once_after_set-default-shell),macOS 不改,都不碰這兩個檔。
+{{ if not (has "starship" (index . "tools")) }}
+# 沒勾 starship:不部署它的設定(zsh、bash 沒裝 starship 就用 shell 預設的提示列)。
+.config/starship.toml
+{{ end }}
+{{ $bashToZsh := and (has "zsh" (index . "tools")) (includeTemplate "use-mise" .) -}}
+{{ if not (or $bashToZsh (has "starship" (index . "tools"))) }}
+# .bashrc 由 modify_dot_bashrc.tmpl 加段落,兩種情況才要:
+# - 勾了 starship:互動式 bash 啟用 starship 提示列。
+# - apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)、勾了 zsh:
+#   zsh 是 zsh-bin 裝到家目錄的,改由互動式 bash 切 zsh。
 .bashrc
+{{ end }}
+{{ if not $bashToZsh }}
+# 補 .profile 只為了上面「互動式 bash 切 zsh」那種機器。有 root 的 Debian 系、Termux 走 chsh
+# (run_once_after_set-default-shell),macOS 不改,都不碰它。
 .profile
 {{ else if or (stat (joinPath .chezmoi.homeDir ".bash_profile")) (stat (joinPath .chezmoi.homeDir ".bash_login")) }}
 # 已經有 ~/.bash_profile 或 ~/.bash_login:login bash 讀的是它們、不讀 .profile,補了也沒用,不補。

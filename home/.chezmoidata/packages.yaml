@@ -52,10 +52,12 @@ toolPackages:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
   # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
-  # eza、fzf、bat、ripgrep 在 Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載,Termux 走 pkg。
+  # eza、fzf、bat、ripgrep、starship 在 Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載,Termux 走 pkg。
   termux:
     zsh:
       - zsh
+    starship:
+      - starship
     vim:
       - vim
     eza:
@@ -71,6 +73,8 @@ toolPackages:
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
   # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
   darwin:
+    starship:
+      - starship
     eza:
       - eza
     fzf:
@@ -118,7 +122,7 @@ nodePackages:
 # 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。系統已經有 cmd 的不裝。
 # 判斷與清單在 .chezmoitemplates/use-mise、mise-tools;部署成 ~/.config/mise/conf.d/dotfiles.toml,
 # run_onchange_after_install-mise 跑 mise install。
-# eza、fzf、bat、ripgrep 不在這裡:不分機器都由 install-cli-tools 從 GitHub release 下載。
+# eza、fzf、bat、ripgrep、starship 不在這裡:不分機器都由 install-cli-tools 從 GitHub release 下載。
 # tool 寫 mise registry 的短名(mise registry <名字> 查 backend);registry 沒有的寫完整 backend,
 # 例如 code-server 只寫 code-server 會模糊比對到不相干的工具。
 miseTools:

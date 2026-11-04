@@ -20,3 +20,8 @@
 # skill chrome-mcp 改名 remote-chrome,指令跟著改名;舊 symlink 指向的 skill 目錄已不存在,留著只會是斷掉的連結。
 .local/bin/chrome-mcp
 .local/bin/chrome-headless
+# zsh 提示列從 powerlevel10k 換成 starship(#194):p10k 的設定、主題 clone、gitstatusd 與 instant prompt 的快取。
+.p10k.zsh
+.config/zsh/powerlevel10k
+.cache/gitstatus
+.cache/p10k-*

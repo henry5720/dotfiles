@@ -115,7 +115,7 @@ INIT_FLAGS=("${SECRET_FLAGS[@]}" "${GIT_FLAGS[@]}")
 # 共用檢查
 # ===============================================================
 # zsh 環境:兩個目標共用。預設 shell 怎麼查各平台不同,由呼叫端給指令。
-ZSH_EXTERNALS=(powerlevel10k zsh-autosuggestions zsh-z zsh-syntax-highlighting)
+ZSH_EXTERNALS=(zsh-autosuggestions zsh-z zsh-syntax-highlighting)
 
 # zsh_ok <zsh 指令> [tty]:印出一段容器內指令 —— 在 zsh -i 裡跑它,要回傳 0、stderr 要是空的。
 # docker exec 沒有終端機;給 tty 就改在 pty 裡跑(zshrc 的 fzf 整合只在有終端機時載入)。
@@ -143,11 +143,11 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   for d in "${ZSH_EXTERNALS[@]}"; do
     check "~/.config/zsh/$d 是 git clone" "git -C ~/.config/zsh/$d rev-parse --is-inside-work-tree"
   done
-  check "~/.p10k.zsh 已部署" "grep -q POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ~/.p10k.zsh"
-  # 沒有 tty 時 p10k 本來就不會跑 wizard,所以另外確認:p10k 有載入、設定檔有被讀到、stderr 是空的。
+  check "~/.config/starship.toml 已部署" "grep -q '^format = ' ~/.config/starship.toml"
+  # starship 有 init(PROMPT 交給 starship 畫)、插件有載入、stderr 是空的。
   # 這項沒有終端機,也守住「沒終端機時 fzf 整合不載入、不印 can't change option: zle」。
-  check "zsh -i -c exit 不出錯、p10k 與插件有載入、設定檔有讀到" \
-    "$(zsh_ok '(( ${+functions[p10k]} && ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+ZSH_HIGHLIGHT_VERSION} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  check "zsh -i -c exit 不出錯、starship 與插件有載入" \
+    "$(zsh_ok '[[ $STARSHIP_SHELL == zsh && $PROMPT == *starship* ]] && (( ${+functions[_zsh_autosuggest_start]} && ${+functions[zshz]} && ${+ZSH_HIGHLIGHT_VERSION} ))')"
   # stderr 是空的也守住 `fzf --zsh`:吃到沒有 --zsh 的舊版 fzf 會在這裡報錯。
   check "(有 tty)zsh -i -c exit 不出錯、fzf 整合有載入" \
     "$(zsh_ok '[[ -n $TTY ]] && (( ${+functions[fzf-history-widget]} ))' tty)"
@@ -158,10 +158,10 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   # bat、rg 有裝,但不蓋掉 cat、grep(參數意思不同)
   check_alias "cat 沒被換成 bat" cat '$a != *bat*'
   check_alias "grep 沒被換成 rg" grep '" $a " != *" rg "*'
-  # wizard 是在第一次畫 prompt 時跳出來,`zsh -i -c` 不畫 prompt,所以要真的開互動 shell:
+  # `zsh -i -c` 不畫 prompt,所以要真的開互動 shell 看 starship 畫不畫得出來:
   # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
-  # wizard 會吃掉那個 exit 繼續等輸入,30 秒後砍掉,輸出裡有 wizard 字樣就算失敗。
-  check "互動 zsh(有 tty)不跳 p10k wizard、正常 exit" \
+  # exit 沒被吃掉、30 秒內結束,輸出裡有 tokyo-night 第二行的 ❯ 才算過。
+  check "互動 zsh(有 tty)畫出 starship 提示列、正常 exit" \
     "out=\$(python3 - <<'PY'
 import os, pty, select, signal, sys, time
 pid, fd = pty.fork()
@@ -189,7 +189,7 @@ else:
     out += b'[ZSH-DID-NOT-EXIT]'
 sys.stdout.write(out.decode(errors='replace'))
 PY
-); echo \"\$out\" | tail -n 15; ! grep -qiE 'configuration wizard|ZSH-DID-NOT-EXIT' <<<\"\$out\""
+); echo \"\$out\" | tail -n 15; grep -qF '❯' <<<\"\$out\" && ! grep -qF 'ZSH-DID-NOT-EXIT' <<<\"\$out\""
 }
 
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
@@ -216,11 +216,11 @@ menu_choice() {
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ffmpeg 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
-# zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們)。
-TOOLS_FIRST=zsh/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+# zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
-LEAN_TOML='    tools = ["zsh", "eza", "fzf", "bat", "ripgrep", "vim", "tailscale", "btop"]'
+LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "tailscale", "btop"]'
 FULL_TOOLS=$(grep -E '^[a-z]' "$REPO/home/.chezmoitemplates/tool-menu" | cut -d' ' -f1 | paste -sd/)
 toml_list() {  # toml_list a/b/c → config 裡 tools 那一行
   local t out=()
@@ -240,8 +240,10 @@ render_cmd() {
 
 # 每個工具「裝好了」從外面怎麼看。這裡是獨立的期望值,不從安裝腳本抄。
 declare -A TOOL_CHECK=(
-  # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、p10k 等細項在 check_zsh_env
-  [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+  # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、提示列等細項在 check_zsh_env
+  [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
+  # Linux 從 GitHub release 下載到 ~/.local/bin(install-cli-tools);Termux 走 pkg。設定檔跟著勾選部署
+  [starship]="starship --version && [ -f ~/.config/starship.toml ]"
   # Linux 從 GitHub release 下載到 ~/.local/bin(install-cli-tools);Termux 走 pkg
   [eza]="command -v eza"
   [fzf]="command -v fzf"
@@ -304,12 +306,11 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(git curl jq python3)
 
-# 以前在基底、拆成選裝工具的六項。不出選單的機器(Termux、非 Debian 系)自動帶入;
-# 舊 config(沒有 toolsSchema)升級時自動加進 tools。config 裡那一行應該長這樣:
-BASE_SPLIT_TOML='    tools = ["zsh", "eza", "fzf", "bat", "ripgrep", "vim"]'
+# 原生 Termux 不出選單,自動套精簡、濾掉 tailscale、btop。config 裡那一行應該長這樣:
+TERMUX_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim"]'
 
-# 選裝工具 eza、fzf、bat、ripgrep:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
-CLI_TOOLS=(eza fzf bat rg)
+# 選裝工具 eza、fzf、bat、ripgrep、starship:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
+CLI_TOOLS=(eza fzf bat rg starship)
 
 check_cli_tools() {
   for t in "${CLI_TOOLS[@]}"; do
@@ -393,12 +394,16 @@ scenario_ubuntu() {
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
     "! grep -q 'dotfiles:互動式 bash 切到 zsh' ~/.bashrc && ! grep -q 'dotfiles' ~/.profile"
+  # 勾了 starship:bash 也用同一份設定(#194)。原本的 .bashrc 內容留著
+  check "~/.bashrc 加了 starship 那段一份、原本的內容還在" \
+    "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:starship 提示列 >>>' ~/.bashrc)\" = 1 ]"
+  check "互動 bash 載入 starship" "[ \"\$(bash -ic 'echo \$STARSHIP_SHELL' 2>/dev/null)\" = bash ]"
   check_cli_tools
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -425,6 +430,9 @@ scenario_ubuntu() {
   # 模擬以前裝過 zsh 外掛的機器:clone 還在,apply 之後要被 .chezmoiremove 清掉、zsh 不再載入
   step "放一份舊的 zsh 外掛 clone" \
     "mkdir -p ~/.config/zsh/wakatime-zsh-plugin && echo '_wakatime_heartbeat() { :; }' > ~/.config/zsh/wakatime-zsh-plugin/wakatime.plugin.zsh"
+  # 模擬用過 p10k 的機器(#194):設定、主題 clone、gitstatusd 與 instant prompt 的快取,apply 之後都要清掉
+  step "放一份舊的 p10k 檔案" \
+    "mkdir -p ~/.config/zsh/powerlevel10k ~/.cache/gitstatus && touch ~/.p10k.zsh ~/.config/zsh/powerlevel10k/powerlevel10k.zsh-theme ~/.cache/gitstatus/gitstatusd ~/.cache/p10k-instant-prompt-\$(id -un).zsh"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
@@ -433,6 +441,8 @@ scenario_ubuntu() {
   check_tool wakatime
   # zsh 外掛不再裝(#176):不 clone、zshrc 也不載入
   check "沒有 clone zsh 的 WakaTime 外掛" "[ ! -e ~/.config/zsh/wakatime-zsh-plugin ]"
+  check "舊的 p10k 檔案都清掉了、zsh 外掛還在" \
+    "[ ! -e ~/.p10k.zsh ] && [ ! -e ~/.config/zsh/powerlevel10k ] && [ ! -e ~/.cache/gitstatus ] && ! ls ~/.cache/p10k-* 2>/dev/null && [ -d ~/.config/zsh/zsh-z ]"
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
@@ -491,28 +501,40 @@ scenario_ubuntu() {
   # 舊機器:config 是拆基底之前存的(tools 沒有那六項、沒有 toolsSchema)。
   # init 不加 --prompt 也要把六項補進 tools,不然下一次 apply 就不再管 .zshrc。
   bold "▶ 舊 config(拆基底之前)跑 init"
-  step "把 config 改回舊格式:tools 拿掉六項、刪 toolsSchema、machineUse" \
-    "sed -i -e '/^    toolsSchema = /d' -e '/^    machineUse = /d' -e '/^    tools = /{s/\"zsh\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", //}' ~/.config/chezmoi/chezmoi.toml && ! grep -qE 'toolsSchema|machineUse|\"zsh\"' ~/.config/chezmoi/chezmoi.toml"
+  # 那時還沒有 starship(提示列是 zsh 附帶的 p10k),一起拿掉;升級要補回六項加 starship
+  step "把 config 改回舊格式:tools 拿掉六項與 starship、刪 toolsSchema、machineUse" \
+    "sed -i -e '/^    toolsSchema = /d' -e '/^    machineUse = /d' -e '/^    tools = /{s/\"zsh\", //;s/\"starship\", //;s/\"eza\", //;s/\"fzf\", //;s/\"bat\", //;s/\"ripgrep\", //;s/\"vim\", //}' ~/.config/chezmoi/chezmoi.toml && ! grep -qE 'toolsSchema|machineUse|\"zsh\"|\"starship\"' ~/.config/chezmoi/chezmoi.toml"
   check "init(不帶 --prompt、不給任何 prompt 旗標)exit 0" "chezmoi init --no-tty </dev/null"
   for t in zsh eza fzf bat ripgrep vim; do
     check "升級後 tools 有 $t" "grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -qF '\"$t\"'"
   done
-  check "升級後寫回 toolsSchema = 2" "grep -qx '    toolsSchema = 2' ~/.config/chezmoi/chezmoi.toml"
+  check "升級後 tools 有 starship、只有一個" "[ \"\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -o '\"starship\"' | wc -l)\" = 1 ]"
+  check "升級後寫回 toolsSchema = 3" "grep -qx '    toolsSchema = 3' ~/.config/chezmoi/chezmoi.toml"
   check "只有 tools、沒有用途的舊 config 存成自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "chezmoi diff 不刪也不改 zsh 設定" "[ -z \"\$(chezmoi diff ~/.zshrc ~/.p10k.zsh ~/.config/zsh)\" ] && chezmoi managed | grep -qx .zshrc"
+  check "chezmoi diff 不刪也不改 zsh 設定" "[ -z \"\$(chezmoi diff ~/.zshrc ~/.config/starship.toml ~/.config/zsh)\" ] && chezmoi managed | grep -qx .zshrc"
   check "再 init 一次 tools 不變(不會重複加)" \
     "before=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml) && chezmoi init --no-tty </dev/null && [ \"\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml)\" = \"\$before\" ]"
+
+  # 第 2 版(#194 以前)勾了 zsh 的自訂 config:當時 zsh 附帶 p10k,init 自動補勾 starship;第 3 版之後照存的勾選
+  bold "▶ (渲染)toolsSchema 2 → 3:勾了 zsh 的補勾 starship"
+  local no_ss="sed -e 's/\"starship\", //' -e 's/, \"starship\"//' -e 's/^    toolsSchema = .*/    toolsSchema = %s/' ~/.config/chezmoi/chezmoi.toml"
+  check "第 2 版、有 zsh 沒 starship:init 後補上 starship、寫回 3" \
+    "$(printf "$no_ss" 2) > /tmp/schema2.toml && ! grep -q '\"starship\"' /tmp/schema2.toml && chezmoi --config /tmp/schema2.toml init --no-tty </dev/null && grep '^    tools = ' /tmp/schema2.toml | grep -qF '\"starship\"' && grep -qx '    toolsSchema = 3' /tmp/schema2.toml"
+  check "第 3 版、有 zsh 沒 starship:init 後還是沒有 starship(使用者自己取消的)" \
+    "$(printf "$no_ss" 3) > /tmp/schema3.toml && chezmoi --config /tmp/schema3.toml init --no-tty </dev/null && ! grep -q '\"starship\"' /tmp/schema3.toml"
+  check "第 2 版、沒有 zsh:不補 starship" \
+    "$(printf "$no_ss" 2) | sed 's/\"zsh\", //' > /tmp/schema2-nozsh.toml && ! grep -q '\"zsh\"' /tmp/schema2-nozsh.toml && chezmoi --config /tmp/schema2-nozsh.toml init --no-tty </dev/null && ! grep -q '\"starship\"' /tmp/schema2-nozsh.toml"
 
   # 用途(#212):選了用途、選單沒改存用途,改了存自訂;WSL／ARM 拿濾過的預設組合比。
   bold "▶ (渲染)用途:預設組合展開、沒改存用途、有改存自訂"
   local cfg='~/.config/chezmoi/chezmoi.toml'   # 加引號:~ 留到容器裡才展開
   local use_is="grep -qx '    machineUse = \"%s\"' %s"   # printf "$use_is" <用途> <config>
-  check "選精簡、選單不改:存精簡,tools 是精簡那八項" \
+  check "選精簡、選單不改:存精簡,tools 是精簡那九項" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)") > /tmp/lean.toml && $(printf "$use_is" minimal /tmp/lean.toml) && grep -qxF '$LEAN_TOML' /tmp/lean.toml"
-  check "精簡的機器樣板看到的 .tools 就是那八項" \
-    "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh eza fzf bat ripgrep vim tailscale btop' ]"
-  check "精簡的機器裝的是那八項:套件腳本有 zsh、vim、btop,下載腳本是 eza、fzf、bat、ripgrep" \
-    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-cli-tools.sh.tmpl | grep -E '^want ' | cut -d' ' -f2 | paste -sd' ')\" = 'eza fzf bat rg' ]"
+  check "精簡的機器樣板看到的 .tools 就是那九項" \
+    "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh starship eza fzf bat ripgrep vim tailscale btop' ]"
+  check "精簡的機器裝的是那九項:套件腳本有 zsh、vim、btop,下載腳本是 eza、fzf、bat、ripgrep、starship" \
+    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-cli-tools.sh.tmpl | grep -E '^want ' | cut -d' ' -f2 | paste -sd' ')\" = 'eza fzf bat rg starship' ]"
   check "精簡的機器選裝腳本只跑 tailscale(其他選裝工具的腳本都不跑)" \
     "[ \"\$(chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/$TOOL_SCRIPT_RE' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-tailscale ]"
   check "選完整、選單不改:存完整,tools 是選單上全部" \
@@ -522,7 +544,7 @@ scenario_ubuntu() {
   check "選完整後取消 ttyd:存自訂加 tools 清單" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" custom /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
   check "選精簡後多勾 gh:存自訂" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/eza/fzf/bat/ripgrep/vim/tailscale/btop/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/tailscale/btop/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
   local full_filtered=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
   check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 headless-chrome、playwright-cli)" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-wsl.toml"
@@ -552,7 +574,7 @@ scenario_ubuntu() {
   check "只有 tools(有 toolsSchema)、沒有用途的舊 config:init 不問、存自訂、tools 不變" \
     "sed '/^    machineUse = /d' $cfg > /tmp/no-use.toml && ! grep -q machineUse /tmp/no-use.toml && chezmoi --config /tmp/no-use.toml init --no-tty </dev/null && $(printf "$use_is" custom /tmp/no-use.toml) && [ \"\$(grep '^    tools = ' /tmp/no-use.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
   # #222 以前 machineUse 存中文:init(不帶 --prompt)換成代號,勾選不變
-  check "存「精簡」的舊 config:init 後存 minimal、tools 是精簡那八項" \
+  check "存「精簡」的舊 config:init 後存 minimal、tools 是精簡那九項" \
     "sed 's/^    machineUse = .*/    machineUse = \"精簡\"/' /tmp/lean.toml > /tmp/legacy-lean.toml && chezmoi --config /tmp/legacy-lean.toml init --no-tty </dev/null && $(printf "$use_is" minimal /tmp/legacy-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/legacy-lean.toml"
   check "存「完整」的舊 config:init 後存 full、tools 是選單上全部" \
     "sed 's/^    machineUse = .*/    machineUse = \"完整\"/' /tmp/full.toml > /tmp/legacy-full.toml && chezmoi --config /tmp/legacy-full.toml init --no-tty </dev/null && $(printf "$use_is" full /tmp/legacy-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/legacy-full.toml"
@@ -591,8 +613,8 @@ scenario_ubuntu() {
   # 真的在 termux 容器跑 init 由 termux 目標負責。
   bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
   local android='{"chezmoi":{"os":"android"}}'
-  check "android 的 config 樣板不問用途與選單,套精簡、濾掉 tailscale、btop(剩以前基底的那六項)" \
-    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$BASE_SPLIT_TOML' /tmp/android.toml && grep -qx '    machineUse = \"minimal\"' /tmp/android.toml"
+  check "android 的 config 樣板不問用途與選單,套精簡、濾掉 tailscale、btop" \
+    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$TERMUX_TOML' /tmp/android.toml && grep -qx '    machineUse = \"minimal\"' /tmp/android.toml"
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
@@ -607,7 +629,7 @@ scenario_ubuntu() {
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   # 加引號:~ 要留到容器裡才展開(容器的家目錄是 /home/ubuntu,不是跑 e2e 這台的)
   local tmpl='~/.local/share/chezmoi/home' scripts='~/.local/share/chezmoi/home/.chezmoiscripts'
-  check "沒給旗標 = 用途預設精簡、選單勾精簡那八項" \
+  check "沒給旗標 = 用途預設精簡、選單勾精簡那九項" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$LEAN_TOML'"
   check "(對照)非 WSL 的選單有 headless-chrome、playwright-cli" \
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome/playwright-cli)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
@@ -665,14 +687,14 @@ scenario_ubuntu() {
   check "macOS 選完整、選單不改:存完整,tools 是選單上全部(沒有 tailscale、headless-chrome、playwright-cli)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:精簡濾掉 tailscale" \
-    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/starship/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
   for t in tailscale headless-chrome playwright-cli; do
     check "macOS 的選單沒有 $t(勾了會報 invalid choice)" \
       "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$(menu_choice $t)") 2>&1 | grep -q 'invalid choice'"
   done
-  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","claude","ttyd","code-server","herdr"]}'
+  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr"]}'
   check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,語法對" \
-    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"ttyd\"' ]"
+    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ]"
   check "brew bundle 腳本在 Linux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Termux 渲染成空的" \
@@ -696,9 +718,12 @@ scenario_ubuntu() {
     "$mac_secrets --promptChoice $(printf '%q' "$(use_choice minimal)") < $tmpl/.chezmoi.toml.tmpl > /tmp/mac-s-lean.toml && $(printf "$use_is" minimal /tmp/mac-s-lean.toml) && ! grep -qE '$mac_secret_keys' /tmp/mac-s-lean.toml"
   check "macOS 選完整:四個憑證都問" \
     "[ \"\$($mac_secrets --promptChoice $(printf '%q' "$(use_choice full)") < $tmpl/.chezmoi.toml.tmpl | grep -oE '$mac_secret_keys' | awk '{print \$1}' | paste -sd' ')\" = 'codeServerPassword codexLbApiKey context7ApiKey wakatimeApiKey' ]"
-  # .bashrc 切 zsh、補 .profile(#215)只給沒有 root 的 Linux;mac 勾了 zsh 也不部署
-  check "macOS 勾 zsh 也不部署 .bashrc、.profile" \
-    "grep -q '\"zsh\"' /tmp/mac.toml && ! chezmoi --config /tmp/mac.toml managed --override-data '$mac' | grep -qxE '\\.bashrc|\\.profile'"
+  # .bashrc 切 zsh、補 .profile(#215)只給沒有 root 的 Linux;mac 勾了 zsh 也不部署。
+  # .bashrc 的 starship 那段不分 OS,勾了 starship 就部署
+  check "macOS 勾 zsh(沒勾 starship)不部署 .bashrc、.profile" \
+    "! chezmoi --config /tmp/mac.toml managed --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"zsh\"]}' | grep -qxE '\\.bashrc|\\.profile'"
+  check "macOS 勾 starship:部署 .bashrc(只有 starship 那段)、不部署 .profile" \
+    "chezmoi --config /tmp/mac.toml managed --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"zsh\",\"starship\"]}' > /tmp/mac-managed && grep -qx .bashrc /tmp/mac-managed && ! grep -qx .profile /tmp/mac-managed && chezmoi --config /tmp/mac.toml execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"zsh\",\"starship\"]}' < $tmpl/modify_dot_bashrc.tmpl > /tmp/mac-bashrc.sh && echo HIST | sh /tmp/mac-bashrc.sh | grep -q 'starship 提示列 >>>' && ! echo HIST | sh /tmp/mac-bashrc.sh | grep -q '切到 zsh'"
 
   # ffmpeg 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才裝、而且語法對。
   bold "▶ (渲染)ffmpeg"
@@ -757,13 +782,22 @@ scenario_ubuntu() {
     "chezmoi execute-template --override-data '$none' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/base.sh && sh -n /tmp/base.sh && grep -qx 'for pkg in git curl jq python3 tree; do' /tmp/base.sh"
   check "只勾 vim 時套件腳本多 vim、沒有 zsh" \
     "chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw vim && ! chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw zsh"
-  check "沒勾 zsh:不部署 .zshrc、.p10k.zsh、zsh 外掛" \
-    "! chezmoi managed --include all --override-data '$none' | grep -xE '\.zshrc|\.p10k\.zsh|\.config/zsh/(powerlevel10k|zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)'"
-  check "(對照)勾 zsh:.zshrc、.p10k.zsh、四個外掛都在" \
-    "[ \"\$(chezmoi managed --include all --override-data '{\"tools\":[\"zsh\"]}' | grep -cxE '\.zshrc|\.p10k\.zsh|\.config/zsh/(powerlevel10k|zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)')\" = 6 ]"
+  check "沒勾 zsh:不部署 .zshrc、zsh 外掛" \
+    "! chezmoi managed --include all --override-data '$none' | grep -xE '\.zshrc|\.config/zsh/(zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)'"
+  check "(對照)勾 zsh:.zshrc、三個外掛都在" \
+    "[ \"\$(chezmoi managed --include all --override-data '{\"tools\":[\"zsh\"]}' | grep -cxE '\.zshrc|\.config/zsh/(zsh-autosuggestions|zsh-z|zsh-syntax-highlighting)')\" = 4 ]"
+  check "不再部署、下載 p10k(.p10k.zsh、powerlevel10k)" \
+    "! chezmoi managed --include all --override-data '{\"tools\":[\"zsh\",\"starship\"]}' | grep -E 'p10k|powerlevel10k'"
+  # starship 跟 zsh 分開勾(#194):沒勾不部署設定、有 root 的 Ubuntu 也不碰 .bashrc;勾了兩個都部署
+  check "沒勾 starship:不部署 starship.toml、.bashrc" \
+    "! chezmoi managed --override-data '{\"tools\":[\"zsh\"]}' | grep -qxE '\.config/starship\.toml|\.bashrc'"
+  check "只勾 starship(沒勾 zsh):部署 starship.toml、.bashrc,不部署 .zshrc、.profile" \
+    "chezmoi managed --override-data '{\"tools\":[\"starship\"]}' > /tmp/ss-managed && grep -qx .config/starship.toml /tmp/ss-managed && grep -qx .bashrc /tmp/ss-managed && ! grep -qxE '\.zshrc|\.profile' /tmp/ss-managed"
+  check "只勾 starship 時下載腳本只下載 starship" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli-ss.sh && sh -n /tmp/cli-ss.sh && [ \"\$(grep -E '^want ' /tmp/cli-ss.sh)\" = 'want starship install_starship' ]"
   check "沒勾 zsh:改預設 shell 的腳本渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_once_after_set-default-shell.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "eza、fzf、bat、ripgrep 都沒勾時下載腳本渲染成空的" \
+  check "eza、fzf、bat、ripgrep、starship 都沒勾時下載腳本渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl | tr -d '[:space:]')\" ]"
   check "只勾 fzf 時下載腳本只下載 fzf" \
     "chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli.sh && sh -n /tmp/cli.sh && [ \"\$(grep -E '^want ' /tmp/cli.sh)\" = 'want fzf install_fzf' ]"
@@ -790,7 +824,7 @@ scenario_ubuntu() {
   bold "▶ tools 把用途改成精簡:已經裝的工具不移除"
   check "tools 選精簡、選單直接 Enter,exit 0" \
     "~/.local/bin/tools --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") </dev/null"
-  check "用途存精簡、tools 是精簡那八項" \
+  check "用途存精簡、tools 是精簡那九項" \
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
   for t in claude gh herdr codegraph; do check_tool "$t"; done
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
@@ -870,11 +904,11 @@ scenario_termux() {
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
-  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的六項、選裝腳本一支都沒跑
-  check "沒有用途與選裝工具選單(config 存精簡、tools 是濾掉 tailscale、btop 的六項)" \
-    "grep -qxF '$BASE_SPLIT_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
+  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的七項、選裝腳本一支都沒跑
+  check "沒有用途與選裝工具選單(config 存精簡、tools 是濾掉 tailscale、btop 的七項)" \
+    "grep -qxF '$TERMUX_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
   check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
-  for t in zsh eza fzf bat ripgrep vim; do check_tool "$t"; done
+  for t in zsh starship eza fzf bat ripgrep vim; do check_tool "$t"; done
   check "選裝工具的腳本一支都沒跑" \
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
@@ -1042,13 +1076,15 @@ noroot_slim_checks() {
   check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
   check "zsh 用 zsh-bin 裝到 ~/.local/bin,版本 5.8" "~/.local/bin/zsh --version | grep -q '^zsh 5\.8 '"
-  check "zsh -i 下 p10k 有載入" "$(zsh_ok '(( ${+functions[p10k]} )) && [[ -n $POWERLEVEL9K_LEFT_PROMPT_ELEMENTS ]]')"
+  check "zsh -i 下 starship 有載入" "$(zsh_ok '[[ $STARSHIP_SHELL == zsh && $PROMPT == *starship* ]]')"
   check "TERM 沒設時 zsh 裡是 xterm-256color" "[ \"\$(env -u TERM ~/.local/bin/zsh -i -c 'print -r -- \$TERM' 2>/dev/null)\" = xterm-256color ]"
   check "pty 開互動 bash 會切成 zsh" "$(pty_bash -i); echo \"\$out\" | tail -n 5; grep -q 'ZV=:5\.8:' <<<\"\$out\""
   check "非互動 bash 留在 bash(bash -c、bash -lc)" \
     "[ \"\$(bash -c 'echo \${ZSH_VERSION:-none}')\" = none ] && [ \"\$(bash -lc 'echo \${ZSH_VERSION:-none}')\" = none ]"
   check "~/.bashrc 原本的內容還在、切 zsh 那段只有一份" \
     "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:互動式 bash 切到 zsh >>>' ~/.bashrc)\" = 1 ]"
+  check "~/.bashrc 的 starship 那段只有一份、排在切 zsh 那段前面" \
+    "[ \"\$(grep -c 'dotfiles:starship 提示列 >>>' ~/.bashrc)\" = 1 ] && [ \"\$(grep -n 'dotfiles:starship 提示列 >>>' ~/.bashrc | cut -d: -f1)\" -lt \"\$(grep -n 'dotfiles:互動式 bash 切到 zsh >>>' ~/.bashrc | cut -d: -f1)\" ]"
   # skel 本來就有 ~/.profile;拿掉它再 apply 一次,看會不會補、login bash 會不會切成 zsh,最後放回去
   # 非互動 login bash 用 env -i 起:不帶外面這層 login shell 已經設好的 PATH
   check "沒有 ~/.profile 時補一個:login bash 找得到 ~/.local/bin 的 chezmoi、login 互動 bash 會切成 zsh" \
@@ -1057,7 +1093,7 @@ noroot_slim_checks() {
   check_mise btop
   check_mise_skips_system_vim
   for t in eza fzf bat ripgrep; do check_tool "$t"; done
-  check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/powerlevel10k rev-parse --is-inside-work-tree"
+  check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
   check_ssh_client
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
   check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \

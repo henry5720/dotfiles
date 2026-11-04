@@ -136,7 +136,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 - **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。按一個字母 `f`／`m`／`c`（按下就送出，不用 Enter），直接 Enter 是精簡；config 存 `full`／`minimal`／`custom`。選錯用途時在下一題的選單按 Ctrl+C，整個 init 不存檔，重來一次（Esc 會照目前勾選送出，不是取消）。
 - **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
-  zsh + p10k 也是選裝工具，要在這裡勾。
+  zsh、starship 提示列也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
@@ -162,7 +162,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
 herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
 
-勾了 zsh 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + p10k。原生 Termux 到這裡就結束了。
+勾了 zsh 和 starship 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + starship 提示列。原生 Termux 到這裡就結束了。
 
 ### 沒有 root 的機器
 
@@ -298,7 +298,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／p10k／插件與預設 shell）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
+| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／插件與預設 shell、starship 提示列）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
 | **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的憑證（勾了用得到的工具才問）與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |
