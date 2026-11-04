@@ -54,7 +54,7 @@ docker exec -u root "$CTR" bash -c '
   apt-get install -y -qq /tmp/vhs.deb /tmp/chrome.deb fonts-noto-cjk >/dev/null
 ' || fail "裝錄影工具失敗"
 
-# 3. Hack Nerd Font:Linux 的 chezmoi 不裝 Nerd Font,p10k 和 eza 的 icon 要它
+# 3. Hack Nerd Font:Linux 的 chezmoi 不裝 Nerd Font,starship 提示列和 eza 的 icon 要它
 bold "▶ 裝 Hack Nerd Font"
 docker exec -u "$CTR_USER" "$CTR" bash -c '
   set -e

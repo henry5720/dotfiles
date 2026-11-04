@@ -2,7 +2,7 @@
 
 ![裝完之後開 terminal：fastfetch 印出系統資訊](docs/demo/shell-fastfetch.png)
 
-![p10k prompt 顯示 git 分支、eza 列表、打到一半的指令有語法上色與灰字 autosuggestion](docs/demo/shell.png)
+![starship 提示列顯示 git 分支、eza 列表、打到一半的指令有語法上色與灰字 autosuggestion](docs/demo/shell.png)
 
 ![bat 看檔、rg 搜尋](docs/demo/shell-tools.png)
 
@@ -19,7 +19,7 @@
 | Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；amd64 才列 headless Chrome、playwright-cli，WSL 不列（kernel 版本含 `microsoft`，改用 Windows 的 Chrome） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/no-root-machine.md)。
 
@@ -68,9 +68,9 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
 ├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
 ├── dot_zshrc                   → ~/.zshrc
-├── dot_p10k.zsh                → ~/.p10k.zsh
+├── modify_dot_bashrc.tmpl      → ~/.bashrc 最後加段落：starship、沒有 root 時切 zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
-├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、opencode…
+├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
 ├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome…）

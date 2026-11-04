@@ -1,14 +1,14 @@
 {{- $want := list -}}
-{{- range list "eza" "fzf" "bat" "ripgrep" -}}
+{{- range list "eza" "fzf" "bat" "ripgrep" "starship" -}}
 {{-   if has . (index $ "tools") }}{{ $want = append $want . }}{{ end -}}
 {{- end -}}
 {{- if and (eq .chezmoi.os "linux") $want -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 eza、fzf、bat、ripgrep(選單見 .chezmoi.toml.tmpl):有勾的才從 GitHub release 的 latest
+# 選裝工具 eza、fzf、bat、ripgrep、starship(選單見 .chezmoi.toml.tmpl):有勾的才從 GitHub release 的 latest
 # 下載到 ~/.local/bin,一個都沒勾就渲染成空的。
 # Linux 不分發行版都走這裡,只用 curl、tar;原生 Termux 用 pkg 裝(.chezmoidata/packages.yaml 的 toolPackages),
 # 這支和 Linux 以外的系統(例如 macOS)都渲染成空的。
-# chezmoi 不負責更新、也不釘版本。alias 與 shell 整合在 home/dot_zshrc。
+# chezmoi 不負責更新、也不釘版本。alias 與 shell 整合在 home/dot_zshrc(starship 的 bash 那段在 modify_dot_bashrc.tmpl)。
 #
 # 加一個這類工具要動:這支開頭的清單與一段、tool-menu、packages.yaml 的 toolPackages.termux、
 # script/tests/e2e.sh 的 CLI_TOOLS。
@@ -22,7 +22,7 @@
 set -eu
 {{ template "sh-arch" . }}
 # 1. 共用開頭:架構、目的地、暫存目錄。各工具 asset 的架構名在這裡一次決定
-#    eza:x86_64 用靜態連結的 musl 版,aarch64 只有 glibc 版;bat、rg 兩邊都用 musl 版(直接用 $arch)
+#    eza:x86_64 用靜態連結的 musl 版,aarch64 只有 glibc 版;bat、rg、starship 兩邊都用 musl 版(直接用 $arch)
 arch=$(uname -m)
 case "$arch" in
   x86_64) eza_target=x86_64-unknown-linux-musl; fzf_target=linux_amd64 ;;
@@ -102,5 +102,15 @@ install_rg() {
     put rg "$tmp/ripgrep/$name/rg"
 }
 want rg install_rg
+{{- end }}
+{{- if has "starship" $want }}
+
+# 6. starship:靜態連結的 musl 版,檔名不帶版本,直接用 latest/download。
+#    不用 apt:Ubuntu 24.04 沒有這個套件。不用官方 install.sh:跟上面幾個工具同一套下載、跳過、失敗處理
+install_starship() {
+  fetch starship "https://github.com/starship/starship/releases/latest/download/starship-$arch-unknown-linux-musl.tar.gz" &&
+    put starship "$tmp/starship/starship"
+}
+want starship install_starship
 {{- end }}
 {{ end -}}

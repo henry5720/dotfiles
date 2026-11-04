@@ -18,8 +18,17 @@
 ├─ 改 API key、密碼、Git 身分
 │    chezmoi edit-config ──→ 改 [data] 那一行 ──→ chezmoi apply ──→ 寫進下表右欄
 │
+├─ 換提示列主題（starship）
+│    starship preset --list ──→ starship preset <名字> -o /tmp/p.toml
+│    ──→ export STARSHIP_CONFIG=/tmp/p.toml（只影響這個 shell，先看看）
+│    ──→ 決定了：chezmoi edit ~/.config/starship.toml，換成 /tmp/p.toml 的內容（開頭註解留著、改 preset 名字）
+│    ──→ chezmoi apply ──→ commit、push，其他機器 chezmoi update --init 跟上
+│    各 preset 的截圖：https://starship.rs/presets/　自己調模組：https://starship.rs/config/
+│
 ├─ 拉 repo 最新版
-│    chezmoi update（= git pull + apply）
+│    chezmoi update --init（= git pull + 照新的 config 樣板重算勾選 + apply）
+│    不加 --init，apply 用的是舊的勾選：repo 新加進預設組合的工具不會裝，
+│    換掉的工具卻照樣被清掉（例如 #194：p10k 先被刪，starship 要等下次 init 才裝）
 │
 └─ 不小心直接改了家目錄的檔
      chezmoi re-add <檔案> ──→ 收回 repo（不收，下次 apply 會被蓋回去）

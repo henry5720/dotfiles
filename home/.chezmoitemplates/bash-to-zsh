@@ -1,0 +1,5 @@
+{{- /* 這台要不要由互動式 bash 切到 zsh:apt 用不了的 Linux(.chezmoitemplates/use-mise)、勾了 zsh 時輸出 true,
+       否則空字串。zsh 是 zsh-bin 裝到家目錄的,不用 chsh。
+       用法:{{ if includeTemplate "bash-to-zsh" . }}
+       .chezmoiignore(部署 .bashrc、.profile)與 modify_dot_bashrc.tmpl(加切 zsh 那段)共用,兩邊不會對不上。 */ -}}
+{{- if and (has "zsh" (index . "tools")) (includeTemplate "use-mise" .) }}true{{ end -}}

@@ -22,15 +22,17 @@
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
          4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
-       原本裝的東西不會少;寫回 config 時帶 toolsSchema = 2,之後就照存的勾選。
+       原本裝的東西不會少;寫回 config 時帶最新的 toolsSchema,之後就照存的勾選。
        toolsSchema 是 tools 的格式版本:沒有這個 key = 第 1 版(這六項還在基底、不在 tools 裡),
-       2 = 這六項也要在 tools 裡勾才裝。key 名與值已經寫在各台的 config,不要改;格式再變就加到 3。 */ -}}
+       2 = 這六項也要在 tools 裡勾才裝,
+       3 = 提示列從 zsh 拆出來成為 starship(#194):第 2 版以前勾了 zsh 的(以前 zsh 附帶 p10k)自動補勾 starship。
+       key 名與值已經寫在各台的 config,不要改;格式再變就加到 4。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
 {{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
        用途的提示文字會出現在 README 免回答安裝那一行(--promptChoice 的 key),改了要一起改
        (還有 Runbook、docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
-{{- $lean := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
+{{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
 {{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）" -}}
 {{- /* chezmoi 的 promptChoice 輸入對到唯一選項就送出、不等 Enter,灰字是選項值本身:
        選項值用字母,灰字就顯示要按的 f/m/c;存進 config 的還是 full／minimal／custom。 */ -}}
@@ -86,7 +88,7 @@
 {{-     $storedUse = "custom" -}}
 {{-   end -}}
 {{-   if not (hasKey $presets $storedUse) }}{{ $storedUse = "" }}{{ end -}}
-{{- /* 自訂的勾選:舊 config(沒有 toolsSchema)在這裡補上 $baseSplit。 */ -}}
+{{- /* 自訂的勾選:舊 config 在這裡升級(沒有 toolsSchema 補上 $baseSplit,第 2 版以前有 zsh 補上 starship)。 */ -}}
 {{-   $current := list -}}
 {{-   if hasKey . "tools" -}}
 {{-     $current = .tools -}}
@@ -94,6 +96,9 @@
 {{-       range $baseSplit -}}
 {{-         if not (has . $current) }}{{ $current = append $current . }}{{ end -}}
 {{-       end -}}
+{{-     end -}}
+{{-     if and (lt (int (default 0 (index . "toolsSchema"))) 3) (has "zsh" $current) (not (has "starship" $current)) -}}
+{{-       $current = append $current "starship" -}}
 {{-     end -}}
 {{-   end -}}
 {{-   if and $storedUse (ne $storedUse "custom") -}}
@@ -195,7 +200,7 @@
 {{- end }}
     machineUse = {{ $use | quote }}
     tools = {{ $tools | toToml }}
-    toolsSchema = 2
+    toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
     [data.aiPersonal]
