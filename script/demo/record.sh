@@ -1,5 +1,6 @@
 #!/bin/bash
-# 重錄 README 的兩支 GIF:docs/demo/menu.gif(安裝選單)、docs/demo/main.gif(裝完的 terminal)。
+# 重錄 README 的 demo:docs/demo/menu.gif(安裝選單,看順序所以是 GIF)、
+# docs/demo/shell*.png(裝完的 shell 體驗,四張截圖)。
 #
 # 用法:
 #   bash script/demo/record.sh
@@ -87,13 +88,12 @@ tar -C "$DEMO" -cf - menu.tape main.tape \
 # 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Ubuntu 那行,裝完才結束
 vhs_run menu.tape
 
-# 7. 主 GIF:同一台裝好的機器,fastfetch 照預設印完整資訊
-#    Kernel、CPU、磁碟是錄影那台主機的,Terminal 是 VHS 用的 ttyd
+# 7. shell 截圖:同一台裝好的機器;main.tape 的 Output main.gif 是丟棄檔,不拷回
 vhs_run main.tape
 
 # 8. 拷回 repo;超過 1 MB 只警告(錄一次要好幾分鐘,擋下就白錄了)
 mkdir -p "$OUT"
-for g in menu.gif main.gif; do
+for g in menu.gif shell.png shell-tools.png shell-fzf.png shell-fastfetch.png; do
   docker cp "$CTR:$CTR_HOME/demo/$g" "$OUT/$g" >/dev/null || fail "拷回 $g 失敗"
   size=$(stat -c %s "$OUT/$g")
   if [ "$size" -gt "$MAX_BYTES" ]; then

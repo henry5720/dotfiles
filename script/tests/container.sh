@@ -1,7 +1,7 @@
 # 容器 e2e 與 README 錄影共用:建 ubuntu:24.04 映像與容器、做 fixtures。
 # 只定義函式,source 進來不會執行任何東西:
 #   script/tests/e2e.sh   測試
-#   script/demo/record.sh 錄 README 的 GIF
+#   script/demo/record.sh 錄 README 的 demo(GIF 與截圖)
 #
 # source 之前呼叫端要設好:
 #   REPO   repo 根目錄(make_fixtures 打包它的工作目錄)

@@ -1,6 +1,10 @@
 # dotfiles
 
-![裝完之後的 terminal：p10k prompt、語法上色與 autosuggestion、eza、fastfetch](docs/demo/main.gif)
+![裝完之後的 terminal：p10k prompt 顯示 git 分支、eza 列表、打到一半的指令有語法上色與灰字 autosuggestion](docs/demo/shell.png)
+
+![bat 看檔、rg 搜尋](docs/demo/shell-tools.png)
+![Ctrl-R 開 fzf 模糊搜尋指令歷史](docs/demo/shell-fzf.png)
+![fastfetch 印出系統資訊](docs/demo/shell-fastfetch.png)
 
 個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，
 也用在雲端主機與 Android 平板（原生 Termux、Termux 裡的 proot Ubuntu）。

@@ -1,7 +1,7 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
 # 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 用途按 m → 選單再勾 3 項 → Enter →(剪掉安裝)→ 完成
-# 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,主 GIF 要的 zsh、eza 在裡面;
-# 再勾主 GIF 要的 fastfetch,gh、claude 是示範,挑裝得快的。$lean 或選單順序改了,下面的 Down 次數要重算。
+# 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,shell 截圖要的 zsh、eza、fzf、bat、ripgrep 在裡面;
+# 再勾 shell 截圖要的 fastfetch,gh、claude 是示範,挑裝得快的。$lean 或選單順序改了,下面的 Down 次數要重算。
 # 秘密不會問:record.sh 錄之前先寫好假值。
 # 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面 installer 的 log 推出畫面
 Output menu.gif
