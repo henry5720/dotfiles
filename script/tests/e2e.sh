@@ -8,8 +8,13 @@
 # 環境變數:
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
+#   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),找不到就直接失敗。
+#                    改 agent-config 的 personal-chrome-attach 時指到自己的 worktree
 #
-# 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub:
+# 測的是 repo 的工作目錄(含未 commit 的修改)加上 AGENT_CONFIG_DIR 指定的 agent-config checkout,不經過 GitHub。
+# agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):personal-chrome-attach 是從那份 checkout
+# 複製的真腳本(工作目錄的現況,含未 commit),其他 skill、remote-chrome-headless 都是 fixture 自己寫的假檔。
+# dotfiles 這邊:
 # 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
 # 再照抄 README 那行:source 已經在,chezmoi init 就不 clone,直接用它渲染、apply。
 # (不把路徑直接給 init:clone 本機路徑要外部 git,連 go-git 也是,但全新機器還沒有 git。
@@ -94,6 +99,51 @@ check_git_remotes() {
   # e2e 用 AGENT_CONFIG_REMOTE 換成假 remote,這裡另外看沒換時的預設值,並確認不帶 key 真的 clone 得到
   check "agent-config 腳本預設 remote 是 HTTPS,而且不用 key 就讀得到" \
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
+}
+
+# remote-chrome 只剩 headless 瀏覽器(#261):ssh config 不再有把個人電腦 Chrome 的 9222 帶到遠端的 Host,
+# ~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
+# 有裝 agent-config 才看得到腳本(fixture 放了一支假的);沒裝時只看 symlink 指向哪。
+RC_HEADLESS_TARGET='$HOME/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless'
+check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no>
+  check "ssh config 沒有 company-ec2-chrome、沒有 RemoteForward 9222" \
+    "[ -f ~/.ssh/config ] && ! grep -q company-ec2-chrome ~/.ssh/config && ! grep -Eqi '^[[:space:]]*RemoteForward[[:space:]]+([^[:space:]]*:)?9222([[:space:]]|\$)' ~/.ssh/config"
+  check "沒有 ~/.local/bin/remote-chrome(WSL 開 Windows Chrome 那支)" \
+    "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
+  check "remote-chrome-headless 指向 agent-config 的腳本" \
+    "[ \"\$(readlink ~/.local/bin/remote-chrome-headless)\" = \"$RC_HEADLESS_TARGET\" ]"
+  if [ "$1" = yes ]; then
+    check "remote-chrome-headless 指得到檔案、可執行" "[ -f ~/.local/bin/remote-chrome-headless ] && [ -x ~/.local/bin/remote-chrome-headless ]"
+  fi
+}
+
+# 接個人電腦日常的 Chrome(#264)。ssh config 有只在要用時連的 company-ec2-attach(LocalForward 9555,
+# 只綁 127.0.0.1、ExitOnForwardFailure),一般的 company-ec2 不帶轉發。
+# ~/.local/bin/personal-chrome-attach 指向 agent-config 的 personal-pc-tunnel skill,勾了 playwright-cli
+# 和 agent-config 才部署(.chezmoiignore);fixture 放的是 agent-config 的真腳本,見 container.sh。
+ATTACH_TARGET='$HOME/.config/skillshare/skills/personal-pc-tunnel/scripts/personal-chrome-attach'
+check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有勾 playwright-cli 和 agent-config:yes|no>
+  # 新版 OpenSSH(Termux)的 ssh -G 把位址印成 [127.0.0.1]:9555,比對前拿掉括號
+  check "ssh config 的 company-ec2-attach:LocalForward 只有 127.0.0.1:9555、ExitOnForwardFailure yes" \
+    "c=\$(ssh -G company-ec2-attach) && grep -i '^localforward' <<<\"\$c\" && [ \"\$(grep -i '^localforward' <<<\"\$c\" | tr -d '[]')\" = 'localforward 127.0.0.1:9555 127.0.0.1:9555' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\""
+  check "一般的 company-ec2 不帶任何轉發" \
+    "! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
+  if [ "$1" = yes ]; then
+    check "personal-chrome-attach 指向 agent-config 的腳本" \
+      "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$ATTACH_TARGET\" ]"
+    check "personal-chrome-attach 指得到檔案、可執行" "[ -f ~/.local/bin/personal-chrome-attach ] && [ -x ~/.local/bin/personal-chrome-attach ]"
+  else
+    check "沒有 ~/.local/bin/personal-chrome-attach(沒勾 playwright-cli、agent-config 不部署)" \
+      "[ ! -e ~/.local/bin/personal-chrome-attach ] && [ ! -L ~/.local/bin/personal-chrome-attach ]"
+  fi
+}
+
+# 擋機房 IP:headless 瀏覽器經個人電腦的反向 SOCKS(#265)。ssh config 有只在要用時連的 company-ec2-socks
+# (RemoteForward 1080 不帶目的地 = 個人電腦當 SOCKS proxy,只綁 EC2 的 127.0.0.1、ExitOnForwardFailure)。
+check_personal_pc_socks() {
+  # 新版 OpenSSH 的 ssh -G 把反向 SOCKS 印成 [127.0.0.1]:1080 [socks]:0,比對前拿掉括號和 socks 那欄
+  check "ssh config 的 company-ec2-socks:RemoteForward 只有 127.0.0.1:1080(反向 SOCKS)、ExitOnForwardFailure yes" \
+    "c=\$(ssh -G company-ec2-socks) && grep -i '^remoteforward' <<<\"\$c\" && [ \"\$(grep -i '^remoteforward' <<<\"\$c\" | tr -d '[]' | sed 's/ socks:0\$//')\" = 'remoteforward 127.0.0.1:1080' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\" && ! grep -Ei '^(localforward|dynamicforward) ' <<<\"\$c\""
 }
 
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
@@ -193,7 +243,7 @@ PY
 }
 
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
-# 用途的提示文字也在 Runbook 免回答安裝那一行,三處要一字不差。
+# 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/no-root-machine.md),要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
 USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）'
 # 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
@@ -338,6 +388,63 @@ check_cli_tools() {
   step "放回 mise shims 的 ${CLI_TOOLS[*]}" "${unhide}true"
 }
 
+# ===============================================================
+# playwright-cli:版本、錄影、show(#262)
+# ===============================================================
+# 0.1.23 起 show 的畫面才能點擊、打字;錄影要 playwright 自己的 ffmpeg(0.1.23 是 ffmpeg-1013)。
+# 版本下限是獨立的期望值,不從安裝腳本讀。
+PWCLI_MIN=0.1.23
+PWCLI="cd \$(mktemp -d) && . ~/.nvm/nvm.sh && export PLAYWRIGHT_MCP_SANDBOX=false &&"
+PWCLI_VERSION_OK="v=\$(playwright-cli --version) && echo \"版本 \$v\" && [ \"\$(printf '%s\\n' $PWCLI_MIN \"\$v\" | sort -V | head -n1)\" = $PWCLI_MIN ]"
+PWCLI_SHOW_PORT=9377
+
+check_playwright_cli() {
+  bold "▶ playwright-cli:版本、錄影、show"
+  check "playwright-cli --version ≥ $PWCLI_MIN" "$PWCLI $PWCLI_VERSION_OK"
+  # 錄影要 ffmpeg:沒有的話 video-start 或 video-stop 會報錯、不會產出檔案
+  check "video-start／video-stop 產出影片檔" \
+    "$PWCLI playwright-cli -s=e2e-video open 'data:text/html,<p>a</p>' && playwright-cli -s=e2e-video video-start \$PWD/e2e.webm && playwright-cli -s=e2e-video goto 'data:text/html,<p>b</p>' && playwright-cli -s=e2e-video video-stop; playwright-cli -s=e2e-video close >/dev/null 2>&1; ls -l \$PWD; [ -s \$PWD/e2e.webm ]"
+  # show --port 是阻塞的 http server:背景起、等它回應,再看 /proc/net/tcp{,6} 裡這個 port 的 LISTEN(狀態 0A)
+  # 全部都是 127.0.0.1(0100007F),不能有 0.0.0.0 或 ::。指令照 verify-in-browser 的 hitl.md 帶 --host=127.0.0.1:
+  # 不帶時聽 localhost,這個容器解析成 ::1,ssh -L 127.0.0.1:<port> 就連不到(第一次跑 e2e 實測)。
+  local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
+  check "show --port 起得來、只聽 127.0.0.1" \
+    "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host=127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
+  # 已經裝 0.1.22 的機器:安裝腳本內容一變 run_onchange_ 就重跑,要升上來(不是「已裝就跳過」)。
+  # run_onchange_ 內容沒變不會再跑,所以裝回舊版後直接跑渲染出來的腳本。
+  step "playwright-cli 裝回 0.1.22" ". ~/.nvm/nvm.sh && npm install -g @playwright/cli@0.1.22 && [ \"\$(playwright-cli --version)\" = 0.1.22 ]"
+  check "0.1.22 的機器跑安裝腳本後 ≥ $PWCLI_MIN、exit 0" \
+    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | sh && $PWCLI $PWCLI_VERSION_OK"
+}
+
+# ===============================================================
+# personal-chrome-attach:dry run(#264)
+# ===============================================================
+# 容器裡沒有人的 Chrome,只驗 ec2 單邊:網址拿得到、9555 轉得到 relay、沒人連進來會自己收乾淨、9555 被佔就失敗。
+# 有 token 時網址不進腳本的輸出(agent 看得到、背景跑會存檔),只在 9555 的 /connect 頁給人複製。
+# 不帶 -s:順便驗預設 session 名是 personal-chrome。
+# 9555 有在聽 = /proc/net/tcp{,6} 有 :2553(9555)的 LISTEN(狀態 0A)。殘留 = 指令列還有這支、它的轉發或 session 的 daemon。
+ATTACH_LISTEN="awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':2553\$'"
+ATTACH_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'personal-chrome-attach|cliDaemon.js personal-chrome' | grep -v grep"
+ATTACH_TOKEN=e2e-attach-token-$$
+# connect 網址:chrome-extension://<id>/connect.html?…,mcpRelayUrl 是 ws://127.0.0.1:9555/extension/…
+ATTACH_URL_RE='^chrome-extension://[a-z]+/connect\.html\?.*mcpRelayUrl=ws%3A%2F%2F127\.0\.0\.1%3A9555%2Fextension%2F'
+
+check_personal_chrome_attach_dry_run() {
+  bold "▶ personal-chrome-attach:dry run"
+  # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、nvm 都在背景的 subshell 跑,
+  # $! 是那個 subshell,kill 不到腳本本身。/connect 頁的網址在 value="…" 裡,&amp; 換回 &。
+  check "有 token:輸出不印網址、指到 /connect;/connect 回帶 token 的網址;/ 是 relay 的 404;session 是 personal-chrome" \
+    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$ATTACH_TOKEN personal-chrome-attach --timeout=60 > ~/attach.log 2>&1 & p=\$!; for i in \$(seq 30); do grep -q '127.0.0.1:9555/connect' ~/attach.log && break; sleep 1; done; url=\$(curl -s http://127.0.0.1:9555/connect | grep -o 'value=\"[^\"]*\"' | sed 's/^value=\"//; s/\"\$//; s/&amp;/\\&/g'); code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); daemon=\$(for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep 'cliDaemon.js personal-chrome ' | grep -vc grep); kill \$p; wait \$p; cat ~/attach.log; echo \"curl /:\$code daemon:\$daemon\"; grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && grep -q '&token=$ATTACH_TOKEN' <<<\"\$url\" && echo '/connect 的網址 OK' && grep -q 'http://127.0.0.1:9555/connect' ~/attach.log && ! grep -q 'chrome-extension://' ~/attach.log && [ \"\$code\" = 404 ] && [ \"\$daemon\" -ge 1 ]"
+  check "被中斷後 9555 放掉、沒有殘留 process" "sleep 2; ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
+  # 連腳本自己的輸出(~/attach.log)一起找:輸出也是 agent 看得到、會存檔的地方
+  check "token 沒寫進任何檔案(含腳本的輸出)" "[ -s ~/attach.log ] && ! grep -rlI $ATTACH_TOKEN ~ /tmp 2>/dev/null"
+  check "沒 token:印出 connect 網址(不帶 token);沒人連進來就在逾時(10 秒)內非 0 結束、9555 放掉、沒有殘留 process" \
+    "$PWCLI s=\$SECONDS; out=\$(env -u PLAYWRIGHT_MCP_EXTENSION_TOKEN personal-chrome-attach --timeout=10 2>&1); rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"\$out\"; echo \"rc=\$rc 秒數=\$e\"; url=\$(grep -o 'chrome-extension://[^ ]*' <<<\"\$out\"); grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && ! grep -q 'token=' <<<\"\$url\" && [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
+  check "9555 先被佔時失敗,說出是誰佔著" \
+    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -387,7 +494,7 @@ scenario_ubuntu() {
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
   # ssh client 補裝與 userspace tailscale 的 ProxyCommand 只給沒有 root 的機器(#216)
   check "有 root:ssh config 沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
-    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
+    "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
@@ -398,6 +505,9 @@ scenario_ubuntu() {
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
+  check_remote_chrome yes
+  check_personal_chrome_attach yes
+  check_personal_pc_socks
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -407,6 +517,8 @@ scenario_ubuntu() {
     "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:starship 提示列 >>>' ~/.bashrc)\" = 1 ]"
   check "互動 bash 載入 starship" "[ \"\$(bash -ic 'echo \$STARSHIP_SHELL' 2>/dev/null)\" = bash ]"
   check_cli_tools
+  check_playwright_cli
+  check_personal_chrome_attach_dry_run
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -445,6 +557,9 @@ scenario_ubuntu() {
   # 不然排在 mise shims 前面
   step "放一份舊的 ~/.local/bin/fzf、rg" \
     "printf '#!/bin/sh\\necho old\\n' > ~/.local/bin/fzf && cp ~/.local/bin/fzf ~/.local/bin/rg && chmod +x ~/.local/bin/fzf ~/.local/bin/rg"
+  # 模擬 #261 以前的機器:部署過 remote-chrome(WSL 開 Windows Chrome 那支)的 symlink,apply 之後要被 .chezmoiremove 清掉
+  step "放一份舊的 ~/.local/bin/remote-chrome" \
+    "ln -sfn ~/.config/skillshare/skills/remote-chrome/scripts/remote-chrome ~/.local/bin/remote-chrome"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
@@ -457,6 +572,7 @@ scenario_ubuntu() {
     "[ ! -e ~/.p10k.zsh ] && [ ! -e ~/.config/zsh/powerlevel10k ] && [ ! -e ~/.cache/gitstatus ] && ! ls ~/.cache/p10k-* 2>/dev/null && [ -d ~/.config/zsh/zsh-z ]"
   check "舊的 ~/.local/bin/fzf、rg 清掉了,zsh 用的是 mise 那份" \
     "[ ! -e ~/.local/bin/fzf ] && [ ! -e ~/.local/bin/rg ] && [ \"\$(zsh -i -c 'whence -p fzf' 2>/dev/null | tail -n1)\" = \"\$HOME/.local/share/mise/shims/fzf\" ]"
+  check "舊的 ~/.local/bin/remote-chrome 清掉了" "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
@@ -564,11 +680,12 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
-  # Runbook 免回答安裝那一行的 --promptChoice 要跟樣板一字不差,不然 init 會報錯或停下來問
   check "第一次 init 用途預設精簡(--promptDefaults、不給用途)" \
     "chezmoi --config /tmp/s-default.toml init --no-tty --promptDefaults --promptString 'git user.email=e2e@example.com' </dev/null && $(printf "$use_is" minimal /tmp/s-default.toml)"
-  check "Runbook 免回答安裝那一行的用途提示跟樣板一致" \
-    "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/docs/new-machine-setup.md"
+  # 免回答安裝那一行(#253 起在 Runbook 與沒有 root 的那份,不在 README)的 --promptChoice
+  # 要跟樣板一字不差,不然 init 會報錯或停下來問。兩份都要有、都要一致。
+  check "免回答安裝那一行的用途提示跟樣板一致(new-machine-setup、no-root-machine)" \
+    "for f in docs/new-machine-setup.md docs/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
   # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
   # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
   check "用途那題打 m 得到 minimal" \
@@ -606,7 +723,7 @@ scenario_ubuntu() {
     echo "chezmoi --config /tmp/s-none.toml execute-template --init --no-tty $(printf '%q ' "${GIT_FLAGS[@]}" "${flags[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl | grep -oE '^    ($secret_keys) = ' | awk '{print \$1}' | paste -sd' '"
   }
   check "選精簡:只問 git 身分,一個憑證都不問" "[ -z \"\$($(secrets_asked minimal))\" ]"
-  check "Runbook 免回答安裝那一行(--promptDefaults、只給用途與 git email)跑得完、不問憑證" \
+  check "免回答安裝那一行(--promptDefaults、只給用途與 git email)跑得完、不問憑證" \
     "chezmoi --config /tmp/s-readme.toml init --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") --promptString 'git user.email=e2e@example.com' </dev/null && cat /tmp/s-readme.toml && ! grep -qE '$secret_keys' /tmp/s-readme.toml && grep -qx '    gitUserName = \"henry\"' /tmp/s-readme.toml"
   check "勾 code-server:只問 code-server 密碼" "[ \"\$($(secrets_asked custom code-server))\" = codeServerPassword ]"
   check "勾 opencode(沒勾 codex):只問 codex-lb key" "[ \"\$($(secrets_asked custom opencode))\" = codexLbApiKey ]"
@@ -636,7 +753,7 @@ scenario_ubuntu() {
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
-  # WSL 用 Windows 的 Chrome(remote-chrome),選單不列 headless Chrome。
+  # WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:不在選單上的會報 invalid choice。
   bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"
@@ -912,7 +1029,12 @@ scenario_termux() {
   check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
-    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
+    "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
+  # Termux 沒勾 agent-config:remote-chrome-headless 照部署(指不到檔案是預期的);
+  # personal-chrome-attach 要勾 playwright-cli 和 agent-config 才部署,Termux 沒有
+  check_remote_chrome no
+  check_personal_chrome_attach no
+  check_personal_pc_socks
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1001,7 +1123,7 @@ put_root_file() {  # put_root_file <路徑> <權限>
 SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
 # 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
-# 情境就是用途(精簡、完整),跟 Runbook 免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
+# 情境就是用途(精簡、完整),跟免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
 # 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,選單全列)。
 noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
@@ -1114,9 +1236,12 @@ noroot_slim_checks() {
   check_mise_skips_system_vim
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
   check_ssh_client
-  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
-  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
-    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
+  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
+  for h in company-ec2 company-ec2-attach company-ec2-socks; do
+    check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
+      "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  done
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
 
@@ -1178,6 +1303,9 @@ noroot_full_checks() {
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
+  check_remote_chrome yes
+  check_personal_chrome_attach yes
+  check_personal_pc_socks
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

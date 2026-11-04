@@ -15,11 +15,13 @@ if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
   set +u; . "$NVM_DIR/nvm.sh"; set -u
 fi
 
-# 2. 已經有就不重裝
-if command -v playwright-cli >/dev/null 2>&1; then
-  echo "playwright-cli 已安裝,跳過"
-  exit 0
-fi
+# 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
+#    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
+min=0.1.23
+version_ok() {
+  v=$(playwright-cli --version 2>/dev/null) || return 1
+  [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
+}
 
 {{ if not (includeTemplate "node-runnable" .) -}}
 # 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
@@ -28,10 +30,20 @@ fi
 skip_root "playwright-cli" "要 Node,跟著上面「nvm 與 Node」那項"
 exit 0
 {{ end -}}
-# 3. 安裝
+# 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
 command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-npm install -g @playwright/cli
+if version_ok; then
+  echo "playwright-cli $(playwright-cli --version) 已 ≥ $min,不重裝"
+else
+  npm install -g @playwright/cli@latest
+  version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
+fi
 
-# 4. 沒有 Chrome 只提醒,不算失敗:CLI 本身裝好了,之後補勾 headless-chrome 就能用
+# 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
+#    用 CLI 自己的 install-browser 裝(等同 playwright 官方的 `playwright install ffmpeg`),下載到
+#    ~/.cache/ms-playwright、不用 root;已經有就不重下載。
+playwright-cli install-browser ffmpeg
+
+# 5. 沒有 Chrome 只提醒,不算失敗:CLI 本身裝好了,之後補勾 headless-chrome 就能用
 [ -x /opt/google/chrome/chrome ] || echo "playwright-cli 找不到 /opt/google/chrome/chrome:要開瀏覽器請一起勾 headless-chrome" >&2
 {{ end -}}

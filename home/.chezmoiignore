@@ -83,6 +83,9 @@ AppData
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
+# personal-chrome-attach 指向 agent-config 的 personal-pc-tunnel skill,跑起來要 playwright-cli:
+# 兩個都勾才部署,不然是斷掉的連結(例如 Termux)。
+{{ if not (and (has "playwright-cli" $tools) (has "agent-config" $tools)) }}.local/bin/personal-chrome-attach{{ end }}
 # code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
 {{ if not (has "code-server" $tools) }}.config/code-server{{ end }}
 

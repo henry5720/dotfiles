@@ -10,14 +10,15 @@
 
 常見的接法：用 `playwright-cli` 驗收 → 卡在「為什麼」就換 chrome-devtools-mcp → 修好 → 值得防回歸的才寫成 e2e，一次性的修正不寫。
 
-要看著 agent 在自己的 Chrome 裡操作時，remote-chrome skill 還是能把 Windows Chrome 的 9222 轉發過來，但驗收不靠這條：
-它要人在桌機開著 `remote-chrome`，沒辦法無人值守。
-
 company-ec2 上的 headless（a1）留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
 
 - **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。
 - **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=9222`，讓 MCP 在 ec2 自己開 Chrome 的話，a2 就接不上。
 - **人要看 a1 畫面**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
+
+一定要人自己的瀏覽器時（passkey、硬體金鑰、裝置 SSO），操作還是 Playwright：`playwright-cli attach --extension=chrome` 接人在個人電腦上日常的 Chrome（2026-11-04 實測，[#248](https://github.com/henry5720/dotfiles/issues/248)）。
+agent-config 的 `personal-pc-tunnel` skill 附的 `personal-chrome-attach` 把 relay 固定在 127.0.0.1:9555，人開 `ssh -N company-ec2-attach`、把網址貼進新分頁；agent 只看得到那一個分頁，用完 `detach`，Chrome 和分頁留著。
+不再用專用 profile 的 Chrome 把 9222 轉發過來：那個 profile 沒有人的登入，Chrome 136 起又不能對日常 profile 開 debugging port。
 
 省 token 是 CLI 和 MCP 的差別，不是牌子的差別：chrome-devtools-mcp 也附了 `chrome-devtools` CLI
 （[docs/cli.md](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md)）。官方部落格 2026-05-19 說它 stable 了，
