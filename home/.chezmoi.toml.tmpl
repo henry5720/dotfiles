@@ -35,8 +35,8 @@
        key 名與值已經寫在各台的 config,不要改;格式再變就加到 4。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
 {{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
-       用途的提示文字會出現在 README 免回答安裝那一行(--promptChoice 的 key),改了要一起改
-       (還有 Runbook、docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
+       用途的提示文字會出現在 Runbook 免回答安裝那一行(--promptChoice 的 key),改了要一起改
+       (還有 docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
 {{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
 {{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）" -}}

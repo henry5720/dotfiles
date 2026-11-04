@@ -193,7 +193,7 @@ PY
 }
 
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
-# 用途的提示文字也在 README 免回答安裝那一行,三處要一字不差。
+# 用途的提示文字也在 Runbook 免回答安裝那一行,三處要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
 USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）'
 # 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
@@ -564,11 +564,11 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
-  # README 免回答安裝那一行的 --promptChoice 要跟樣板一字不差,不然 init 會報錯或停下來問
+  # Runbook 免回答安裝那一行的 --promptChoice 要跟樣板一字不差,不然 init 會報錯或停下來問
   check "第一次 init 用途預設精簡(--promptDefaults、不給用途)" \
     "chezmoi --config /tmp/s-default.toml init --no-tty --promptDefaults --promptString 'git user.email=e2e@example.com' </dev/null && $(printf "$use_is" minimal /tmp/s-default.toml)"
-  check "README 免回答安裝那一行的用途提示跟樣板一致" \
-    "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/README.md"
+  check "Runbook 免回答安裝那一行的用途提示跟樣板一致" \
+    "grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/docs/new-machine-setup.md"
   # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
   # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
   check "用途那題打 m 得到 minimal" \
@@ -606,7 +606,7 @@ scenario_ubuntu() {
     echo "chezmoi --config /tmp/s-none.toml execute-template --init --no-tty $(printf '%q ' "${GIT_FLAGS[@]}" "${flags[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl | grep -oE '^    ($secret_keys) = ' | awk '{print \$1}' | paste -sd' '"
   }
   check "選精簡:只問 git 身分,一個憑證都不問" "[ -z \"\$($(secrets_asked minimal))\" ]"
-  check "README 免回答安裝那一行(--promptDefaults、只給用途與 git email)跑得完、不問憑證" \
+  check "Runbook 免回答安裝那一行(--promptDefaults、只給用途與 git email)跑得完、不問憑證" \
     "chezmoi --config /tmp/s-readme.toml init --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") --promptString 'git user.email=e2e@example.com' </dev/null && cat /tmp/s-readme.toml && ! grep -qE '$secret_keys' /tmp/s-readme.toml && grep -qx '    gitUserName = \"henry\"' /tmp/s-readme.toml"
   check "勾 code-server:只問 code-server 密碼" "[ \"\$($(secrets_asked custom code-server))\" = codeServerPassword ]"
   check "勾 opencode(沒勾 codex):只問 codex-lb key" "[ \"\$($(secrets_asked custom opencode))\" = codexLbApiKey ]"
@@ -1001,7 +1001,7 @@ put_root_file() {  # put_root_file <路徑> <權限>
 SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
 # 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
-# 情境就是用途(精簡、完整),跟 README 免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
+# 情境就是用途(精簡、完整),跟 Runbook 免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
 # 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,選單全列)。
 noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
