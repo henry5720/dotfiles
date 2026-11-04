@@ -371,11 +371,11 @@ check_playwright_cli() {
   check "video-start／video-stop 產出影片檔" \
     "$PWCLI playwright-cli -s=e2e-video open 'data:text/html,<p>a</p>' && playwright-cli -s=e2e-video video-start \$PWD/e2e.webm && playwright-cli -s=e2e-video goto 'data:text/html,<p>b</p>' && playwright-cli -s=e2e-video video-stop; playwright-cli -s=e2e-video close >/dev/null 2>&1; ls -l \$PWD; [ -s \$PWD/e2e.webm ]"
   # show --port 是阻塞的 http server:背景起、等它回應,再看 /proc/net/tcp{,6} 裡這個 port 的 LISTEN(狀態 0A)
-  # 全部都是 127.0.0.1(0100007F),不能有 0.0.0.0 或 ::。指令照 verify-in-browser 的 hitl.md 帶 --host 127.0.0.1:
+  # 全部都是 127.0.0.1(0100007F),不能有 0.0.0.0 或 ::。指令照 verify-in-browser 的 hitl.md 帶 --host=127.0.0.1:
   # 不帶時聽 localhost,這個容器解析成 ::1,ssh -L 127.0.0.1:<port> 就連不到(第一次跑 e2e 實測)。
   local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
   check "show --port 起得來、只聽 127.0.0.1" \
-    "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host 127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
+    "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host=127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
   # 已經裝 0.1.22 的機器:安裝腳本內容一變 run_onchange_ 就重跑,要升上來(不是「已裝就跳過」)。
   # run_onchange_ 內容沒變不會再跑,所以裝回舊版後直接跑渲染出來的腳本。
   step "playwright-cli 裝回 0.1.22" ". ~/.nvm/nvm.sh && npm install -g @playwright/cli@0.1.22 && [ \"\$(playwright-cli --version)\" = 0.1.22 ]"
