@@ -68,6 +68,18 @@ _Avoid_: role（單獨使用時）、persona
 CLI 自帶、不用寫設定就能派的 subagent，例如 Claude 的 Explore、Plan、general-purpose，Codex 的 default、explorer、worker。自己寫一個同名的原生角色會蓋掉它。
 _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
 
+## GUI 控制
+
+local、remote 一律從 agent 那一側看，不是從坐在電腦前的人看：人 SSH 進去的 server 對 agent 來說是 local。
+
+**Local GUI**:
+GUI app 跑在 agent 所在的那台機器上。
+_Avoid_: 實體機、虛擬螢幕（指放的位置時）
+
+**Remote GUI**:
+GUI app 跑在另一台有桌面的機器上，agent 經網路控制它。只講 GUI 在哪一台，不講走 tailnet 還是 Funnel。
+_Avoid_: 目標機器、桌機、實體機、remote（指經 Funnel 開到公網時）
+
 ## 裝機
 
 **基底**:
