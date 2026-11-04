@@ -6,6 +6,9 @@ WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝�
 shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`script/ubuntu/` 只保證 Ubuntu,需要分 WSL／非 WSL 時用
 `grep -qi microsoft /proc/version` 判斷。
 
+Windows 主機(WSL 外面那層 Windows)也用這個 repo,但只部署 `home/.chezmoiignore` Windows 段白名單上的
+檔案、不跑任何 `run_` 腳本:`home/` 新增的檔案預設不會到 Windows,Windows 專屬的檔案要在 Linux 段排除。
+
 文件、註解、commit message 一律用**繁體中文**。
 
 ## 這個 repo 被切成兩半
@@ -13,7 +16,7 @@ shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`scri
 `.chezmoiroot` 的內容是 `home`,所以:
 
 - **`home/` 是 chezmoi 的地盤** —— 檔名前綴有語意(見下),會部署到家目錄
-- **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`、`wsl/`(Windows 主機側),
+- **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`,
   以及這個 AGENTS.md
 
 改 `home/` 底下 = 改會部署到家目錄的設定;改其他地方 = 只是 repo 內容,不影響任何機器。
@@ -77,6 +80,14 @@ bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使�
 方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改),不碰本機家目錄。檢查清單與環境變數(`E2E_TAG`、
 `E2E_KEEP`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
+
+Windows 沒有容器可以跑 e2e。改到 Windows 會部署的檔案(白名單上的 target、`.chezmoiignore` 的 Windows 段、
+config 樣板的 windows 分支)時:
+
+1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
+   Windows 部署哪些檔、渲染出什麼
+2. PR 的 `## 驗證` 段把 [`docs/windows.md`](docs/windows.md) 的實機清單逐項列成「未驗」,
+   等使用者在 Windows 實機跑完回報才 merge
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。

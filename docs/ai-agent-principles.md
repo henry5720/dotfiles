@@ -56,7 +56,7 @@ caveman 只挑一個裝的例子見 [agent-config 的〈選 skill 的原則〉](
 ### 2. 成本量過了嗎
 
 量,不要估。codegraph 的數字是實際跑出來的:7,135 檔的前端 261 MB、20 秒、**峰值 2.9 GB
-記憶體**;`wsl/.wslconfig` 只給 16 GB,這個數字會影響「幾個 worktree 能同時 init」這種決定。
+記憶體**;[`.wslconfig`](../home/dot_wslconfig) 只給 16 GB,這個數字會影響「幾個 worktree 能同時 init」這種決定。
 
 而量過之後結論可能翻盤:原本因為「11 個 worktree × 261 MB 太貴」打算不在 worktree 用
 codegraph,量完發現 `df` 有 931 G 可用(0.3%),而且複製主索引只要 1 秒 —— 反對的理由兩個
