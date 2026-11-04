@@ -1,5 +1,5 @@
 {{- /* 這台的 tailscale 走 userspace 嗎:是就輸出 true,否則空字串。用法:{{ if includeTemplate "tailscale-userspace" . }}
-       三條都成立才算,跟 install-tailscale 腳本印 userspace 手動步驟的條件一樣:
+       三條都成立才算,跟 install-tailscale 腳本裝 userspace tailscale 的條件一樣:
          1. Linux 而且勾了 tailscale
          2. 沒有 root(.chezmoitemplates/has-root),系統層的 tailscale 裝不了
          3. 系統層的 tailscaled 沒在跑(.chezmoitemplates/sh-tailscale-running,跟 install-tailscale 同一段判斷);

@@ -42,7 +42,7 @@ Windows 端的 `.wslconfig`、SSH private key、各服務帳號登入、秘密�
 
 ### 雲端主機
 
-能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](#沒有-root-的機器)）。字型裝在你連線那端的終端機。
+能 SSH 進去就好，帳號不一定要能 `sudo`（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你連線那端的終端機。
 
 ### macOS
 
@@ -163,81 +163,7 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 
 ### 沒有 root 的機器
 
-別人給的帳號、公司的工作區常常不能 `sudo`。chezmoi 自己判斷這台有沒有 root，不用回答：
-本來就是 root、在 `sudo`／`admin`／`wheel` 群組（要密碼的照樣算，apply 時會問）、或 `sudo -n true`
-成功，三條都不符才算沒有 root。
-
-沒有 root 時，要 root 的步驟不會讓 apply 失敗：每一步印一行「略過什麼、手動怎麼做」，apply 最後再彙整一次
-（`== 沒有 root,以下步驟已略過` 底下），整個 apply 照樣 exit 0。目前會略過的：
-
-| 略過什麼 | 手動方式（彙整裡有完整指令） |
-|---|---|
-| 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install`。jq、zsh 例外，見下面 |
-| tailscale | userspace 模式：tarball 放 `~/.local/bin`、`tailscaled --tun=userspace-networking`、登入、ssh 的 `tailscale nc` ProxyCommand；之後開 zsh 時 tailscaled 沒在跑會自己背景起來（`.zshrc`） |
-| headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
-| nvm 與 Node（勾了 `node` 或要 Node 的工具才有這項；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
-
-不用 root 的照常裝好（eza、fzf、bat、ripgrep、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
-系統沒有 jq 時從 GitHub release 裝到 `~/.local/bin`（非 Debian 系 Linux 也一樣）。
-
-勾了 zsh 的話，zsh 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`（非 Debian 系 Linux 也一樣，有 root 也是）。不 `chsh`，改成：
-
-- `~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間）：互動式 bash 一啟動就 `exec zsh`；
-  `bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh
-- 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時，補一個 `~/.profile`：把 `~/.local/bin` 加進 PATH、
-  source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去
-- `TERM` 沒設時，`.zshrc` 補成 `xterm-256color`
-
-本來走 apt 的 vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，
-改用 [mise](https://mise.jdx.dev/) 裝到家目錄（非 Debian 系 Linux 也一樣）：
-
-- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；系統已經有的指令不列，不會重裝一份
-- 指令在 `~/.local/share/mise/shims`，zsh 已加進 PATH；`mise ls` 看裝了什麼，`mise upgrade` 更新
-- mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
-
-略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
-
-系統的 tailscaled 已經在跑（`tailscale status` 是 Running，或 `systemctl is-active tailscaled`）時，tailscale 整段跳過，
-有沒有 root 都一樣，不會叫 sudo。
-
-不要用 `sudo chezmoi …`：以 root 執行、`$HOME` 又不屬於 root 時，chezmoi 一開頭就停，免得家目錄的檔案變成 root 擁有。
-
-沒有 `ssh` 的機器（例：TeamSync 工作區）不分用途自動補 ssh client：apt 不用 root 把 openssh-client
-抓下來解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。
-抓不到或解不開時不讓 apply 失敗，記進略過彙整。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝。
-
-tailscale 走 userspace 的機器（勾了 tailscale、沒有 root、系統 tailscaled 沒在跑），`~/.ssh/config` 的
-`company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`。照彙整的手動步驟把
-userspace tailscaled 跑起來、登入之後，`ssh company-ec2` 就經 tailnet 連過去。其他機器的 ssh config 不變。
-
-### TeamSync 工作區：連 company-ec2 的專用 key（一次性）
-
-company-ec2 關了密碼登入，也沒開 Tailscale SSH，工作區要一把 key。不要把 `henry5720` 或 AWS 發的 pem
-複製進工作區：產一把工作區專用的，外洩或不用了只要在 company-ec2 刪一行。
-
-1. 在工作區產 key。檔名用 `~/.ssh/company-henry.pem`：ssh config 的 `company-ec2` 寫死這個 IdentityFile。
-   這把是工作區自己的 key，跟其他機器上同名的 AWS pem 不是同一把：
-
-   ```bash
-   ssh-keygen -t ed25519 -N '' -C "teamsync-ws $(date +%F)" -f ~/.ssh/company-henry.pem
-   cat ~/.ssh/company-henry.pem.pub
-   ```
-
-2. 在已經連得上 company-ec2 的機器，把那行公鑰加進 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
-
-   ```bash
-   ssh company-ec2 'cat >> ~/.ssh/authorized_keys'
-   # 貼上一行:from="100.64.0.0/10" <第 1 步印出的公鑰>,換行後 Ctrl-D
-   ```
-
-3. 回工作區，先 `export TERM=xterm-256color` 再 `ssh company-ec2`：工作區的 bash 沒有 export `TERM`，
-   遠端 zsh 的行編輯會壞（字元重複）。
-4. 撤銷：在 company-ec2 跑 `sed -i '/teamsync-ws/d' ~/.ssh/authorized_keys`。
-
-p10k 的圖示在 TeamSync 工作區的網頁終端機變成方塊，不是 dotfiles 壞了：它用通用的 `monospace` 字型，
-實際用哪個字型看的是**你看畫面那台 Chrome** 的等寬字型設定。在那台裝 Hack Nerd Font
-（Windows 見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font)），到 `chrome://settings/fonts`
-把「固定寬度字型」改成 `Hack Nerd Font`，重新整理頁面。
+不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連 company-ec2 的專用 key、字型，見[沒有 root 的機器](no-root-machine.md)。
 
 ### 2.4 裝完之後
 
