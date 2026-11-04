@@ -21,6 +21,8 @@
 
 - shim 寫出 `chrome-extension://mmlmfjhmonkocbjadbfplnigmagldckm/connect.html?mcpRelayUrl=ws://127.0.0.1:9555/extension/<uuid>…`，
   `fwd.mjs` 把 9555 轉到 relay 的隨機 port，`curl 127.0.0.1:9555` 回 404（relay 只收 websocket，正常）。
+- 沒有 extension 連進來時，`PWTEST_EXTENSION_CONNECT_TIMEOUT=15000` 下 attach 過了 60 秒仍沒結束，要手動 kill：
+  逾時變數對 `attach` 可能沒作用，實測 a 時要看等多久。
 - `PLAYWRIGHT_MCP_PROXY_SERVER=socks5://127.0.0.1:1` 時 `open` 回 `ERR_PROXY_CONNECTION_FAILED`：proxy 環境變數有生效。
 - ec2 直連 IP `18.141.90.104`；YouTube 觀看頁 `playabilityStatus=OK`、`yt-dlp --simulate` 拿得到標題：**現在沒被擋**。
 
