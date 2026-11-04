@@ -2,34 +2,34 @@
 
 ![裝完之後的 terminal：p10k prompt、語法上色與 autosuggestion、eza、fastfetch](docs/demo/main.gif)
 
-個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理，以 **Ubuntu + 純 zsh** 為主；日常用在 WSL2，
-也用在雲端主機與 Android 平板（原生 Termux、Termux 裡的 proot Ubuntu）。
+個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理，以 **Linux + 純 zsh** 為主：Ubuntu 等 Debian 系
+最完整，實體機、雲端主機、WSL2、proot 都一樣裝，有沒有 root 都行；也用在 macOS 與 Android 平板
+（原生 Termux、Termux 裡的 proot Ubuntu）。
 
 ## 支援哪些環境
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| WSL2 Ubuntu | kernel 版本含 `microsoft` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡；不列 headless Chrome、playwright-cli） |
-| 雲端主機、proot Ubuntu | 其他 Debian 系 Linux | 同上；amd64 才列 headless Chrome、playwright-cli |
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；amd64 才列 headless Chrome、playwright-cli，WSL 不列（kernel 版本含 `microsoft`，改用 Windows 的 Chrome） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 
-機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/new-machine-setup.md#沒有-root-的機器)。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/no-root-machine.md)。
 
 ## 新機器
 
 | 步驟 | 要不要做 | 怎麼做 |
 |---|---|---|
-| 更新系統 | 可選，跳過也裝得起來 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
+| 更新系統 | 可選，跳過也裝得起來；沒有 root 就跳過 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
 | 放 SSH key | 可選，要 push 或連其他機器才需要；裝完再放也行 | 見[新機器設定 2.2](docs/new-machine-setup.md#22可選放-ssh-key) |
 | 裝 chezmoi 與 dotfiles | 必做 | 下面四行挑一行 |
 
 ```bash
-# Ubuntu（WSL、雲端主機、proot Ubuntu），在家目錄跑
+# Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都一樣），在家目錄跑
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 
-# Ubuntu，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
+# Linux，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" --promptString "git user.email=<email>" henry5720
 
 # 原生 Termux
@@ -39,7 +39,7 @@ pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
 brew install chezmoi && chezmoi init --apply henry5720
 ```
 
-![打上面 Ubuntu 那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
+![打上面 Linux 那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
 
 clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、
 裝完之後的 AI 工具設定，見[新機器設定](docs/new-machine-setup.md)。
@@ -107,6 +107,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | 文件 | 什麼時候看 |
 |---|---|
 | [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
+| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key、字型 |
 | [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
 | [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 

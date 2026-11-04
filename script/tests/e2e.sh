@@ -926,7 +926,9 @@ RUN apt-get update \
  && printf '#!/bin/sh\necho "VIM - e2e system stub"\n' > /usr/local/bin/vim && chmod 755 /usr/local/bin/vim
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
+  # --init:PID 1 換成會回收子程序的 tini。apply 裝的 userspace tailscaled 會被 zsh 背景起來,
+  # 測試停掉它之後,sleep 當 PID 1 不回收,留下的 zombie 讓 pgrep 以為還在跑
+  docker run -d --init --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
   local u
   for u in "${NOROOT_USERS[@]}"; do use_user "$u"; make_fixtures; done
 }
@@ -1032,8 +1034,11 @@ noroot_slim_checks() {
   check "精簡沒有要略過的系統套件(jq、zsh 裝到家目錄,vim、btop 交給 mise)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
   check_skipped "tailscale"
-  check "tailscale 的手動方式是 userspace 模式(啟動、登入、常駐、ssh ProxyCommand)" \
-    "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q -- '--tun=userspace-networking' <<<\"\$s\" && grep -q ' up\$' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\""
+  # userspace tailscale 由 apply 裝到家目錄(#224):彙整那筆只剩登入、常駐與 ProxyCommand 的說明,不再要人下載
+  check "tailscale 的彙整只剩登入與說明(登入、常駐、ssh ProxyCommand,沒有下載步驟)" \
+    "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q 'tailscaled.sock up' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\" && ! grep -qE 'pkgs.tailscale.com|--tun=userspace-networking' <<<\"\$s\""
+  check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
+    "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
   check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
   check "zsh 用 zsh-bin 裝到 ~/.local/bin,版本 5.8" "~/.local/bin/zsh --version | grep -q '^zsh 5\.8 '"
@@ -1067,11 +1072,34 @@ noroot_slim_checks() {
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -qE '略過|安裝|下載' <<<\"\$out\""
   check "第二次 apply 沒有重裝 zsh-bin" \
     "[ ! ~/.local/bin/zsh -nt ~/.e2e-marker2 ] && [ ! ~/.local/share/zsh -nt ~/.e2e-marker2 ]"
+  check "第二次 apply 沒有重新下載 tailscale" \
+    "[ ! ~/.local/bin/tailscale -nt ~/.e2e-marker2 ] && [ ! ~/.local/bin/tailscaled -nt ~/.e2e-marker2 ]"
+  # 腳本內容改了(run_onchange 會重跑)也不重下載:直接渲染再跑一次,PATH 前面放一支會記錄呼叫、一定失敗的 curl
+  put_root_file /opt/e2e-stub/curl-log/curl 755 <<'SH'
+#!/bin/sh
+echo "curl $*" >> /tmp/e2e-curl.log
+exit 1
+SH
+  check "tailscale 已經裝過:腳本重跑不下載、exit 0" \
+    "rm -f /tmp/e2e-curl.log && chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts.sh && out=\$(PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '已經裝過' <<<\"\$out\" && [ ! -e /tmp/e2e-curl.log ]; r=\$?; rm -f ~/.local/state/dotfiles/root-skipped; exit \$r"
+  # 同一支渲染好的腳本,換一個空的 HOME 跑:沒裝過、curl 失敗
+  check "tailscale 下載失敗:記進略過彙整、exit 0、不留半套" \
+    "rm -rf /tmp/ts-home && mkdir -p /tmp/ts-home && out=\$(HOME=/tmp/ts-home PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home/.local/state/dotfiles/root-skipped && [ ! -e /tmp/ts-home/.local/bin/tailscale ] && [ ! -e /tmp/ts-home/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home; exit \$r"
+  # 之後拿到 root:~/.local/bin 的 userspace 版不算已安裝(它沒有系統 unit,systemctl enable 會失敗),要走官方 installer。
+  # 用會成功的 sudo stub 渲染成有 root 那版,curl stub 記錄呼叫(一定失敗,腳本停在下載)
+  put_root_file /opt/e2e-stub/sudo-ok/sudo 755 <<'SH'
+#!/bin/sh
+exit 0
+SH
+  check "有 root 時不把 ~/.local/bin 的 userspace tailscale 當成已安裝,改跑官方 installer" \
+    "rm -f /tmp/e2e-curl.log && PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-root.sh && out=\$(PATH=/opt/e2e-stub/curl-log:/opt/e2e-stub/sudo-ok:\$PATH sh /tmp/ts-root.sh 2>&1); echo \"\$out\"; ! grep -q '已安裝' <<<\"\$out\" && grep -q 'tailscale.com/install.sh' /tmp/e2e-curl.log"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
-  # userspace tailscaled 常駐:用一支叫 tailscaled 的假程式(只會等),看開 zsh 時沒在跑會不會被起來、在跑時不會多起一支
+  # userspace tailscaled 常駐:用一支叫 tailscaled 的假程式(只會等),看開 zsh 時沒在跑會不會被起來、在跑時不會多起一支。
+  # 前面的 zsh -i 已經把 apply 裝的真 tailscaled 起過了:先停掉、把真的移開,測完放回去。
+  # 用 KILL:真的 tailscaled 收到 TERM 後要一陣子才結束,接著的「沒在跑」會誤判
   check "userspace tailscaled 沒在跑時,開 zsh 會背景起來;已在跑不會多起" \
-    "printf '#!/bin/sh\\nwhile :; do sleep 1; done\\n' > ~/.local/bin/tailscaled && chmod +x ~/.local/bin/tailscaled && mkdir -p ~/.local/state/tailscale && ! pgrep -xu \"\$(id -u)\" tailscaled && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ] && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ]; r=\$?; pkill -xu \"\$(id -u)\" tailscaled; rm -rf ~/.local/bin/tailscaled ~/.local/state/tailscale; exit \$r"
+    "pkill -KILL -xu \"\$(id -u)\" tailscaled; sleep 1; mv ~/.local/bin/tailscaled ~/.local/bin/tailscaled.real && printf '#!/bin/sh\\nwhile :; do sleep 1; done\\n' > ~/.local/bin/tailscaled && chmod +x ~/.local/bin/tailscaled && ! pgrep -xu \"\$(id -u)\" tailscaled && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ] && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ]; r=\$?; pkill -xu \"\$(id -u)\" tailscaled; mv -f ~/.local/bin/tailscaled.real ~/.local/bin/tailscaled; exit \$r"
   check "zsh 的 PATH 沒有重複" "[ -z \"\$(~/.local/bin/zsh -i -c 'print -l \$path' 2>/dev/null | sort | uniq -d)\" ]"
 }
 
