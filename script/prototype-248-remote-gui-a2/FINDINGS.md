@@ -44,4 +44,20 @@
 
 ## 實測結果
 
-（待填）
+### a：attach --extension（2026-11-04，Windows Chrome 156 日常 profile，WSL `ssh -L 9555`）
+
+| | 不帶 token | 帶 `PLAYWRIGHT_MCP_EXTENSION_TOKEN` |
+|---|---|---|
+| 人要做的 | 貼 connect 網址，在畫面選分頁 | 只貼網址 |
+| 網址產生 → 連上 | 09:39 → 09:44（等人） | 24 秒 |
+| 接到的分頁 | 人選的那個（原頁面被 goto 換掉） | 貼網址的那個分頁 |
+| `tab-list` | 只看得到 1 個分頁 | 同左 |
+| GitHub `meta[name=user-login]` | `henry5720`（日常登入在） | 同左 |
+| HN snapshot | 48,726 B | 48,686 B |
+| goto／eval／screenshot／detach | 都成功 | 都成功 |
+
+- token 在 extension 的狀態頁上（「Set this environment variable to bypass the connection dialog」），不進 repo。
+- HN snapshot 跟 a1 的 `playwright-cli` 47,540 B（#247）同級：attach 不多花 token。
+- 結論：**a 可行，c（BrowserMCP v2）不測。**
+- 剩下的手動步驟：每次 attach 要貼一次網址（relay 路徑的 UUID 每次換）。可行的改法（未實作）：
+  `fwd.mjs` 改寫 websocket upgrade 的路徑，讓 connect 網址固定、能存書籤。
