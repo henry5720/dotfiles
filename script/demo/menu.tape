@@ -1,6 +1,8 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
-# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 選單勾 4 項 → Enter →(剪掉安裝)→ 完成
-# 選單預設都不勾。主 GIF 只需要 fastfetch,另外 3 項是示範,挑裝得快的。
+# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 用途按 m → 選單再勾 3 項 → Enter →(剪掉安裝)→ 完成
+# 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,主 GIF 要的 zsh、eza 在裡面;
+# 再勾主 GIF 要的 fastfetch,gh、claude 是示範,挑裝得快的。$lean 或選單順序改了,下面的 Down 次數要重算。
+# 秘密不會問:record.sh 錄之前先寫好假值。
 # 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面 installer 的 log 推出畫面
 Output menu.gif
 Set Shell bash
@@ -30,26 +32,30 @@ Sleep 600ms
 Enter
 Sleep 300ms
 
-# 2. 下載 chezmoi 剪掉,選單出來才顯示
-# Wait+Screen 等選單不可靠(畫面明明有字也會逾時),用固定等待:選單會停著等輸入
+# 2. 下載 chezmoi 剪掉,用途那題出來才顯示
+# Wait+Screen 等提問不可靠(畫面明明有字也會逾時),用固定等待:提問會停著等輸入
 Hide
 Sleep 60s
 Sleep 500ms
 Show
-Sleep 1.5s
+Sleep 2s
 
-# 3. 多選:勾 fastfetch、gh、claude、codex(選單順序見 home/.chezmoitemplates/tool-menu)
+# 3. 用途:停著讓灰字 f/m/c 看得到,按 m。打到唯一選項就送出,不要再按 Enter(會直接確認選單)
+Type "m"
+Sleep 2s
+
+# 4. 多選:精簡已預勾 8 項,再勾 fastfetch、gh、claude
+#    選單順序見 home/.chezmoitemplates/tool-menu;錄影容器是 amd64 Ubuntu,23 項全列,游標從 zsh 開始
 Set TypingSpeed 120ms
+Down 6
 Space Sleep 400ms
 Down 2
 Space Sleep 400ms
-Down 7
-Space Sleep 400ms
-Down
+Down 6
 Space Sleep 1s
 Enter
 
-# 4. 安裝過程剪掉,停在完成訊息
+# 5. 安裝過程剪掉,停在完成訊息
 # VHS 讀到的行尾空白會被砍掉,prompt 是 `$` 不是 `$ `
 Hide
 Wait+Line@40m /\$$/

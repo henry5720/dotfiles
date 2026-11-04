@@ -39,7 +39,7 @@ pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
 brew install chezmoi && chezmoi init --apply henry5720
 ```
 
-![打上面 Ubuntu 那行、在選裝工具選單勾幾項、裝完](docs/demo/menu.gif)
+![打上面 Ubuntu 那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
 
 clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、
 裝完之後的 AI 工具設定，見[新機器設定](docs/new-machine-setup.md)。
