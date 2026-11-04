@@ -338,6 +338,35 @@ check_cli_tools() {
   step "放回 mise shims 的 ${CLI_TOOLS[*]}" "${unhide}true"
 }
 
+# ===============================================================
+# playwright-cli:版本、錄影、show(#262)
+# ===============================================================
+# 0.1.23 起 show 的畫面才能點擊、打字;錄影要 playwright 自己的 ffmpeg(0.1.23 是 ffmpeg-1013)。
+# 版本下限是獨立的期望值,不從安裝腳本讀。
+PWCLI_MIN=0.1.23
+PWCLI="cd \$(mktemp -d) && . ~/.nvm/nvm.sh && export PLAYWRIGHT_MCP_SANDBOX=false &&"
+PWCLI_VERSION_OK="v=\$(playwright-cli --version) && echo \"版本 \$v\" && [ \"\$(printf '%s\\n' $PWCLI_MIN \"\$v\" | sort -V | head -n1)\" = $PWCLI_MIN ]"
+PWCLI_SHOW_PORT=9377
+
+check_playwright_cli() {
+  bold "▶ playwright-cli:版本、錄影、show"
+  check "playwright-cli --version ≥ $PWCLI_MIN" "$PWCLI $PWCLI_VERSION_OK"
+  # 錄影要 ffmpeg:沒有的話 video-start 或 video-stop 會報錯、不會產出檔案
+  check "video-start／video-stop 產出影片檔" \
+    "$PWCLI playwright-cli -s=e2e-video open 'data:text/html,<p>a</p>' && playwright-cli -s=e2e-video video-start \$PWD/e2e.webm && playwright-cli -s=e2e-video goto 'data:text/html,<p>b</p>' && playwright-cli -s=e2e-video video-stop; playwright-cli -s=e2e-video close >/dev/null 2>&1; ls -l \$PWD; [ -s \$PWD/e2e.webm ]"
+  # show --port 是阻塞的 http server:背景起、等它回應,再看 /proc/net/tcp{,6} 裡這個 port 的 LISTEN(狀態 0A)
+  # 全部都是 127.0.0.1(0100007F),不能有 0.0.0.0 或 ::。指令照 verify-in-browser 的 hitl.md 帶 --host 127.0.0.1:
+  # 不帶時聽 localhost,這個容器解析成 ::1,ssh -L 127.0.0.1:<port> 就連不到(第一次跑 e2e 實測)。
+  local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
+  check "show --port 起得來、只聽 127.0.0.1" \
+    "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host 127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
+  # 已經裝 0.1.22 的機器:安裝腳本內容一變 run_onchange_ 就重跑,要升上來(不是「已裝就跳過」)。
+  # run_onchange_ 內容沒變不會再跑,所以裝回舊版後直接跑渲染出來的腳本。
+  step "playwright-cli 裝回 0.1.22" ". ~/.nvm/nvm.sh && npm install -g @playwright/cli@0.1.22 && [ \"\$(playwright-cli --version)\" = 0.1.22 ]"
+  check "0.1.22 的機器跑安裝腳本後 ≥ $PWCLI_MIN、exit 0" \
+    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | sh && $PWCLI $PWCLI_VERSION_OK"
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -407,6 +436,7 @@ scenario_ubuntu() {
     "grep -q 'HISTCONTROL' ~/.bashrc && [ \"\$(grep -c 'dotfiles:starship 提示列 >>>' ~/.bashrc)\" = 1 ]"
   check "互動 bash 載入 starship" "[ \"\$(bash -ic 'echo \$STARSHIP_SHELL' 2>/dev/null)\" = bash ]"
   check_cli_tools
+  check_playwright_cli
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
