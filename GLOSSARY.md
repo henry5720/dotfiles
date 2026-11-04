@@ -84,6 +84,10 @@ _Avoid_: 實體機、虛擬螢幕（指放的位置時）
 GUI app 跑在另一台有桌面的機器上，操作者經網路控制它。只講 GUI 在哪一台，不講走 tailnet 還是 Funnel。
 _Avoid_: 目標機器、桌機、實體機、remote（指經 Funnel 開到公網時）
 
+**Headless 瀏覽器**:
+跑在操作者那台、沒有畫面的瀏覽器。沒有畫面，所以不算 local GUI。
+_Avoid_: a1、local 瀏覽器
+
 ## 裝機
 
 **基底**:
