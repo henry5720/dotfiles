@@ -87,7 +87,7 @@ config 樣板的 windows 分支)時:
 1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
    Windows 部署哪些檔、渲染出什麼
 2. PR 的 `## 驗證` 段逐項列出 [`docs/windows.md`](docs/windows.md) 的實機清單,全部勾完才 merge。
-   連得到 `ssh henry-desktop` 就自己跑,照那份的「在實機測還沒 merge 的分支」
+   能在 Windows 上下指令就自己跑,照那份的「在實機測還沒 merge 的分支」
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。
