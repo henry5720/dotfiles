@@ -10,7 +10,7 @@
 # 沒勾 starship:不部署它的設定(zsh、bash 沒裝 starship 就用 shell 預設的提示列)。
 .config/starship.toml
 {{ end }}
-{{ $bashToZsh := and (has "zsh" (index . "tools")) (includeTemplate "use-mise" .) -}}
+{{ $bashToZsh := includeTemplate "bash-to-zsh" . -}}
 {{ if not (or $bashToZsh (has "starship" (index . "tools"))) }}
 # .bashrc 由 modify_dot_bashrc.tmpl 加段落,兩種情況才要:
 # - 勾了 starship:互動式 bash 啟用 starship 提示列。

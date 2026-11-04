@@ -793,6 +793,9 @@ scenario_ubuntu() {
     "! chezmoi managed --override-data '{\"tools\":[\"zsh\"]}' | grep -qxE '\.config/starship\.toml|\.bashrc'"
   check "只勾 starship(沒勾 zsh):部署 starship.toml、.bashrc,不部署 .zshrc、.profile" \
     "chezmoi managed --override-data '{\"tools\":[\"starship\"]}' > /tmp/ss-managed && grep -qx .config/starship.toml /tmp/ss-managed && grep -qx .bashrc /tmp/ss-managed && ! grep -qxE '\.zshrc|\.profile' /tmp/ss-managed"
+  # 從沒有 root 變成有 root:切 zsh 那段不再重加但留著,starship 那段要排在它前面(exec 之後的跑不到)
+  check "只勾 starship、.bashrc 留著舊的切 zsh 那段:那段原樣搬到最後" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $tmpl/modify_dot_bashrc.tmpl > /tmp/ss-bashrc.sh && printf 'A\\n# >>> dotfiles:互動式 bash 切到 zsh >>>\\nOLDZSH\\n# <<< dotfiles:互動式 bash 切到 zsh <<<\\nB\\n' | sh /tmp/ss-bashrc.sh > /tmp/ss-bashrc.out && tail -n1 /tmp/ss-bashrc.out | grep -q '切到 zsh <<<' && grep -q OLDZSH /tmp/ss-bashrc.out && grep -qx B /tmp/ss-bashrc.out && [ \"\$(grep -n 'starship 提示列 >>>' /tmp/ss-bashrc.out | cut -d: -f1)\" -lt \"\$(grep -n '切到 zsh >>>' /tmp/ss-bashrc.out | cut -d: -f1)\" ]"
   check "只勾 starship 時下載腳本只下載 starship" \
     "chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli-ss.sh && sh -n /tmp/cli-ss.sh && [ \"\$(grep -E '^want ' /tmp/cli-ss.sh)\" = 'want starship install_starship' ]"
   check "沒勾 zsh:改預設 shell 的腳本渲染成空的" \
