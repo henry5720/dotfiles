@@ -10,9 +10,6 @@
 
 常見的接法：用 `playwright-cli` 驗收 → 卡在「為什麼」就換 chrome-devtools-mcp → 修好 → 值得防回歸的才寫成 e2e，一次性的修正不寫。
 
-要看著 agent 在自己的 Chrome 裡操作時，remote-chrome skill 還是能把 Windows Chrome 的 9222 轉發過來，但驗收不靠這條：
-它要人在桌機開著 `remote-chrome`，沒辦法無人值守。
-
 company-ec2 上的 headless（a1）留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
 
 - **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。

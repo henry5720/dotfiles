@@ -96,6 +96,22 @@ check_git_remotes() {
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
+# remote-chrome 只剩 a1(#261):ssh config 不再有把桌機 Chrome 的 9222 帶到遠端的 Host,
+# ~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
+# 有裝 agent-config 才看得到腳本(fixture 放了一支假的);沒裝時只看 symlink 指向哪。
+RC_HEADLESS_TARGET='$HOME/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless'
+check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no>
+  check "ssh config 沒有 company-ec2-chrome、沒有 RemoteForward 9222" \
+    "[ -f ~/.ssh/config ] && ! grep -q company-ec2-chrome ~/.ssh/config && ! grep -Eqi '^[[:space:]]*RemoteForward[[:space:]]+([^[:space:]]*:)?9222([[:space:]]|\$)' ~/.ssh/config"
+  check "沒有 ~/.local/bin/remote-chrome(WSL 開 Windows Chrome 那支)" \
+    "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
+  check "remote-chrome-headless 指向 agent-config 的腳本" \
+    "[ \"\$(readlink ~/.local/bin/remote-chrome-headless)\" = \"$RC_HEADLESS_TARGET\" ]"
+  if [ "$1" = yes ]; then
+    check "remote-chrome-headless 指得到檔案、可執行" "[ -f ~/.local/bin/remote-chrome-headless ] && [ -x ~/.local/bin/remote-chrome-headless ]"
+  fi
+}
+
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
 # 所以要跟 home/.chezmoi.toml.tmpl 的提示文字一字不差;漏了會在 init 時看到 EOF 和那句提示。
 # 憑證只在勾了用得到的工具時才問(#213),多給的旗標沒問到就不用。
@@ -398,6 +414,7 @@ scenario_ubuntu() {
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
+  check_remote_chrome yes
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -445,6 +462,9 @@ scenario_ubuntu() {
   # 不然排在 mise shims 前面
   step "放一份舊的 ~/.local/bin/fzf、rg" \
     "printf '#!/bin/sh\\necho old\\n' > ~/.local/bin/fzf && cp ~/.local/bin/fzf ~/.local/bin/rg && chmod +x ~/.local/bin/fzf ~/.local/bin/rg"
+  # 模擬 #261 以前的機器:部署過 remote-chrome(WSL 開 Windows Chrome 那支)的 symlink,apply 之後要被 .chezmoiremove 清掉
+  step "放一份舊的 ~/.local/bin/remote-chrome" \
+    "ln -sfn ~/.config/skillshare/skills/remote-chrome/scripts/remote-chrome ~/.local/bin/remote-chrome"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
@@ -457,6 +477,7 @@ scenario_ubuntu() {
     "[ ! -e ~/.p10k.zsh ] && [ ! -e ~/.config/zsh/powerlevel10k ] && [ ! -e ~/.cache/gitstatus ] && ! ls ~/.cache/p10k-* 2>/dev/null && [ -d ~/.config/zsh/zsh-z ]"
   check "舊的 ~/.local/bin/fzf、rg 清掉了,zsh 用的是 mise 那份" \
     "[ ! -e ~/.local/bin/fzf ] && [ ! -e ~/.local/bin/rg ] && [ \"\$(zsh -i -c 'whence -p fzf' 2>/dev/null | tail -n1)\" = \"\$HOME/.local/share/mise/shims/fzf\" ]"
+  check "舊的 ~/.local/bin/remote-chrome 清掉了" "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
@@ -636,7 +657,7 @@ scenario_ubuntu() {
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
-  # WSL 用 Windows 的 Chrome(remote-chrome),選單不列 headless Chrome。
+  # WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260),選單不列 headless Chrome。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:不在選單上的會報 invalid choice。
   bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"
@@ -913,6 +934,8 @@ scenario_termux() {
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
     "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
+  # Termux 沒勾 agent-config:symlink 照部署,指不到檔案是預期的
+  check_remote_chrome no
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1178,6 +1201,7 @@ noroot_full_checks() {
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
+  check_remote_chrome yes
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

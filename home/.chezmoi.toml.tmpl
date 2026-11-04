@@ -53,7 +53,7 @@
 {{-     if not (has . (list "tailscale" "btop")) }}{{ $tools = append $tools . }}{{ end -}}
 {{-   end -}}
 {{- else -}}
-{{- /* headless Chrome 給 remote-chrome 在遠端主機自己開 Chrome。WSL 連的是 Windows 的 Chrome,不列;
+{{- /* headless Chrome 給 remote-chrome 在遠端主機自己開 Chrome。WSL 不列:查原因到遠端主機做(#260),不在 WSL 多裝一支 Linux Chrome;
        Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列;非 Debian 系裝不了 .deb,也不列。
        playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
 {{-   $skip := list -}}

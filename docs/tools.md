@@ -11,7 +11,7 @@ shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node
 其他            ffmpeg  wakatime
-自寫指令        tools  ai-profile  share-shell  remote-chrome  codegraph-setup-repo
+自寫指令        tools  ai-profile  share-shell  remote-chrome-headless  codegraph-setup-repo
 ```
 
 ## shell 日常
@@ -84,5 +84,5 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與�
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-profile-routing.md) |
 | `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [開給訪客看](share-with-guest.md) |
-| `remote-chrome` | 開一個 agent 連得到的 Chrome | agent-config 的 remote-chrome skill |
+| `remote-chrome-headless` | 查原因前在本機開 headless Chrome 佔 9222，給 chrome-devtools MCP（勾了 `headless-chrome` 才能用） | agent-config 的 remote-chrome skill |
 | `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](codegraph.md) |

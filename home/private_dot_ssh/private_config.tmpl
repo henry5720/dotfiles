@@ -100,8 +100,8 @@ Host openab
 # ===============================================================
 # 6. 公司 AWS EC2
 # ===============================================================
-# 走 tailnet。一般連線不帶 RemoteForward:EC2 的 9222 只有一個位子,每條連線都帶的話
-# 先連的搶到、其他默默失敗,搶到的那台還不一定開著 Chrome。
+# 走 tailnet。一般連線不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話
+# 先連的搶到、其他默默失敗(以前 9222 轉發就是這樣)。要轉發另開 Host,只在要用時連。
 Host company-ec2
     HostName 100.98.146.109
     User ubuntu
@@ -112,19 +112,6 @@ Host company-ec2
     # 沒有 tailnet 的網卡,連線經 tailscaled 轉過去。tailscaled 怎麼啟動見 apply 的略過彙整
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
-
-# 專門把本機 Windows Chrome 的 9222 帶到 EC2,給那邊的 chrome-devtools MCP 用
-# (見 agent-config 的 docs/skills/remote-chrome.md)。remote-chrome 開 Chrome 後在前景跑
-# `ssh -N company-ec2-chrome`,Ctrl+C 就放掉;位子被別台占著就直接失敗,不再默默連上。
-Host company-ec2-chrome
-    HostName 100.98.146.109
-    User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
-    IdentitiesOnly yes
-    RemoteForward 127.0.0.1:9222 127.0.0.1:9222
-    ExitOnForwardFailure yes
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
 
 # 備用:EC2 的 tailscale 掛掉時走公網 IP。
 Host company-ec2-public

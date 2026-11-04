@@ -58,7 +58,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
 | [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
 | [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/docs/skills/remote-chrome.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
+| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/skills/remote-chrome/reference.md)（在 agent-config） | 查原因前開 headless Chrome 給 chrome-devtools MCP、排錯 9222 |
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 
 **連線與分享**
@@ -97,7 +97,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome…）
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome-headless…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
 script/                         不部署，自己手動跑
