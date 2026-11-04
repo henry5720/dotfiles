@@ -3,7 +3,7 @@
 ## 終端機字型（Hack Nerd Font）
 
 WSL 的畫面是 Windows Terminal 畫的，字型要裝在 Windows 那側，chezmoi 不管。沒裝的話 starship
-提示列和 eza 的圖示會變方框或問號（`~/.config/starship.toml` 的 tokyo-night preset 用 Nerd Font v3 的圖示，
+提示列和 eza 的圖示會變方框或問號（`~/.config/starship.toml` 用 Nerd Font v3 的圖示，
 任何 Nerd Font v3 都行，這裡跟 Termux 一樣用 Hack）。每台 Windows 做一次：
 
 1. 下載 nerd-fonts v3.5.1 的

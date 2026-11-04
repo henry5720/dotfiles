@@ -160,7 +160,7 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check_alias "grep 沒被換成 rg" grep '" $a " != *" rg "*'
   # `zsh -i -c` 不畫 prompt,所以要真的開互動 shell 看 starship 畫不畫得出來:
   # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
-  # exit 沒被吃掉、30 秒內結束,輸出裡有 tokyo-night 第二行的 ❯ 才算過。
+  # exit 沒被吃掉、30 秒內結束,輸出裡有提示列的 ❯(starship.toml 的 character)才算過。
   check "互動 zsh(有 tty)畫出 starship 提示列、正常 exit" \
     "out=\$(python3 - <<'PY'
 import os, pty, select, signal, sys, time

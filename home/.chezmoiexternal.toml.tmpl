@@ -31,7 +31,7 @@
 # 2. Termux 終端機字型(只有 android)
 # ===============================================================
 {{- if eq .chezmoi.os "android" }}
-# 原生 Termux app 的終端機字型:Hack Nerd Font Regular(starship 的 tokyo-night preset 和 eza 的圖示要 Nerd Font v3)。
+# 原生 Termux app 的終端機字型:Hack Nerd Font Regular(starship 提示列和 eza 的圖示要 Nerd Font v3)。
 # v3.5.1 的 repo 沒有單一 ttf,從 release asset 的壓縮檔取一個檔案。
 # URL 釘 release tag,不設 refreshPeriod;要換字型或版本就改 url／path,
 # 同時改 run_onchange_after_termux-reload-settings.sh.tmpl 註解裡的 URL,讓它重跑 reload。
