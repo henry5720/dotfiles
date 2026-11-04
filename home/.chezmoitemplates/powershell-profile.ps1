@@ -7,7 +7,8 @@
 
        1. $HOME\.local\bin 加進 PATH(已經有就不重複加)
        2. Tab 用選單補全,跟 zsh 的 menu select 一樣;沒有 PSReadLine 的 host(例如 ISE)略過
-       3. 歷史灰字建議只在 pwsh 7 開:5.1 內建的 PSReadLine 2.0 沒有 -PredictionSource,會出紅字
+       3. 歷史灰字建議只在 pwsh 7 開:5.1 內建的 PSReadLine 2.0 沒有 -PredictionSource,會出紅字。
+          包 try:輸出被導向(ssh 非互動、pwsh -c)時它會丟例外,沒接住後面的 starship、zoxide 都不會載入
        4. starship 有裝才 init,設定讀 ~/.config/starship.toml(跟 Linux 共用)
        5. zoxide 有裝才 init(z 指令)
        starship、zoxide 沒裝時安靜略過。 */ -}}
@@ -19,7 +20,9 @@ if (($env:PATH -split ';') -notcontains $localBin) {
 if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
     if ($PSVersionTable.PSVersion.Major -ge 7) {
-        Set-PSReadLineOption -PredictionSource History
+        try {
+            Set-PSReadLineOption -PredictionSource History
+        } catch {}
     }
 }
 

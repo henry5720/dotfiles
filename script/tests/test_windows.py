@@ -121,6 +121,15 @@ class WindowsDeployTest(unittest.TestCase):
         guard = next(l for l in reversed(lines[:idx]) if l.strip().startswith("if"))
         self.assertRegex(guard, r"\$PSVersionTable\.PSVersion\.Major\s+-ge\s+7")
 
+    def test_history_prediction_failure_does_not_stop_the_profile(self):
+        # 輸出被導向(ssh 非互動、pwsh -c、VS Code task)時 -PredictionSource 會丟例外,
+        # 沒接住整份 profile 就停在這行,starship、zoxide 都不載入(henry-desktop 實測)
+        self.chezmoi("windows", "apply", data={"tools": []})
+        lines = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8").splitlines()
+        idx = next(i for i, l in enumerate(lines) if "-PredictionSource History" in l)
+        self.assertRegex(lines[idx - 1].strip(), r"^try\s*\{$")
+        self.assertRegex(lines[idx + 1].strip(), r"^\}\s*catch\s*\{")
+
     # ===============================================================
     # Windows Terminal 的 settings.json(modify template)
     # ===============================================================
