@@ -129,13 +129,7 @@ company-ec2 關了密碼登入，也沒開 Tailscale SSH，這台要一把 key�
 ## 字型（可選）
 
 提示列（starship）的圖示變成方塊，不是 dotfiles 壞了：要改的是**你看畫面的那個終端機**的字型，跟 shell 在哪台機器無關。
-設成 Nerd Font（例 Hack Nerd Font）就好；不改也能用，只是圖示是方塊。
-
-| 你看畫面用的是 | 怎麼改 |
-|---|---|
-| 瀏覽器裡的網頁終端機（TeamSync 工作區、code-server） | 在看畫面的那台裝 Hack Nerd Font，到 `chrome://settings/fonts` 把「固定寬度字型」改成 `Hack Nerd Font`，重新整理頁面 |
-| Windows Terminal | 見 [wsl/command.md](../wsl/command.md#終端機字型hack-nerd-font) |
-| 其他終端機 | 到它自己的字型設定改 |
+各種終端機（Windows Terminal、瀏覽器、macOS、Linux 桌面）怎麼裝 Nerd Font，見[終端機字型](fonts.md)。
 
 ## 已知狀況
 
