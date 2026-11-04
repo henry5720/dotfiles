@@ -16,6 +16,10 @@ company-ec2 上的 headless（a1）留兩支，各做一件事（2026-11-04 實�
 - **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=9222`，讓 MCP 在 ec2 自己開 Chrome 的話，a2 就接不上。
 - **人要看 a1 畫面**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
 
+一定要人自己的瀏覽器時（passkey、硬體金鑰、裝置 SSO；a2），操作還是 Playwright：`playwright-cli attach --extension=chrome` 接人日常的 Chrome（2026-11-04 實測，[#248](https://github.com/henry5720/dotfiles/issues/248)）。
+agent-config 的 `personal-pc-tunnel` skill 附的 `personal-chrome-attach` 把 relay 固定在 127.0.0.1:9555，人開 `ssh -N company-ec2-attach`、把網址貼進新分頁；agent 只看得到那一個分頁，用完 `detach`，Chrome 和分頁留著。
+不再用專用 profile 的 Chrome 把 9222 轉發過來：那個 profile 沒有人的登入，Chrome 136 起又不能對日常 profile 開 debugging port。
+
 省 token 是 CLI 和 MCP 的差別，不是牌子的差別：chrome-devtools-mcp 也附了 `chrome-devtools` CLI
 （[docs/cli.md](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md)）。官方部落格 2026-05-19 說它 stable 了，
 repo 文件（1.10.1）還寫 experimental；主力已經是 `playwright-cli`，所以先不用。

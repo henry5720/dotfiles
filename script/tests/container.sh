@@ -35,7 +35,8 @@ cleanup() {
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
 #                        origin 是 GitHub 的 HTTPS URL
 #   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是兩個 skill(e2e-hello、remote-chrome 的假 headless 腳本)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是三個 skill(e2e-hello、remote-chrome 的假 headless 腳本、
+#                        personal-pc-tunnel 的真 personal-chrome-attach)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 make_fixtures() {
   FIX=$CTR_HOME/e2e-fixtures
@@ -58,6 +59,17 @@ make_fixtures() {
   printf -- '---\nname: remote-chrome\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/remote-chrome/SKILL.md"
   printf '#!/bin/sh\necho e2e-remote-chrome-headless\n' > "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
   chmod +x "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
+  # personal-chrome-attach 要真的跑 dry run(#264),放 agent-config 的真腳本。
+  # 從 $AGENT_CONFIG_DIR(預設主機的 ~/.config/skillshare)拿;沒有就跳過,e2e 的「指得到檔案」那幾項會失敗。
+  local a2_src=${AGENT_CONFIG_DIR:-$HOME/.config/skillshare}/skills/personal-pc-tunnel/scripts/personal-chrome-attach
+  if [ -f "$a2_src" ]; then
+    mkdir -p "$tmp/ac/skills/personal-pc-tunnel/scripts"
+    printf -- '---\nname: personal-pc-tunnel\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/personal-pc-tunnel/SKILL.md"
+    cp "$a2_src" "$tmp/ac/skills/personal-pc-tunnel/scripts/personal-chrome-attach"
+    chmod +x "$tmp/ac/skills/personal-pc-tunnel/scripts/personal-chrome-attach"
+  else
+    red "找不到 $a2_src(設 AGENT_CONFIG_DIR 指到 agent-config 的 checkout),fixture 不放 personal-chrome-attach"
+  fi
   printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
   mkdir -p "$tmp/ac/instructions/agents-md"
   printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"

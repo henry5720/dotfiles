@@ -113,6 +113,23 @@ Host company-ec2
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
 
+# 要 agent 接上這台日常的 Chrome(passkey、硬體金鑰、裝置 SSO)時才連:`ssh -N company-ec2-attach`。
+# EC2 上的 personal-chrome-attach(agent-config 的 personal-pc-tunnel skill)把 Playwright Extension
+# 的 relay 固定在 127.0.0.1:9555,這條把本機的 9555 接過去。不放進一般的 company-ec2:本機的 9555 也只有
+# 一個位子,每條連線都帶的話第二條起就搶不到。位子被另一個視窗占著就直接失敗,不默默連上。
+Host company-ec2-attach
+    HostName 100.98.146.109
+    User ubuntu
+    IdentityFile ~/.ssh/company-henry.pem
+    IdentitiesOnly yes
+    LocalForward 127.0.0.1:9555 127.0.0.1:9555
+    ExitOnForwardFailure yes
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+{{- if includeTemplate "tailscale-userspace" . }}
+    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
+{{- end }}
+
 # 備用:EC2 的 tailscale 掛掉時走公網 IP。
 Host company-ec2-public
     HostName 18.141.90.104

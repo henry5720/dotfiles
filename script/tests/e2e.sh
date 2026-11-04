@@ -8,6 +8,8 @@
 # 環境變數:
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
+#   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),fixture 從這裡拿
+#                    personal-chrome-attach 的真腳本;改 agent-config 那支時指到自己的 worktree
 #
 # 測的是 repo 的工作目錄(含未 commit 的修改),不經過 GitHub:
 # 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
@@ -109,6 +111,23 @@ check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no
     "[ \"\$(readlink ~/.local/bin/remote-chrome-headless)\" = \"$RC_HEADLESS_TARGET\" ]"
   if [ "$1" = yes ]; then
     check "remote-chrome-headless 指得到檔案、可執行" "[ -f ~/.local/bin/remote-chrome-headless ] && [ -x ~/.local/bin/remote-chrome-headless ]"
+  fi
+}
+
+# a2:接人日常的 Chrome(#264)。ssh config 有只在要用時連的 company-ec2-attach(LocalForward 9555,
+# 只綁 127.0.0.1、ExitOnForwardFailure),一般的 company-ec2 不帶轉發;~/.local/bin/personal-chrome-attach
+# 指向 agent-config 的 personal-pc-tunnel skill(fixture 放的是 agent-config 的真腳本,見 container.sh)。
+A2_TARGET='$HOME/.config/skillshare/skills/personal-pc-tunnel/scripts/personal-chrome-attach'
+check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有裝 agent-config:yes|no>
+  # 新版 OpenSSH(Termux)的 ssh -G 把位址印成 [127.0.0.1]:9555,比對前拿掉括號
+  check "ssh config 的 company-ec2-attach:LocalForward 只有 127.0.0.1:9555、ExitOnForwardFailure yes" \
+    "c=\$(ssh -G company-ec2-attach) && grep -i '^localforward' <<<\"\$c\" && [ \"\$(grep -i '^localforward' <<<\"\$c\" | tr -d '[]')\" = 'localforward 127.0.0.1:9555 127.0.0.1:9555' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\""
+  check "一般的 company-ec2 不帶任何轉發" \
+    "! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
+  check "personal-chrome-attach 指向 agent-config 的腳本" \
+    "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$A2_TARGET\" ]"
+  if [ "$1" = yes ]; then
+    check "personal-chrome-attach 指得到檔案、可執行" "[ -f ~/.local/bin/personal-chrome-attach ] && [ -x ~/.local/bin/personal-chrome-attach ]"
   fi
 }
 
@@ -383,6 +402,29 @@ check_playwright_cli() {
     "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | sh && $PWCLI $PWCLI_VERSION_OK"
 }
 
+# ===============================================================
+# personal-chrome-attach:a2 的 dry run(#264)
+# ===============================================================
+# 容器裡沒有人的 Chrome,只驗 ec2 單邊:網址印得出來、9555 轉得到 relay、沒人連進來會自己收乾淨、9555 被佔就失敗。
+# 9555 有在聽 = /proc/net/tcp{,6} 有 :2553(9555)的 LISTEN(狀態 0A)。殘留 = 指令列還有這支、它的轉發或 e2e session 的 daemon。
+A2_LISTEN="awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':2553\$'"
+A2_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'personal-chrome-attach|cliDaemon.js e2e-a2' | grep -v grep"
+A2_TOKEN=e2e-a2-token-$$
+
+check_personal_chrome_attach_dry_run() {
+  bold "▶ personal-chrome-attach:dry run"
+  # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、nvm 都在背景的 subshell 跑,
+  # $! 是那個 subshell,kill 不到腳本本身
+  check "印出 connect 網址(relay 是 127.0.0.1:9555、帶 token),9555 有在聽、curl 回 404" \
+    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$A2_TOKEN personal-chrome-attach -s=e2e-a2 --timeout=60 > a2.log 2>&1 & p=\$!; url=; for i in \$(seq 30); do url=\$(grep -o 'chrome-extension://[^ ]*' a2.log) && break; sleep 1; done; code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); kill \$p; wait \$p; cat a2.log; echo \"curl:\$code\"; grep -E '^chrome-extension://[a-z]+/connect\\.html\\?.*mcpRelayUrl=ws%3A%2F%2F127\\.0\\.0\\.1%3A9555%2Fextension%2F' <<<\"\$url\" && grep -q 'token=$A2_TOKEN' <<<\"\$url\" && [ \"\$code\" = 404 ]"
+  check "被中斷後 9555 放掉、沒有殘留 process" "sleep 2; ! $A2_LISTEN && ! $A2_LEFT"
+  check "token 沒寫進任何檔案" "! grep -rlI --exclude=a2.log $A2_TOKEN ~ /tmp 2>/dev/null"
+  check "沒人連進來:逾時(10 秒)內非 0 結束、9555 放掉、沒有殘留 process" \
+    "$PWCLI s=\$SECONDS; personal-chrome-attach -s=e2e-a2 --timeout=10; rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"rc=\$rc 秒數=\$e\"; [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $A2_LISTEN && ! $A2_LEFT"
+  check "9555 先被佔時失敗,說出是誰佔著" \
+    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach -s=e2e-a2 --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -444,6 +486,7 @@ scenario_ubuntu() {
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_remote_chrome yes
+  check_personal_chrome_attach yes
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -454,6 +497,7 @@ scenario_ubuntu() {
   check "互動 bash 載入 starship" "[ \"\$(bash -ic 'echo \$STARSHIP_SHELL' 2>/dev/null)\" = bash ]"
   check_cli_tools
   check_playwright_cli
+  check_personal_chrome_attach_dry_run
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -966,6 +1010,7 @@ scenario_termux() {
     "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
   # Termux 沒勾 agent-config:symlink 照部署,指不到檔案是預期的
   check_remote_chrome no
+  check_personal_chrome_attach no
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1232,6 +1277,7 @@ noroot_full_checks() {
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check_remote_chrome yes
+  check_personal_chrome_attach yes
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
