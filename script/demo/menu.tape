@@ -1,6 +1,6 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
 # 畫面:打 README 的 Linux 那行指令 →(剪掉下載 chezmoi)→ 用途按 m → 選單再勾 3 項 → Enter →(剪掉安裝)→ 完成
-# 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,shell 截圖要的 zsh、eza、fzf、bat、ripgrep 在裡面;
+# 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,shell 截圖要的 zsh、starship、eza、fzf、bat、ripgrep 在裡面;
 # 再勾 shell 截圖要的 fastfetch,gh、claude 是示範,挑裝得快的。$lean 或選單順序改了,下面的 Down 次數要重算。
 # 秘密不會問:record.sh 錄之前先寫好假值。
 # 高 400:選單固定一頁 11 項(跟高度無關),壓矮讓上面 installer 的 log 推出畫面
@@ -44,10 +44,10 @@ Sleep 2s
 Type "m"
 Sleep 2s
 
-# 4. 多選:精簡已預勾 8 項,再勾 fastfetch、gh、claude
-#    選單順序見 home/.chezmoitemplates/tool-menu;錄影容器是 amd64 Ubuntu,23 項全列,游標從 zsh 開始
+# 4. 多選:精簡已預勾 9 項,再勾 fastfetch、gh、claude
+#    選單順序見 home/.chezmoitemplates/tool-menu;錄影容器是 amd64 Ubuntu,24 項全列,游標從 zsh 開始
 Set TypingSpeed 120ms
-Down 6
+Down 7
 Space Sleep 400ms
 Down 2
 Space Sleep 400ms
