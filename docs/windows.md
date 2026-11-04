@@ -41,6 +41,9 @@ Documents 被 OneDrive 備份時這兩個路徑不同：apply 照樣成功、也
 [Environment]::GetFolderPath('MyDocuments')   # 要是 C:\Users\<你>\Documents，不是 ...\OneDrive\...
 ```
 
+只刪掉 OneDrive 裡的檔案、或解除安裝 OneDrive，Documents 的位置都不會變（henry-desktop 實測），一定要在「管理備份」關掉。
+OneDrive 也沒辦法只排除 `PowerShell` 一個資料夾：「選擇資料夾」是決定雲端哪些資料夾下載到這台，取消勾選等於刪掉本機那份。
+
 ## 從舊的手寫 profile 遷移
 
 chezmoi 只部署 all-hosts 的 `Profile.ps1`；`$PROFILE` 比它晚載入，裡面若有 oh-my-posh（例如 henry-desktop 那份）
@@ -52,6 +55,19 @@ Remove-Item $PROFILE        # 整份都不要時
 ```
 
 pwsh 和 `powershell`（5.1）的 `$PROFILE` 是不同檔案，兩邊都要看。
+
+## 裝完之後
+
+| 要做什麼 | 怎麼做 |
+|---|---|
+| 拿 repo 最新的設定 | `chezmoi update`（= `git pull` + `apply`） |
+| 看機器跟 repo 差在哪 | `chezmoi diff`，沒有輸出就是一致 |
+| 跳到常去的目錄 | `z <目錄名片段>` |
+| 補全 | `Tab` 出選單、方向鍵選 |
+| 接受灰字建議（只有 pwsh 7） | `→` |
+| 找打過的指令 | `Ctrl+R` |
+
+語法高亮、歷史紀錄、灰字建議是 PowerShell 內建的 PSReadLine 給的，不是這個 repo 設的。
 
 ## 實機清單
 
@@ -94,6 +110,31 @@ Terminal 沒開過、`settings.json` 還不存在時，apply 只寫出字型那�
 | 關掉 Terminal，再 `chezmoi apply`、`chezmoi diff` | 第二次 apply 把預設設定檔改成 PowerShell（pwsh 7）；之後 `chezmoi diff` 沒有輸出 |
 
 讀不進來就回報，改成 settings.json 不存在時什麼都不寫（等 Terminal 自己產生）。
+
+### 在實機測還沒 merge 的分支
+
+```powershell
+chezmoi init --branch <分支> henry5720    # 還沒裝過；裝過就 chezmoi git -- fetch; chezmoi git -- checkout <分支>
+chezmoi diff                             # 先看會改什麼
+chezmoi apply
+```
+
+merge 之後換回 `main`，不然之後 `chezmoi update` 會一直拉那個分支：
+
+```powershell
+chezmoi git -- checkout main
+chezmoi update
+```
+
+從別台 ssh 進 Windows 跑清單時（agent 也照這樣）：
+
+- 預設 shell 是 cmd。PowerShell 指令用 `powershell -EncodedCommand <UTF-16LE 的 base64>` 送，省掉多層引號
+- 要看「開 shell 時」的樣子（第 3 項：fastfetch、starship、紅字）用 `ssh -tt <主機> pwsh`，指令從 stdin 送進去。
+  `-tt` 不要配 `< /dev/null`，會卡住
+- 不要手動改部署出去的檔案。改了之後 `chezmoi update`／`apply` 會停下來問要不要覆蓋，ssh 裡沒人回答就卡住；
+  chezmoi 指令加 `--no-tty`，要問時直接失敗。Git for Windows 預設 `core.autocrlf=true`，Windows 上渲染出來是 CRLF，
+  從 Linux 拷過去的 LF 版也會被當成改過
+- 第 5 項要看畫面，還是要坐在前面的人確認
 
 ## WSL 網路：mirrored 與 NAT portproxy
 
