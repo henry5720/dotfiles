@@ -1,0 +1,6 @@
+<!doctype html><meta charset=utf-8><title>proto</title>
+<h1>proto page</h1>
+<p>lang: <span id=lang></span> | size: <span id=size></span> | cookie: <span id=ck></span></p>
+<button id=b onclick="this.textContent='clicked '+(++window.n||(window.n=1))">click me</button>
+<input id=i placeholder="type here" oninput="document.getElementById('echo').textContent=this.value"> echo: <span id=echo></span>
+<script>lang.textContent=navigator.language;size.textContent=innerWidth+'x'+innerHeight;ck.textContent=document.cookie||'(none)';</script>
