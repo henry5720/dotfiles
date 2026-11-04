@@ -46,5 +46,5 @@
 # code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
 {{ if not (has "code-server" $tools) }}.config/code-server{{ end }}
 
-# apt 用得了的機器(有 root 的 Debian 系、Termux)不碰 mise:不部署它的清單,也不建空的 ~/.config/mise。
-{{ if not (includeTemplate "use-mise" .) }}.config/mise{{ end }}
+# 沒有工具要交給 mise 的機器(Termux、macOS、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
+{{ if not (includeTemplate "mise-tools" .) }}.config/mise{{ end }}

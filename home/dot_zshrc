@@ -7,9 +7,9 @@
 # ===============================================================
 # 1. 開場系統資訊
 # ===============================================================
-# mise 裝的(apt 用不了的機器)要到第 2 段才進 PATH,這裡直接找 shim。
-if command -v fastfetch &>/dev/null; then fastfetch
-elif [[ -x $HOME/.local/share/mise/shims/fastfetch ]]; then $HOME/.local/share/mise/shims/fastfetch
+# Linux 由 mise 裝(第 2 段才進 PATH),這裡先找 shim;Termux、macOS 的在 PATH 上。
+if [[ -x $HOME/.local/share/mise/shims/fastfetch ]]; then $HOME/.local/share/mise/shims/fastfetch
+elif command -v fastfetch &>/dev/null; then fastfetch
 fi
 
 # ===============================================================
@@ -19,13 +19,15 @@ fi
 export PNPM_HOME="$HOME/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 
-# opencode / claude 之類的工具裝在這兩處
+# Linux 由 mise 裝的選裝工具(eza、fzf、starship…;apt 用不了的機器還有 vim、gh…),經 shims 找得到。
+# 排在系統目錄前面:apt 可能有同名的舊版(Ubuntu 24.04 的 fzf 0.44 沒有 --zsh)。
+# 系統那份 vim 這類通常不受影響:系統已經有就不交給 mise,沒有 shim(.chezmoitemplates/mise-tools)。
+# 例外是 mise 先裝、系統之後才補裝的:shim 還在、會優先,要用系統那份就 mise uninstall <工具>。
+[[ -d $HOME/.local/share/mise/shims ]] && export PATH="$HOME/.local/share/mise/shims:$PATH"
+
+# opencode / claude 之類的工具裝在這兩處(排最前面)
 export PATH="$HOME/.opencode/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
-
-# apt 用不了的機器(沒有 root、非 Debian 系)由 mise 裝的選裝工具(vim、gh、btop…),經 shims 找得到。
-# 用 append:mise 只裝系統沒有的,系統那份優先。
-[[ -d $HOME/.local/share/mise/shims ]] && export PATH="$PATH:$HOME/.local/share/mise/shims"
 
 # userspace tailscale(沒有 root 時 install-tailscale 裝到 ~/.local/bin 的):tailscaled 不會常駐,工作區待命回來就沒了。
 # 開 zsh 時沒在跑就背景起來;登入狀態在 statedir,不用重新登入。輸出全導到 log,不印到終端機。
@@ -77,7 +79,7 @@ setopt HIST_IGNORE_SPACE      # 空格開頭不紀錄
 # 4. 提示列 (starship)
 # ===============================================================
 # 選裝工具 starship 裝的,設定在 ~/.config/starship.toml(bash 用同一份,見 modify_dot_bashrc.tmpl)。
-# 沒裝就用 zsh 預設的提示列。放在第 2 段之後:~/.local/bin、mise shims 那時才在 PATH 上。
+# 沒裝就用 zsh 預設的提示列。放在第 2 段之後:mise shims 那時才在 PATH 上。
 (( $+commands[starship] )) && eval "$(starship init zsh)"
 
 # ===============================================================
@@ -92,7 +94,7 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # 補全忽略大小�
   && source ~/.config/zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # fzf:Ctrl-R 模糊搜歷史、Ctrl-T 挑檔案、Alt-C 進子目錄、**<Tab> 模糊補全(平常 Tab 不變)。
-# 要 fzf ≥ 0.48 才有 --zsh;~/.local/bin 排在 PATH 前面,不會吃到 apt 的舊版。沒裝就略過。
+# 要 fzf ≥ 0.48 才有 --zsh;mise shims 排在 PATH 的系統目錄前面,不會吃到 apt 的舊版。沒裝就略過。
 # 沒有終端機($TTY 空,例如 ssh host 'zsh -i -c …')也略過:用不到按鍵,
 # 而且它還原選項時會印「can't change option: zle」
 (( $+commands[fzf] )) && [[ -n $TTY ]] && source <(fzf --zsh)

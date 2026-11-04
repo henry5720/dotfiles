@@ -1,10 +1,10 @@
-{{- /* apt 用不了的 Linux 才有這個檔(.chezmoitemplates/use-mise);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
+{{- /* 有工具要交給 mise 的 Linux 才有這個檔(.chezmoitemplates/mise-tools);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
        清單是空的(什麼都不用 mise 裝)就渲染成空的,chezmoi 不建這個檔。 */ -}}
 {{- $list := includeTemplate "mise-tools" . -}}
-{{- if and (includeTemplate "use-mise" .) $list -}}
+{{- if $list -}}
 # chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
 # 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
-# 系統已經有的指令不列;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+# 怎麼挑的見 home/.chezmoidata/packages.yaml 的 miseTools;run_onchange_after_install-mise 在這份變了之後跑 mise install。
 [tools]
 {{- $list }}
 {{ end -}}

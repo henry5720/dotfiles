@@ -37,8 +37,6 @@ toolPackages:
       - zsh
     vim:
       - vim
-    btop:
-      - btop
     # Claude Code 本體是 native installer(run_onchange_after_install-claude);
     # 它的 Read tool 讀 PDF 時固定呼叫 pdftoppm,沒裝會直接報錯,不會退回 mutool
     claude:
@@ -52,7 +50,7 @@ toolPackages:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
   # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
-  # eza、fzf、bat、ripgrep、starship 在 Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載,Termux 走 pkg。
+  # eza、fzf、bat、ripgrep、starship、btop 在 Linux 一律由 mise 裝(下面 miseTools 的 always),Termux 走 pkg。
   termux:
     zsh:
       - zsh
@@ -118,20 +116,56 @@ nodePackages:
   ubuntu:
     - libatomic1
 
-# apt 用不了的 Linux(沒有 root,或非 Debian 系)改用 mise 裝到家目錄的選裝工具:
-# 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。系統已經有 cmd 的不裝。
-# 判斷與清單在 .chezmoitemplates/use-mise、mise-tools;部署成 ~/.config/mise/conf.d/dotfiles.toml,
+# Linux 由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
+# 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。分兩種,看 mise 用什麼 backend 裝(#233):
+#   always: true —— GitHub release 的單一執行檔(aqua／github backend):不分有沒有 root 都用 mise,
+#                   也不看系統有沒有同名指令(Ubuntu 24.04 的 apt 有的太舊,例如 fzf 0.44 沒有 `fzf --zsh`)。
+#   其他 ——————————— 只有 apt 用不了(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)才用 mise,
+#                   而且系統已經有 cmd 的不裝。conda 那幾個有 root 時照 apt(toolPackages.ubuntu):
+#                   conda 會把整套函式庫裝進家目錄,apt 還有 unattended-upgrades 補安全更新。
+#                   有官方裝法的(gh 的官方 apt 源、code-server 的 .deb)也是這種:有 root 時走它自己的腳本。
+# 清單在 .chezmoitemplates/mise-tools;部署成 ~/.config/mise/conf.d/dotfiles.toml,
 # run_onchange_after_install-mise 跑 mise install。
-# eza、fzf、bat、ripgrep、starship 不在這裡:不分機器都由 install-cli-tools 從 GitHub release 下載。
 # tool 寫 mise registry 的短名(mise registry <名字> 查 backend);registry 沒有的寫完整 backend,
 # 例如 code-server 只寫 code-server 會模糊比對到不相干的工具。
 miseTools:
-  vim:
-    tool: vim                       # conda:vim
-    cmd: vim
+  eza:
+    tool: eza                       # aqua:eza-community/eza
+    cmd: eza
+    always: true
+  fzf:
+    tool: fzf                       # aqua:junegunn/fzf
+    cmd: fzf
+    always: true
+  # apt 版的指令叫 batcat
+  bat:
+    tool: bat                       # aqua:sharkdp/bat
+    cmd: bat
+    always: true
+  ripgrep:
+    tool: ripgrep                   # aqua:BurntSushi/ripgrep
+    cmd: rg
+    always: true
+  starship:
+    tool: starship                  # aqua:starship/starship
+    cmd: starship
+    always: true
   btop:
     tool: btop                      # aqua:aristocratos/btop
     cmd: btop
+    always: true
+  # Ubuntu 24.04 的套件庫沒有 fastfetch
+  fastfetch:
+    tool: fastfetch                 # aqua:fastfetch-cli/fastfetch
+    cmd: fastfetch
+    always: true
+  ttyd:
+    tool: ttyd                      # aqua:tsl0922/ttyd
+    cmd: ttyd
+    always: true
+  vim:
+    tool: vim                       # conda:vim
+    cmd: vim
   ffmpeg:
     tool: ffmpeg                    # conda:ffmpeg
     cmd: ffmpeg
@@ -139,12 +173,11 @@ miseTools:
   claude:
     tool: poppler                   # conda:poppler
     cmd: pdftoppm
+  # 有 root 的 Debian 系用 GitHub 的官方 apt 源(install-gh),apt upgrade 會更新
   gh:
     tool: gh                        # aqua:cli/cli
     cmd: gh
-  fastfetch:
-    tool: fastfetch                 # aqua:fastfetch-cli/fastfetch
-    cmd: fastfetch
+  # 有 root 用官方 .deb(install-code-server):docs/code-server-remote.md 的 systemd user unit 靠它
   code-server:
     tool: github:coder/code-server  # registry 沒有
     cmd: code-server

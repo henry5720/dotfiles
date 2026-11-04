@@ -242,16 +242,16 @@ render_cmd() {
 declare -A TOOL_CHECK=(
   # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、提示列等細項在 check_zsh_env
   [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
-  # Linux 從 GitHub release 下載到 ~/.local/bin(install-cli-tools);Termux 走 pkg。設定檔跟著勾選部署
-  [starship]="starship --version && [ -f ~/.config/starship.toml ]"
-  # Linux 從 GitHub release 下載到 ~/.local/bin(install-cli-tools);Termux 走 pkg
-  [eza]="command -v eza"
-  [fzf]="command -v fzf"
-  [bat]="command -v bat"
-  [ripgrep]="command -v rg"
+  # Linux 由 mise 裝(miseTools 的 always;這裡的 bash -l 沒有 shims,直接找 shim);Termux 走 pkg。設定檔跟著勾選部署
+  [starship]="{ ~/.local/share/mise/shims/starship --version || starship --version; } && [ -f ~/.config/starship.toml ]"
+  # 同上:Linux 由 mise 裝,Termux 走 pkg
+  [eza]="[ -x ~/.local/share/mise/shims/eza ] || command -v eza"
+  [fzf]="[ -x ~/.local/share/mise/shims/fzf ] || command -v fzf"
+  [bat]="[ -x ~/.local/share/mise/shims/bat ] || command -v bat"
+  [ripgrep]="[ -x ~/.local/share/mise/shims/rg ] || command -v rg"
   [vim]="command -v vim"
-  [fastfetch]="command -v fastfetch"
-  [btop]="dpkg-query -W -f='\${Status}' btop | grep -q 'install ok installed'"
+  [fastfetch]="[ -x ~/.local/share/mise/shims/fastfetch ] || command -v fastfetch"
+  [btop]="[ -x ~/.local/share/mise/shims/btop ] || command -v btop"
   # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
   [gh]="command -v gh && [ -f /etc/apt/preferences.d/github-cli ] && apt-cache policy gh | grep -A1 '^ \*\*\*' | grep -q cli.github.com"
   # nvm＋Node LTS;沒勾 node 時也會跟著 codegraph、playwright-cli 自動裝
@@ -259,7 +259,7 @@ declare -A TOOL_CHECK=(
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
   [herdr]="command -v herdr"
-  [ttyd]="command -v ttyd"
+  [ttyd]="[ -x ~/.local/share/mise/shims/ttyd ] || command -v ttyd"
   # 官方位置:~/.wakatime/wakatime-cli 是指到 wakatime-cli-linux-<arch> 的 symlink
   [wakatime]="[ -L ~/.wakatime/wakatime-cli ] && ~/.wakatime/wakatime-cli --version"
   [claude]="command -v claude && claude --version"
@@ -309,27 +309,33 @@ UBUNTU_BASE=(git curl jq python3)
 # 原生 Termux 不出選單,自動套精簡、濾掉 tailscale、btop。config 裡那一行應該長這樣:
 TERMUX_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim"]'
 
-# 選裝工具 eza、fzf、bat、ripgrep、starship:Linux 由 run_onchange_after_install-cli-tools 從 GitHub release 下載到 ~/.local/bin。
-CLI_TOOLS=(eza fzf bat rg starship)
+# 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
+CLI_TOOLS=(eza fzf bat rg starship btop fastfetch)
+SHIMS='~/.local/share/mise/shims'
 
 check_cli_tools() {
   for t in "${CLI_TOOLS[@]}"; do
-    check "~/.local/bin/$t 能執行(--version exit 0)" "~/.local/bin/$t --version"
+    check "$t 經 mise 的 shim 跑得起來、是 mise 管的那份" "$SHIMS/$t --version && ~/.local/bin/mise which $t"
+    # zsh -i 開頭會跑 fastfetch,只看最後一行
+    check "zsh 裡的 $t 是 mise 的 shim" "[ \"\$(zsh -i -c 'whence -p $t' 2>/dev/null | tail -n1)\" = \"\$HOME/.local/share/mise/shims/$t\" ]"
   done
-  # 沒裝到要安靜略過(下載失敗、架構不支援):把 binary 藏起來模擬,檢查完放回去
+  # apt 可能有同名的舊版(24.04 的 fzf 0.44 沒有 --zsh):shims 要排在系統目錄前面
+  check "zsh 的 PATH 裡 mise shims 排在 /usr/bin 前面" \
+    "p=\$(zsh -i -c 'print -l \$path' 2>/dev/null) && s=\$(grep -nx \"\$HOME/.local/share/mise/shims\" <<<\"\$p\" | cut -d: -f1) && u=\$(grep -nx /usr/bin <<<\"\$p\" | cut -d: -f1) && [ -n \"\$s\" ] && [ \"\$s\" -lt \"\$u\" ]"
+  # 沒裝到要安靜略過(mise 下載失敗、架構不支援):把 shim 藏起來模擬,檢查完放回去
   local hide="" unhide=""
   for t in "${CLI_TOOLS[@]}"; do
-    hide+="mv ~/.local/bin/$t ~/.local/bin/$t.e2e-hidden && "
-    unhide+="mv ~/.local/bin/$t.e2e-hidden ~/.local/bin/$t && "
+    hide+="mv $SHIMS/$t $SHIMS/$t.e2e-hidden && "
+    unhide+="mv $SHIMS/$t.e2e-hidden $SHIMS/$t && "
   done
-  step "藏起 ~/.local/bin 的 ${CLI_TOOLS[*]}" "${hide}true"
+  step "藏起 mise shims 的 ${CLI_TOOLS[*]}" "${hide}true"
   check "藏起後 zsh -i -c exit 不出錯" "$(zsh_ok 'true')"
   check "藏起後(有 tty)zsh -i -c exit 不出錯" "$(zsh_ok '[[ -n $TTY ]]' tty)"
   check_alias "藏起後 ll 退回 ls -alF" ll '$a == "ls -alF"'
   check_alias "藏起後 la 退回 ls -A" la '$a == "ls -A"'
   check_alias "藏起後 l 退回 ls -CF" l '$a == "ls -CF"'
   check_alias "藏起後 lt 沒定義" lt '$a == 未定義'
-  step "放回 ~/.local/bin 的 ${CLI_TOOLS[*]}" "${unhide}true"
+  step "放回 mise shims 的 ${CLI_TOOLS[*]}" "${unhide}true"
 }
 
 # 容器裡做不到、刻意不驗的事:
@@ -356,9 +362,11 @@ scenario_ubuntu() {
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入
   check_tool node
-  # mise 只給 apt 用不了的機器(noroot 目標驗);有 root 的 Debian 系照主路線,完全不碰
-  check "有 root:沒有 mise(沒裝、沒有清單、沒有 ~/.config/mise)" \
-    "! command -v mise && [ ! -e ~/.local/bin/mise ] && [ ! -e ~/.local/share/mise ] && [ ! -e ~/.config/mise ]"
+  # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)
+  check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop eza fastfetch fzf ripgrep starship' ]"
+  check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
+    "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
@@ -433,6 +441,10 @@ scenario_ubuntu() {
   # 模擬用過 p10k 的機器(#194):設定、主題 clone、gitstatusd 與 instant prompt 的快取,apply 之後都要清掉
   step "放一份舊的 p10k 檔案" \
     "mkdir -p ~/.config/zsh/powerlevel10k ~/.cache/gitstatus && touch ~/.p10k.zsh ~/.config/zsh/powerlevel10k/powerlevel10k.zsh-theme ~/.cache/gitstatus/gitstatusd ~/.cache/p10k-instant-prompt-\$(id -un).zsh"
+  # 模擬 #233 以前的機器:install-cli-tools 下載到 ~/.local/bin 的舊版,apply 之後要被 .chezmoiremove 清掉,
+  # 不然排在 mise shims 前面
+  step "放一份舊的 ~/.local/bin/fzf、rg" \
+    "printf '#!/bin/sh\\necho old\\n' > ~/.local/bin/fzf && cp ~/.local/bin/fzf ~/.local/bin/rg && chmod +x ~/.local/bin/fzf ~/.local/bin/rg"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
@@ -443,6 +455,8 @@ scenario_ubuntu() {
   check "沒有 clone zsh 的 WakaTime 外掛" "[ ! -e ~/.config/zsh/wakatime-zsh-plugin ]"
   check "舊的 p10k 檔案都清掉了、zsh 外掛還在" \
     "[ ! -e ~/.p10k.zsh ] && [ ! -e ~/.config/zsh/powerlevel10k ] && [ ! -e ~/.cache/gitstatus ] && ! ls ~/.cache/p10k-* 2>/dev/null && [ -d ~/.config/zsh/zsh-z ]"
+  check "舊的 ~/.local/bin/fzf、rg 清掉了,zsh 用的是 mise 那份" \
+    "[ ! -e ~/.local/bin/fzf ] && [ ! -e ~/.local/bin/rg ] && [ \"\$(zsh -i -c 'whence -p fzf' 2>/dev/null | tail -n1)\" = \"\$HOME/.local/share/mise/shims/fzf\" ]"
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
@@ -533,8 +547,8 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)") > /tmp/lean.toml && $(printf "$use_is" minimal /tmp/lean.toml) && grep -qxF '$LEAN_TOML' /tmp/lean.toml"
   check "精簡的機器樣板看到的 .tools 就是那九項" \
     "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh starship eza fzf bat ripgrep vim tailscale btop' ]"
-  check "精簡的機器裝的是那九項:套件腳本有 zsh、vim、btop,下載腳本是 eza、fzf、bat、ripgrep、starship" \
-    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-cli-tools.sh.tmpl | grep -E '^want ' | cut -d' ' -f2 | paste -sd' ')\" = 'eza fzf bat rg starship' ]"
+  check "精簡的機器裝的是那九項:套件腳本有 zsh、vim(沒有 btop),mise 清單是 bat、btop、eza、fzf、ripgrep、starship" \
+    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && ! grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -oE '^\"[^\"]+\"' | tr -d '\"' | paste -sd' ')\" = 'bat btop eza fzf ripgrep starship' ]"
   check "精簡的機器選裝腳本只跑 tailscale(其他選裝工具的腳本都不跑)" \
     "[ \"\$(chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/$TOOL_SCRIPT_RE' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-tailscale ]"
   check "選完整、選單不改:存完整,tools 是選單上全部" \
@@ -618,7 +632,7 @@ scenario_ubuntu() {
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
-    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/\.chezmoiscripts/install-fastfetch'"
+    "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/\.chezmoiscripts/install-gh'"
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
@@ -654,15 +668,17 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptMultichoice "$(menu_choice headless-chrome)") 2>&1 | grep -q 'invalid choice'"
   check "非 Debian 系有 tools 指令可以重出選單" \
     "chezmoi execute-template --override-data '$fedora' < $tmpl/dot_local/bin/executable_tools.tmpl | grep -q 'chezmoi init --prompt'"
-  # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 btop,ffmpeg 沒勾、沒裝:mise 清單只該有 ffmpeg
-  local fedora_mise='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["ffmpeg","btop"]}'
-  check "非 Debian 系(就算有 root)選裝工具走 mise:清單有系統沒有的 ffmpeg、沒有系統已有的 btop" \
-    "chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q btop /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
-  check "非 Debian 系不忽略 ~/.config/mise;(對照)有 root 的 Ubuntu 忽略" \
-    "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
-  local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["fastfetch","gh","headless-chrome","playwright-cli","btop"]}'
+  # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 vim,ffmpeg 沒勾、沒裝。btop 是單一執行檔(always),不看系統
+  local fedora_mise='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["ffmpeg","btop","vim"]}'
+  check "非 Debian 系(就算有 root)選裝工具走 mise:清單有系統沒有的 ffmpeg、always 的 btop,沒有系統已有的 vim" \
+    "chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && grep -qx '\"btop\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q vim /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
+  check "有 root 的 Ubuntu:只勾 conda 的(ffmpeg)忽略 ~/.config/mise,勾了 always 的(fzf)不忽略;非 Debian 系不忽略" \
+    "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise && ! chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
+  check "有 root 的 Ubuntu:系統已經有 vim,always 的工具照樣列(mise 清單不看 lookPath)" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"],\"miseTools\":{\"vim\":{\"tool\":\"vim\",\"cmd\":\"vim\",\"always\":true},\"fzf\":{\"tool\":\"fzf\",\"cmd\":\"fzf\",\"always\":true}}}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -qx '\"vim\" = \"latest\"'"
+  local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
-           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
+           run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
            run_onchange_after_npm-install-playwright-cli; do
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
@@ -700,8 +716,8 @@ scenario_ubuntu() {
   check "brew bundle 腳本在 Termux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
-  for f in run_onchange_before_install-packages run_once_after_set-default-shell run_onchange_after_install-cli-tools \
-           run_onchange_after_install-fastfetch run_onchange_after_install-gh run_onchange_after_install-ttyd \
+  for f in run_onchange_before_install-packages run_once_after_set-default-shell \
+           run_onchange_after_install-gh run_onchange_after_install-mise \
            run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
            run_onchange_after_npm-install-playwright-cli run_after_zz-root-skipped-summary; do
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell)" \
@@ -796,14 +812,14 @@ scenario_ubuntu() {
   # 從沒有 root 變成有 root:切 zsh 那段不再重加但留著,starship 那段要排在它前面(exec 之後的跑不到)
   check "只勾 starship、.bashrc 留著舊的切 zsh 那段:那段原樣搬到最後" \
     "chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $tmpl/modify_dot_bashrc.tmpl > /tmp/ss-bashrc.sh && printf 'A\\n# >>> dotfiles:互動式 bash 切到 zsh >>>\\nOLDZSH\\n# <<< dotfiles:互動式 bash 切到 zsh <<<\\nB\\n' | sh /tmp/ss-bashrc.sh > /tmp/ss-bashrc.out && tail -n1 /tmp/ss-bashrc.out | grep -q '切到 zsh <<<' && grep -q OLDZSH /tmp/ss-bashrc.out && grep -qx B /tmp/ss-bashrc.out && [ \"\$(grep -n 'starship 提示列 >>>' /tmp/ss-bashrc.out | cut -d: -f1)\" -lt \"\$(grep -n '切到 zsh >>>' /tmp/ss-bashrc.out | cut -d: -f1)\" ]"
-  check "只勾 starship 時下載腳本只下載 starship" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli-ss.sh && sh -n /tmp/cli-ss.sh && [ \"\$(grep -E '^want ' /tmp/cli-ss.sh)\" = 'want starship install_starship' ]"
+  check "只勾 starship 時 mise 清單只有 starship" \
+    "[ \"\$(chezmoi execute-template --override-data '{\"tools\":[\"starship\"]}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep '= \"latest\"')\" = '\"starship\" = \"latest\"' ]"
   check "沒勾 zsh:改預設 shell 的腳本渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_once_after_set-default-shell.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "eza、fzf、bat、ripgrep、starship 都沒勾時下載腳本渲染成空的" \
-    "[ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "只勾 fzf 時下載腳本只下載 fzf" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $scripts/run_onchange_after_install-cli-tools.sh.tmpl > /tmp/cli.sh && sh -n /tmp/cli.sh && [ \"\$(grep -E '^want ' /tmp/cli.sh)\" = 'want fzf install_fzf' ]"
+  check "什麼都沒勾時 mise 清單與安裝腳本都渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '$none' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | tr -d '[:space:]')\" ] && [ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_onchange_after_install-mise.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "只勾 fzf 時 mise 安裝腳本語法對、清單只有 fzf" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $scripts/run_onchange_after_install-mise.sh.tmpl > /tmp/mise-fzf.sh && sh -n /tmp/mise-fzf.sh && [ \"\$(grep -E '^#   \"' /tmp/mise-fzf.sh)\" = '#   \"fzf\" = \"latest\"' ]"
   check "wakatime 腳本不用 unzip(用 python3 -m zipfile)" \
     "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && ! grep -v '^ *#' /tmp/waka.sh | grep -qw unzip && grep -q '^ *python3 -m zipfile' /tmp/waka.sh"
 
@@ -1093,9 +1109,9 @@ noroot_slim_checks() {
   check "沒有 ~/.profile 時補一個:login bash 找得到 ~/.local/bin 的 chezmoi、login 互動 bash 會切成 zsh" \
     "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && [ \"\$(env -i HOME=\$HOME PATH=/usr/bin:/bin bash -lc 'command -v chezmoi')\" = \"\$HOME/.local/bin/chezmoi\" ] && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
-  check_mise btop
+  # 單一執行檔的選裝工具跟有 root 時一樣由 mise 裝(#233)
+  for t in btop eza fzf bat rg starship; do check_mise "$t"; done
   check_mise_skips_system_vim
-  for t in eza fzf bat ripgrep; do check_tool "$t"; done
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
   check_ssh_client
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
@@ -1152,7 +1168,7 @@ noroot_full_checks() {
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
-  for t in btop gh fastfetch code-server; do check_mise "$t"; done
+  for t in btop gh fastfetch code-server eza fzf bat rg starship ttyd; do check_mise "$t"; done
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim
@@ -1160,7 +1176,7 @@ noroot_full_checks() {
   check "headless-chrome 的說明寫了缺系統函式庫" \
     "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
-  for t in eza fzf bat ripgrep herdr ttyd wakatime claude codex opencode agent-config; do check_tool "$t"; done
+  for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
