@@ -63,7 +63,7 @@ docker exec -u "$CTR_USER" "$CTR" bash -c '
   fc-cache -f
 ' || fail "裝字型失敗"
 
-# 4. 讓 init 在選單之前都不用問人:憑證與 git 身分已經有值就不問,只剩選單
+# 4. 讓 init 只問用途和選單:憑證與 git 身分已經有值就不問
 bold "▶ 放憑證假值"
 docker exec -u "$CTR_USER" "$CTR" bash -c "
   set -e
@@ -84,7 +84,7 @@ docker exec -u "$CTR_USER" "$CTR" mkdir -p "$CTR_HOME/demo"
 tar -C "$DEMO" -cf - menu.tape main.tape \
   | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$CTR_HOME/demo" -xf - || fail "放劇本失敗"
 
-# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Ubuntu 那行,裝完才結束
+# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Linux 那行,裝完才結束
 vhs_run menu.tape
 
 # 7. 主 GIF:同一台裝好的機器,fastfetch 照預設印完整資訊
