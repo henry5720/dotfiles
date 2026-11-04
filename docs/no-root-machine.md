@@ -43,11 +43,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
-mise 的細節：
-
-- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；上表那幾個系統已經有的指令不列，不會重裝一份
-- 指令在 `~/.local/share/mise/shims`，zsh 已把它排在系統目錄前面；`mise ls` 看裝了什麼，`mise upgrade` 更新
-- mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
+上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
 
 不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd 本來就由 mise 裝（#233），
 Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
