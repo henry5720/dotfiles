@@ -86,10 +86,8 @@ config 樣板的 windows 分支)時:
 
 1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
    Windows 部署哪些檔、渲染出什麼
-2. PR 的 `## 驗證` 段把 [`docs/windows.md`](docs/windows.md) 的實機清單逐項列成「未驗」,
-   跑完、勾完才 merge。使用者同意的話,agent 可以 `ssh henry-desktop` 自己跑,做法見那份的
-   「在實機測還沒 merge 的分支」;`wsl --shutdown` 會中斷使用者的 WSL,跑之前另外問。
-   要看畫面的(第 5 項 Terminal)和要點 GUI 的(OneDrive)仍交給使用者,測完把那台換回 `main`
+2. PR 的 `## 驗證` 段逐項列出 [`docs/windows.md`](docs/windows.md) 的實機清單,全部勾完才 merge。
+   連得到 `ssh henry-desktop` 就自己跑,照那份的「在實機測還沒 merge 的分支」
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。
