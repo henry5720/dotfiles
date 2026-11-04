@@ -86,8 +86,20 @@ config 樣板的 windows 分支)時:
 
 1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
    Windows 部署哪些檔、渲染出什麼
-2. PR 的 `## 驗證` 段把 [`docs/windows.md`](docs/windows.md) 的實機清單逐項列成「未驗」,
-   等使用者在 Windows 實機跑完回報才 merge
+2. PR 的 `## 驗證` 段逐項列出下面的實機清單,全部勾完才 merge。能在 Windows 上下指令就自己跑
+
+| # | 時機 | 在 Windows 上做 | 預期 |
+|---|---|---|---|
+| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 沒有輸出 |
+| 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` |
+| 3 | 每次 | 開 `pwsh`、`powershell`;再跑 `pwsh -c 'echo hi'` | 開 shell 印 fastfetch、提示列是 starship、沒有紅字、有 `z`;`pwsh -c` 只印 `hi` |
+| 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` |
+| 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 |
+| 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
+
+在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
+`chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
+`chezmoi update` 換回來,不然那台會一直拉舊分支。
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。

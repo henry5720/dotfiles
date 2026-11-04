@@ -87,7 +87,7 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    chezmoi init --apply henry5720
    ```
 
-   不問任何問題。部署了什麼、裝完要在實機確認哪幾項，見[Windows 主機](windows.md)。
+   不問任何問題。部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)。
 6. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
 
 ### 平板：原生 Termux 與 proot Ubuntu
