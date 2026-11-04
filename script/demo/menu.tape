@@ -1,5 +1,5 @@
 # README「新機器」段的選單 GIF(script/demo/record.sh 錄)
-# 畫面:打 README 的 Ubuntu 那行指令 →(剪掉下載 chezmoi)→ 用途按 m → 選單再勾 3 項 → Enter →(剪掉安裝)→ 完成
+# 畫面:打 README 的 Linux 那行指令 →(剪掉下載 chezmoi)→ 用途按 m → 選單再勾 3 項 → Enter →(剪掉安裝)→ 完成
 # 精簡預勾的項目見 home/.chezmoi.toml.tmpl 的 $lean,shell 截圖要的 zsh、eza、fzf、bat、ripgrep 在裡面;
 # 再勾 shell 截圖要的 fastfetch,gh、claude 是示範,挑裝得快的。$lean 或選單順序改了,下面的 Down 次數要重算。
 # 秘密不會問:record.sh 錄之前先寫好假值。
@@ -25,7 +25,7 @@ Ctrl+L
 Sleep 500ms
 Show
 
-# 1. README 上 Ubuntu 那行指令
+# 1. README 上 Linux 那行指令
 Sleep 800ms
 Type `sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720`
 Sleep 600ms

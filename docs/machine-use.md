@@ -20,7 +20,7 @@
 改過勾選就存成自訂，照你勾的、不再跟著預設組合走。
 
 - 原生 Termux 不問，直接套精簡、濾掉 tailscale、btop。
-- 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](new-machine-setup.md#沒有-root-的機器)）。
+- 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
 - `node` 裝 nvm 與 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
 
 選項清單與每一項的說明在 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)，
