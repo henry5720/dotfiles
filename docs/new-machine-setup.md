@@ -12,7 +12,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
-| Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
 
@@ -78,7 +78,9 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
    `C:\Program Files\PowerShell\7`。git、tailscale 這類 GUI app 照舊從官網裝。
 2. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
-3. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
+3. 開一次 Windows Terminal 再關掉：讓它產生 pwsh 7 的設定檔。沒開過的話，apply 只設得了字型，
+   預設設定檔要等下次 apply 才改成 pwsh 7。
+4. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
 
    ```powershell
    chezmoi init --apply henry5720

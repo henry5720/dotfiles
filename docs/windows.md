@@ -11,6 +11,7 @@ Windows 的 `chezmoi init` 什麼都不問（沒有用途、選裝工具選單�
 |---|---|---|
 | `home/dot_wslconfig` | `%USERPROFILE%\.wslconfig` | WSL2 的記憶體、CPU、網路模式 |
 | `home/dot_config/starship.toml` | `%USERPROFILE%\.config\starship.toml` | starship 提示列，跟 Linux 共用 |
+| `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
 
 `.chezmoiscripts/` 裡的 `run_` 腳本一支都不跑（都是 sh、python3）。Windows 沒有 `tools` 指令；
 要改 Windows 部署什麼就改 repo：白名單在 `home/.chezmoiignore` 的 Windows 段，加一個檔案要動哪幾處寫在那段的註解。
@@ -23,10 +24,37 @@ Windows 的 `chezmoi init` 什麼都不問（沒有用途、選裝工具選單�
 | # | 什麼時候跑 | 指令 | 預期結果 |
 |---|---|---|---|
 | 1 | 每次 | `chezmoi apply` 之後 `chezmoi diff` | 沒有輸出 |
+| 5 | 改到 Terminal 的 `settings.json` 時 | 開 Windows Terminal；在設定 UI 隨便改一項再改回來、按「儲存」，再跑 `chezmoi diff` | 新分頁開的是 PowerShell（pwsh 7，`$PSVersionTable.PSVersion` 是 7.x），字型是 Hack Nerd Font（starship 的圖示不是方框）；存過之後 `chezmoi diff` 還是沒有輸出 |
 | 6 | 改到 `.wslconfig` 時 | `wsl --shutdown`，重開 WSL 後在 WSL 裡跑 `free -g`、`nproc`、`ip -4 addr` | 記憶體上限、CPU 數跟 `.wslconfig` 一致；`networkingMode=mirrored` 時 WSL 的網卡跟 Windows 同一個 IP |
 
-編號照 [spec #254](https://github.com/henry5720/dotfiles/issues/254) 的實機清單；2～5 項（PowerShell profile、
-Windows Terminal）等那兩樣交給 chezmoi 時補上。
+編號照 [spec #254](https://github.com/henry5720/dotfiles/issues/254) 的實機清單；2～4 項（PowerShell profile）
+等它交給 chezmoi 時補上。
+
+### 只跑一次：settings.json 不存在時
+
+Terminal 沒開過、`settings.json` 還不存在時，apply 只寫出字型那一項（pwsh 設定檔的 guid 要等 Terminal
+產生設定檔才知道）：
+
+```json
+{
+    "profiles": {
+        "defaults": {
+            "font": {
+                "face": "Hack Nerd Font"
+            }
+        }
+    }
+}
+```
+
+這份 Terminal 讀不讀得進來，Linux 上驗不到，在 Terminal 沒開過的機器（或先把 `settings.json` 改名備份）跑一次：
+
+| 指令 | 預期結果 |
+|---|---|
+| `chezmoi apply`，再開 Windows Terminal | 沒有「設定載入失敗」的警告；字型是 Hack Nerd Font；Terminal 把它的設定檔補進 `settings.json` |
+| 關掉 Terminal，再 `chezmoi apply`、`chezmoi diff` | 第二次 apply 把預設設定檔改成 PowerShell（pwsh 7）；之後 `chezmoi diff` 沒有輸出 |
+
+讀不進來就回報，改成 settings.json 不存在時什麼都不寫（等 Terminal 自己產生）。
 
 ## WSL 網路：mirrored 與 NAT portproxy
 

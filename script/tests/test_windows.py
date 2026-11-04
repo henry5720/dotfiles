@@ -17,9 +17,18 @@ CONFIG_TEMPLATE = ROOT / "home/.chezmoi.toml.tmpl"
 WINDOWS_TARGETS = {
     ".wslconfig",
     ".config/starship.toml",
+    "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
 }
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
+TERMINAL_SETTINGS = "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
+TERMINAL_FIXTURE = ROOT / "script/tests/fixtures/windows-terminal-settings.json"
+WINDOWS_POWERSHELL = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
+
+
+def parse_jsonc(text):
+    """fixture 只有整行的 // 註解,拿掉就是 JSON。"""
+    return json.loads("\n".join(l for l in text.splitlines() if not l.strip().startswith("//")))
 
 
 def parents(paths):
@@ -73,6 +82,59 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("\n    tools = []\n", out)
         for key in ("gitUserName", "gitUserEmail", "machineUse", "ApiKey", "Password"):
             self.assertNotIn(key, out)
+
+    # ===============================================================
+    # Windows Terminal 的 settings.json(modify template)
+    # ===============================================================
+    # 只管 defaultProfile(pwsh 7)和 profiles.defaults.font.face(Hack Nerd Font)兩個值。
+    # fixture 照 henry-desktop 的結構:有註解、key 不照字母序,兩個值都已經是對的。
+    def terminal(self, settings):
+        """把 settings(None = 檔案不存在)放到 Terminal 的位置,回傳 chezmoi 算出的新內容。"""
+        target = self.home / TERMINAL_SETTINGS
+        if settings is not None:
+            target.parent.mkdir(parents=True)
+            target.write_text(settings, encoding="utf-8")
+        return self.chezmoi("windows", "cat", str(target))
+
+    def test_terminal_keeps_bytes_when_values_already_right(self):
+        settings = TERMINAL_FIXTURE.read_text(encoding="utf-8")
+        self.assertEqual(self.terminal(settings), settings)
+
+    def test_terminal_changes_only_the_two_values(self):
+        settings = (TERMINAL_FIXTURE.read_text(encoding="utf-8")
+                    .replace('"defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}"',
+                             f'"defaultProfile": "{WINDOWS_POWERSHELL}"')
+                    .replace('"face": "Hack Nerd Font"', '"face": "Cascadia Mono"'))
+        before = parse_jsonc(settings)
+        self.assertEqual(before["defaultProfile"], WINDOWS_POWERSHELL)  # fixture 真的改到了
+        after = json.loads(self.terminal(settings))
+        self.assertEqual(after["defaultProfile"], "{574e775e-4f2a-5b96-ac1e-a2962a402336}")
+        self.assertEqual(after["profiles"]["defaults"]["font"]["face"], "Hack Nerd Font")
+        # 其他全部不變(包括 profiles.list 和同一層的 font.size)
+        before["defaultProfile"] = after["defaultProfile"]
+        before["profiles"]["defaults"]["font"]["face"] = "Hack Nerd Font"
+        self.assertEqual(after, before)
+
+    def test_terminal_keeps_default_profile_without_pwsh_profile(self):
+        # pwsh 裝了但 Terminal 還沒開過:profiles.list 沒有 PowershellCore 的設定檔
+        settings = (TERMINAL_FIXTURE.read_text(encoding="utf-8")
+                    .replace('"defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}"',
+                             f'"defaultProfile": "{WINDOWS_POWERSHELL}"')
+                    .replace('"source": "Windows.Terminal.PowershellCore"', '"source": "Somewhere.Else"')
+                    .replace('"face": "Hack Nerd Font"', '"face": "Cascadia Mono"'))
+        after = json.loads(self.terminal(settings))
+        self.assertEqual(after["defaultProfile"], WINDOWS_POWERSHELL)
+        self.assertEqual(after["profiles"]["defaults"]["font"]["face"], "Hack Nerd Font")
+
+    def test_terminal_without_settings_writes_only_the_font(self):
+        # settings.json 不存在(Terminal 沒開過):只寫得出字型,pwsh 的 guid 要等 Terminal 產生設定檔才知道
+        self.assertEqual(json.loads(self.terminal(None)),
+                         {"profiles": {"defaults": {"font": {"face": "Hack Nerd Font"}}}})
+
+    def test_terminal_leaves_old_list_style_profiles_alone(self):
+        # 舊格式:profiles 直接是設定檔清單,沒有 defaults 可以設 → 原樣輸出、不報錯
+        settings = '{\n    "profiles": [ { "guid": "{x}", "name": "cmd" } ]\n}\n'
+        self.assertEqual(self.terminal(settings), settings)
 
 
 if __name__ == "__main__":

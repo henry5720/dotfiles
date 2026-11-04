@@ -19,6 +19,13 @@
 !.wslconfig
 !.config
 !.config/starship.toml
+# Windows Terminal(Store 版)的 settings.json,只管兩個值(見那個 modify_ 檔的註解)
+!AppData
+!AppData/Local
+!AppData/Local/Packages
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json
 {{ else }}
 # ===============================================================
 # 2. Linux、macOS、Termux

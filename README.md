@@ -96,6 +96,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── modify_dot_bashrc.tmpl      → ~/.bashrc 最後加段落：starship、沒有 root 時切 zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
 ├── dot_wslconfig               → Windows 主機的 %USERPROFILE%\.wslconfig（只部署到 Windows）
+├── AppData/                    → Windows 主機的 %LOCALAPPDATA%：Windows Terminal 的預設設定檔與字型（只部署到 Windows）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
