@@ -84,7 +84,7 @@ docker exec -u "$CTR_USER" "$CTR" mkdir -p "$CTR_HOME/demo"
 tar -C "$DEMO" -cf - menu.tape main.tape \
   | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$CTR_HOME/demo" -xf - || fail "放劇本失敗"
 
-# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Ubuntu 那行,裝完才結束
+# 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Linux 那行,裝完才結束
 vhs_run menu.tape
 
 # 7. 主 GIF:同一台裝好的機器,fastfetch 照預設印完整資訊
