@@ -418,26 +418,31 @@ check_playwright_cli() {
 }
 
 # ===============================================================
-# personal-chrome-attach:a2 的 dry run(#264)
+# personal-chrome-attach:dry run(#264)
 # ===============================================================
-# 容器裡沒有人的 Chrome,只驗 ec2 單邊:網址印得出來、9555 轉得到 relay、沒人連進來會自己收乾淨、9555 被佔就失敗。
-# 9555 有在聽 = /proc/net/tcp{,6} 有 :2553(9555)的 LISTEN(狀態 0A)。殘留 = 指令列還有這支、它的轉發或 e2e session 的 daemon。
-A2_LISTEN="awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':2553\$'"
-A2_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'personal-chrome-attach|cliDaemon.js e2e-a2' | grep -v grep"
-A2_TOKEN=e2e-a2-token-$$
+# 容器裡沒有人的 Chrome,只驗 ec2 單邊:網址拿得到、9555 轉得到 relay、沒人連進來會自己收乾淨、9555 被佔就失敗。
+# 有 token 時網址不進腳本的輸出(agent 看得到、背景跑會存檔),只在 9555 的 /connect 頁給人複製。
+# 不帶 -s:順便驗預設 session 名是 personal-chrome。
+# 9555 有在聽 = /proc/net/tcp{,6} 有 :2553(9555)的 LISTEN(狀態 0A)。殘留 = 指令列還有這支、它的轉發或 session 的 daemon。
+ATTACH_LISTEN="awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':2553\$'"
+ATTACH_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'personal-chrome-attach|cliDaemon.js personal-chrome' | grep -v grep"
+ATTACH_TOKEN=e2e-attach-token-$$
+# connect 網址:chrome-extension://<id>/connect.html?…,mcpRelayUrl 是 ws://127.0.0.1:9555/extension/…
+ATTACH_URL_RE='^chrome-extension://[a-z]+/connect\.html\?.*mcpRelayUrl=ws%3A%2F%2F127\.0\.0\.1%3A9555%2Fextension%2F'
 
 check_personal_chrome_attach_dry_run() {
   bold "▶ personal-chrome-attach:dry run"
   # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、nvm 都在背景的 subshell 跑,
-  # $! 是那個 subshell,kill 不到腳本本身
-  check "印出 connect 網址(relay 是 127.0.0.1:9555、帶 token),9555 有在聽、curl 回 404" \
-    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$A2_TOKEN personal-chrome-attach -s=e2e-a2 --timeout=60 > a2.log 2>&1 & p=\$!; url=; for i in \$(seq 30); do url=\$(grep -o 'chrome-extension://[^ ]*' a2.log) && break; sleep 1; done; code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); kill \$p; wait \$p; cat a2.log; echo \"curl:\$code\"; grep -E '^chrome-extension://[a-z]+/connect\\.html\\?.*mcpRelayUrl=ws%3A%2F%2F127\\.0\\.0\\.1%3A9555%2Fextension%2F' <<<\"\$url\" && grep -q 'token=$A2_TOKEN' <<<\"\$url\" && [ \"\$code\" = 404 ]"
-  check "被中斷後 9555 放掉、沒有殘留 process" "sleep 2; ! $A2_LISTEN && ! $A2_LEFT"
-  check "token 沒寫進任何檔案" "! grep -rlI --exclude=a2.log $A2_TOKEN ~ /tmp 2>/dev/null"
-  check "沒人連進來:逾時(10 秒)內非 0 結束、9555 放掉、沒有殘留 process" \
-    "$PWCLI s=\$SECONDS; personal-chrome-attach -s=e2e-a2 --timeout=10; rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"rc=\$rc 秒數=\$e\"; [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $A2_LISTEN && ! $A2_LEFT"
+  # $! 是那個 subshell,kill 不到腳本本身。/connect 頁的網址在 value="…" 裡,&amp; 換回 &。
+  check "有 token:輸出不印網址、指到 /connect;/connect 回帶 token 的網址;/ 是 relay 的 404;session 是 personal-chrome" \
+    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$ATTACH_TOKEN personal-chrome-attach --timeout=60 > ~/attach.log 2>&1 & p=\$!; for i in \$(seq 30); do grep -q '127.0.0.1:9555/connect' ~/attach.log && break; sleep 1; done; url=\$(curl -s http://127.0.0.1:9555/connect | grep -o 'value=\"[^\"]*\"' | sed 's/^value=\"//; s/\"\$//; s/&amp;/\\&/g'); code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); daemon=\$(for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep 'cliDaemon.js personal-chrome ' | grep -vc grep); kill \$p; wait \$p; cat ~/attach.log; echo \"curl /:\$code daemon:\$daemon\"; grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && grep -q '&token=$ATTACH_TOKEN' <<<\"\$url\" && echo '/connect 的網址 OK' && grep -q 'http://127.0.0.1:9555/connect' ~/attach.log && ! grep -q 'chrome-extension://' ~/attach.log && [ \"\$code\" = 404 ] && [ \"\$daemon\" -ge 1 ]"
+  check "被中斷後 9555 放掉、沒有殘留 process" "sleep 2; ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
+  # 連腳本自己的輸出(~/attach.log)一起找:輸出也是 agent 看得到、會存檔的地方
+  check "token 沒寫進任何檔案(含腳本的輸出)" "[ -s ~/attach.log ] && ! grep -rlI $ATTACH_TOKEN ~ /tmp 2>/dev/null"
+  check "沒 token:印出 connect 網址(不帶 token);沒人連進來就在逾時(10 秒)內非 0 結束、9555 放掉、沒有殘留 process" \
+    "$PWCLI s=\$SECONDS; out=\$(env -u PLAYWRIGHT_MCP_EXTENSION_TOKEN personal-chrome-attach --timeout=10 2>&1); rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"\$out\"; echo \"rc=\$rc 秒數=\$e\"; url=\$(grep -o 'chrome-extension://[^ ]*' <<<\"\$out\"); grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && ! grep -q 'token=' <<<\"\$url\" && [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
   check "9555 先被佔時失敗,說出是誰佔著" \
-    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach -s=e2e-a2 --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
+    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
 }
 
 # 容器裡做不到、刻意不驗的事:
