@@ -29,6 +29,8 @@
 │    各 preset 的截圖：https://starship.rs/presets/　自己調模組：https://starship.rs/config/
 │
 ├─ 拉 repo 最新版
+│    勾了 agent-config：先 skillshare pull && skillshare sync --all（skill、規則不歸 chezmoi 管；
+│    先拉，chezmoi 部署的指令 symlink 才指得到 skill 裡的腳本）
 │    chezmoi update --init（= git pull + 照新的 config 樣板重算勾選 + apply）
 │    不加 --init，apply 用的是舊的勾選：repo 新加進預設組合的工具不會裝，
 │    換掉的工具卻照樣被清掉（例如 #194：p10k 先被刪，starship 要等下次 init 才裝）
