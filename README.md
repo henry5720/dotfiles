@@ -121,6 +121,7 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 
 | 文件 | 什麼時候看 |
 |---|---|
+| [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
 | [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 | [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
