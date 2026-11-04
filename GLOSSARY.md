@@ -70,14 +70,18 @@ _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
 
 ## GUI 控制
 
-local、remote 一律從 agent 那一側看，不是從坐在電腦前的人看：人 SSH 進去的 server 對 agent 來說是 local。
+local、remote 從操作者看：當下在操作 GUI 的那一方，agent 或人都算。同一個 GUI，agent 在 company-ec2 操作時是 remote，人坐到那台接手時對人是 local。
+
+**操作者**:
+當下在操作 GUI 的那一方，agent 或人。
+_Avoid_: 使用者（指 agent 時）
 
 **Local GUI**:
-GUI app 跑在 agent 所在的那台機器上。
+GUI app 跑在操作者所在的那台機器上。
 _Avoid_: 實體機、虛擬螢幕（指放的位置時）
 
 **Remote GUI**:
-GUI app 跑在另一台有桌面的機器上，agent 經網路控制它。只講 GUI 在哪一台，不講走 tailnet 還是 Funnel。
+GUI app 跑在另一台有桌面的機器上，操作者經網路控制它。只講 GUI 在哪一台，不講走 tailnet 還是 Funnel。
 _Avoid_: 目標機器、桌機、實體機、remote（指經 Funnel 開到公網時）
 
 ## 裝機
