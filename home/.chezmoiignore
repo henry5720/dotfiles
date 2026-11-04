@@ -1,5 +1,45 @@
 # 依機器種類排除。路徑是 target 名稱(去掉 dot_、run_once_after_ 這類前綴與 .tmpl)。
 # 腳本放在 .chezmoiscripts/,target 名稱要帶這層目錄,只寫檔名會擋不到。
+{{ if eq .chezmoi.os "windows" }}
+# ===============================================================
+# 1. Windows:白名單,只部署下面 ! 放行的 target
+# ===============================================================
+# 之後新增的 Linux 設定不會意外跑到 Windows;.chezmoiscripts/ 也整個排除,Windows 不跑任何 run_ 腳本
+# (都是 sh、python3)。以後 Windows 真的要腳本,寫成 .ps1 再在這裡放行。
+# 寫法(chezmoi v2.74.0 實測,#254):每層深度各排除一次,排到第 6 層
+# (Terminal 的 AppData/Local/Packages/<套件>/LocalState/settings.json);只寫 * 或 **/* 放不出巢狀檔案。
+# 放行時每一層父目錄和檔案本身都要寫:只放行父目錄,它底下的其他檔案會漏出來。
+# 加一個 Windows 檔案:在下面放行它和它的每一層父目錄,再加進 script/tests/test_windows.py 的 WINDOWS_TARGETS。
+*
+*/*
+*/*/*
+*/*/*/*
+*/*/*/*/*
+*/*/*/*/*/*
+!.wslconfig
+!.config
+!.config/starship.toml
+# PowerShell profile:pwsh 7 與 5.1 各一份,內容都是 .chezmoitemplates/powershell-profile.ps1
+!Documents
+!Documents/PowerShell
+!Documents/PowerShell/Profile.ps1
+!Documents/WindowsPowerShell
+!Documents/WindowsPowerShell/Profile.ps1
+# Windows Terminal(Store 版)的 settings.json,只管兩個值(見那個 modify_ 檔的註解)
+!AppData
+!AppData/Local
+!AppData/Local/Packages
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState
+!AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json
+{{ else }}
+# ===============================================================
+# 2. Linux、macOS、Termux
+# ===============================================================
+# Windows 專屬的 target(PowerShell profile、Windows Terminal、WSL 設定)不部署。
+Documents
+AppData
+.wslconfig
 {{ if not (has "zsh" (index . "tools")) }}
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
@@ -51,3 +91,4 @@
 
 # 沒有工具要交給 mise 的機器(Termux、macOS、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
 {{ if not (includeTemplate "mise-tools" .) }}.config/mise{{ end }}
+{{ end }}

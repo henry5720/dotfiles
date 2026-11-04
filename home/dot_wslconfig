@@ -12,13 +12,13 @@ processors=8
 # code-server 靠這個：Windows 的 tailscaled proxy 到 localhost:8080 就能打到 WSL 裡的服務。
 # 曾經擔心 Insider build 26200 的 mirrored WFP bug 要改回 NAT + portproxy，但 2026-08 在
 # build 26200 上實測 Windows→WSL 的 localhost 是通的，所以維持 mirrored。
-# 真的哪天撞到那個 bug，退路是註解掉這行改用 NAT + portproxy，指令見 wsl/command.md。
+# 真的哪天撞到那個 bug，退路是註解掉這行改用 NAT + portproxy，指令見 docs/windows.md 的「WSL 網路：mirrored 與 NAT portproxy」。
 networkingMode=mirrored
 
 # 讓 WSL 自動同步 Windows 的代理伺服器設定
 autoProxy=true
 
-# 允許 WSL 內的服務綁定到 Windows 的所有 IP
+# WSL 的 DNS 查詢交給 Windows 代為解析（不經由 WSL 內的網路封包），VPN、公司 DNS 規則才會一起生效
 dnsTunneling=true
 
 [experimental]

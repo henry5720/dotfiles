@@ -6,6 +6,9 @@ WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝�
 shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`script/ubuntu/` 只保證 Ubuntu,需要分 WSL／非 WSL 時用
 `grep -qi microsoft /proc/version` 判斷。
 
+Windows 主機(WSL 外面那層 Windows)也用這個 repo,但只部署 `home/.chezmoiignore` Windows 段白名單上的
+檔案、不跑任何 `run_` 腳本:`home/` 新增的檔案預設不會到 Windows,Windows 專屬的檔案要在 Linux 段排除。
+
 文件、註解、commit message 一律用**繁體中文**。
 
 ## 這個 repo 被切成兩半
@@ -13,7 +16,7 @@ shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`scri
 `.chezmoiroot` 的內容是 `home`,所以:
 
 - **`home/` 是 chezmoi 的地盤** —— 檔名前綴有語意(見下),會部署到家目錄
-- **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`、`wsl/`(Windows 主機側),
+- **其餘 chezmoi 完全看不到** —— `script/`(手動腳本、測試、錄影)、`docs/`,
   以及這個 AGENTS.md
 
 改 `home/` 底下 = 改會部署到家目錄的設定;改其他地方 = 只是 repo 內容,不影響任何機器。
@@ -80,6 +83,26 @@ bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使�
 `personal-chrome-attach` 從那份 checkout 複製真腳本,其他 skill 與腳本是 fixture 自己寫的假檔
 (`script/tests/container.sh` 的 `make_fixtures`)。改 agent-config 那支腳本時,`AGENT_CONFIG_DIR` 指到自己的 worktree。
 檢查清單與環境變數(`E2E_TAG`、`E2E_KEEP`、`AGENT_CONFIG_DIR`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
+
+Windows 沒有容器可以跑 e2e。改到 Windows 會部署的檔案(白名單上的 target、`.chezmoiignore` 的 Windows 段、
+config 樣板的 windows 分支)時:
+
+1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
+   Windows 部署哪些檔、渲染出什麼
+2. PR 的 `## 驗證` 段逐項列出下面的實機清單,全部勾完才 merge。能在 Windows 上下指令就自己跑
+
+| # | 時機 | 在 Windows 上做 | 預期 |
+|---|---|---|---|
+| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 沒有輸出 |
+| 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` |
+| 3 | 每次 | 開 `pwsh`、`powershell`;再跑 `pwsh -c 'echo hi'` | 開 shell 印 fastfetch、提示列是 starship、沒有紅字、有 `z`;`pwsh -c` 只印 `hi` |
+| 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` |
+| 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 |
+| 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
+
+在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
+`chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
+`chezmoi update` 換回來,不然那台會一直拉舊分支。
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。

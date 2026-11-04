@@ -37,7 +37,8 @@ starship 提示列（`~/.config/starship.toml`）和 eza（`ll`、`lt`）用 Ner
 2. 在 `HackNerdFont-Regular.ttf` 按右鍵 →「安裝」。要粗體、斜體也正常，就把
    `HackNerdFont-Bold`、`-Italic`、`-BoldItalic` 一起裝。
 3. Windows Terminal：設定 → 設定檔「預設值」→ 外觀 → 字體，選 `Hack Nerd Font` → 儲存。
-   只想改 Ubuntu 那個設定檔就改在它底下。
+   只想改 Ubuntu 那個設定檔就改在它底下。Windows 主機交給 chezmoi 的話（[Windows 主機](windows.md)），
+   這步由 `chezmoi apply` 做，不用手動。
 4. 開一個新的 WSL 分頁，提示列的圖示應該正常顯示。
 
 ### 瀏覽器裡的終端機
