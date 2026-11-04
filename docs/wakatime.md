@@ -24,7 +24,7 @@ code-server ─ vscode-wakatime ──────┘        讀 ~/.wakatime.cfg
 
 - Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
 - Claude Code、Codex 的 plugin 用 node 跑 hook，要有 node：勾了 `wakatime` 會一併裝 nvm 與 Node LTS。
-- API key 留空（init 時沒填）就不部署 `~/.wakatime.cfg`，什麼都不會送。要改見[裝完之後](after-install.md)。
+- API key 留空（init 時沒填）就不部署 `~/.wakatime.cfg`，什麼都不會送。要改見[改設定與更新](after-install.md)。
 
 ## 沒記到
 

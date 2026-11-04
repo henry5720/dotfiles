@@ -89,9 +89,9 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 | 類別 | 什麼時候打開 | 放在 |
 |---|---|---|
-| README | 第一次看到這個 repo | `README.md`:是什麼、哪種機器部署什麼、安裝一行、裝完最常用的指令、文件索引 |
+| README | 第一次看到這個 repo | `README.md`:是什麼、主截圖、安裝一行、裝完之後的入口(工具一覽、操作已配置主機、改設定與更新)、文件索引、改 repo 的人看的結構與 fork 清單 |
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
-| 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md` |
+| 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
 | 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>.md`,README 索引連過去 |
 | 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、選型比較、`docs/research/` |
 
@@ -126,7 +126,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 ### Issue tracker
 
-issue 和 spec 放在這個 repo 的 GitHub Issues,用 `gh` CLI。
+issue 和 spec 放在這個 repo 的 GitHub Issues,用 `gh` CLI。issue 從待接到完成在 GitHub 上留什麼見 [`docs/issue-lifecycle.md`](docs/issue-lifecycle.md)。
 照 issue 做事(`/implement`、`/implement-spec`)時,認領、卡住、結案照 `docs/agents/issue-tracker.md` 的「照 ticket 做事」。
 
 ### Triage labels

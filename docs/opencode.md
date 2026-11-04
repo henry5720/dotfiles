@@ -35,7 +35,7 @@ opencode mcp list                                        # 看有沒有 connecte
 
 自訂 base URL 的 `codex-lb-gcp` provider 寫在 repo 裡,所以不能只靠 `opencode auth login`。
 API key 是 `chezmoi init` 時問的 `codexLbApiKey`,只存在 repo 外的 `~/.config/chezmoi/chezmoi.toml`;
-之後要改見[裝完之後](after-install.md#憑證與-git-身分寫進哪裡)。
+之後要改見[改設定與更新](after-install.md#憑證與-git-身分寫進哪裡)。
 
 fork 這個 repo 時要換掉 provider 的 base URL,並在 `chezmoi init` 輸入自己的 key。
 不要把渲染後的 `~/.config/opencode/opencode.json` 收回 repo,那份含明文 key。

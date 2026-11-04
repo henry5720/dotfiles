@@ -6,6 +6,15 @@ Linux、macOS 與原生 Termux。Linux 以 Ubuntu 等 Debian 系最完整，其�
 mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同一套步驟，有沒有 root 都行。
 目的是把一台全新的機器帶到這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
+| 機器 | 怎麼判斷 | chezmoi 會做什麼 |
+|---|---|---|
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；amd64 才列 headless Chrome、playwright-cli，WSL 不列（kernel 版本含 `microsoft`，改用 Windows 的 Chrome） |
+| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
+| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
+
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
+
 ```text
 機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
 ```
@@ -170,7 +179,8 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 
 ### 2.4 裝完之後
 
-加減選裝工具、改 key、移除工具，見[裝完之後](after-install.md)。
+裝了什麼、怎麼用見[工具一覽](tools.md)；從別台連進來、開 coding agent 見[操作已配置主機](configured-host.md)。
+加減選裝工具、改 key、移除工具，見[改設定與更新](after-install.md)。
 
 ## 3. 需要才跑的手動腳本
 

@@ -28,6 +28,14 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node
 | fastfetch | 印出系統資訊 | `fastfetch` | [fastfetch](https://github.com/fastfetch-cli/fastfetch) |
 | btop | 工作管理員：CPU、記憶體、行程 | `btop`，按 `q` 離開 | [btop](https://github.com/aristocratos/btop) |
 
+`bat <檔案>`：語法上色、上面標檔名
+
+![bat 看一個 shell 檔：語法上色、檔頭標出檔名](demo/bat.png)
+
+`Ctrl-R` 開 fzf，打幾個字篩出打過的指令，Enter 帶回提示列
+
+![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
+
 Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與移除見 [mise](mise.md)。
 
 ## 入口與連線
@@ -73,7 +81,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與�
 
 | 指令 | 做什麼 | 細節 |
 |---|---|---|
-| `tools` | 改用途、加減選裝工具 | [裝完之後](after-install.md) |
+| `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-profile-routing.md) |
 | `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [開給訪客看](share-with-guest.md) |
 | `remote-chrome` | 開一個 agent 連得到的 Chrome | agent-config 的 remote-chrome skill |

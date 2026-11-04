@@ -1,6 +1,6 @@
 #!/bin/bash
 # 重錄 README 的 demo:docs/demo/menu.gif(安裝選單,看順序所以是 GIF)、
-# docs/demo/shell*.png(裝完的 shell 體驗,四張截圖)。
+# docs/demo/shell.png(README 開頭的 hero)、bat.png、fzf.png(docs/tools.md 的工具截圖)。
 #
 # 用法:
 #   bash script/demo/record.sh
@@ -12,7 +12,7 @@
 # 在全新的 ubuntu:24.04 容器裡錄,不碰本機家目錄;錄的是 repo 工作目錄(含未 commit 的修改)。
 # 建容器與 fixtures(本機 repo、假 agent-config remote)跟 e2e 共用 script/tests/container.sh。
 # 一次約 5 分鐘以上,大半是等 apply 裝完。
-# 劇本在同目錄的 menu.tape、main.tape。
+# 劇本在同目錄的 menu.tape、main.tape、tools.tape。
 set -uo pipefail
 
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -82,19 +82,20 @@ EOF
 
 # 5. 劇本放進容器(tar 帶進去,檔案屬於容器裡的使用者)
 docker exec -u "$CTR_USER" "$CTR" mkdir -p "$CTR_HOME/demo"
-tar -C "$DEMO" -cf - menu.tape main.tape \
+tar -C "$DEMO" -cf - menu.tape main.tape tools.tape \
   | docker exec -i -u "$CTR_USER" "$CTR" tar -C "$CTR_HOME/demo" -xf - || fail "放劇本失敗"
 
 # 6. 選單 GIF:tape 自己在有 TTY 的終端機跑 README 的 Linux 那行,裝完才結束
 vhs_run menu.tape
 
-# 7. shell 截圖:同一台裝好的機器;main.tape 的 Output main.gif 是丟棄檔,不拷回
+# 7. 截圖:同一台裝好的機器;tape 的 Output *.gif 是丟棄檔,不拷回
 vhs_run main.tape
+vhs_run tools.tape
 
 # 8. 拷回 repo;超過 1 MB 只警告(錄一次要好幾分鐘,擋下就白錄了)
 mkdir -p "$OUT"
-# 截圖的檔名從 main.tape 的 Screenshot 行讀,不另寫一份;少一張 docker cp 會失敗
-shots=$(sed -n 's/^Screenshot //p' "$DEMO/main.tape")
+# 截圖的檔名從 tape 的 Screenshot 行讀,不另寫一份;少一張 docker cp 會失敗
+shots=$(sed -n 's/^Screenshot //p' "$DEMO/main.tape" "$DEMO/tools.tape")
 for g in menu.gif $shots; do
   docker cp "$CTR:$CTR_HOME/demo/$g" "$OUT/$g" >/dev/null || fail "拷回 $g 失敗"
   size=$(stat -c %s "$OUT/$g")

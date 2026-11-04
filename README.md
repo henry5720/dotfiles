@@ -1,63 +1,87 @@
 # dotfiles
 
-![裝完之後開 terminal：fastfetch 印出系統資訊](docs/demo/shell-fastfetch.png)
+個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理：一行指令裝好 zsh、常用 CLI 工具與 coding agent
+（Claude Code、Codex、opencode）。以 **Linux + 純 zsh** 為主，Ubuntu 等 Debian 系最完整；也用在 macOS 與
+Android 平板（Termux）。實體機、雲端主機、WSL2 都一樣裝，有沒有 root 都行，機器種類自動判斷。
 
-![starship 提示列顯示 git 分支、eza 列表、打到一半的指令有語法上色與灰字 autosuggestion](docs/demo/shell.png)
+![裝完之後開 terminal：fastfetch 印出系統資訊，進 repo 後 starship 提示列顯示 git 分支、eza 列表、rg 搜尋，最後一行打到一半有語法上色與灰字 autosuggestion](docs/demo/shell.png)
 
-![bat 看檔、rg 搜尋](docs/demo/shell-tools.png)
+## 安裝
 
-![Ctrl-R 開 fzf 模糊搜尋指令歷史](docs/demo/shell-fzf.png)
-
-個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理，以 **Linux + 純 zsh** 為主：Ubuntu 等 Debian 系
-最完整，實體機、雲端主機、WSL2、proot 都一樣裝，有沒有 root 都行；也用在 macOS 與 Android 平板
-（原生 Termux、Termux 裡的 proot Ubuntu）。
-
-## 支援哪些環境
-
-| 機器 | 怎麼判斷 | chezmoi 會做什麼 |
-|---|---|---|
-| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；amd64 才列 headless Chrome、playwright-cli，WSL 不列（kernel 版本含 `microsoft`，改用 Windows 的 Chrome） |
-| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
-| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
-
-機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號也裝得起來：要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](docs/no-root-machine.md)。
-
-## 新機器
-
-| 步驟 | 要不要做 | 怎麼做 |
-|---|---|---|
-| 更新系統 | 可選，跳過也裝得起來；沒有 root 就跳過 | Ubuntu：`sudo apt update && sudo apt upgrade -y` |
-| 放 SSH key | 可選，要 push 或連其他機器才需要；裝完再放也行 | 見[新機器設定 2.2](docs/new-machine-setup.md#22可選放-ssh-key) |
-| 裝 chezmoi 與 dotfiles | 必做 | 下面四行挑一行 |
+Linux 在家目錄跑：
 
 ```bash
-# Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都一樣），在家目錄跑
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
-
-# Linux，免回答：直接套精簡，只帶 git email（用途提示要一字不差，見新機器設定）
-sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" --promptString "git user.email=<email>" henry5720
-
-# 原生 Termux
-pkg upgrade && pkg install chezmoi && chezmoi init --apply henry5720
-
-# macOS（先裝 Homebrew，見新機器設定）
-brew install chezmoi && chezmoi init --apply henry5720
 ```
 
-![打上面 Linux 那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
+![打上面那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
 
-clone 走 HTTPS，不用 key；放了 key 之後 push 自動走 SSH。init 會問什麼、各種機器的前置、
-裝完之後的 AI 工具設定，見[新機器設定](docs/new-machine-setup.md)。
+會問用途（完整／精簡／自訂）和要勾哪些選裝工具；勾到要憑證的工具才問憑證。clone 走 HTTPS，不用 key。
+macOS、Termux、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)。
 
-裝完之後最常用的兩個（其他見[裝完之後](docs/after-install.md)）：
+## 裝完之後
+
+| 想做什麼 | 看哪份 |
+|---|---|
+| 知道裝了什麼、各自怎麼用 | [工具一覽](docs/tools.md) |
+| 從個人電腦連進這台、開 herdr 與 coding agent、傳檔案 | [操作已配置主機](docs/configured-host.md) |
+| 加減選裝工具、改 API key 與密碼、拉最新版 | [改設定與更新](docs/after-install.md) |
+
+最常用的兩個：
 
 ```bash
 tools                                  # 改用途、加減選裝工具（Linux、macOS；Termux 沒有）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 
-## repo 結構
+## 文件索引
+
+分類見 [`AGENTS.md`](AGENTS.md)「文件放哪」。
+
+**機器與環境**
+
+| 文件 | 什麼時候看 |
+|---|---|
+| [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
+| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
+| [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
+| [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
+| [WSL 常用指令](wsl/command.md) | port 轉發、mirrored 模式 |
+| [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
+
+**coding agent**
+
+| 文件 | 什麼時候看 |
+|---|---|
+| [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
+| [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
+| [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
+| [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
+| [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
+| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/docs/skills/remote-chrome.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
+| [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
+
+**連線與分享**
+
+| 文件 | 什麼時候看 |
+|---|---|
+| [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
+| [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
+
+**背景與決策**
+
+| 文件 | 什麼時候看 |
+|---|---|
+| [AI agent 環境：為什麼這樣分](docs/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
+| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
+| [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
+
+## 改這個 repo
+
+檔名前綴、秘密、驗證方式（含容器 e2e）、issue 流程看 [`AGENTS.md`](AGENTS.md)。
+`docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
+
+### repo 結構
 
 ```text
 .chezmoiroot                    內容是 home：chezmoi 只看 home/，其餘它看不到
@@ -80,8 +104,8 @@ script/                         不部署，自己手動跑
 ├── ubuntu/                     會改系統的：Docker、swap
 ├── termux/                     平板桌面、proot Ubuntu 的使用者
 ├── tests/                      容器 e2e 與單元測試
-└── demo/                       重錄 README 的 demo（GIF 與截圖）
-docs/                           說明（見下面的文件索引）
+└── demo/                       重錄 README 與工具一覽的截圖、安裝 GIF
+docs/                           說明（見上面的文件索引）
 wsl/                            Windows 側參考檔，之後由 Windows 上的 chezmoi 管
 ```
 
@@ -92,10 +116,9 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
 - `wsl/` 怎麼交給 Windows 上的 chezmoi，見
   [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
-- 日常怎麼改、套用、同步，見[裝完之後](docs/after-install.md)；chezmoi 本身的用法照官方
-  [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
+- chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 
-## fork 前要改什麼
+### fork 前要改什麼
 
 - [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config.tmpl`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
 - [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
@@ -103,48 +126,3 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 - [ ] ssh config 裡的 Tailscale 主機與平板
 - [ ] 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles
 - [ ] 憑證不進 git，`chezmoi init` 時才問、存在 `~/.config/chezmoi/chezmoi.toml`；不信任或共用的機器不要填真實憑證
-
-## 文件索引
-
-分類見 [`AGENTS.md`](AGENTS.md)「文件放哪」。
-
-**裝機與日常**
-
-| 文件 | 什麼時候看 |
-|---|---|
-| [新機器設定](docs/new-machine-setup.md) | 裝新機器、放 SSH key、平板與 proot、裝完之後的 AI 工具 |
-| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
-| [裝完之後](docs/after-install.md) | 加減選裝工具、改 key 與密碼、移除工具、拉最新版 |
-| [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
-
-**主題文件**
-
-| 文件 | 什麼時候看 |
-|---|---|
-| [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
-| [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
-| [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
-| [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
-| [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
-| [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
-| [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
-| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/docs/skills/remote-chrome.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
-| [操作已配置主機](docs/configured-host.md) | 從個人電腦連上裝好工具的機器：入口、herdr、coding agent、傳檔案 |
-| [工具一覽](docs/tools.md) | 有哪些工具、各自最常用的指令與官網 |
-| [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
-| [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
-| [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
-| [WSL 常用指令](wsl/command.md) | port 轉發、mirrored 模式 |
-| [Issue 生命週期](docs/issue-lifecycle.md) | 看 issue 從待接到完成在 GitHub 上留什麼 |
-
-**背景與決策**
-
-| 文件 | 什麼時候看 |
-|---|---|
-| [AI agent 環境：為什麼這樣分](docs/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
-| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
-| [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
-
-改這個 repo（檔名前綴、秘密、驗證方式含容器 e2e）看 [`AGENTS.md`](AGENTS.md)。
-`docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
