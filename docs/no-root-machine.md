@@ -40,16 +40,17 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | `~/.profile` | 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時補一個：把 `~/.local/bin` 加進 PATH、source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去 |
 | `TERM` | 沒設時 `.zshrc` 補成 `xterm-256color` |
 | ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝 |
-| 本來走 apt 的工具 | vim、btop、ffmpeg、gh、fastfetch、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
+| 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
 mise 的細節：
 
-- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；系統已經有的指令不列，不會重裝一份
-- 指令在 `~/.local/share/mise/shims`，zsh 已加進 PATH；`mise ls` 看裝了什麼，`mise upgrade` 更新
+- 清單是 `~/.config/mise/conf.d/dotfiles.toml`，chezmoi 照勾選產生；上表那幾個系統已經有的指令不列，不會重裝一份
+- 指令在 `~/.local/share/mise/shims`，zsh 已把它排在系統目錄前面；`mise ls` 看裝了什麼，`mise upgrade` 更新
 - mise 要打 GitHub API，未登入每小時 60 次；被限流就設 `GITHUB_TOKEN` 再 `chezmoi apply`
 
-不用 root 的工具照常裝好（eza、fzf、bat、ripgrep、starship、Claude Code、Codex、OpenCode、herdr、ttyd、WakaTime、agent-config）。
+不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd 本來就由 mise 裝（#233），
+Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
 
 ### 略過彙整怎麼看
 

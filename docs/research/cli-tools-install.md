@@ -5,7 +5,11 @@
 
 ## 結論
 
-在 Linux（含 Ubuntu）上，五個 binary 一律抓 GitHub release 的 tarball 裝到 `~/.local/bin`。
+> **2026-11-04 更新**：這份結論已被取代。repo 加了 mise 之後，Linux 改由 mise（aqua backend）安裝這幾個工具，
+> 不分有沒有 root（決定見 #231，實作 #233）；Termux 照舊 `pkg`。下面「不走 apt」的四個理由仍然成立，
+> 也是 mise 取代 apt 的原因；改的只有「自己下載 release」這一半：mise 的 registry 替你維護各 OS、架構的檔名，還能 `mise up` 更新。
+
+當時的結論：在 Linux（含 Ubuntu）上，五個 binary 一律抓 GitHub release 的 tarball 裝到 `~/.local/bin`。
 原生 Termux 一律 `pkg install`；zsh-z 是純 zsh 插件，跟現有插件一樣用 `.chezmoiexternal` 的 `git-repo` clone。
 
 不走 apt，原因有四個：

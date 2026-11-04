@@ -1,11 +1,13 @@
 {{- $list := includeTemplate "mise-tools" . -}}
-{{- if and (includeTemplate "use-mise" .) $list -}}
+{{- if $list -}}
 #!{{ lookPath "sh" }}
-# apt 用不了的 Linux(沒有 root,或非 Debian 系;見 .chezmoitemplates/use-mise):有勾、走 apt 的選裝工具
-# 改用 mise 裝到家目錄。清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
+# Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。怎麼挑的見 .chezmoidata/packages.yaml 的 miseTools。
+# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
 # 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
-# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它加進 PATH。
+# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它排在系統目錄前面
+# (apt 可能有同名的舊版,例如 fzf 0.44);bash 的 starship 那段直接找 shim(modify_dot_bashrc.tmpl)。
 #
 # run_onchange_:下面這份清單沒變就不重跑;重跑時 mise 只裝缺的,已裝的不重新下載。
 # 清單:

@@ -33,14 +33,14 @@ old_block() {
   awk -v b="$1" -v e="$2" '$0 == b {on = 1} on {print} on && $0 == e {on = 0}' "$in"
 }
 
-# 2. starship:~/.local/bin 那支優先(Linux 由 install-cli-tools 裝在那裡,這時 PATH 不一定有它),
+# 2. starship:mise 的 shim 優先(Linux 由 mise 裝,bash 的 PATH 沒有 shims),
 #    沒有就找 PATH 上的(Termux 的 pkg、macOS 的 brew)。都沒有就用 bash 預設的提示列。
 {{- if $starship }}
 cat <<'BASHRC'
 # >>> dotfiles:starship 提示列 >>>
 case $- in
   *i*)
-    for s in "$HOME/.local/bin/starship" "$(command -v starship 2>/dev/null)"; do
+    for s in "$HOME/.local/share/mise/shims/starship" "$(command -v starship 2>/dev/null)"; do
       if [ -n "$s" ] && [ -x "$s" ]; then eval "$("$s" init bash)"; break; fi
     done
     unset s

@@ -13,8 +13,12 @@
        選項與說明在 .chezmoitemplates/tool-menu。加一個新工具要動四處:
          1. tool-menu 加一行「工具名 說明」(完整 = 選單上全部,自動算進去)。
          2. 要不要放進精簡:改下面的 $lean。
-         3. 走 apt／brew 的放 .chezmoidata/packages.yaml 的 toolPackages(macOS 一律走 brew,填 darwin 欄),
-            同一份檔的 miseTools 再列 mise 的工具名(apt 用不了的 Linux 改用 mise 裝,見 .chezmoitemplates/use-mise);其他的寫一支
+         3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin;
+            Termux 走 pkg,填 toolPackages.termux):
+            - GitHub release 的單一執行檔(mise registry 是 aqua／github backend):只填 miseTools,加 always: true。
+            - 要系統函式庫的(mise 只有 conda backend):填 toolPackages.ubuntu,miseTools 再列一次
+              (apt 用不了的 Linux 改用 mise 裝,見 .chezmoitemplates/use-mise)。
+            - 有官方 installer 或官方 apt 源、會自己更新的:寫一支
             .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
             {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。

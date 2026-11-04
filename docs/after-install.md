@@ -11,8 +11,8 @@
 │
 ├─ 移除工具
 │    取消勾選不會解除安裝 ──→ 用它自己的方式移除 ──→ 再打 tools 取消勾選
-│                              sudo apt remove btop
-│                              mise uninstall btop（沒有 root、非 Debian 系由 mise 裝的）
+│                              mise uninstall btop（`mise ls` 列得到的；Linux 上 eza、fzf、btop 這類都是）
+│                              sudo apt remove vim
 │                              npm uninstall -g <套件>
 │
 ├─ 改 API key、密碼、Git 身分

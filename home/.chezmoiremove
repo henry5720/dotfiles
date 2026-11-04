@@ -25,3 +25,11 @@
 .config/zsh/powerlevel10k
 .cache/gitstatus
 .cache/p10k-*
+# eza、fzf、bat、ripgrep、starship、ttyd 改由 mise 裝(#233):以前 install-cli-tools、install-ttyd 下載到 ~/.local/bin 的舊版。
+# 不清掉的話 ~/.local/bin 排在 mise shims 前面,永遠用舊的那份。只有 Linux 用過這個位置(Termux 走 pkg、macOS 走 brew)。
+.local/bin/eza
+.local/bin/fzf
+.local/bin/bat
+.local/bin/rg
+.local/bin/starship
+.local/bin/ttyd
