@@ -93,7 +93,9 @@ vhs_run main.tape
 
 # 8. 拷回 repo;超過 1 MB 只警告(錄一次要好幾分鐘,擋下就白錄了)
 mkdir -p "$OUT"
-for g in menu.gif shell.png shell-tools.png shell-fzf.png shell-fastfetch.png; do
+# 截圖的檔名從 main.tape 的 Screenshot 行讀,不另寫一份;少一張 docker cp 會失敗
+shots=$(sed -n 's/^Screenshot //p' "$DEMO/main.tape")
+for g in menu.gif $shots; do
   docker cp "$CTR:$CTR_HOME/demo/$g" "$OUT/$g" >/dev/null || fail "拷回 $g 失敗"
   size=$(stat -c %s "$OUT/$g")
   if [ "$size" -gt "$MAX_BYTES" ]; then

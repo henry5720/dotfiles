@@ -5,7 +5,8 @@
 #   shell-fzf.png        Ctrl-R 開 fzf 歷史面板,打 bat 篩選
 #   shell-fastfetch.png  fastfetch 印完整資訊(Kernel、CPU、磁碟是錄影那台主機的)
 # 用到的 zsh、eza、fzf、bat、ripgrep 是精簡預勾的,fastfetch 是 menu.tape 另外勾的。
-# VHS 文件沒寫 tape 沒有 Output 能不能跑,留一個 main.gif 當丟棄檔,record.sh 不拷它
+# VHS 文件沒寫 tape 沒有 Output 能不能跑,留一個 main.gif 當丟棄檔,record.sh 不拷它。
+# 截圖的檔名 record.sh 從下面的 Screenshot 行讀,加一張不用改 record.sh
 Output main.gif
 Set Shell bash
 Set FontFamily "Hack Nerd Font Mono"
@@ -36,19 +37,23 @@ Sleep 1.5s
 Type "bat R"
 Sleep 1s
 Screenshot shell.png
+# Ctrl+C 取消那行後結束碼是 130,下一個 prompt 的 ❯ 會變紅、看起來像出錯;偷跑 true 歸零
 Ctrl+C
+Hide
+Type "true" Enter
 Sleep 500ms
+Show
 
-# 2. shell-tools.png:bat、rg
+# 2. shell-tools.png:bat、rg。bat 印整個短檔、不用 -r 行號:被印的檔改了也不會截錯位置
+#    (sh-skip 沒有副檔名,-l sh 指定語法)
 Ctrl+L
-Type "bat -r 125:130 home/dot_zshrc" Enter
+Type "bat -l sh home/.chezmoitemplates/sh-skip" Enter
 Sleep 1s
 Type "rg -n 'alias ll' home/dot_zshrc" Enter
 Sleep 1s
 Screenshot shell-tools.png
 
-# 3. shell-fzf.png:清空再開 Ctrl-R。跟 bat、rg 放同一張時,面板會把上面的輸出推出畫面
-#    (面板佔的行數比 fzf 預設的 40% 多)
+# 3. shell-fzf.png:清空再開 Ctrl-R。錄過一次跟 bat、rg 放同一張,上面 bat 的檔頭被推出畫面
 Ctrl+L
 Ctrl+R
 Sleep 800ms
