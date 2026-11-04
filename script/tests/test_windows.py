@@ -17,6 +17,8 @@ CONFIG_TEMPLATE = ROOT / "home/.chezmoi.toml.tmpl"
 WINDOWS_TARGETS = {
     ".wslconfig",
     ".config/starship.toml",
+    "Documents/PowerShell/Profile.ps1",
+    "Documents/WindowsPowerShell/Profile.ps1",
 }
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
@@ -73,6 +75,42 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("\n    tools = []\n", out)
         for key in ("gitUserName", "gitUserEmail", "machineUse", "ApiKey", "Password"):
             self.assertNotIn(key, out)
+
+    # ===============================================================
+    # PowerShell profile(pwsh 7 與 5.1 共用一份)
+    # ===============================================================
+    def test_both_powershell_profiles_render_the_same_five_settings(self):
+        self.chezmoi("windows", "apply", data={"tools": []})
+        pwsh7 = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
+        ps51 = (self.home / "Documents/WindowsPowerShell/Profile.ps1").read_text(encoding="utf-8")
+        self.assertEqual(pwsh7, ps51)
+        for needle in (
+            r"$HOME\.local\bin",
+            "Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete",
+            "Set-PSReadLineOption -PredictionSource History",
+            "Get-Command starship",
+            "starship init powershell",
+            "Get-Command zoxide",
+            "zoxide init powershell",
+        ):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, pwsh7)
+        self.assertNotIn("oh-my-posh", pwsh7)
+
+    def test_powershell_profile_is_ascii_only(self):
+        # 5.1 讀沒有 BOM 的檔案用系統 ANSI 字碼頁,UTF-8 的中文註解會變亂碼
+        self.chezmoi("windows", "apply", data={"tools": []})
+        for target in ("Documents/PowerShell/Profile.ps1", "Documents/WindowsPowerShell/Profile.ps1"):
+            with self.subTest(target=target):
+                self.assertTrue((self.home / target).read_bytes().isascii())
+
+    def test_history_prediction_only_enabled_on_pwsh7(self):
+        # 5.1 內建的 PSReadLine 2.0 沒有 -PredictionSource,不包在版本判斷裡會出紅字
+        self.chezmoi("windows", "apply", data={"tools": []})
+        lines = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8").splitlines()
+        idx = next(i for i, l in enumerate(lines) if "-PredictionSource History" in l)
+        guard = next(l for l in reversed(lines[:idx]) if l.strip().startswith("if"))
+        self.assertRegex(guard, r"\$PSVersionTable\.PSVersion\.Major\s+-ge\s+7")
 
 
 if __name__ == "__main__":

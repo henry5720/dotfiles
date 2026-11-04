@@ -19,6 +19,12 @@
 !.wslconfig
 !.config
 !.config/starship.toml
+# PowerShell profile:pwsh 7 與 5.1 各一份,內容都是 .chezmoitemplates/powershell-profile.ps1
+!Documents
+!Documents/PowerShell
+!Documents/PowerShell/Profile.ps1
+!Documents/WindowsPowerShell
+!Documents/WindowsPowerShell/Profile.ps1
 {{ else }}
 # ===============================================================
 # 2. Linux、macOS、Termux
