@@ -18,7 +18,7 @@ networkingMode=mirrored
 # 讓 WSL 自動同步 Windows 的代理伺服器設定
 autoProxy=true
 
-# 允許 WSL 內的服務綁定到 Windows 的所有 IP
+# WSL 的 DNS 查詢交給 Windows 代為解析（不經由 WSL 內的網路封包），VPN、公司 DNS 規則才會一起生效
 dnsTunneling=true
 
 [experimental]

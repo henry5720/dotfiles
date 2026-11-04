@@ -19,14 +19,42 @@ Windows 的 `chezmoi init` 什麼都不問（沒有用途、選裝工具選單�
 加進 PATH、Tab 選單補全、歷史灰字建議（只有 pwsh 7）、starship、zoxide 的 `z`（沒裝就略過）。
 chezmoi 不碰 `$PROFILE`（`Microsoft.PowerShell_profile.ps1`），機器專屬的設定（例如 API key）寫在那裡，不進 repo。
 PowerShell 只從 `[Environment]::GetFolderPath('MyDocuments')` 讀 profile，Documents 在 OneDrive 裡時讀不到
-chezmoi 部署的這兩份，見[新機器設定](new-machine-setup.md#windows-主機)。
+chezmoi 部署的這兩份，見[Documents 移出 OneDrive](#documents-移出-onedrive)。
 
 `.chezmoiscripts/` 裡的 `run_` 腳本一支都不跑（都是 sh、python3）。Windows 沒有 `tools` 指令；
 要改 Windows 部署什麼就改 repo：白名單在 `home/.chezmoiignore` 的 Windows 段，加一個檔案要動哪幾處寫在那段的註解。
 
+Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經過 `toPrettyJson` 整份重寫：Terminal 原本的
+`//` 註解會消失、key 照字母重排。之後兩個值都對就不再動它。所以第一次 `chezmoi diff` 看到整檔重排是預期的，不是壞掉。
+
+## Documents 移出 OneDrive
+
+PowerShell 從 `[Environment]::GetFolderPath('MyDocuments')` 讀 profile，chezmoi 卻固定部署到 `$HOME\Documents`。
+Documents 被 OneDrive 備份時這兩個路徑不同：apply 照樣成功、也不報錯，但 PowerShell 根本不讀 chezmoi 部署的 profile。
+
+照 Microsoft [about_Profiles](https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles)
+的建議，在 OneDrive 設定 →「同步與備份」→「管理備份」→ 關掉「文件」。關掉後原本的檔案留在 OneDrive，
+要的自己搬回 `$HOME\Documents`。確認：
+
+```powershell
+[Environment]::GetFolderPath('MyDocuments')   # 要是 C:\Users\<你>\Documents，不是 ...\OneDrive\...
+```
+
+## 從舊的手寫 profile 遷移
+
+chezmoi 只部署 all-hosts 的 `Profile.ps1`；`$PROFILE` 比它晚載入，裡面若有 oh-my-posh（例如 henry-desktop 那份）
+會蓋掉 starship。先看內容，機器專屬的設定（例如 API key）留下，其他刪掉；整份都不要就刪檔：
+
+```powershell
+notepad $PROFILE            # 看內容、只留機器專屬的設定
+Remove-Item $PROFILE        # 整份都不要時
+```
+
+pwsh 和 `powershell`（5.1）的 `$PROFILE` 是不同檔案，兩邊都要看。
+
 ## 實機清單
 
-改到 Windows 會部署的檔案後，在 Windows 主機的 PowerShell 跑。Linux 上的 unittest
+改到 Windows 會部署的檔案後，在 Windows 主機的 PowerShell 跑；第 6 項只在改到 `.wslconfig` 時跑，其他每次都跑。Linux 上的 unittest
 （`script/tests/test_windows.py`）只驗得到「部署哪些檔、渲染出什麼」，下面這些要實機才知道。
 
 | # | 什麼時候跑 | 指令 | 預期結果 |
@@ -35,7 +63,7 @@ chezmoi 部署的這兩份，見[新機器設定](new-machine-setup.md#windows-�
 | 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` |
 | 3 | 每次 | 分別開新的 `pwsh` 和 `powershell`；各打 `Get-Command z` | 兩個都沒有紅字、提示列是 starship；pwsh 裡 `Get-Command z` 列出 `z`、打字時有灰字建議 |
 | 4 | 每次 | 在 pwsh 跑 `Get-ExecutionPolicy -List` | 由上往下第一個不是 `Undefined` 的值（就是生效的那個）是 `RemoteSigned`、`Unrestricted` 或 `Bypass`；全部 `Undefined` 等於 `Restricted`，會擋（henry-desktop 實測 `LocalMachine` 是 `RemoteSigned`、其他 `Undefined`） |
-| 5 | 改到 Terminal 的 `settings.json` 時 | 開 Windows Terminal；在設定 UI 隨便改一項再改回來、按「儲存」，再跑 `chezmoi diff` | 新分頁開的是 PowerShell（pwsh 7，`$PSVersionTable.PSVersion` 是 7.x），字型是 Hack Nerd Font（starship 的圖示不是方框）；存過之後 `chezmoi diff` 還是沒有輸出 |
+| 5 | 每次 | 開 Windows Terminal；在設定 UI 隨便改一項再改回來、按「儲存」，再跑 `chezmoi diff` | 新分頁開的是 PowerShell（pwsh 7，`$PSVersionTable.PSVersion` 是 7.x），字型是 Hack Nerd Font（starship 的圖示不是方框）；存過之後 `chezmoi diff` 還是沒有輸出 |
 | 6 | 改到 `.wslconfig` 時 | `wsl --shutdown`，重開 WSL 後在 WSL 裡跑 `free -g`、`nproc`、`ip -4 addr` | 記憶體上限、CPU 數跟 `.wslconfig` 一致；`networkingMode=mirrored` 時 WSL 的網卡跟 Windows 同一個 IP |
 
 編號照 [spec #254](https://github.com/henry5720/dotfiles/issues/254) 的實機清單。

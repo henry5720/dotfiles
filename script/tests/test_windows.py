@@ -25,7 +25,7 @@ WINDOWS_TARGETS = {
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 TERMINAL_SETTINGS = "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
 TERMINAL_FIXTURE = ROOT / "script/tests/fixtures/windows-terminal-settings.json"
-WINDOWS_POWERSHELL = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
+PS51_PROFILE_GUID = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
 
 
 def parse_jsonc(text):
@@ -126,7 +126,7 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     # 只管 defaultProfile(pwsh 7)和 profiles.defaults.font.face(Hack Nerd Font)兩個值。
     # fixture 照 henry-desktop 的結構:有註解、key 不照字母序,兩個值都已經是對的。
-    def terminal(self, settings):
+    def render_terminal_settings(self, settings):
         """把 settings(None = 檔案不存在)放到 Terminal 的位置,回傳 chezmoi 算出的新內容。"""
         target = self.home / TERMINAL_SETTINGS
         if settings is not None:
@@ -136,16 +136,16 @@ class WindowsDeployTest(unittest.TestCase):
 
     def test_terminal_keeps_bytes_when_values_already_right(self):
         settings = TERMINAL_FIXTURE.read_text(encoding="utf-8")
-        self.assertEqual(self.terminal(settings), settings)
+        self.assertEqual(self.render_terminal_settings(settings), settings)
 
     def test_terminal_changes_only_the_two_values(self):
         settings = (TERMINAL_FIXTURE.read_text(encoding="utf-8")
                     .replace('"defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}"',
-                             f'"defaultProfile": "{WINDOWS_POWERSHELL}"')
+                             f'"defaultProfile": "{PS51_PROFILE_GUID}"')
                     .replace('"face": "Hack Nerd Font"', '"face": "Cascadia Mono"'))
         before = parse_jsonc(settings)
-        self.assertEqual(before["defaultProfile"], WINDOWS_POWERSHELL)  # fixture 真的改到了
-        after = json.loads(self.terminal(settings))
+        self.assertEqual(before["defaultProfile"], PS51_PROFILE_GUID)  # fixture 真的改到了
+        after = json.loads(self.render_terminal_settings(settings))
         self.assertEqual(after["defaultProfile"], "{574e775e-4f2a-5b96-ac1e-a2962a402336}")
         self.assertEqual(after["profiles"]["defaults"]["font"]["face"], "Hack Nerd Font")
         # 其他全部不變(包括 profiles.list 和同一層的 font.size)
@@ -157,22 +157,22 @@ class WindowsDeployTest(unittest.TestCase):
         # pwsh 裝了但 Terminal 還沒開過:profiles.list 沒有 PowershellCore 的設定檔
         settings = (TERMINAL_FIXTURE.read_text(encoding="utf-8")
                     .replace('"defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}"',
-                             f'"defaultProfile": "{WINDOWS_POWERSHELL}"')
+                             f'"defaultProfile": "{PS51_PROFILE_GUID}"')
                     .replace('"source": "Windows.Terminal.PowershellCore"', '"source": "Somewhere.Else"')
                     .replace('"face": "Hack Nerd Font"', '"face": "Cascadia Mono"'))
-        after = json.loads(self.terminal(settings))
-        self.assertEqual(after["defaultProfile"], WINDOWS_POWERSHELL)
+        after = json.loads(self.render_terminal_settings(settings))
+        self.assertEqual(after["defaultProfile"], PS51_PROFILE_GUID)
         self.assertEqual(after["profiles"]["defaults"]["font"]["face"], "Hack Nerd Font")
 
     def test_terminal_without_settings_writes_only_the_font(self):
         # settings.json 不存在(Terminal 沒開過):只寫得出字型,pwsh 的 guid 要等 Terminal 產生設定檔才知道
-        self.assertEqual(json.loads(self.terminal(None)),
+        self.assertEqual(json.loads(self.render_terminal_settings(None)),
                          {"profiles": {"defaults": {"font": {"face": "Hack Nerd Font"}}}})
 
     def test_terminal_leaves_old_list_style_profiles_alone(self):
         # 舊格式:profiles 直接是設定檔清單,沒有 defaults 可以設 → 原樣輸出、不報錯
         settings = '{\n    "profiles": [ { "guid": "{x}", "name": "cmd" } ]\n}\n'
-        self.assertEqual(self.terminal(settings), settings)
+        self.assertEqual(self.render_terminal_settings(settings), settings)
 
 
 if __name__ == "__main__":
