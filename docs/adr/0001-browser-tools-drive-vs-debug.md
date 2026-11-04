@@ -13,6 +13,12 @@
 要看著 agent 在自己的 Chrome 裡操作時，remote-chrome skill 還是能把 Windows Chrome 的 9222 轉發過來，但驗收不靠這條：
 它要人在桌機開著 `remote-chrome`，沒辦法無人值守。
 
+company-ec2 上的 headless（a1）留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
+
+- **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。
+- **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=9222`，讓 MCP 在 ec2 自己開 Chrome 的話，a2 就接不上。
+- **人要看 a1 畫面**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
+
 省 token 是 CLI 和 MCP 的差別，不是牌子的差別：chrome-devtools-mcp 也附了 `chrome-devtools` CLI
 （[docs/cli.md](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md)）。官方部落格 2026-05-19 說它 stable 了，
 repo 文件（1.10.1）還寫 experimental；主力已經是 `playwright-cli`，所以先不用。
@@ -47,7 +53,7 @@ Playwright MCP、agent-browser、dev-browser、Playwriter、Claude in Chrome 等
 | 不選 | 為什麼 |
 |---|---|
 | Playwright MCP | 跟 `playwright-cli` 同一套實作，常駐 schema ~5.1k token，`playwright-cli` 平常只佔 skill 說明 ~19 |
-| agent-browser | 每步回應最小，但 skill 觸發要多讀 ~9.4k token，也不能產出 Playwright 程式碼 |
+| agent-browser | 每步回應最小（0.41.2 實測 snapshot 是 `playwright-cli` 的 56–80%，`-i` 只剩 25–31%），`--pin-tab` 也能跟其他 CDP client 共用 Chrome 不搶分頁；但每個 session 的 daemon 在 127.0.0.1 開一個不用驗證、回 `Access-Control-Allow-Origin: *` 的 HTTP port，company-ec2 上的其他 process 都能操作，也不能產出 Playwright 程式碼（2026-11-04 重測，[#247](https://github.com/henry5720/dotfiles/issues/247)） |
 | Playwriter、dev-browser、Claude in Chrome | 賣點是接自己 Chrome 的登入；agent 在 EC2、Chrome 在 Windows，等於換個方式轉發 9222。Claude in Chrome 還要看得到的 Chrome |
 
 登入：TeamSync 是 `/login` 帳密表單，teamsync-tutorials 的 `shared/shoot-lib.mjs` 的 `login()` 已經 headless 自動登入，
