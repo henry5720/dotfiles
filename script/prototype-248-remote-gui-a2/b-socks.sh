@@ -5,7 +5,7 @@
 set -u
 PWCLI=${PWCLI:-playwright-cli}
 S=a1socks
-ip() { "$PWCLI" -s=$S eval "document.body.innerText.trim()" 2>&1 | grep -oE '[0-9]+(\.[0-9]+){3}' | head -1; }
+ip() { "$PWCLI" -s=$S eval "document.body.innerText.trim()" 2>&1 | grep -oE '[0-9]+(\.[0-9]+){3}|[0-9a-f]*:[0-9a-f:]+' | head -1; }  # Chrome 的 SOCKS5 在遠端解析 DNS，常走 IPv6
 
 # 1. 沒 proxy：ec2 自己的 IP
 "$PWCLI" -s=$S open https://ifconfig.me/ip >/dev/null 2>&1

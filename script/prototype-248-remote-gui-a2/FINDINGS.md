@@ -61,3 +61,14 @@
 - 結論：**a 可行，c（BrowserMCP v2）不測。**
 - 剩下的手動步驟：每次 attach 要貼一次網址（relay 路徑的 UUID 每次換）。可行的改法（未實作）：
   `fwd.mjs` 改寫 websocket upgrade 的路徑，讓 connect 網址固定、能存書籤。
+
+### b：a1 + 反向 SOCKS（2026-11-04，WSL `ssh -N -R 127.0.0.1:1080 company-ec2`）
+
+| | 直連 | `PLAYWRIGHT_MCP_PROXY_SERVER=socks5://127.0.0.1:1080` |
+|---|---|---|
+| 對外 IP | `18.141.90.104`（AWS） | client 的 IPv6（curl `--socks5` 走 IPv4 時是 client 的家用 IP） |
+| YouTube `playabilityStatus` | `OK` | `OK` |
+| 影片播放 4 秒 | — | `currentTime=4.0` |
+
+- Chrome 的 `socks5://` 在 proxy 那端解析 DNS，所以常拿到 IPv6；第一版腳本只抓 IPv4 而漏掉，已修。
+- 結論：**擋機房 IP 用 a1 + `-R 1080`，不必退到 a2。** 今天 ec2 直連沒被擋，被擋時才需要開。
