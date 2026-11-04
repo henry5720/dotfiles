@@ -130,6 +130,8 @@ wsl/                            Windows 側參考檔，之後由 Windows 上的 
 | [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
 | [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
 | [remote-chrome](https://github.com/henry5720/agent-config/blob/main/docs/skills/remote-chrome.md)（在 agent-config） | 設定瀏覽器 MCP、轉發到 EC2、排錯 |
+| [操作已配置主機](docs/configured-host.md) | 從自己電腦連上裝好工具的機器：入口、herdr、coding agent、傳檔案 |
+| [工具一覽](docs/tools.md) | 有哪些工具、各自最常用的指令與官網 |
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
 | [開給訪客看](docs/share-with-guest.md) | 把 shell 或 dev server 臨時開給沒有 tailscale 的人 |
 | [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
