@@ -93,15 +93,15 @@ _Avoid_: a1、local 瀏覽器
 不分 local、remote：坐在前面或從別台連過去，操作方式一樣，只差第一步要不要先連過去。
 
 **已配置主機**:
-裝好這些工具、你要用它的那台。個人電腦、雲端主機都算，不管上面有沒有跑 agent。
+裝好這些工具、你要用它的那台。可以就是你的個人電腦，也可以是雲端主機；不管上面有沒有跑 agent。
 _Avoid_: 工作機、開發機、目標機器、agent 機、遠端機器、server、主機（單獨使用時）
 
-**自己電腦**:
+**個人電腦**:
 人坐在前面、用來操作已配置主機的那台。可以就是已配置主機本身。
-_Avoid_: 本機、client、local（指這個角色時）
+_Avoid_: 自己電腦、本機、client、local（指這個角色時）
 
 **入口**:
-從自己電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 share-shell 網址。
+從個人電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 share-shell 網址。
 _Avoid_: 連線方式（只指 ssh 時）、登入方式
 
 ## 裝機
