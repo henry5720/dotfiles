@@ -102,7 +102,31 @@ Host openab
 # ===============================================================
 # 走 tailnet。一般連線不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話
 # 先連的搶到、其他默默失敗(以前 9222 轉發就是這樣)。要轉發另開 Host,只在要用時連。
-Host company-ec2
+# 三個別名連的是同一台:各別名的轉發寫在前面,共用的設定寫在最後一段。
+# ssh 每個設定取第一個符合的值,轉發(LocalForward、RemoteForward)是累加的;
+# 共用段不寫任何轉發,所以一般的 company-ec2 不會帶到別名的轉發。
+
+# 要 agent 接上個人電腦日常的 Chrome(passkey、硬體金鑰、裝置 SSO)時才連:`ssh -N company-ec2-attach`。
+# EC2 上的 personal-chrome-attach(agent-config 的 personal-pc-tunnel skill)把 Playwright Extension
+# 的 relay 固定在 127.0.0.1:9555,這條把個人電腦的 9555 接過去。不放進一般的 company-ec2:個人電腦的 9555
+# 也只有一個位子,每條連線都帶的話第二條起就搶不到。
+Host company-ec2-attach
+    LocalForward 127.0.0.1:9555 127.0.0.1:9555
+
+# 網站擋機房 IP、agent 要借個人電腦的對外 IP 時才連:`ssh -N company-ec2-socks`,用完 Ctrl-C 關掉。
+# RemoteForward 只寫 port、不寫目的地 = 反向 SOCKS:EC2 的 127.0.0.1:1080 進來的連線由個人電腦的 ssh 代連出去,
+# EC2 上的 headless Chrome 帶 proxy 指到 1080(agent-config 的 personal-pc-tunnel skill)。不放進一般的
+# company-ec2:平常 agent 的流量不該經過個人電腦,EC2 的 1080 也只有一個位子。
+Host company-ec2-socks
+    RemoteForward 127.0.0.1:1080
+
+# 帶轉發的別名:位子被另一個視窗占著就直接失敗,不默默連上;開著等人用,定時送 keepalive。
+Host company-ec2-attach company-ec2-socks
+    ExitOnForwardFailure yes
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+
+Host company-ec2 company-ec2-attach company-ec2-socks
     HostName 100.98.146.109
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
@@ -110,40 +134,6 @@ Host company-ec2
 {{- if includeTemplate "tailscale-userspace" . }}
     # 這台的 tailscale 走 userspace(沒有 root,見 .chezmoitemplates/tailscale-userspace),
     # 沒有 tailnet 的網卡,連線經 tailscaled 轉過去。tailscaled 怎麼啟動見 apply 的略過彙整
-    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
-{{- end }}
-
-# 要 agent 接上這台日常的 Chrome(passkey、硬體金鑰、裝置 SSO)時才連:`ssh -N company-ec2-attach`。
-# EC2 上的 personal-chrome-attach(agent-config 的 personal-pc-tunnel skill)把 Playwright Extension
-# 的 relay 固定在 127.0.0.1:9555,這條把本機的 9555 接過去。不放進一般的 company-ec2:本機的 9555 也只有
-# 一個位子,每條連線都帶的話第二條起就搶不到。位子被另一個視窗占著就直接失敗,不默默連上。
-Host company-ec2-attach
-    HostName 100.98.146.109
-    User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
-    IdentitiesOnly yes
-    LocalForward 127.0.0.1:9555 127.0.0.1:9555
-    ExitOnForwardFailure yes
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
-{{- if includeTemplate "tailscale-userspace" . }}
-    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
-{{- end }}
-
-# 網站擋機房 IP、agent 要借這台的對外 IP 時才連:`ssh -N company-ec2-socks`,用完 Ctrl-C 關掉。
-# RemoteForward 只寫 port、不寫目的地 = 反向 SOCKS:EC2 的 127.0.0.1:1080 進來的連線由這台的 ssh 代連出去,
-# EC2 上的 headless Chrome 帶 proxy 指到 1080(agent-config 的 personal-pc-tunnel skill)。不放進一般的
-# company-ec2:平常 agent 的流量不該經過這台,EC2 的 1080 也只有一個位子。位子被占著就直接失敗。
-Host company-ec2-socks
-    HostName 100.98.146.109
-    User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
-    IdentitiesOnly yes
-    RemoteForward 127.0.0.1:1080
-    ExitOnForwardFailure yes
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
-{{- if includeTemplate "tailscale-userspace" . }}
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
 

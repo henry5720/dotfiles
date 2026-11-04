@@ -485,7 +485,7 @@ scenario_ubuntu() {
   check "tailscale 在沒有 systemd 時跳過啟用,而不是失敗" "grep -q 'PID 1 不是 systemd' ~/e2e-init.log"
   # ssh client 補裝與 userspace tailscale 的 ProxyCommand 只給沒有 root 的機器(#216)
   check "有 root:ssh config 沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
-    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
+    "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
   check "移除 chezmoi MCP 的 python 腳本有跑" \
@@ -1020,7 +1020,7 @@ scenario_termux() {
   check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
-    "grep -q '^Host company-ec2\$' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
+    "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
   # Termux 沒勾 agent-config:symlink 照部署,指不到檔案是預期的
   check_remote_chrome no
   check_personal_chrome_attach no
@@ -1226,9 +1226,12 @@ noroot_slim_checks() {
   check_mise_skips_system_vim
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
   check_ssh_client
-  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2 帶 ProxyCommand
-  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
-    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
+  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
+  for h in company-ec2 company-ec2-attach company-ec2-socks; do
+    check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
+      "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  done
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
 
