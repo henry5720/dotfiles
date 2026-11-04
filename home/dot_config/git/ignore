@@ -7,6 +7,10 @@
 # 就不用去每個 repo 的 .git/info/exclude 各加一行。
 .codegraph/
 
+# playwright-cli 的快照、截圖、console log:預設寫進「當下目錄」的 .playwright-cli/。
+# agent 在哪個 repo 測瀏覽器就冒在哪個 repo,內容可能是登入後的頁面,不該進版控。
+.playwright-cli/
+
 # Claude Code 的個人權限設定(按過「以後都允許」的指令記在這):只屬於這台機器,
 # 不該進版控。不是每個 repo 的 .gitignore 都有擋,例如這個 repo 自己就沒擋。
 **/.claude/settings.local.json
