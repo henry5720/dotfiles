@@ -6,12 +6,17 @@
        所以說明都寫在這種樣板註解裡,渲染時會拿掉。
 
        1. $HOME\.local\bin 加進 PATH(已經有就不重複加)
-       2. Tab 用選單補全,跟 zsh 的 menu select 一樣;沒有 PSReadLine 的 host(例如 ISE)略過
-       3. 歷史灰字建議只在 pwsh 7 開:5.1 內建的 PSReadLine 2.0 沒有 -PredictionSource,會出紅字。
-          包 try:輸出被導向(ssh 非互動、pwsh -c)時它會丟例外,沒接住後面的 starship、zoxide 都不會載入
+       2. Tab 用選單補全,跟 zsh 的 menu select 一樣(PSReadLine 預設是 TabCompleteNext,一個一個換);
+          沒有 PSReadLine 的 host(例如 ISE)略過。
+          灰字建議不設:pwsh 7.6 的 PSReadLine 預設就開(HistoryAndPlugin);5.1 的 2.0 沒有這個參數;
+          而且輸出被導向(ssh 非互動、pwsh -c)時設它會丟例外,中斷整份 profile
+       3. fastfetch 有裝、而且是互動開 shell 才跑,跟 zsh 一樣。profile 連 pwsh -c、-File、
+          -EncodedCommand、-NonInteractive、輸出被導向都會載入,這些情況不跑,免得每個指令的輸出前面
+          多一張系統資訊。參數可以縮寫(-c、-f、-noni),所以用「是不是這些參數名的開頭」判斷;
+          -ec 是 -EncodedCommand 的別名。不帶 -File、直接 `pwsh script.ps1` 的寫法判斷不到
        4. starship 有裝才 init,設定讀 ~/.config/starship.toml(跟 Linux 共用)
        5. zoxide 有裝才 init(z 指令)
-       starship、zoxide 沒裝時安靜略過。 */ -}}
+       fastfetch、starship、zoxide 沒裝時安靜略過。 */ -}}
 $localBin = "$HOME\.local\bin"
 if (($env:PATH -split ';') -notcontains $localBin) {
     $env:PATH = "$localBin;$env:PATH"
@@ -19,12 +24,17 @@ if (($env:PATH -split ';') -notcontains $localBin) {
 
 if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-    if ($PSVersionTable.PSVersion.Major -ge 7) {
-        try {
-            Set-PSReadLineOption -PredictionSource History
-        } catch {}
-    }
 }
+
+$scriptedArgs = 'command', 'file', 'encodedcommand', 'ec', 'noninteractive'
+$scripted = [Environment]::GetCommandLineArgs() | Select-Object -Skip 1 | Where-Object {
+    $arg = $_.TrimStart('-', '/').ToLowerInvariant()
+    ($_ -match '^[-/]') -and $arg -and ($scriptedArgs | Where-Object { $_.StartsWith($arg) })
+}
+if (-not $scripted -and -not [Console]::IsOutputRedirected -and (Get-Command fastfetch -ErrorAction SilentlyContinue)) {
+    fastfetch
+}
+Remove-Variable scriptedArgs, scripted
 
 if (Get-Command starship -ErrorAction SilentlyContinue) {
     Invoke-Expression (& starship init powershell)

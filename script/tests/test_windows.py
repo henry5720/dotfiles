@@ -88,7 +88,7 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     # PowerShell profile(pwsh 7 與 5.1 共用一份)
     # ===============================================================
-    def test_both_powershell_profiles_render_the_same_five_settings(self):
+    def test_both_powershell_profiles_render_the_same_settings(self):
         self.chezmoi("windows", "apply", data={"tools": []})
         pwsh7 = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
         ps51 = (self.home / "Documents/WindowsPowerShell/Profile.ps1").read_text(encoding="utf-8")
@@ -96,7 +96,7 @@ class WindowsDeployTest(unittest.TestCase):
         for needle in (
             r"$HOME\.local\bin",
             "Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete",
-            "Set-PSReadLineOption -PredictionSource History",
+            "Get-Command fastfetch",
             "Get-Command starship",
             "starship init powershell",
             "Get-Command zoxide",
@@ -113,22 +113,23 @@ class WindowsDeployTest(unittest.TestCase):
             with self.subTest(target=target):
                 self.assertTrue((self.home / target).read_bytes().isascii())
 
-    def test_history_prediction_only_enabled_on_pwsh7(self):
-        # 5.1 內建的 PSReadLine 2.0 沒有 -PredictionSource,不包在版本判斷裡會出紅字
+    def test_profile_leaves_prediction_source_at_default(self):
+        # pwsh 7.6 的 PSReadLine 預設就開灰字建議(HistoryAndPlugin);5.1 的 2.0 沒有這個參數,
+        # 而且輸出被導向時設它會丟例外、中斷整份 profile(henry-desktop 實測),所以不設
         self.chezmoi("windows", "apply", data={"tools": []})
-        lines = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8").splitlines()
-        idx = next(i for i, l in enumerate(lines) if "-PredictionSource History" in l)
-        guard = next(l for l in reversed(lines[:idx]) if l.strip().startswith("if"))
-        self.assertRegex(guard, r"\$PSVersionTable\.PSVersion\.Major\s+-ge\s+7")
+        profile = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
+        self.assertNotIn("PredictionSource", profile)
 
-    def test_history_prediction_failure_does_not_stop_the_profile(self):
-        # 輸出被導向(ssh 非互動、pwsh -c、VS Code task)時 -PredictionSource 會丟例外,
-        # 沒接住整份 profile 就停在這行,starship、zoxide 都不載入(henry-desktop 實測)
+    def test_fastfetch_runs_only_in_interactive_shells(self):
+        # 跟 zsh 開 shell 時跑 fastfetch 一樣;但 profile 連 pwsh -c、-File、ssh 執行指令都會載入,
+        # 那些情況不能多印一張系統資訊。判斷式的實際行為在 henry-desktop 實測(Linux 沒有 pwsh)
         self.chezmoi("windows", "apply", data={"tools": []})
         lines = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8").splitlines()
-        idx = next(i for i, l in enumerate(lines) if "-PredictionSource History" in l)
-        self.assertRegex(lines[idx - 1].strip(), r"^try\s*\{$")
-        self.assertRegex(lines[idx + 1].strip(), r"^\}\s*catch\s*\{")
+        idx = next(i for i, l in enumerate(lines) if l.strip() == "fastfetch")
+        guard = next(l for l in reversed(lines[:idx]) if l.strip().startswith("if"))
+        self.assertIn("Get-Command fastfetch", guard)
+        self.assertIn("IsOutputRedirected", guard)
+        self.assertIn("GetCommandLineArgs", "\n".join(lines[:idx]))
 
     # ===============================================================
     # Windows Terminal 的 settings.json(modify template)
