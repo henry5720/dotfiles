@@ -35,7 +35,7 @@ cleanup() {
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
 #                        origin 是 GitHub 的 HTTPS URL
 #   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是一個 skill + 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是兩個 skill(e2e-hello、remote-chrome 的假 headless 腳本)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 make_fixtures() {
   FIX=$CTR_HOME/e2e-fixtures
@@ -53,6 +53,11 @@ make_fixtures() {
   ssh-keygen -q -t ed25519 -N '' -C e2e -f "$tmp/key"
   mkdir -p "$tmp/ac/skills/e2e-hello"
   printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
+  # remote-chrome-headless 的 symlink 指到這裡(#261),放一支假的讓 e2e 驗「指得到檔案」
+  mkdir -p "$tmp/ac/skills/remote-chrome/scripts"
+  printf -- '---\nname: remote-chrome\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/remote-chrome/SKILL.md"
+  printf '#!/bin/sh\necho e2e-remote-chrome-headless\n' > "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
+  chmod +x "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
   printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
   mkdir -p "$tmp/ac/instructions/agents-md"
   printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"
