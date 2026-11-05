@@ -301,14 +301,11 @@ exit 0
         self.assertIn('    machineUse = "custom"', out)
         self.assertIn(self.tools_line(["gh"]), out)
 
-    def test_android_minimal_is_ubuntu_minimal_without_unsupported(self):
-        # 精簡的組合由 #273 決定;這裡只管 Termux 的精簡 = Ubuntu 的精簡扣掉 Termux 裝不了的 tailscale、btop
-        ubuntu = self.init({}, "minimal").stdout
-        line = next(l for l in ubuntu.splitlines() if l.startswith("    tools = "))
-        lean = [t for t in json.loads(line.split("=", 1)[1]) if t not in ("tailscale", "btop")]
+    def test_android_minimal_is_ubuntu_minimal(self):
+        # 精簡只放 shell 體驗(#273),每一項 Termux 都裝得了:Termux 的精簡跟 Ubuntu 的一樣
         out = self.init(ANDROID, "minimal").stdout
         self.assertIn('    machineUse = "minimal"', out)
-        self.assertIn(self.tools_line(lean), out)
+        self.assertIn(self.tools_line(LEAN), out)
 
     def test_android_keeps_hand_added_tool_after_init(self):
         # 以前 android 每次 init 都把 tools 重算回固定那幾項,edit-config 手動加的會不見

@@ -380,10 +380,11 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 UBUNTU_BASE=(git curl jq python3)
 
 # 原生 Termux(#274):跟 Linux 同一套用途與選單,環境用 --override-data 模擬時給 ANDROID_ENV。
-# Termux 的精簡 = Ubuntu 的精簡扣掉 Termux 裝不了的 tailscale、btop(.chezmoitemplates/tool-env)。
+# Termux 的精簡跟 Ubuntu 的一樣:精簡只放 shell 體驗(#273),每一項 Termux 都能用 pkg 裝。
+# TERMUX_LEAN 是同一份清單換成 / 分隔,給逐項檢查用。
 ANDROID_ENV='{"chezmoi":{"os":"android"}}'
-TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | grep -vxE 'tailscale|btop' | paste -sd/)
-TERMUX_TOML=$(toml_list "$TERMUX_LEAN")
+TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | paste -sd/)
+TERMUX_TOML=$LEAN_TOML
 
 # 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
 CLI_TOOLS=(eza fzf bat rg starship btop fastfetch)
@@ -775,7 +776,7 @@ scenario_ubuntu() {
   # 真的在 termux 容器跑 init、apply 由 termux 目標負責。
   bold "▶ (渲染)Termux 出用途與選單、裝不了的不跑腳本"
   local android=$ANDROID_ENV
-  check "android 選精簡:存精簡,tools 是 Termux 的精簡(扣掉裝不了的 tailscale、btop)" \
+  check "android 選精簡:存精簡,tools 跟 Ubuntu 的精簡一樣" \
     "$(render_cmd /tmp/u-android.toml --override-data "$android" --promptChoice "$(use_choice minimal)") > /tmp/android.toml && $(printf "$use_is" minimal /tmp/android.toml) && grep -qxF '$TERMUX_TOML' /tmp/android.toml"
   check "android 選單全部勾(含裝不了的):照存,存自訂" \
     "$(render_cmd /tmp/u-android.toml --override-data "$android" --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice "$FULL_TOOLS" "$android")") > /tmp/android-all.toml && $(printf "$use_is" custom /tmp/android-all.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/android-all.toml"
@@ -1054,7 +1055,7 @@ DOCKERFILE
 }
 
 # Termux 基底:git curl openssh,加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,
-# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 是自動帶入的選裝工具,走 pkg(toolPackages.termux)。
+# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(toolPackages.termux)。
 TERMUX_BASE=(git curl openssh jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
@@ -1109,7 +1110,7 @@ scenario_termux() {
     "out=\$(printf 'm\\n\\n\\n' | chezmoi --config ~/q-use.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -qF $(printf '%q' "$USE_PROMPT") <<<\"\$out\" && grep -qF $(printf '%q' "$TOOLS_PROMPT") <<<\"\$out\" && grep -qx '    machineUse = \"minimal\"' ~/q-use.toml && grep -qxF '$TERMUX_TOML' ~/q-use.toml"
   check "選單列全部工具,Termux 裝不了的標原因(tailscale 提示裝 Android app)" \
     "out=\$(printf 'c\\n\\n\\n' | chezmoi --config ~/q-menu.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -q 'claude .*（裝不了：' <<<\"\$out\" && grep -q 'tailscale .*（裝不了：.*Android app' <<<\"\$out\" && grep -q 'agent-config .*（裝不了：' <<<\"\$out\""
-  check "config 存精簡、tools 是 Termux 的精簡(Ubuntu 的精簡扣掉 tailscale、btop)" \
+  check "config 存精簡、tools 跟 Ubuntu 的精簡一樣" \
     "grep -qxF '$TERMUX_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
   check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
   for t in ${TERMUX_LEAN//\// }; do check_tool "$t"; done
@@ -1141,24 +1142,16 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、cloudflared),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  # cloudflared 由 #273 加進選單;選單上有它才一起勾。
-  bold "▶ tools 勾 gh、node、wakatime 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/headless-chrome
-  if grep -q '^cloudflared ' "$REPO/home/.chezmoitemplates/tool-menu"; then
-    picks+=/cloudflared
-  else
-    bold "  (選單還沒有 cloudflared,等 #273;這輪不勾)"
-  fi
+  bold "▶ tools 勾 gh、node、wakatime、cloudflared 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/wakatime/claude/headless-chrome/cloudflared
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
     "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml && grep -qxF '$(toml_list "$picks")' ~/.config/chezmoi/chezmoi.toml"
   check "gh 用 pkg 裝好" "dpkg-query -W -f='\${Status}' gh | grep -q 'install ok installed' && gh --version"
-  if [[ $picks == */cloudflared ]]; then
-    check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
-  fi
+  check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
   # Node 走 pkg 的 nodejs-lts,不走 nvm(nvm 的官方 binary 在 Android 跑不起來)
   check "node 是 pkg 的 nodejs-lts、沒有 ~/.nvm" \
     "dpkg-query -W -f='\${Status}' nodejs-lts | grep -q 'install ok installed' && node --version && [ ! -e ~/.nvm ]"
