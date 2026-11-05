@@ -181,14 +181,18 @@ getent hosts "$magic_dns_name"
 ### Tailscale Funnel
 
 開出去的那台要**跑得到登入你 tailnet 的 tailscale**：Linux、WSL、Windows 都算。
-Windows 原生的 tailscale 開 Funnel **未實測**。
+Windows 原生的 tailscale 開 Funnel 已實測（2026-11-05，henry-laptop）：公網不帶 key 回 401、帶 key 回 200。
 
 ```bash
-sudo tailscale funnel --https=10000 <port>     # 不加 --bg，Ctrl+C 就撤
+sudo tailscale funnel --https=10000 <port>     # 不加 --bg，在這台的終端機 Ctrl+C 就撤
 ```
 
-**對外 port 選哪個**：Funnel 只能聽 443、8443、10000，三個都能用，挑那台 `tailscale funnel status`
-裡沒被佔的；同一個 port 同時只能開一條。這份的例子都用 10000，因為 company-ec2 的 443 給 code-server 的
+**對外 port 選哪個**：Funnel 只能聽 443、8443、10000，三個都能用，挑沒被佔的；同一個 port 同時只能開一條。
+只看 `tailscale funnel status` 不夠：前景開著的 Funnel 在那裡只印 `# Funnel on:` 接 `No serve config`，
+看不出有一條在開。還要看那台有沒有 `tailscale funnel` 行程在跑那個 port
+（Linux `pgrep -af 'tailscale funnel'` 看得到參數，Windows `Get-Process tailscale` 有行程就當作被佔）。
+
+這份的例子都用 10000，因為 company-ec2 的 443 給 code-server 的
 tailnet serve 用了（`share-shell` 也固定開 10000）。agent 照 `expose-port` skill 開時預設 8443：
 443 常被 serve 佔，8443 又剛好跟這份手動開的 10000 錯開，同一台可以同時開。
 
@@ -216,6 +220,7 @@ cloudflared tunnel --url http://localhost:<port>    # 印出 https://<隨機>.tr
 
 - **只給測試和開發用**（"Quick Tunnels are for testing and development"）。
 - **不支援 SSE**（Server-Sent Events）。用 SSE 的 app（例如 MCP streamable HTTP）可能會壞。
+  2026-11-05 實測：單次請求的 SSE 回應（MCP 的 initialize、tools/list）收得到，長時間開著的 stream 未測。
 - **每條最多 200 個並行請求**，超過的回 `429`。
 - **網址每次都變**：每開一次就是新的 hostname，要重新傳給對方。
 
@@ -289,7 +294,7 @@ tailnet 外的兩種做法：
 | 網址 | 固定 `<機器>.<tailnet>.ts.net` | 每次變（`<隨機>.trycloudflare.com`） |
 | 對外 port | 443／8443／10000 | 一律 443 |
 | 能開幾個 | 每台 3 個 port | 每個 `cloudflared` process 一個網址 |
-| SSE | 支援（官方文件沒列限制） | 不支援 |
+| SSE | 支援（官方文件沒列限制） | 官方說不支援；實測單次請求的 SSE 回應收得到，長時間 stream 未測 |
 | 並行請求 | 官方文件沒寫上限 | 200，超過回 `429` |
 | 官方定位 | beta | 只給測試、開發 |
 | 開的那台要有 | 登入你 tailnet 的 tailscale | `cloudflared` |
@@ -304,12 +309,18 @@ tailnet 外的兩種做法：
 ```
 開：sudo tailscale funnel --https=10000 <port>  ─► 印網址 ─► 停著（對方在用）
     cloudflared tunnel --url http://localhost:<port>
-關：Ctrl+C／關終端機 ───────────────────────────► 撤掉，不留痕跡
+關：在那台自己的終端機 Ctrl+C ──────────────────► 撤掉
+    從 ssh／WSL 叫起來的 ─► 停掉那台的行程 ────────► 撤掉
 ```
 
-- **前景跑。** 開在一個終端機裡停著，對方用完就 Ctrl+C 或關掉終端機。
+- **前景跑。** 開在一個終端機裡停著，對方用完在那台自己的終端機按 Ctrl+C。
+  從 ssh 或 WSL 叫起 Windows 的 `tailscale`／`cloudflared` 時，斷掉呼叫端**不等於**行程結束：
+  2026-11-05 在 henry-laptop 實測，斷 ssh 後 `tailscale.exe`、`cloudflared.exe` 還在跑、公網還通，
+  要在 Windows 上 `Get-Process tailscale,cloudflared | Stop-Process` 才收掉。
 - **Funnel 不加 `--bg`。** 不加就是前景模式：不寫進 `tailscale serve status` 的持久設定，
   行程結束就撤掉，也不會動到同一台已經在跑的其他 serve（company-ec2 的 code-server）。
   以前用 `--bg` 開，要記得手動 `off`；2026-10-02 發現 company-ec2 的公網 shell 開了 21 小時沒關。
-- **用完收掉。** 收完確認沒有程式還在聽那個 port，`tailscale funnel status` 裡沒有這個 port、
-  `cloudflared` 也結束了。
+- **用完收掉。** 兩項都成立才算收乾淨：
+  1. 那台的 `tailscale funnel`／`cloudflared` 行程數是 0（Linux `pgrep -af 'tailscale funnel|cloudflared'`，
+     Windows `Get-Process tailscale,cloudflared`）。不能用 `tailscale funnel status` 判斷，理由見〈對外 port 選哪個〉。
+  2. 從公網打那個網址連不上：`000`（連線失敗）、`530`（quick tunnel 已收）或 DNS 查不到。
