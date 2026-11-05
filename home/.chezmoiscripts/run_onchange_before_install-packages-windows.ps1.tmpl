@@ -1,0 +1,40 @@
+{{- /* Windows 主機的 app:用 winget 裝 .chezmoidata/packages.yaml 的 packages.windows.winget(mise、pwsh 7、
+       Windows Terminal),加上 tools 有勾、這台裝得了的 toolPackages.windows(tailscale)。CLI 不在這裡,見 install-mise.ps1。
+       只部署到 Windows(.chezmoiignore:Windows 段放行 .chezmoiscripts/*.ps1,其他 OS 排除)。
+
+       chezmoi 官方「宣告式裝套件」只有 brew bundle 的範例,沒有 winget;照同一個套法:清單 + run_onchange_ 腳本
+       (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/),清單沒變就不重跑。
+       名字帶 before_:mise 要在 after_ 的 install-mise 之前裝好。
+       由 Windows PowerShell 5.1 跑(.chezmoi.toml.tmpl 的 interpreters.ps1):渲染結果只能有 ASCII,
+       說明都寫在這種樣板註解裡,訊息經 .chezmoitemplates/ps1-text 的 T 解 base64。
+
+       1. 沒有 winget(App Installer)就印一行、exit 0:後面的腳本照跑,只是 app 沒裝
+       2. 每個 id 先 winget list 看裝了沒,裝了就跳過(Win11 內建的 Terminal、已經手動裝的 pwsh)
+       3. 沒裝的 winget install;tailscale 是 machine scope 的 MSI,會跳 UAC。
+          裝失敗只印一行、exit 0:不然 apply 中止,排在後面的腳本全不會跑(同 Linux 的 install-mise) */ -}}
+{{- $ids := .packages.windows.winget -}}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
+{{- range $tool, $p := .toolPackages.windows -}}
+{{-   if has $tool $installing }}{{ $ids = concat $ids $p }}{{ end -}}
+{{- end -}}
+{{ includeTemplate "ps1-text" . }}
+$ids = @(
+{{- range $i, $id := $ids }}{{ if $i }},{{ end }}
+    {{ squote $id }}
+{{- end }}
+)
+
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Host ((T '{{ "找不到 winget,沒裝:{0}。從 Microsoft Store 裝「應用程式安裝程式」(App Installer)後再 chezmoi apply" | b64enc }}') -f ($ids -join ', '))
+    exit 0
+}
+
+foreach ($id in $ids) {
+    winget list --id $id --exact --accept-source-agreements *> $null
+    if ($LASTEXITCODE -eq 0) { continue }
+    winget install --id $id --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ((T '{{ "winget 沒裝好 {0},之後自己跑:winget install --id {0} --exact" | b64enc }}') -f $id)
+    }
+}
+exit 0

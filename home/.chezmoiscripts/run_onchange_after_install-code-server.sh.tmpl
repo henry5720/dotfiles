@@ -1,4 +1,4 @@
-{{- if and (has "code-server" (index . "tools")) (ne .chezmoi.os "darwin") (not (includeTemplate "use-mise" .)) -}}
+{{- if and (has "code-server" (splitList " " (includeTemplate "tools-to-install" .))) (ne .chezmoi.os "darwin") (not (includeTemplate "use-mise" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 code-server(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # macOS 走 brew(install-packages-darwin);apt 用不了的 Linux(沒有 root,或非 Debian 系)改由 mise 裝

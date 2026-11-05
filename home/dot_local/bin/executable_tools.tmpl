@@ -1,6 +1,7 @@
-{{- /* 只有出選單的機器(Linux、macOS)才部署;其他機器渲染成空的,chezmoi 不建這個檔。 */ -}}
-{{- if has .chezmoi.os (list "linux" "darwin") -}}
-#!/bin/sh
+{{- /* 出選單的機器(Linux、macOS、原生 Termux)才部署;Windows 渲染成空的,chezmoi 不建這個檔。
+       shebang 用 lookPath:Termux 沒有 /bin/sh。 */ -}}
+{{- if has .chezmoi.os (list "linux" "darwin" "android") -}}
+#!{{ lookPath "sh" }}
 # 重問用途、重出選裝工具選單,勾完直接裝。兩個問題在 chezmoi 的 config 樣板(.chezmoi.toml.tmpl)。
 #
 #   tools

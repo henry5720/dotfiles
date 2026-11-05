@@ -1,8 +1,15 @@
-# 沒有 root 時略過要 root 的步驟:印一行「略過什麼、手動怎麼做」,同時記進彙整檔,
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 手動方式可以多行,第二行起自己縮排。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
 skip_root() {  # skip_root <略過什麼> <手動怎麼做>
   echo "略過 $1(沒有 root)。手動:$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }

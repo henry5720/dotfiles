@@ -1,0 +1,31 @@
+{{- /* Windows 主機的 CLI 工具交給 mise 裝:清單是 .chezmoitemplates/mise-tools(zoxide 加上有勾、在 miseTools 裡的),
+       由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。Linux 那支是 install-mise.sh。
+       只部署到 Windows(.chezmoiignore:Windows 段放行 .chezmoiscripts/*.ps1,其他 OS 排除)。
+       套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本;清單寫在下面的註解裡,清單變了才重跑。
+       由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII(見 install-packages-windows.ps1)。
+
+       1. PATH 從登錄重讀一次:mise 是 before_ 的 install-packages-windows 剛用 winget 裝的,
+          winget 改的是使用者 Path,chezmoi 這個 process 繼承的 PATH 還沒有它
+       2. 還是找不到 mise 就印一行、exit 0
+       3. mise install(順便建 shims;PowerShell profile 把 %LOCALAPPDATA%\mise\shims 加進 PATH)。
+          要打 GitHub API(aqua backend;未登入每小時 60 次),被限流時設 GITHUB_TOKEN 再 apply。
+          裝失敗只印一行、exit 0:不然 apply 中止。代價是不會自動重試,要自己跑 mise install。
+       移除:mise uninstall <工具>;連 mise 一起清掉:mise implode、winget uninstall jdx.mise。 */ -}}
+{{- $list := includeTemplate "mise-tools" . -}}
+{{- if $list -}}
+# mise list (~/.config/mise/conf.d/dotfiles.toml):
+{{ $list | trim | comment "#   " }}
+{{ includeTemplate "ps1-text" . }}
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+
+if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
+    Write-Host (T '{{ "找不到 mise,CLI 工具沒裝。先 winget install --id jdx.mise --exact,開新的 PowerShell 再 chezmoi apply" | b64enc }}')
+    exit 0
+}
+
+mise install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T '{{ "mise install 有工具沒裝好,之後自己跑:mise install" | b64enc }}')
+}
+exit 0
+{{ end -}}

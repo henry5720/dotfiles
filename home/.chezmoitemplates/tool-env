@@ -1,0 +1,119 @@
+{{- /* 工具 × 環境 → 狀態與原因。原因只寫在這裡:選單標註、預設組合、略過彙整都從這裡拿(經 tool-status)。
+       沒列的工具在每個環境都是「可裝」。狀態只有三種(GLOSSARY「環境」):
+         discouraged 不建議:選單標原因、預設組合不勾,勾了照裝
+         unsupported 裝不了:選單標原因、預設組合不勾,勾了略過,apply 最後由 run_after_zz-root-skipped-summary 列出原因
+       格式(YAML):工具名底下一串規則,由上往下比,第一條 when 對到這台的就是它的狀態;when 對到任一個環境就算:
+         <工具>:
+           - when: [<環境>…]
+             state: discouraged|unsupported
+             reason: <原因>
+       環境(在 tool-status 判斷,全部來自 .chezmoi.*,e2e 用 --override-data 模擬):
+         linux、darwin、android、windows  .chezmoi.os
+         wsl         is-wsl
+         non-amd64   linux 且 .chezmoi.arch 不是 amd64(例如平板上的 proot Ubuntu)
+         non-debian  linux 且不是 Debian 系(is-debian)
+         proot       平板上的 proot Ubuntu(is-proot:kernel 字串有 android,或 /proc/version 有 PRoot-Distro;
+                     data 的 isProot 可以直接指定,測試也用它或蓋 .chezmoi.kernel.osrelease)
+       要新的環境就在 tool-status 加一個判斷(判斷寫成 .chezmoitemplates 的共用樣板),再加到上面這張表。
+       原因不能用半形 /(e2e 的 --promptMultichoice 拿它分隔選項)、不能有 '(略過的腳本用單引號包它),
+       用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
+       這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
+headless-chrome:
+  - when: [darwin, windows]
+    state: unsupported
+    reason: 這裡裝的是 Google 給 Linux 的 .deb
+  - when: [android]
+    state: unsupported
+    reason: 原生 Termux 裝不了 Google 的 .deb
+  - when: [wsl]
+    state: unsupported
+    reason: WSL 不裝 Linux 的 Chrome，查原因到遠端主機做
+  - when: [non-amd64]
+    state: unsupported
+    reason: Google 只出 amd64 的 .deb
+  - when: [non-debian]
+    state: unsupported
+    reason: .deb 只能裝在 Debian 系
+playwright-cli:
+  - when: [darwin, android, windows, wsl, non-amd64, non-debian]
+    state: unsupported
+    reason: 它用 headless-chrome，這台裝不了 headless-chrome
+tailscale:
+  - when: [wsl]
+    state: discouraged
+    reason: 網路借 Windows 那份 Tailscale（mirrored），再裝一份會變成 tailnet 上兩個節點
+  - when: [proot]
+    state: discouraged
+    reason: 網路借 Android 那份 Tailscale app，再裝一份會變成 tailnet 上兩個節點
+  - when: [android]
+    state: unsupported
+    reason: 原生 Termux 裝 Tailscale 的 Android app
+{{- /* 原生 Termux(#274):termux-packages 沒有的、或官方 installer 沒在 Termux 驗過的。
+       coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
+       Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
+       app 用 winget(toolPackages.windows),node 也由 mise 裝(mise-tools)。
+       其他工具這裡只有 sh 安裝腳本、沒在 Windows 驗過,Windows 標裝不了,到 WSL 裝。 */}}
+zsh:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的 shell 是 PowerShell，補全、語法上色內建，跳目錄的 zoxide 每台 Windows 都裝
+btop:
+  - when: [windows]
+    state: unsupported
+    reason: mise 的 btop 只有 Linux 版
+  - when: [android]
+    state: unsupported
+    reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
+code-server:
+  - when: [windows]
+    state: unsupported
+    reason: code-server 官方不出 Windows 版，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: termux-packages 沒有，到 proot Ubuntu 裝
+claude:
+  - when: [windows]
+    state: unsupported
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+codex:
+  - when: [windows]
+    state: unsupported
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+opencode:
+  - when: [windows]
+    state: unsupported
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+herdr:
+  - when: [windows]
+    state: unsupported
+    reason: herdr 沒有 Windows 版，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+agent-config:
+  - when: [windows]
+    state: unsupported
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
+codegraph:
+  - when: [windows]
+    state: unsupported
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
+  - when: [android]
+    state: unsupported
+    reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
+wakatime:
+  - when: [windows]
+    state: unsupported
+    reason: 它是 Claude Code、Codex 的 plugin，這兩個在 Windows 裝不了，到 WSL 裝

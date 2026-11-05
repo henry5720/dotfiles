@@ -2,17 +2,17 @@
 
 ## 適用範圍
 
-Linux、macOS、原生 Termux 與 Windows 主機（WSL 外面那層 Windows）。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
+Linux、macOS、原生 Termux 與 Windows 主機（原生 Windows，WSL 的外層或沒有 WSL 的開發機）。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
 mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同一套步驟，有沒有 root 都行。
 目的是把一台全新的機器帶到這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；amd64 才列 headless Chrome、playwright-cli，WSL 不列（kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[看 agent 的瀏覽器](browser-via-ec2.md)） |
-| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；不列 headless Chrome、playwright-cli |
-| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（不列 tailscale、headless Chrome、playwright-cli），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
-| Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[看 agent 的瀏覽器](browser-via-ec2.md)） |
+| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
+| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale）用 winget 裝；zsh、btop、coding agent 這類只有 sh 安裝腳本的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單），只跑 `.ps1` 腳本；見[Windows 主機](windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
 
@@ -62,33 +62,50 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 1. 照 [Homebrew 官網](https://brew.sh/)的指令裝 Homebrew（要管理員密碼，會順便裝 Xcode Command Line Tools，
    git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
-2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單不列 tailscale。
+2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
+   已經從官網或 App Store 裝過的不用勾：勾了 brew 會因為 `/Applications/Tailscale.app` 已經在而裝不起來，
+   apply 印一行「略過 tailscale-app」照樣跑完、其他套件照裝；要改由 brew 管就先刪掉那份 app 再 `chezmoi apply`。
 3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
 
 ### Windows 主機
 
-Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`。這節一路做到裝好，不用再看第 2 步。
+Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`；沒有 WSL、Windows 本身就是開發機也照這節。
+這節一路做到裝好，不用再看第 2 步。
 
-1. 在 PowerShell 用 winget 裝工具：
+1. 在 PowerShell 用 winget 裝 chezmoi：
 
    ```powershell
-   winget install twpayne.chezmoi Microsoft.PowerShell Starship.Starship Fastfetch-cli.Fastfetch ajeetdsouza.zoxide
+   winget install twpayne.chezmoi
    ```
 
+   其他的（mise、pwsh 7、Windows Terminal，以及選單勾的 CLI 與 tailscale）由 chezmoi apply 裝。
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
-   `C:\Program Files\PowerShell\7`。git、tailscale 這類 GUI app 照舊從官網裝。
+   `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
 2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](windows.md#documents-移出-onedrive)。
 3. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
-4. 開一次 Windows Terminal 再關掉：讓它產生 pwsh 7 的設定檔。沒開過的話，apply 只設得了字型，
-   預設設定檔要等下次 apply 才改成 pwsh 7。
+4. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
+   本機的 `.ps1` 都不能跑（chezmoi 的安裝腳本自己繞過，不受影響）：
+
+   ```powershell
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+   ```
+
 5. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
 
    ```powershell
    chezmoi init --apply henry5720
    ```
 
-   不問任何問題。部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)。
-6. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
+   跟 Linux 一樣問用途、出選單（[用途與憑證](machine-use.md)），Enter 是精簡；git 身分不問。
+   要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
+   部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)；之後要加減工具打 `tools`。
+6. 開一次 Windows Terminal 再關掉，再跑一次 `chezmoi apply`：pwsh 7 是上一步才裝的，Terminal 開過才會
+   產生它的設定檔；上一步的 apply 找不到就只設字型，這次才把預設分頁改成 pwsh 7。
+   沒做這步，新分頁會是 `powershell`（5.1）—— 它也讀同一份 profile、一樣有 starship，看提示列分不出來，
+   看分頁標題（「PowerShell」是 7，「Windows PowerShell」是 5.1）。
+7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
+   以前照 Runbook 用 winget 裝的 starship、fastfetch、zoxide 可以 `winget uninstall` 掉，改由 mise 管
+   （留著也行：profile 先找 mise 那份）。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 
@@ -98,9 +115,13 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
 2. 要桌面才需要：從 [termux-x11 的 nightly release](https://github.com/termux/termux-x11/releases/tag/nightly)
    裝 Termux:X11 app（`termux-x11-universal-debug.apk`，它不在 F-Droid）。
 3. 在原生 Termux 跑第 2 步 Termux 那行。要用手機儲存空間時另外跑 `termux-setup-storage`（會跳 Android 權限對話框）。
-4. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
+4. 裝 [Tailscale 的 Android app](https://tailscale.com/download/android) 並登入：Termux 裡裝不了 tailscale
+   （選單上標裝不了），整台平板由這個 app 上 tailnet。
+5. 要讓別台用 ssh config 的 `pad`／`phone` 連進來：放好 SSH key（第 2.2 節）後在 Termux 跑 `sshd`
+   （聽 8022 port）。sshd 不會自己開機啟動，Termux 被關掉後要再跑一次。
+6. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
-5. 要 proot Ubuntu（開發環境放這裡）：
+7. 要 proot Ubuntu（開發環境放這裡）：
 
    ```bash
    bash ~/.local/share/chezmoi/script/termux/setup-proot-ubuntu.sh   # 使用者名稱預設 henry
@@ -181,7 +202,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
-  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" \
+  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）=m" \
   --promptString "git user.email=<email>" henry5720
 ```
 
@@ -192,10 +213,13 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
 
 選單上每一項後面都有一句說明，清單和說明在
-[`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。WSL 和非 amd64 的機器不列
-`headless-chrome`、`playwright-cli`。macOS 不列 `tailscale`、`headless-chrome`、`playwright-cli`；
-有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
+[`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
+預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](machine-use.md#環境不建議裝不了)）。
+WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。
+WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
+macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
 herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
+原生 Termux 有勾的工具走 `pkg`（清單在同一份檔案的 termux 欄，Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。
 
 勾了 zsh 和 starship 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + starship 提示列。原生 Termux 到這裡就結束了。
 

@@ -7,7 +7,7 @@
 
 ```
 shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
-入口與連線      tailscale  code-server  ttyd  gh
+入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node
 其他            ffmpeg  wakatime
@@ -37,13 +37,14 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node
 
 ![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
 
-Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與移除見 [mise](mise.md)。
+Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](mise.md)。
 
 ## 入口與連線
 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
 | tailscale | 私人網路，連自己的機器 | `tailscale status` 看有哪些機器、名稱與 IP | [tailscale](https://tailscale.com/kb) | |
+| cloudflared | Cloudflare Tunnel：把服務開給 tailnet 外的人 | `cloudflared tunnel --url http://localhost:8080` 開一條臨時網址 | [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) | |
 | code-server | 瀏覽器開的 VS Code | `code-server` | [code-server](https://coder.com/docs/code-server) | [code-server 遠端存取](code-server-remote.md) |
 | ttyd | 把 terminal 開成網頁 | 不直接用，透過 `share-shell` | [ttyd](https://github.com/tsl0922/ttyd) | [開給別人連](remote-access.md#tailnet-外) |
 | gh | GitHub CLI | `gh auth login` 登入；`gh pr list` 看 PR | [gh](https://cli.github.com/) | |

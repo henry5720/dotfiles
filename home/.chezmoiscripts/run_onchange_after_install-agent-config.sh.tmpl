@@ -1,4 +1,4 @@
-{{- if has "agent-config" (index . "tools") -}}
+{{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 agent-config(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # skillshare 把 agent-config repo 的 skills 裝進有勾的 Claude／Codex(targets),MCP 寫進三個 client。

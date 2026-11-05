@@ -3,29 +3,34 @@
 {{- /* 用途與選裝工具:先問這台的用途(完整／精簡／自訂),再出選裝工具選單,照用途的預設組合勾好,可以再調。
        用途在 config 與提示上是英文代號 full／minimal／custom:chezmoi 的 promptChoice 是打字的輸入框、不是清單,
        中文選項得切輸入法;代號打開頭一個字母就夠(f、m、c),Enter 用預設。
-       只在 Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)
-       與 macOS 問。原生 Termux 不問,自動套用精簡,選單不列的項目(下面 $skip)濾掉。
-       Windows 什麼都不問:沒有用途、選單、憑證與 git 身分,tools = [];要改 Windows 部署什麼就改 repo
-       (白名單在 .chezmoiignore 的 Windows 段)。
-       存法:選單結果等於這台的預設組合(已濾掉 $skip)時存用途,之後預設組合改了,跑 `chezmoi init` 就跟上;
+       Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)、
+       macOS、原生 Termux、Windows 主機都問,流程一樣(Windows 的 CLI 用 mise、app 用 winget 裝,#275)。
+       選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)標原因、預設組合不勾,
+       裝不了的勾了 apply 時略過,最後由略過彙整列出原因。
+       Windows 不問 git 身分(不部署 .gitconfig,見 .chezmoiignore 的 Windows 白名單)。
+       存法:選單結果等於這台的預設組合(已扣掉不建議與裝不了的)時存用途,之後預設組合改了,跑 `chezmoi init` 就跟上;
        有改就存自訂(custom),tools 照勾的存、不再跟著預設組合走。
        不管存哪種,[data] 都寫展開後的 tools:其他樣板一律看 .tools,不認得用途。
-       之後要改:打 `tools`(home/dot_local/bin/executable_tools.tmpl)重出兩個問題,預設帶現在的用途與勾選
-       (不在這台選單裡的會被濾掉),勾完直接 apply。新勾的會裝,取消勾選、改用途都不會解除安裝。
+       之後要改:打 `tools`(home/dot_local/bin/executable_tools.tmpl)重出兩個問題,預設帶現在的用途與勾選,
+       勾完直接 apply。新勾的會裝,取消勾選、改用途都不會解除安裝。
        選項與說明在 .chezmoitemplates/tool-menu。加一個新工具要動四處:
          1. tool-menu 加一行「工具名 說明」(完整 = 選單上全部,自動算進去)。
+            哪個環境不建議或裝不了:在 tool-env 加規則與原因(選單標註、預設組合、略過彙整都從那裡拿)。
          2. 要不要放進精簡:改下面的 $lean。
-         3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin;
+         3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin,app 寫成 casks;
             Termux 走 pkg,填 toolPackages.termux):
             - GitHub release 的單一執行檔(mise registry 是 aqua／github backend):只填 miseTools,加 always: true。
             - 要系統函式庫的(mise 只有 conda backend):填 toolPackages.ubuntu,miseTools 再列一次
               (apt 用不了的 Linux 改用 mise 裝,見 .chezmoitemplates/use-mise)。
             - 有官方 installer 或官方 apt 源、會自己更新的:寫一支
             .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,整段包在
-            {{ if has "<工具>" .tools }} 裡,已經裝了就跳過
+            {{ if has "<工具>" (splitList " " (includeTemplate "tools-to-install" .)) }} 裡
+            (不直接看 .tools:這台裝不了的勾了也不跑),已經裝了就跳過
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
             要 root 的步驟(apt、sudo)包在 {{ if includeTemplate "has-root" . }} 裡;沒有 root 時
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
+            Windows 主機:miseTools 裡的 Windows 照樣用 mise 裝(mise 在 Windows 沒有的,在 tool-env 標 windows 裝不了);
+            app 填 toolPackages.windows 的 winget id;只有 sh 腳本的,在 tool-env 標 windows 裝不了。
          4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
        原本裝的東西不會少;寫回 config 時帶最新的 toolsSchema,之後就照存的勾選。
@@ -34,12 +39,13 @@
        3 = 提示列從 zsh 拆出來成為 starship(#194):第 2 版以前勾了 zsh 的(以前 zsh 附帶 p10k)自動補勾 starship。
        key 名與值已經寫在各台的 config,不要改;格式再變就加到 4。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
-{{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
+{{- /* 精簡的預設組合:只放 shell 體驗(每台開 shell 看到的一樣,連 fastfetch 都有)。連線、監控(tailscale、btop)
+       在完整或自己勾(#273)。完整 = 選單上全部;自訂 = 不預勾。
        用途的提示文字會出現在 Runbook 免回答安裝那一行(--promptChoice 的 key),改了要一起改
        (還有 docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
-{{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
-{{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）" -}}
+{{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "fastfetch" -}}
+{{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）" -}}
 {{- /* chezmoi 的 promptChoice 輸入對到唯一選項就送出、不等 Enter,灰字是選項值本身:
        選項值用字母,灰字就顯示要按的 f/m/c;存進 config 的還是 full／minimal／custom。 */ -}}
 {{- $useChoices := list "f" "m" "c" -}}
@@ -50,50 +56,34 @@
 {{- $use := "minimal" -}}
 {{- $tools := list -}}
 {{- $windows := eq .chezmoi.os "windows" -}}
-{{- if $windows -}}
-{{- /* Windows:tools 留空。選裝工具全是 sh 腳本與 Linux／Termux 的套件,Windows 用 winget 手動裝(Runbook)。 */ -}}
-{{- else if eq .chezmoi.os "android" -}}
-{{- /* 不出選單的機器:原生 Termux 沒有 tailscale、btop 的套件腳本。濾完剩下的就是 $baseSplit。 */ -}}
-{{-   range $lean -}}
-{{-     if not (has . (list "tailscale" "btop")) }}{{ $tools = append $tools . }}{{ end -}}
-{{-   end -}}
-{{- else -}}
-{{- /* headless Chrome 給 remote-chrome 在遠端主機自己開 Chrome。WSL 不列:查原因到遠端主機做(#260),不在 WSL 多裝一支 Linux Chrome;
-       Google 只出 amd64 的 .deb,ARM(例如平板上的 proot Ubuntu)也不列;非 Debian 系裝不了 .deb,也不列。
-       playwright-cli 跟著同一個條件:它用的就是這支 Chrome,沒有就報錯、不會自己下載。 */ -}}
-{{-   $skip := list -}}
-{{-   if or (eq (includeTemplate "is-wsl" .) "true") (ne .chezmoi.arch "amd64") (not (includeTemplate "is-debian" .)) -}}
-{{-     $skip = list "headless-chrome" "playwright-cli" -}}
-{{-   end -}}
-{{- /* macOS:tailscale 用官方 app(Runbook 寫),headless Chrome 是 Linux 的 .deb、playwright-cli 跟著它。 */ -}}
-{{-   if eq .chezmoi.os "darwin" -}}
-{{-     $skip = list "tailscale" "headless-chrome" "playwright-cli" -}}
-{{-   end -}}
-{{- /* 選單上顯示「工具名 + 說明」(工具名補空白對齊),$labels 記工具名 → 選單文字。
-       $full 是這台選單上的全部工具名(完整的預設組合);精簡也濾掉不在這台選單上的。 */ -}}
+{{- /* 選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)在說明後面標原因,
+       預設組合不勾它們,勾了照存(裝不了的 apply 時略過、最後列出原因)。
+       $labels 記工具名 → 選單文字(排版在 tool-menu-labels)。
+       $full 是完整的預設組合:選單上全部,扣掉這台不建議與裝不了的;精簡也扣掉它們。 */ -}}
+{{-   $status := includeTemplate "tool-status" . | fromJson -}}
 {{-   $toolChoices := list -}}
 {{-   $labels := dict -}}
 {{-   $full := list -}}
-{{-   range splitList "\n" (includeTemplate "tool-menu" .) -}}
+{{-   range splitList "\n" (includeTemplate "tool-menu-labels" .) -}}
 {{-     $name := index (splitList " " .) 0 -}}
-{{-     if and $name (not (has $name $skip)) -}}
-{{-       $label := printf "%-16s %s" $name (trimPrefix (printf "%s " $name) .) -}}
-{{-       $_ := set $labels $name $label -}}
-{{-       $toolChoices = append $toolChoices $label -}}
-{{-       $full = append $full $name -}}
+{{-     if $name -}}
+{{-       $_ := set $labels $name . -}}
+{{-       $toolChoices = append $toolChoices . -}}
+{{-       if not (hasKey $status $name) }}{{ $full = append $full $name }}{{ end -}}
 {{-     end -}}
 {{-   end -}}
 {{-   $presets := dict "full" $full "minimal" (list) "custom" (list) -}}
 {{-   range $lean -}}
 {{-     if has . $full }}{{ $_ := set $presets "minimal" (append (get $presets "minimal") .) }}{{ end -}}
 {{-   end -}}
-{{- /* 現在的用途與勾選(兩個問題的預設值從它算)。只有 tools、沒有用途的舊 config 算自訂。
+{{- /* 現在的用途與勾選(兩個問題的預設值從它算)。只有 tools、沒有用途的舊 config 算自訂;
+       Windows 例外:#275 以前 Windows 一律存 tools = []、沒有用途,那不是選過的,當成第一次、出用途與選單。
        存完整、精簡的,勾選就是現在的預設組合,不看 config 裡那份展開過的 tools。 */ -}}
 {{-   $storedUse := "" -}}
 {{-   if hasKey . "machineUse" -}}
 {{-     $storedUse = .machineUse -}}
 {{-     if hasKey $legacyUse $storedUse }}{{ $storedUse = get $legacyUse $storedUse }}{{ end -}}
-{{-   else if hasKey . "tools" -}}
+{{-   else if and (hasKey . "tools") (not $windows) -}}
 {{-     $storedUse = "custom" -}}
 {{-   end -}}
 {{-   if not (hasKey $presets $storedUse) }}{{ $storedUse = "" }}{{ end -}}
@@ -167,7 +157,6 @@
 {{-     end -}}
 {{-     if not $same }}{{ $use = "custom" }}{{ end -}}
 {{-   end -}}
-{{- end -}}
 {{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,
        https://www.chezmoi.io/user-guide/setup/)。不用 promptStringOnce:`chezmoi init --prompt`
        會讓它重問,而這裡要 --prompt 只重問選單(`tools` 指令靠這個)。
@@ -178,10 +167,9 @@
        憑證刻意不帶現值當預設 —— 預設值會明文印在提示上;反正已經存過的不會再問。
        之後要改:`chezmoi edit-config` 改 [data] 那一行再 apply。
        每一項是 (key 提示文字 預設值 工具);預設值空字串 = 沒有預設。
-       Windows 整段跳過:不部署 .gitconfig、.ssh/config 與用到憑證的設定(見 .chezmoiignore 的 Windows 白名單)。 */ -}}
+       Windows 照同一套規則,只有 git 身分(空的那兩項)不問:Windows 不部署 .gitconfig(.chezmoiignore 的 Windows 白名單)。 */ -}}
 {{- $answers := dict -}}
 {{- $answerKeys := list -}}
-{{- if not $windows -}}
 {{- range $q := list
       (list "codeServerPassword" "code-server 密碼" "" (list "code-server"))
       (list "codexLbApiKey" "codex-lb API key" "" (list "codex" "opencode"))
@@ -190,7 +178,7 @@
       (list "gitUserName" "git user.name" "henry" (list))
       (list "gitUserEmail" "git user.email" "" (list)) -}}
 {{-   $key := index $q 0 -}}
-{{-   $needed := not (index $q 3) -}}
+{{-   $needed := and (not (index $q 3)) (not $windows) -}}
 {{-   range index $q 3 }}{{ if has . $tools }}{{ $needed = true }}{{ end }}{{ end -}}
 {{-   if hasKey $ $key -}}
 {{-     $_ := set $answers $key (index $ $key) -}}
@@ -203,19 +191,28 @@
 {{-   end -}}
 {{-   $answerKeys = append $answerKeys $key -}}
 {{- end -}}
-{{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 
 [data]
 {{- range $answerKeys }}
     {{ . }} = {{ get $answers . | quote }}
 {{- end }}
-{{- if not $windows }}
     machineUse = {{ $use | quote }}
-{{- end }}
     tools = {{ $tools | toToml }}
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
     [data.aiPersonal]
     codexModel = {{ default "" (index $personal "codexModel") | quote }}
+{{- if $windows }}
+
+{{/* Windows 的 .ps1 腳本(.chezmoiscripts/*.ps1)一律用 Windows PowerShell 5.1 跑,只對這個 process 繞過執行原則。
+     偏離 chezmoi 預設(有 pwsh 用 pwsh,args 是 -NoLogo -File,https://www.chezmoi.io/reference/configuration-file/interpreters/)的理由:
+     第一次 init 時 pwsh 7 多半還沒裝(由 install-packages-windows 用 winget 裝),5.1 每台 Windows 都有;
+     腳本本來就要相容 5.1,固定一個版本行為才一致。Windows client 的 5.1 預設執行原則是 Restricted,
+     不加 -ExecutionPolicy Bypass 第一次 apply 就跑不動;-NoProfile 免得每支腳本都載入 profile(fastfetch、starship)。
+     chezmoi 把腳本路徑接在 args 後面,所以最後一個是 -File。 */ -}}
+[interpreters.ps1]
+    command = "powershell"
+    args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+{{- end }}

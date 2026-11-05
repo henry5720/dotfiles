@@ -1,0 +1,15 @@
+{{- $skipped := includeTemplate "tools-skipped" . -}}
+{{- if $skipped -}}
+{{- $status := includeTemplate "tool-status" . | fromJson -}}
+#!{{ lookPath "sh" }}
+# 勾了、但這台裝不了的選裝工具(.chezmoitemplates/tool-env 的 unsupported):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+{{ includeTemplate "sh-skip" . }}
+{{ range splitList " " $skipped -}}
+skip_env {{ squote . }} {{ dig . "reason" "" $status | squote }}
+{{ end -}}
+{{ end -}}
