@@ -5,7 +5,9 @@
 Windows 白名單多一個檔案時:改 home/.chezmoiignore 的 Windows 段,再把 target 加進下面的 WINDOWS_TARGETS。
 實機才驗得到的(PowerShell 讀不讀 profile、Terminal 讀不讀 settings.json)在 AGENTS.md「怎麼驗證」的實機清單。
 """
+import base64
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -20,9 +22,20 @@ WINDOWS_TARGETS = {
     "Documents/PowerShell/Profile.ps1",
     "Documents/WindowsPowerShell/Profile.ps1",
     "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
+    # mise 的清單:Windows 一定有 zoxide(PowerShell profile 的 z),所以每台都有
+    ".config/mise/conf.d/dotfiles.toml",
+    # PowerShell 版的 tools
+    ".local/bin/tools.ps1",
+}
+# 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
+WINDOWS_SCRIPTS = {
+    ".chezmoiscripts/install-packages-windows.ps1",
+    ".chezmoiscripts/install-mise.ps1",
+    ".chezmoiscripts/zz-env-skipped.ps1",
 }
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
+SCRIPTS = ROOT / "home/.chezmoiscripts"
 TERMINAL_SETTINGS = "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
 TERMINAL_FIXTURE = ROOT / "script/tests/fixtures/windows-terminal-settings.json"
 PS51_PROFILE_GUID = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
@@ -71,16 +84,89 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # Windows 的 config 是 tools = [](見下面 config 樣板的測試)
-        self.assertEqual(self.managed("windows", []), WINDOWS_TARGETS | parents(WINDOWS_TARGETS))
+        # 勾什麼都一樣:裝不了的(zsh、claude)也不會放行 sh 腳本或設定目錄
+        files = WINDOWS_TARGETS | parents(WINDOWS_TARGETS)
+        for tools in ([], WINDOWS_LEAN, sorted(WINDOWS_FULL), ["zsh", "claude", "agent-config", "tailscale"]):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.managed("windows", tools), files | WINDOWS_SCRIPTS)
 
     def test_linux_and_termux_skip_windows_only_targets(self):
         for os_name in ("linux", "android"):
             for tools in ([], ["zsh", "starship", "claude", "agent-config"]):
                 with self.subTest(os=os_name, tools=tools):
                     leaked = {t for t in self.managed(os_name, tools)
-                              if PurePosixPath(t).parts[0] in WINDOWS_ONLY}
+                              if PurePosixPath(t).parts[0] in WINDOWS_ONLY or t.endswith(".ps1")}
                     self.assertEqual(leaked, set())
+
+    # ===============================================================
+    # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的
+    # ===============================================================
+    def render(self, path, tools):
+        """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
+        return self.chezmoi("windows", "execute-template", (ROOT / path).read_text(encoding="utf-8"),
+                            data={"tools": tools})
+
+    def mise_list(self, tools):
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", tools)
+        return {l.split(" = ")[0].strip('"') for l in out.splitlines() if l.endswith(' = "latest"')}
+
+    def test_windows_minimal_installs_cli_with_mise(self):
+        # #275 驗收:選精簡 apply 後 starship、fastfetch、zoxide 由 mise 裝好
+        self.assertEqual(self.mise_list(WINDOWS_LEAN),
+                         {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "zoxide"})
+
+    def test_windows_mise_skips_unsupported_and_winget_tools(self):
+        # zoxide 不看勾選;tailscale 走 winget;claude 裝不了(它的 poppler 也不裝)
+        self.assertEqual(self.mise_list(["tailscale", "claude", "btop", "gh"]), {"zoxide", "gh"})
+
+    def test_windows_winget_installs_base_apps_and_ticked_tailscale(self):
+        script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        base = self.render(script, [])
+        for app in ("jdx.mise", "Microsoft.PowerShell", "Microsoft.WindowsTerminal"):
+            self.assertIn(f"'{app}'", base)
+        self.assertNotIn("Tailscale.Tailscale", base)
+        self.assertIn("'Tailscale.Tailscale'", self.render(script, ["tailscale"]))
+
+    def test_windows_mise_script_runs_mise_install(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", WINDOWS_LEAN)
+        self.assertIn("mise install", out)
+        # 清單在腳本裡(註解),清單變了 run_onchange_ 才會重跑
+        self.assertIn('"zoxide" = "latest"', out)
+
+    def test_windows_skip_summary_lists_unsupported_ticked_tools(self):
+        script = SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl"
+        self.assertEqual(self.render(script, WINDOWS_LEAN).strip(), "")
+        out = self.render(script, ["claude", "zsh", "fzf"])
+        # 中文訊息用 base64 放進腳本(渲染結果只能有 ASCII,見下一個測試)
+        decoded = "\n".join(base64.b64decode(b).decode("utf-8")
+                            for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
+        self.assertIn("claude", decoded)
+        self.assertIn("Windows 的安裝腳本還沒做，到 WSL 裝", decoded)
+        self.assertIn("zsh", decoded)
+        self.assertNotIn("fzf", decoded)
+
+    def test_windows_ps1_render_ascii_only(self):
+        # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
+        for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
+                            (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
+                            (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["claude", "zsh"]),
+                            ("home/dot_local/bin/tools.ps1.tmpl", [])):
+            with self.subTest(path=str(path)):
+                out = self.render(path, tools)
+                self.assertTrue(out.strip())
+                self.assertTrue(out.isascii(), [l for l in out.splitlines() if not l.isascii()][:3])
+
+    def test_windows_tools_command_reprompts_and_applies(self):
+        out = self.render("home/dot_local/bin/tools.ps1.tmpl", [])
+        self.assertIn("chezmoi init --prompt @args", out)
+        self.assertIn("chezmoi apply", out)
+
+    def test_windows_apply_deploys_tools_and_mise_list(self):
+        # 不跑腳本(--exclude scripts):Linux 上沒有 powershell
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": WINDOWS_LEAN})
+        self.assertTrue((self.home / ".local/bin/tools.ps1").is_file())
+        self.assertIn('"zoxide" = "latest"',
+                      (self.home / ".config/mise/conf.d/dotfiles.toml").read_text(encoding="utf-8"))
 
     # ===============================================================
     # config 樣板(chezmoi init 問什麼)
@@ -146,7 +232,7 @@ class WindowsDeployTest(unittest.TestCase):
     # PowerShell profile(pwsh 7 與 5.1 共用一份)
     # ===============================================================
     def test_both_powershell_profiles_render_the_same_settings(self):
-        self.chezmoi("windows", "apply", data={"tools": []})
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": []})
         pwsh7 = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
         ps51 = (self.home / "Documents/WindowsPowerShell/Profile.ps1").read_text(encoding="utf-8")
         self.assertEqual(pwsh7, ps51)
@@ -163,9 +249,16 @@ class WindowsDeployTest(unittest.TestCase):
                 self.assertIn(needle, pwsh7)
         self.assertNotIn("oh-my-posh", pwsh7)
 
+    def test_profile_finds_mise_tools_before_starting_them(self):
+        # starship、fastfetch、zoxide 由 mise 裝:shims 要在 Get-Command 找它們之前加進 PATH
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": []})
+        profile = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
+        self.assertIn(r"$env:LOCALAPPDATA\mise\shims", profile)
+        self.assertLess(profile.index(r"mise\shims"), profile.index("Get-Command fastfetch"))
+
     def test_powershell_profile_is_ascii_only(self):
         # 5.1 讀沒有 BOM 的檔案用系統 ANSI 字碼頁,UTF-8 的中文註解會變亂碼
-        self.chezmoi("windows", "apply", data={"tools": []})
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": []})
         for target in ("Documents/PowerShell/Profile.ps1", "Documents/WindowsPowerShell/Profile.ps1"):
             with self.subTest(target=target):
                 self.assertTrue((self.home / target).read_bytes().isascii())
@@ -173,14 +266,14 @@ class WindowsDeployTest(unittest.TestCase):
     def test_profile_leaves_prediction_source_at_default(self):
         # pwsh 7.6 的 PSReadLine 預設就開灰字建議(HistoryAndPlugin);5.1 的 2.0 沒有這個參數,
         # 而且輸出被導向時設它會丟例外、中斷整份 profile(henry-desktop 實測),所以不設
-        self.chezmoi("windows", "apply", data={"tools": []})
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": []})
         profile = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8")
         self.assertNotIn("PredictionSource", profile)
 
     def test_fastfetch_runs_only_in_interactive_shells(self):
         # 跟 zsh 開 shell 時跑 fastfetch 一樣;但 profile 連 pwsh -c、-File、ssh 執行指令都會載入,
         # 那些情況不能多印一張系統資訊。判斷式的實際行為在 henry-desktop 實測(Linux 沒有 pwsh)
-        self.chezmoi("windows", "apply", data={"tools": []})
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": []})
         lines = (self.home / "Documents/PowerShell/Profile.ps1").read_text(encoding="utf-8").splitlines()
         idx = next(i for i, l in enumerate(lines) if l.strip() == "fastfetch")
         guard = next(l for l in reversed(lines[:idx]) if l.strip().startswith("if"))

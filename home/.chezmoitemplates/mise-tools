@@ -1,13 +1,25 @@
 {{- /* 這台要交給 mise 裝的工具:一行一項 `"<mise 工具名>" = "latest"`,沒有就是空字串。
        呼叫端用「清單是不是空的」判斷這台要不要 mise(清單檔、install-mise、.chezmoiignore)。
-       只在 Linux 列:Termux 走 pkg、macOS 走 brew。
+       Linux 與 Windows 主機列:Termux 走 pkg、macOS 走 brew。
+       Windows(#275):先列 packages.windows.mise(zoxide,不看勾選),再列有勾、在 miseTools 裡的
+       (沒有 apt,不看 always;這台裝不了的不算)。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
        - 其他:apt 用不了(.chezmoitemplates/use-mise)而且系統找不到它的指令才列。
          「系統找得到」排除 mise 自己的目錄(shims、installs):裝過一次之後 PATH 上的 shim 不算,
          不然下次渲染就把自己裝的那份從清單拿掉。
          在樣板裡判斷:系統之後補裝了同一個指令,清單會少一項(mise 不會解除安裝,只是不再管它)。 */ -}}
-{{- if eq .chezmoi.os "linux" -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
+{{- range .packages.windows.mise }}
+{{ . | quote }} = "latest"
+{{- end -}}
+{{- range $name, $m := .miseTools -}}
+{{-   if has $name $installing }}
+{{ $m.tool | quote }} = "latest"
+{{-   end -}}
+{{- end -}}
+{{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
 {{- $noApt := includeTemplate "use-mise" . -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}

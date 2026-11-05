@@ -27,6 +27,18 @@ packages:
     brews:
       - jq
     casks: []
+  # Windows 主機(#275),每台都裝。git、curl 這些 chezmoi 在 Windows 用不到(沒有 sh 腳本、modify_ 腳本)。
+  # winget:app 的 winget id(run_onchange_before_install-packages-windows)。mise 給 CLI 選裝工具用;
+  #   pwsh 7 與 Windows Terminal 是 profile、settings.json 設定的對象(Win11 內建 Terminal,裝過就跳過)。
+  # mise:mise 的工具名(.chezmoitemplates/mise-tools 一起列進 mise 清單)。zoxide 是 PowerShell profile 的 z,
+  #   等於 Linux 上 zsh 外掛的跳目錄:Windows 的 shell 一定是 PowerShell,不用勾。
+  windows:
+    winget:
+      - jdx.mise
+      - Microsoft.PowerShell
+      - Microsoft.WindowsTerminal
+    mise:
+      - zoxide
 
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt／pkg／brew 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理(macOS 是 install-packages-darwin)。
@@ -113,6 +125,11 @@ toolPackages:
       - poppler
     ffmpeg:
       - ffmpeg
+  # Windows 主機:只列 app,值是 winget id(run_onchange_before_install-packages-windows)。
+  # CLI 一律走 mise(下面 miseTools,Windows 上不分 always,勾了就列);兩邊都沒有的在 tool-env 標裝不了。
+  windows:
+    tailscale:
+      - Tailscale.Tailscale
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
@@ -138,7 +155,9 @@ nodePackages:
   termux:
     - nodejs-lts
 
-# Linux 由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
+# Linux 與 Windows 主機由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
+# Windows 沒有 apt,勾了就列,下面的 always 只對 Linux 有意義。mise 在 Windows 沒有的(btop 的 aqua 只有 Linux 版)
+# 在 .chezmoitemplates/tool-env 標裝不了。conda 那幾個(vim、ffmpeg)conda-forge 有 win-64。
 # 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。分兩種,看 mise 用什麼 backend 裝(#233):
 #   always: true —— GitHub release 的單一執行檔(aqua／github backend):不分有沒有 root 都用 mise,
 #                   也不看系統有沒有同名指令(Ubuntu 24.04 的 apt 有的太舊,例如 fzf 0.44 沒有 `fzf --zsh`)。

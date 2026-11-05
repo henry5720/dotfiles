@@ -1,4 +1,4 @@
-{{- /* 有工具要交給 mise 的 Linux 才有這個檔(.chezmoitemplates/mise-tools);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
+{{- /* 有工具要交給 mise 的 Linux 與 Windows 主機(一定有 zoxide)才有這個檔(.chezmoitemplates/mise-tools);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
        清單是空的(什麼都不用 mise 裝)就渲染成空的,chezmoi 不建這個檔。 */ -}}
 {{- $list := includeTemplate "mise-tools" . -}}
 {{- if $list -}}

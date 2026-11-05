@@ -5,7 +5,10 @@
        渲染出來的內容只用 ASCII:5.1 讀沒有 BOM 的檔案時用系統 ANSI 字碼頁,UTF-8 的中文會變亂碼。
        所以說明都寫在這種樣板註解裡,渲染時會拿掉。
 
-       1. $HOME\.local\bin 加進 PATH(已經有就不重複加)
+       1. mise 的 shims(%LOCALAPPDATA%\mise\shims)與 $HOME\.local\bin 加進 PATH 最前面(已經有就不重複加):
+          starship、fastfetch、zoxide 這些 CLI 由 mise 裝(#275,run_onchange_after_install-mise.ps1),
+          排在系統 PATH 前面,跟 Linux 的 dot_zshrc 一樣(winget 以前裝的同名舊版不會先被找到)。
+          用 shims 不用 `mise activate`:5.1 也能用,而且開 shell 不用多跑一次 mise。.local\bin 放 tools.ps1。
        2. Tab 用選單補全,跟 zsh 的 menu select 一樣(PSReadLine 預設是 TabCompleteNext,一個一個換);
           沒有 PSReadLine 的 host(例如 ISE)略過。
           灰字建議不設:pwsh 7.6 的 PSReadLine 預設就開(HistoryAndPlugin);5.1 的 2.0 沒有這個參數;
@@ -17,10 +20,12 @@
        4. starship 有裝才 init,設定讀 ~/.config/starship.toml(跟 Linux 共用)
        5. zoxide 有裝才 init(z 指令)
        fastfetch、starship、zoxide 沒裝時安靜略過。 */ -}}
-$localBin = "$HOME\.local\bin"
-if (($env:PATH -split ';') -notcontains $localBin) {
-    $env:PATH = "$localBin;$env:PATH"
+foreach ($dir in "$env:LOCALAPPDATA\mise\shims", "$HOME\.local\bin") {
+    if (($env:PATH -split ';') -notcontains $dir) {
+        $env:PATH = "$dir;$env:PATH"
+    }
 }
+Remove-Variable dir
 
 if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete

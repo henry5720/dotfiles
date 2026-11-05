@@ -1,0 +1,17 @@
+{{- /* Windows 主機的略過彙整:勾了、但 Windows 裝不了的選裝工具(.chezmoitemplates/tool-env),在 apply 最後列出原因。
+       Linux、macOS、Termux 是 record-env-skipped(記)+ zz-root-skipped-summary(印)兩支;Windows 只有「環境不支援」
+       一種原因(沒有 root 那類步驟),清單在渲染時就知道,一支直接印。
+       檔名 zz-:chezmoi 依 target 名稱排序,排在所有 after_ 腳本後面。
+       run_onchange_:勾選或原因變了才再印一次(同 record-env-skipped);沒有裝不了的勾選就渲染成空的,chezmoi 不跑。
+       只部署到 Windows;由 Windows PowerShell 5.1 跑,渲染結果只能有 ASCII(原因經 ps1-text 的 T 解 base64)。 */ -}}
+{{- $skipped := includeTemplate "tools-skipped" . -}}
+{{- if $skipped -}}
+{{- $status := includeTemplate "tool-status" . | fromJson -}}
+{{ includeTemplate "ps1-text" . }}
+Write-Host ''
+Write-Host (T '{{ "== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):" | b64enc }}')
+{{- range splitList " " $skipped }}
+Write-Host (T '{{ printf "- %s:%s" . (dig . "reason" "" $status) | b64enc }}')
+{{- end }}
+exit 0
+{{ end -}}
