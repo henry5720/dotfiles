@@ -224,7 +224,7 @@ cloudflared tunnel --url http://localhost:<port>    # 印出 https://<隨機>.tr
 - **每條最多 200 個並行請求**，超過的回 `429`。
 - **網址每次都變**：每開一次就是新的 hostname，要重新傳給對方。
 
-`cloudflared` 不在 chezmoi 的套件清單裡：用得到 quick tunnel 的機器本來就不歸 chezmoi 管。
+chezmoi 管的機器在工具選單勾 `cloudflared` 就會裝（見 [工具一覽](tools.md#入口與連線)）；不歸 chezmoi 管的機器（例如別人的 Windows）自己裝，Windows 用 `winget install --id Cloudflare.cloudflared -e`，裝完當下的 PowerShell 找不到它，用完整路徑 `C:\Program Files (x86)\cloudflared\cloudflared.exe`。
 
 ### shell：`share-shell`
 
