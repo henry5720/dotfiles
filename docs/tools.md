@@ -45,7 +45,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與�
 |---|---|---|---|---|
 | tailscale | 私人網路，連自己的機器 | `tailscale status` 看有哪些機器、名稱與 IP | [tailscale](https://tailscale.com/kb) | |
 | code-server | 瀏覽器開的 VS Code | `code-server` | [code-server](https://coder.com/docs/code-server) | [code-server 遠端存取](code-server-remote.md) |
-| ttyd | 把 terminal 開成網頁 | 不直接用，透過 `share-shell` | [ttyd](https://github.com/tsl0922/ttyd) | [開給訪客看](share-with-guest.md) |
+| ttyd | 把 terminal 開成網頁 | 不直接用，透過 `share-shell` | [ttyd](https://github.com/tsl0922/ttyd) | [開給別人連](remote-access.md#tailnet-外) |
 | gh | GitHub CLI | `gh auth login` 登入；`gh pr list` 看 PR | [gh](https://cli.github.com/) | |
 
 ## coding agent
@@ -84,7 +84,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop 由 mise 裝，更新與�
 |---|---|---|
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-profile-routing.md) |
-| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [開給訪客看](share-with-guest.md) |
+| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [開給別人連](remote-access.md#shellshare-shell) |
 | `remote-chrome-headless` | 查原因前在本機開 headless Chrome 佔 9222，給 chrome-devtools MCP（勾了 `headless-chrome` 才能用） | agent-config 的 remote-chrome skill |
 | `personal-chrome-attach` | 讓 agent 接你日常的 Chrome（passkey、硬體金鑰、裝置 SSO）：印出 connect 網址，你開 `ssh -N company-ec2-attach`、把網址貼進新分頁（勾了 `playwright-cli` 才能用） | agent-config 的 [personal-pc-tunnel](https://github.com/henry5720/agent-config/blob/main/docs/skills/personal-pc-tunnel.md) |
 | `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](codegraph.md) |

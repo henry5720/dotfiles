@@ -19,7 +19,7 @@
 | terminal `ssh` | ssh key、在 tailnet 裡 | 自己 | **預設**：跑 herdr、agent |
 | VS Code Remote-SSH | VS Code、同上 | 自己 | **預設**：看檔、改檔、拖拉傳檔 |
 | 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server 遠端存取](code-server-remote.md) |
-| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見[開給訪客看](share-with-guest.md) |
+| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見[開給別人連](remote-access.md#tailnet-外) |
 
 ### 第一次連：找管理員要兩樣
 

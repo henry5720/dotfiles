@@ -4,7 +4,7 @@
 這份列出所有可行做法和各自代價，phone 和 desktop 各自選一個就好。
 
 > 這份是**自己**從別台裝置連 code-server。要臨時開給沒有 tailscale／ssh key 的**訪客**看
-> （shell、dev server），見 [share-with-guest.md](share-with-guest.md)。
+> （shell、dev server），見 [remote-access.md](remote-access.md#tailnet-外)。
 
 ---
 
