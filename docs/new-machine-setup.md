@@ -2,7 +2,7 @@
 
 ## 適用範圍
 
-Linux、macOS、原生 Termux 與 Windows 主機（WSL 外面那層 Windows）。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
+Linux、macOS、原生 Termux 與 Windows 主機（原生 Windows，WSL 的外層或沒有 WSL 的開發機）。Linux 以 Ubuntu 等 Debian 系最完整，其他發行版也裝得起來（走 apt 的工具改用
 mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同一套步驟，有沒有 root 都行。
 目的是把一台全新的機器帶到這個 repo 描述的 shell、chezmoi 與 AI-agent 工作環境。
 
@@ -12,7 +12,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
-| Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale）用 winget 裝；zsh、btop、coding agent 這類只有 sh 安裝腳本的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單），只跑 `.ps1` 腳本；見[Windows 主機](windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
 
@@ -68,28 +68,41 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 
 ### Windows 主機
 
-Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`。這節一路做到裝好，不用再看第 2 步。
+Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`；沒有 WSL、Windows 本身就是開發機也照這節。
+這節一路做到裝好，不用再看第 2 步。
 
-1. 在 PowerShell 用 winget 裝工具：
+1. 在 PowerShell 用 winget 裝 chezmoi：
 
    ```powershell
-   winget install twpayne.chezmoi Microsoft.PowerShell Starship.Starship Fastfetch-cli.Fastfetch ajeetdsouza.zoxide
+   winget install twpayne.chezmoi
    ```
 
+   其他的（mise、pwsh 7、Windows Terminal，以及選單勾的 CLI 與 tailscale）由 chezmoi apply 裝。
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
-   `C:\Program Files\PowerShell\7`。git、tailscale 這類 GUI app 照舊從官網裝。
+   `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
 2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](windows.md#documents-移出-onedrive)。
 3. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
 4. 開一次 Windows Terminal 再關掉：讓它產生 pwsh 7 的設定檔。沒開過的話，apply 只設得了字型，
    預設設定檔要等下次 apply 才改成 pwsh 7。
-5. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
+5. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
+   本機的 `.ps1` 都不能跑（chezmoi 的安裝腳本自己繞過，不受影響）：
+
+   ```powershell
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+   ```
+
+6. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
 
    ```powershell
    chezmoi init --apply henry5720
    ```
 
-   不問任何問題。部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)。
-6. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
+   跟 Linux 一樣問用途、出選單（[用途與憑證](machine-use.md)），Enter 是精簡；git 身分不問。
+   要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
+   部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)；之後要加減工具打 `tools`。
+7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
+   以前照 Runbook 用 winget 裝的 starship、fastfetch、zoxide 可以 `winget uninstall` 掉，改由 mise 管
+   （留著也行：profile 先找 mise 那份）。
 
 ### 平板：原生 Termux 與 proot Ubuntu
 

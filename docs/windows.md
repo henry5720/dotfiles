@@ -1,41 +1,65 @@
 # Windows 主機
 
-WSL 外面那層 Windows 由 Windows 原生 chezmoi 管，跟 Linux 用同一個 repo。怎麼裝見
-[新機器設定](new-machine-setup.md#windows-主機)。
+原生 Windows 由 Windows 原生 chezmoi 管，跟 Linux 用同一個 repo。可以是 WSL 的外層，也可以沒有 WSL、
+Windows 本身就是開發機。怎麼裝見[新機器設定](new-machine-setup.md#windows-主機)。
 
 ## 部署什麼
 
-Windows 的 `chezmoi init` 什麼都不問（沒有用途、選裝工具選單、憑證、git 身分），只部署白名單上的檔案：
+`chezmoi init` 跟其他 OS 一樣問用途、出選裝工具選單（見[用途與憑證](machine-use.md)）；勾到要憑證的工具才問憑證，
+git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `home/.chezmoiignore` Windows 段白名單上的：
 
 | repo 裡的檔案 | 部署到 | 用途 |
 |---|---|---|
 | `home/dot_wslconfig` | `%USERPROFILE%\.wslconfig` | WSL2 的記憶體、CPU、網路模式 |
 | `home/dot_config/starship.toml` | `%USERPROFILE%\.config\starship.toml` | starship 提示列，跟 Linux 共用 |
+| `home/dot_config/mise/conf.d/dotfiles.toml.tmpl` | `%USERPROFILE%\.config\mise\conf.d\dotfiles.toml` | 交給 mise 裝的 CLI 清單（zoxide 加上勾了的） |
+| `home/dot_local/bin/tools.ps1.tmpl` | `%USERPROFILE%\.local\bin\tools.ps1` | `tools` 指令：重選用途與選裝工具，勾完直接裝 |
 | `home/Documents/PowerShell/Profile.ps1.tmpl` | `Documents\PowerShell\Profile.ps1` | pwsh 7 的 all-hosts profile |
 | `home/Documents/WindowsPowerShell/Profile.ps1.tmpl` | `Documents\WindowsPowerShell\Profile.ps1` | Windows PowerShell 5.1 的 all-hosts profile |
 | `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
+
+apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不會到 Windows）：
+
+```text
+before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
+（部署上面的檔案）
+after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
+```
+
+腳本一律用 Windows PowerShell 5.1 跑、只對那個 process 繞過執行原則（`.chezmoi.toml.tmpl` 的 `[interpreters.ps1]`）：
+第一次 init 時 pwsh 7 多半還沒裝，Windows client 的 5.1 預設執行原則又是 `Restricted`。裝失敗（winget、mise）只印一行、
+apply 照樣跑完，照印出的指令自己補。
 
 兩份 `Profile.ps1` 內容一樣，做的事見[裝了什麼、怎麼用](#裝了什麼怎麼用)。
 chezmoi 不碰 `$PROFILE`（`Microsoft.PowerShell_profile.ps1`），機器專屬的設定（例如 API key）寫在那裡，不進 repo。
 PowerShell 只從 `[Environment]::GetFolderPath('MyDocuments')` 讀 profile，Documents 在 OneDrive 裡時讀不到
 chezmoi 部署的這兩份，見[Documents 移出 OneDrive](#documents-移出-onedrive)。
 
-Windows 沒有 `tools` 指令，要加減什麼就改 repo。
-
 Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經過 `toPrettyJson` 整份重寫：Terminal 原本的
 `//` 註解會消失、key 照字母重排。之後兩個值都對就不再動它。所以第一次 `chezmoi diff` 看到整檔重排是預期的，不是壞掉。
 
 ## 裝了什麼、怎麼用
 
-[Runbook](new-machine-setup.md#windows-主機) 用 winget 裝的工具，profile 開 shell 時幫你接好：
+CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝：
 
-| 工具 | 做什麼 | 常用 |
-|---|---|---|
-| chezmoi | 管這些設定檔 | `chezmoi update` 拿 repo 最新的設定；`chezmoi diff` 沒有輸出就是跟 repo 一致 |
-| pwsh（PowerShell 7） | 主力 shell，Windows Terminal 預設開它 | `powershell`（5.1）讀同一份 profile，用起來一樣 |
-| fastfetch | 開 shell 時印出系統資訊 | 互動開的 shell 才印，`pwsh -c`、ssh 執行指令不印 |
-| starship | 提示列：目錄、git 分支與狀態，跟 Linux 同一份設定 | 不用打指令 |
-| zoxide | 跳常去的目錄 | `z <目錄名片段>` |
+| 工具 | 怎麼裝 | 什麼時候裝 | 常用 |
+|---|---|---|---|
+| chezmoi | winget（Runbook 手動） | 裝機時 | `chezmoi update` 拿 repo 最新的設定；`chezmoi diff` 沒有輸出就是跟 repo 一致 |
+| pwsh（PowerShell 7） | winget | 每台 | 主力 shell，Windows Terminal 預設開它；`powershell`（5.1）讀同一份 profile，用起來一樣 |
+| Windows Terminal | winget（Win11 內建就跳過） | 每台 | |
+| mise | winget | 每台 | `mise ls` 看裝了什麼；`mise install` 補裝失敗的 |
+| zoxide | mise | 每台 | 跳常去的目錄：`z <目錄名片段>`。等於 Linux 上 zsh 外掛的跳目錄，Windows 的 shell 一定是 PowerShell，不用勾 |
+| starship、fastfetch、eza、fzf、bat、ripgrep、vim | mise | 精簡、完整 | starship 是提示列（跟 Linux 同一份設定）；fastfetch 在互動開的 shell 印系統資訊，`pwsh -c`、ssh 執行指令不印 |
+| gh、cloudflared、ttyd、ffmpeg | mise | 完整或自己勾 | |
+| tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
+
+zsh、btop、code-server、herdr、coding agent（claude、codex、opencode）、node、codegraph、wakatime、headless-chrome、
+playwright-cli、agent-config 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝。
+勾了也不會中斷 apply，最後列出略過了哪些。
+
+要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
+移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`。
 
 PowerShell 內建的 PSReadLine 給的，不用設：
 
@@ -46,7 +70,8 @@ PowerShell 內建的 PSReadLine 給的，不用設：
 | 灰字建議（只有 pwsh 7） | 打字時從歷史紀錄冒出灰字，`→` 接受 |
 | 歷史紀錄 | 跨視窗保存；`↑` 翻、`Ctrl+R` 搜尋 |
 
-`$HOME\.local\bin` 也加進 PATH，放在那裡的程式直接打名字就能跑。
+profile 把 mise 的 shims（`%LOCALAPPDATA%\mise\shims`）和 `$HOME\.local\bin` 加進 PATH 最前面：mise 裝的工具和 `tools`
+直接打名字就能跑，以前 winget 裝的同名舊版不會先被找到（不再需要就 `winget uninstall` 掉）。
 
 ## Documents 移出 OneDrive
 

@@ -16,7 +16,9 @@
 略過由一支 `run_onchange_after_record-env-skipped` 統一記下，`run_after_zz-root-skipped-summary` 跟「沒有 root」分兩段列出。
 加一個環境限制只要在 `tool-env` 加一條規則，不用改各工具的腳本。
 
-Windows 主機也跑安裝腳本、出用途與選單（spec #271，Windows 那張 ticket 實作）。
+Windows 主機也出用途與選單、也跑安裝腳本（#275）：CLI 用 mise（跟 Linux 共用 `miseTools`）、app 用 winget，
+腳本寫成 `.ps1`，`.chezmoiignore` 的 Windows 段只放行 `.chezmoiscripts/*.ps1`，sh 腳本照舊不會到 Windows。
+只有 sh 安裝腳本的工具（zsh、coding agent…）在 `tool-env` 標裝不了；Windows 的略過彙整是一支 `zz-env-skipped.ps1`。
 
 ## Considered Options
 
@@ -36,5 +38,8 @@ Windows 主機也跑安裝腳本、出用途與選單（spec #271，Windows 那�
   `script/tests/test_tool_env.py` 會擋。
 - **e2e 要在主機上渲染選單文字。** 標註依環境而變，`script/tests/e2e.sh` 的 `menu_choice` 改用主機的 chezmoi 渲染
   `tool-menu-labels`，主機要有 chezmoi 與 python3。
+- **Windows 的 `.ps1` 綁在 Windows PowerShell 5.1。** 第一次 init 時 pwsh 7 多半還沒裝、5.1 的執行原則預設 `Restricted`，
+  所以 config 的 `[interpreters.ps1]` 固定用 `powershell -ExecutionPolicy Bypass`（偏離 chezmoi 預設的 pwsh）。
+  5.1 讀沒有 BOM 的檔案用 ANSI 字碼頁：渲染結果只能有 ASCII，中文訊息（含 `tool-env` 的原因）用 base64 放進腳本、執行時才解。
 - **勾了裝不了的工具，略過只印一次。** `record-env-skipped` 是 `run_onchange_`：勾選或原因沒變，之後的 apply 不再印，
   `chezmoi status` 也不會一直有待跑的腳本。

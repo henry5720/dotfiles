@@ -29,6 +29,8 @@
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
             要 root 的步驟(apt、sudo)包在 {{ if includeTemplate "has-root" . }} 裡;沒有 root 時
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
+            Windows 主機:miseTools 裡的 Windows 照樣用 mise 裝(mise 在 Windows 沒有的,在 tool-env 標 windows 裝不了);
+            app 填 toolPackages.windows 的 winget id;只有 sh 腳本的,在 tool-env 標 windows 裝不了。
          4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
        原本裝的東西不會少;寫回 config 時帶最新的 toolsSchema,之後就照存的勾選。
