@@ -83,16 +83,14 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
 2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](windows.md#documents-移出-onedrive)。
 3. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
-4. 開一次 Windows Terminal 再關掉：讓它產生 pwsh 7 的設定檔。沒開過的話，apply 只設得了字型，
-   預設設定檔要等下次 apply 才改成 pwsh 7。
-5. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
+4. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
    本機的 `.ps1` 都不能跑（chezmoi 的安裝腳本自己繞過，不受影響）：
 
    ```powershell
    Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
    ```
 
-6. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
+5. 開新的 PowerShell（winget 剛改的 PATH 才生效），跑：
 
    ```powershell
    chezmoi init --apply henry5720
@@ -101,6 +99,10 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    跟 Linux 一樣問用途、出選單（[用途與憑證](machine-use.md)），Enter 是精簡；git 身分不問。
    要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
    部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)；之後要加減工具打 `tools`。
+6. 開一次 Windows Terminal 再關掉，再跑一次 `chezmoi apply`：pwsh 7 是上一步才裝的，Terminal 開過才會
+   產生它的設定檔；上一步的 apply 找不到就只設字型，這次才把預設分頁改成 pwsh 7。
+   沒做這步，新分頁會是 `powershell`（5.1）—— 它也讀同一份 profile、一樣有 starship，看提示列分不出來，
+   看分頁標題（「PowerShell」是 7，「Windows PowerShell」是 5.1）。
 7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
    以前照 Runbook 用 winget 裝的 starship、fastfetch、zoxide 可以 `winget uninstall` 掉，改由 mise 管
    （留著也行：profile 先找 mise 那份）。
