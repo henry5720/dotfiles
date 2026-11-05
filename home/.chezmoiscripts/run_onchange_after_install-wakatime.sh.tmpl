@@ -1,4 +1,4 @@
-{{- if has "wakatime" (index . "tools") -}}
+{{- if has "wakatime" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 裝 wakatime-cli;API key 由 private_dot_wakatime.cfg.tmpl 部署。
@@ -43,7 +43,7 @@ if [ -f "$HOME/.local/bin/wakatime-cli" ] && [ ! -L "$HOME/.local/bin/wakatime-c
   rm -f "$HOME/.local/bin/wakatime-cli"
 fi
 
-{{- if has "claude" (index . "tools") }}
+{{- if has "claude" (splitList " " (includeTemplate "tools-to-install" .)) }}
 
 # 3. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
 #    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
@@ -60,7 +60,7 @@ else
   "$claude" plugin install claude-code-wakatime@wakatime </dev/null
 fi
 {{- end }}
-{{- if has "codex" (index . "tools") }}
+{{- if has "codex" (splitList " " (includeTemplate "tools-to-install" .)) }}
 
 # 4. Codex CLI 的 WakaTime plugin:照 wakatime/codex-cli-wakatime README 的兩行指令裝。
 #    codex 會把 [marketplaces.wakatime]、[plugins."codex-cli-wakatime@wakatime"] 寫進
@@ -76,7 +76,7 @@ else
   "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
 fi
 {{- end }}
-{{- if has "code-server" (index . "tools") }}
+{{- if has "code-server" (splitList " " (includeTemplate "tools-to-install" .)) }}
 
 # 5. code-server 的 WakaTime 擴充:code-server FAQ 的 --install-extension,預設從 Open VSX 抓
 #    WakaTime.vscode-wakatime。擴充跑在 server 端,用這台的 ~/.wakatime/wakatime-cli 與 ~/.wakatime.cfg。

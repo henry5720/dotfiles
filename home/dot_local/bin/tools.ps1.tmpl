@@ -1,0 +1,15 @@
+{{- /* Windows 主機的 tools(PowerShell 版,Linux、macOS、Termux 是同目錄的 executable_tools.tmpl,做的事一樣):
+       重問用途、重出選裝工具選單,勾完直接裝。PowerShell profile 把 $HOME\.local\bin 加進 PATH,打 tools 就會跑這支。
+       只部署到 Windows(.chezmoiignore:Windows 段放行,其他 OS 排除)。
+       渲染結果只用 ASCII:pwsh 7 與 5.1 都會跑它,5.1 讀沒有 BOM 的檔案用 ANSI 字碼頁。
+
+       init --prompt 只會重問用途與選單:憑證已經存過就沿用、不再問;取消勾選、改用途都不會解除安裝。
+       參數原樣交給 chezmoi init。
+
+       1. 重出選單,把勾選寫回 ~/.config/chezmoi/chezmoi.toml;失敗(例如 Ctrl+C)就停,不 apply
+       2. 照新的勾選裝 */ -}}
+chezmoi init --prompt @args
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+chezmoi apply
+exit $LASTEXITCODE

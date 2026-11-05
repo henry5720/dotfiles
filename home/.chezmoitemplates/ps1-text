@@ -1,0 +1,6 @@
+{{- /* Windows .ps1 腳本印中文訊息用:T '<base64>' 把 UTF-8 的 base64 解回字串。
+       腳本由 Windows PowerShell 5.1 跑(.chezmoi.toml.tmpl 的 interpreters.ps1),5.1 讀沒有 BOM 的檔案用系統 ANSI 字碼頁,
+       渲染結果只能有 ASCII(同 powershell-profile.ps1 的規則):中文寫成 {{ "訊息" | b64enc }},執行時才解回來。
+       要帶變數就在訊息裡寫 {0},呼叫端用 ((T '...') -f $x)。
+       用法:{{ includeTemplate "ps1-text" . }} 放在腳本開頭,之後 Write-Host (T '{{ "略過" | b64enc }}')。 */ -}}
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }

@@ -17,7 +17,7 @@
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
-  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" \
+  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）=m" \
   --promptString "git user.email=<email>" henry5720
 ```
 
@@ -45,7 +45,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
 
-不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd 本來就由 mise 裝（#233），
+不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd、cloudflared 本來就由 mise 裝（#233），
 Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
 
 ### 略過彙整怎麼看

@@ -107,7 +107,7 @@ _Avoid_: 連線方式（只指 ssh 時）、登入方式
 ## 裝機
 
 **基底**:
-每台 Linux、macOS、Termux 機器都裝、不能不勾的套件，只有 chezmoi 自己要用的 git、curl、jq、python3（Termux 另加 openssh）。Windows 主機沒有基底。
+每台機器都裝、不能不勾的套件。Linux、macOS、Termux 只有 chezmoi 自己要用的 git、curl、jq、python3（Termux 另加 openssh）；Windows 主機是 winget 裝的 mise、pwsh 7、Windows Terminal，加上 mise 裝的 zoxide（PowerShell profile 的 `z`，Windows 的 shell 一定是 PowerShell）。
 _Avoid_: 必裝、核心套件
 
 **選裝工具**:
@@ -115,19 +115,19 @@ _Avoid_: 必裝、核心套件
 _Avoid_: 外掛、optional packages、模組
 
 **用途**:
-`chezmoi init` 第一個問題的答案：完整、精簡或自訂（config 存英文代號 `full`、`minimal`、`custom`；init 時按字母 `f`、`m`、`c`）。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。Windows 主機沒有用途，也沒有選裝工具。
+`chezmoi init` 第一個問題的答案：完整、精簡或自訂（config 存英文代號 `full`、`minimal`、`custom`；init 時按字母 `f`、`m`、`c`）。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。每台都問，Windows 主機也是。
 _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 
 **預設組合**:
-一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。這台不支援的項目（WSL、ARM 的 headless-chrome、playwright-cli）不算在內。
+一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、fastfetch（只放 shell 體驗），自訂是空的。都扣掉這台環境「不建議」和「裝不了」的工具（例如 WSL 的 tailscale，WSL、ARM 的 headless-chrome、playwright-cli，Windows 的 zsh）；判斷有沒有改過勾選也用扣完的組合比。
 _Avoid_: preset、套餐
 
 **環境**:
-機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及哪些選裝工具在這台不列。跟用途分開。
-_Avoid_: 用途（兩者是分開的）、機器類型
+機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及每個選裝工具在這台是可裝、不建議還是裝不了。選單每台都列全部工具，不建議、裝不了的標原因、預設不勾；不建議的勾了照裝，裝不了的勾了就略過，apply 最後列出原因。狀態與原因寫在 `home/.chezmoitemplates/tool-env`。跟用途分開。
+_Avoid_: 用途（兩者是分開的）、機器類型；「不支援」「不列」（現在是列出來、標裝不了）
 
 **Windows 主機**:
-WSL 外面那層 Windows，由 Windows 原生 chezmoi 管，只管 shell 體驗（PowerShell、Windows Terminal、字型、`.wslconfig`）。跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。
+原生 Windows，由 Windows 原生 chezmoi 管；可能是 WSL 的外層，也可能沒有 WSL、本身就是開發機。跟 Linux 一樣有用途與選單，CLI 用 mise、app 用 winget 裝，安裝腳本只有 `.ps1`。有 WSL 時跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。
 _Avoid_: Windows 側、host
 
 ## 文件

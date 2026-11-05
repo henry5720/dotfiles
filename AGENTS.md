@@ -6,8 +6,11 @@ WSL 時必須安靜略過,不能報錯;要 apt 的東西(套件腳本、選裝�
 shebang 寫 `#!{{ lookPath "sh" }}`,否則 Termux 上找不到 `/bin/sh`。`script/ubuntu/` 只保證 Ubuntu,需要分 WSL／非 WSL 時用
 `grep -qi microsoft /proc/version` 判斷。
 
-Windows 主機(WSL 外面那層 Windows)也用這個 repo,但只部署 `home/.chezmoiignore` Windows 段白名單上的
-檔案、不跑任何 `run_` 腳本:`home/` 新增的檔案預設不會到 Windows,Windows 專屬的檔案要在 Linux 段排除。
+Windows 主機(原生 Windows,WSL 的外層或沒有 WSL 的開發機)也用這個 repo,但只部署 `home/.chezmoiignore`
+Windows 段白名單上的檔案:`home/` 新增的檔案預設不會到 Windows,Windows 專屬的檔案要在 Linux 段排除。
+Windows 只跑 `home/.chezmoiscripts/` 的 `.ps1`(白名單放行 `*.ps1`),sh、python3 腳本絕不放行 —— 放行了 chezmoi
+會拿去執行而失敗。`.ps1` 由 Windows PowerShell 5.1 跑(config 的 `[interpreters.ps1]`):語法要相容 5.1,
+渲染結果只能有 ASCII,說明寫在樣板註解、中文訊息用 `.chezmoitemplates/ps1-text`。
 
 文件、註解、commit message 一律用**繁體中文**。
 
@@ -88,7 +91,7 @@ Windows 沒有容器可以跑 e2e。改到 Windows 會部署的檔案(白名單�
 config 樣板的 windows 分支)時:
 
 1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
-   Windows 部署哪些檔、渲染出什麼
+   Windows 的選單、預設組合、部署哪些檔與腳本、渲染出什麼(腳本只渲染、不執行)
 2. PR 的 `## 驗證` 段逐項列出下面的實機清單,全部勾完才 merge。能在 Windows 上下指令就自己跑
 
 | # | 時機 | 在 Windows 上做 | 預期 |
@@ -99,6 +102,8 @@ config 樣板的 windows 分支)時:
 | 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` |
 | 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 |
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
+| 7 | 改到 config 樣板、`tool-env`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 |
+| 8 | 改到 `.ps1` 腳本、`packages.yaml`、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 |
 
 在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
 `chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再

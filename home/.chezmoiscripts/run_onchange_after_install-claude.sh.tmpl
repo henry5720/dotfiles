@@ -1,4 +1,4 @@
-{{- if has "claude" (index . "tools") -}}
+{{- if has "claude" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 Claude Code(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 官方 native installer,裝到 ~/.local/bin/claude,之後自己會更新。

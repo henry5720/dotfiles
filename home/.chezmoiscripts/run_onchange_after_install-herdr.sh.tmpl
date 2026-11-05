@@ -1,4 +1,4 @@
-{{- if has "herdr" (index . "tools") -}}
+{{- if has "herdr" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 herdr(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 官方 installer 裝到 ~/.local/bin;之後用 herdr update 更新。

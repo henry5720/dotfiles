@@ -4,8 +4,8 @@
 # ===============================================================
 # 1. Windows:白名單,只部署下面 ! 放行的 target
 # ===============================================================
-# 之後新增的 Linux 設定不會意外跑到 Windows;.chezmoiscripts/ 也整個排除,Windows 不跑任何 run_ 腳本
-# (都是 sh、python3)。以後 Windows 真的要腳本,寫成 .ps1 再在這裡放行。
+# 之後新增的 Linux 設定不會意外跑到 Windows。腳本只放行 .ps1(#275):sh、python3 的 run_ 腳本放行了,
+# chezmoi 會拿去執行而失敗(shebang 的 lookPath "sh" 在 Windows 也渲染得出東西)。
 # 寫法(chezmoi v2.74.0 實測,#254):每層深度各排除一次,排到第 6 層
 # (Terminal 的 AppData/Local/Packages/<套件>/LocalState/settings.json);只寫 * 或 **/* 放不出巢狀檔案。
 # 放行時每一層父目錄和檔案本身都要寫:只放行父目錄,它底下的其他檔案會漏出來。
@@ -32,14 +32,27 @@
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json
+# 安裝腳本:winget 裝 app、mise 裝 CLI、最後列出略過的(.chezmoiscripts/*.ps1,只有 Windows 有)
+!.chezmoiscripts
+!.chezmoiscripts/*.ps1
+# mise 的清單:Windows 一定有 zoxide(packages.yaml 的 packages.windows.mise),每台都部署
+!.config/mise
+!.config/mise/conf.d
+!.config/mise/conf.d/dotfiles.toml
+# PowerShell 版的 tools(profile 把 .local\bin 加進 PATH)
+!.local
+!.local/bin
+!.local/bin/tools.ps1
 {{ else }}
 # ===============================================================
 # 2. Linux、macOS、Termux
 # ===============================================================
-# Windows 專屬的 target(PowerShell profile、Windows Terminal、WSL 設定)不部署。
+# Windows 專屬的 target(PowerShell profile、Windows Terminal、WSL 設定、.ps1 腳本與 tools)不部署。
 Documents
 AppData
 .wslconfig
+.chezmoiscripts/*.ps1
+.local/bin/tools.ps1
 {{ if not (has "zsh" (index . "tools")) }}
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
@@ -77,8 +90,9 @@ AppData
 {{ end }}
 
 # 沒勾的 client 不部署它的設定目錄;取消勾選時,已經部署的檔案留著(chezmoi 只是不再管它)。
+# 這台裝不了的(例:原生 Termux 的 claude)勾了也不部署,只看要裝的(.chezmoitemplates/tools-to-install)。
 # skillshare 的 config.yaml 跟著 agent-config,連到各 client 的指令檔見 .chezmoitemplates/skillshare-pinned。
-{{ $tools := index . "tools" -}}
+{{ $tools := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{ if not (has "claude" $tools) }}.claude{{ end }}
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}

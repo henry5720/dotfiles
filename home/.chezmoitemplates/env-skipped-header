@@ -1,0 +1,4 @@
+{{- /* 略過彙整「這台裝不了」那段的標題,一行、不含換行。兩支彙整共用:
+       run_after_zz-root-skipped-summary(sh)、run_onchange_after_zz-env-skipped.ps1(經 b64enc 給 ps1-text 的 T)。
+       不能有 ' " $ `(sh 用單引號包它)。script/tests/e2e.sh 用開頭「== 這台裝不了,以下選裝工具已略過」找這段,改字要一起改。 */ -}}
+== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):

@@ -1,6 +1,5 @@
-{{- /* 跟 .chezmoi.toml.tmpl 的選單過濾同一套條件(同 headless-chrome):WSL、非 amd64、非 Debian 系就算 tools 裡有也不裝 */ -}}
-{{- $wsl := eq (includeTemplate "is-wsl" .) "true" -}}
-{{- if and (has "playwright-cli" (index . "tools")) (not $wsl) (eq .chezmoi.arch "amd64") (includeTemplate "is-debian" .) -}}
+{{- /* WSL、非 amd64、非 Debian 系、macOS 裝不了(同 headless-chrome):原因寫在 .chezmoitemplates/tool-env,勾了也渲染成空的,由略過彙整列出 */ -}}
+{{- if has "playwright-cli" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # agent 操作瀏覽器用它(ADR 0001)。瀏覽器用的是 headless-chrome 裝的 /opt/google/chrome/chrome,

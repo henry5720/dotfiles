@@ -3,7 +3,7 @@
 個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理：一行指令裝好 zsh、常用 CLI 工具與 coding agent
 （Claude Code、Codex、opencode）。以 **Linux + 純 zsh** 為主，Ubuntu 等 Debian 系最完整；也用在 macOS 與
 Android 平板（Termux）。實體機、雲端主機、WSL2 都一樣裝，有沒有 root 都行，機器種類自動判斷。
-WSL 外面那層 Windows 也用同一個 repo，只管 PowerShell profile、Windows Terminal 與 `.wslconfig`，見[Windows 主機](docs/windows.md)。
+Windows 也用同一個 repo（WSL 的外層，或沒有 WSL 的開發機）：同一套用途與選單，CLI 用 mise、app 用 winget 裝，見[Windows 主機](docs/windows.md)。
 
 ![裝完之後開 terminal：fastfetch 印出系統資訊，進 repo 後 starship 提示列顯示 git 分支、eza 列表、rg 搜尋，最後一行打到一半有語法上色與灰字 autosuggestion](docs/demo/shell.png)
 
@@ -33,7 +33,7 @@ Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#�
 最常用的兩個：
 
 ```bash
-tools                                  # 改用途、加減選裝工具（Linux、macOS；Termux 沒有）；取消勾選不會解除安裝
+tools                                  # 改用途、加減選裝工具（每台都有，Windows 是 PowerShell 版）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 
@@ -122,7 +122,7 @@ docs/                           說明（見上面的文件索引）
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
   skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
-- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案，見[Windows 主機](docs/windows.md)；
+- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](docs/windows.md)；
   為什麼這樣分見 [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
 - chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 

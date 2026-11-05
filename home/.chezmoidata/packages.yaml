@@ -22,11 +22,24 @@ packages:
   # macOS,brew 的 formula 名(run_onchange_before_install-packages-darwin 交給 brew bundle)。
   # git、python3 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,只缺 jq
   # (macOS 15 起系統也有 /usr/bin/jq,舊版沒有)。brews 是 formula、casks 是 app,
-  # 照 chezmoi 官方 brew bundle 範例的結構;Homebrew 本身不由 chezmoi 裝(見 Runbook)。
+  # 照 chezmoi 官方 brew bundle 範例的結構(cask 改成一個一個 brew install --cask,失敗不中斷,見那支腳本);
+  # Homebrew 本身不由 chezmoi 裝(見 Runbook)。
   darwin:
     brews:
       - jq
     casks: []
+  # Windows 主機(#275),每台都裝。git、curl 這些 chezmoi 在 Windows 用不到(沒有 sh 腳本、modify_ 腳本)。
+  # winget:app 的 winget id(run_onchange_before_install-packages-windows)。mise 給 CLI 選裝工具用;
+  #   pwsh 7 與 Windows Terminal 是 profile、settings.json 設定的對象(Win11 內建 Terminal,裝過就跳過)。
+  # mise:mise 的工具名(.chezmoitemplates/mise-tools 一起列進 mise 清單)。zoxide 是 PowerShell profile 的 z,
+  #   等於 Linux 上 zsh 外掛的跳目錄:Windows 的 shell 一定是 PowerShell,不用勾。
+  windows:
+    winget:
+      - jdx.mise
+      - Microsoft.PowerShell
+      - Microsoft.WindowsTerminal
+    mise:
+      - zoxide
 
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt／pkg／brew 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理(macOS 是 install-packages-darwin)。
@@ -49,8 +62,9 @@ toolPackages:
     headless-chrome:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
-  # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
-  # eza、fzf、bat、ripgrep、starship、btop 在 Linux 一律由 mise 裝(下面 miseTools 的 always),Termux 走 pkg。
+  # 原生 Termux:termux-packages 主 repo 有的都走 pkg(Linux 上 eza、fzf 這些由 mise 裝,見下面 miseTools)。
+  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、tailscale、code-server、coding agent…)
+  # 在 .chezmoitemplates/tool-env 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
   termux:
     zsh:
       - zsh
@@ -66,8 +80,19 @@ toolPackages:
       - bat
     ripgrep:
       - ripgrep
-  # macOS 全部走 brew(一樣是 formula 名)。zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
-  # mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 不在 mac 的選單上。
+    fastfetch:
+      - fastfetch
+    gh:
+      - gh
+    ffmpeg:
+      - ffmpeg
+    ttyd:
+      - ttyd
+    cloudflared:
+      - cloudflared
+  # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),用 brew install --cask 裝。
+  # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
+  # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
   # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
   darwin:
@@ -91,15 +116,26 @@ toolPackages:
       - code-server
     ttyd:
       - ttyd
+    # 官方 app(cask tailscale-app,含選單列與 tailscaled)。formula 的 tailscale 只有 CLI 與 daemon,不是官方 app
+    tailscale:
+      casks:
+        - tailscale-app
+    cloudflared:
+      - cloudflared
     claude:
       - poppler
     ffmpeg:
       - ffmpeg
+  # Windows 主機:只列 app,值是 winget id(run_onchange_before_install-packages-windows)。
+  # CLI 一律走 mise(下面 miseTools,Windows 上不分 always,勾了就列);兩邊都沒有的在 tool-env 標裝不了。
+  windows:
+    tailscale:
+      - Tailscale.Tailscale
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
 # 判斷在 .chezmoitemplates/needs-node。
-#   node:選單上的 nvm＋Node LTS
+#   node:選單上的 Node LTS(Linux、macOS 用 nvm;Termux 用 pkg 的 nodejs-lts)
 #   codegraph、playwright-cli:npm 全域套件
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
@@ -109,14 +145,20 @@ nodeTools:
   - playwright-cli
   - opencode
   - wakatime
-# 勾了 nodeTools 其中一個時一起裝的系統套件(套件腳本只在 apt 那條路用;Termux、macOS 不用)。
-# nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
-# 基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+# 勾了 nodeTools 其中一個時一起裝的系統套件(macOS 不用)。
+# ubuntu:nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
+#   基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+# termux:Node 本身。nvm 的 Node 官方 binary 在 Android 跑不起來,改用 pkg 的 LTS 版、不跑 install-node。
+#   nodejs-lts 跟 nodejs、nodejs-current 互斥:已經有 node 指令(裝了其中一個)就不裝,見套件腳本
 nodePackages:
   ubuntu:
     - libatomic1
+  termux:
+    - nodejs-lts
 
-# Linux 由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
+# Linux 與 Windows 主機由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
+# Windows 沒有 apt,勾了就列,下面的 always 只對 Linux 有意義。mise 在 Windows 沒有的(btop 的 aqua 只有 Linux 版)
+# 在 .chezmoitemplates/tool-env 標裝不了。conda 那幾個(vim、ffmpeg)conda-forge 有 win-64。
 # 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。分兩種,看 mise 用什麼 backend 裝(#233):
 #   always: true —— GitHub release 的單一執行檔(aqua／github backend):不分有沒有 root 都用 mise,
 #                   也不看系統有沒有同名指令(Ubuntu 24.04 的 apt 有的太舊,例如 fzf 0.44 沒有 `fzf --zsh`)。
@@ -162,6 +204,11 @@ miseTools:
   ttyd:
     tool: ttyd                      # aqua:tsl0922/ttyd
     cmd: ttyd
+    always: true
+  # 官方也有 apt 源,但 GitHub release 就是單一執行檔:照 #231 的順序走 mise
+  cloudflared:
+    tool: cloudflared               # aqua:cloudflare/cloudflared
+    cmd: cloudflared
     always: true
   vim:
     tool: vim                       # conda:vim
