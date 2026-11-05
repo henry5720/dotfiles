@@ -179,13 +179,46 @@ class ToolEnvTest(unittest.TestCase):
         darwin = f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl"
         brew = self.render(MAC, darwin, ["tailscale", "eza"])
         self.assert_sh(brew)
-        self.assertIn('cask "tailscale-app"', brew.splitlines())
         self.assertIn('brew "eza"', brew.splitlines())
         self.assertNotIn('brew "tailscale', brew)
-        self.assertNotIn("cask ", self.render(MAC, darwin, ["eza"]))
+        self.assertIn("tailscale-app", brew)
+        self.assertNotIn("tailscale-app", self.render(MAC, darwin, ["eza"]))
         # Linux 的 installer 不在 mac 跑,也不記略過
         self.assertEqual(self.render(MAC, f"{SCRIPTS}/run_onchange_after_install-tailscale.sh.tmpl", ["tailscale"]).strip(), "")
         self.assertNotIn("skip_env", self.render(MAC, f"{SCRIPTS}/{RECORDER}", ["tailscale"]))
+
+    def run_darwin_packages(self, tools, failing_cask):
+        """在 Linux 上跑 mac 的套件腳本:假的 brew 記下收到的參數,裝 failing_cask 時失敗(像 app 已經從官網裝過)。"""
+        bindir = self.dir / "bin"
+        bindir.mkdir(exist_ok=True)
+        log = self.dir / "brew.log"
+        fake = bindir / "brew"
+        fake.write_text(f"""#!/bin/sh
+echo "$*" >> {log}
+fail() {{ echo "Error: It seems there is already an App at '/Applications/Tailscale.app'." >&2; exit 1; }}
+if [ "$1" = bundle ]; then
+  in=$(cat); echo "$in" >> {log}
+  case "$in" in *'cask "{failing_cask}"'*) fail;; esac
+fi
+case "$*" in *"--cask {failing_cask}"*) fail;; esac
+exit 0
+""", encoding="utf-8")
+        fake.chmod(0o755)
+        script = self.dir / "darwin.sh"
+        script.write_text(self.render(MAC, f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl", tools),
+                          encoding="utf-8")
+        env = {"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)}
+        run = subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True)
+        return run, log.read_text(encoding="utf-8")
+
+    def test_mac_cask_failure_is_skipped_and_apply_keeps_going(self):
+        # spec #271 user story 5:Tailscale.app 已經從官網或 App Store 裝過,brew 裝 cask 失敗,apply 照樣跑完
+        run, log = self.run_darwin_packages(["tailscale", "eza"], "tailscale-app")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn('brew "eza"', log)
+        self.assertIn("tailscale-app", log)
+        self.assertIn("略過 tailscale-app", run.stdout)
+        self.assertIn("/Applications", run.stdout)
 
     # ===============================================================
     # 裝不了的勾了:不裝、記進略過彙整,彙整分得出兩種原因

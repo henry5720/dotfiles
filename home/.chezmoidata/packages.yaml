@@ -22,7 +22,8 @@ packages:
   # macOS,brew 的 formula 名(run_onchange_before_install-packages-darwin 交給 brew bundle)。
   # git、python3 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,只缺 jq
   # (macOS 15 起系統也有 /usr/bin/jq,舊版沒有)。brews 是 formula、casks 是 app,
-  # 照 chezmoi 官方 brew bundle 範例的結構;Homebrew 本身不由 chezmoi 裝(見 Runbook)。
+  # 照 chezmoi 官方 brew bundle 範例的結構(cask 改成一個一個 brew install --cask,失敗不中斷,見那支腳本);
+  # Homebrew 本身不由 chezmoi 裝(見 Runbook)。
   darwin:
     brews:
       - jq
@@ -89,7 +90,7 @@ toolPackages:
       - ttyd
     cloudflared:
       - cloudflared
-  # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),交給 brew bundle 的 cask。
+  # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),用 brew install --cask 裝。
   # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
   # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。

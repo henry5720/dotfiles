@@ -9,6 +9,7 @@
 # - 名字帶 before_:跟 install-packages 一樣要在 modify_ 腳本之前跑完(它們要 jq)。
 # - shebang 用 sh(這個 repo 的規則);heredoc 在 sh 一樣能用。
 # - 找不到 brew 時直接停:Homebrew 是前置步驟(要管理員密碼、互動),不由 chezmoi 裝,見 docs/new-machine-setup.md。
+# - app(cask)不放進 brew bundle,一個一個 brew install --cask,失敗只印略過、不中斷(見第 3 步)。
 # run_onchange_:清單沒變就不會再跑;brew bundle 本身也只裝缺的。
 set -eu
 
@@ -23,7 +24,7 @@ command -v brew >/dev/null 2>&1 || {
   exit 1
 }
 
-# 2. 裝
+# 2. 裝 formula
 {{- /* toolPackages.darwin 的值是 formula 清單,或分 brews、casks 的 map(app 走 cask,例如 tailscale) */}}
 {{- $brews := .packages.darwin.brews }}
 {{- $casks := .packages.darwin.casks }}
@@ -40,8 +41,14 @@ brew bundle --file=/dev/stdin <<EOF
 {{ range $brews | uniq -}}
 brew {{ . | quote }}
 {{ end -}}
-{{ range $casks | uniq -}}
-cask {{ . | quote }}
-{{ end -}}
 EOF
+{{- /* app(cask)一個一個裝,失敗只印略過:同一個 app 從官網或 App Store 裝過時,brew 會因為
+       /Applications 已經有它而失敗,不能讓整個 apply 停下來(spec #271 user story 5)。
+       已經由 brew 裝過的 cask,brew install 只警告、exit 0。 */}}
+{{- range $casks | uniq }}
+
+# 3. 裝 app:{{ . }}
+brew install --cask {{ . | quote }} ||
+  echo "略過 {{ . }}(brew 裝不起來,常見原因是 /Applications 已經有同一個 app,例如從官網或 App Store 裝過):要 brew 管就先刪掉那份再 chezmoi apply,不用就取消勾選"
+{{- end }}
 {{ end -}}

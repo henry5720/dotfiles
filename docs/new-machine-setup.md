@@ -63,7 +63,8 @@ WSL2 另外做兩件事（都在 Windows 那側）：
    git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
 2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
-   已經從官網或 App Store 裝過的不要勾：brew 會因為 `/Applications/Tailscale.app` 已經在而失敗。
+   已經從官網或 App Store 裝過的不用勾：勾了 brew 會因為 `/Applications/Tailscale.app` 已經在而裝不起來，
+   apply 印一行「略過 tailscale-app」照樣跑完、其他套件照裝；要改由 brew 管就先刪掉那份 app 再 `chezmoi apply`。
 3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
 
 ### Windows 主機
