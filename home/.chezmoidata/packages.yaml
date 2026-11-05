@@ -67,7 +67,7 @@ toolPackages:
     ripgrep:
       - ripgrep
   # macOS 全部走 brew(一樣是 formula 名)。zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
-  # mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 不在 mac 的選單上。
+  # mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
   # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
   darwin:

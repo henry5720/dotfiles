@@ -1,0 +1,23 @@
+{{- /* 這台每個工具的狀態,輸出 JSON:{"工具": {"state": …, "label": "不建議|裝不了", "reason": …}}。
+       只列「不建議」「裝不了」的;不在裡面的就是可裝。資料與環境的定義在 tool-env。
+       用法:{{ $status := includeTemplate "tool-status" . | fromJson }}、(dig "<工具>" "state" "" $status) */ -}}
+{{- $envs := list .chezmoi.os -}}
+{{- if eq (includeTemplate "is-wsl" .) "true" }}{{ $envs = append $envs "wsl" }}{{ end -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{-   if ne .chezmoi.arch "amd64" }}{{ $envs = append $envs "non-amd64" }}{{ end -}}
+{{-   if not (includeTemplate "is-debian" .) }}{{ $envs = append $envs "non-debian" }}{{ end -}}
+{{- end -}}
+{{- $labels := dict "discouraged" "不建議" "unsupported" "裝不了" -}}
+{{- $out := dict -}}
+{{- range $tool, $rules := includeTemplate "tool-env" . | fromYaml -}}
+{{-   range $rules -}}
+{{-     if not (hasKey $labels .state) }}{{ fail (printf "tool-env:%s 的 state %q 不是 discouraged 或 unsupported" $tool .state) }}{{ end -}}
+{{-     $hit := false -}}
+{{-     range .when }}{{ if has . $envs }}{{ $hit = true }}{{ end }}{{ end -}}
+{{-     if $hit -}}
+{{-       $_ := set $out $tool (dict "state" .state "label" (get $labels .state) "reason" .reason) -}}
+{{-       break -}}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}
+{{- $out | toJson -}}

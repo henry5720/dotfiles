@@ -25,8 +25,9 @@ command -v brew >/dev/null 2>&1 || {
 
 # 2. 裝
 {{- $brews := .packages.darwin.brews }}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) }}
 {{- range $tool, $tp := .toolPackages.darwin }}
-{{-   if has $tool (index $ "tools") }}{{ $brews = concat $brews $tp }}{{ end }}
+{{-   if has $tool $installing }}{{ $brews = concat $brews $tp }}{{ end }}
 {{- end }}
 brew bundle --file=/dev/stdin <<EOF
 {{ range $brews | uniq -}}

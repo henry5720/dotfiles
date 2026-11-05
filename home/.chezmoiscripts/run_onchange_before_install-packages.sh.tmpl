@@ -2,7 +2,8 @@
 #!{{ lookPath "sh" }}
 # 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages;Termux 的 tools 是自動帶入的)。
+# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages;Termux 的 tools 是自動帶入的);
+# 這台裝不了的不裝(.chezmoitemplates/tools-to-install)。
 #
 # 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
 # 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
@@ -19,8 +20,9 @@ missing=""
 {{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ $toolPkgs = .toolPackages.termux }}{{ end }}
 {{- /* 沒有 root 時,miseTools 列的選裝工具改由 mise 裝到家目錄(run_onchange_after_install-mise),這裡不算缺 */}}
 {{- $mise := includeTemplate "use-mise" . }}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) }}
 {{- range $tool, $tp := $toolPkgs }}
-{{-   if and (has $tool (index $ "tools")) (not (and $mise (hasKey $.miseTools $tool))) }}{{ $pkgs = concat $pkgs $tp }}{{ end }}
+{{-   if and (has $tool $installing) (not (and $mise (hasKey $.miseTools $tool))) }}{{ $pkgs = concat $pkgs $tp }}{{ end }}
 {{- end }}
 {{- /* 勾了要 Node 的工具:nvm 裝的 Node 官方 binary 要 libatomic.so.1(.chezmoitemplates/needs-node) */}}
 {{- if and (ne .chezmoi.os "android") (includeTemplate "needs-node" .) }}{{ $pkgs = concat $pkgs .nodePackages.ubuntu }}{{ end }}

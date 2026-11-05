@@ -1,16 +1,26 @@
-{{- if and (eq .chezmoi.os "linux") (not (includeTemplate "has-root" .)) -}}
+{{- if or (and (eq .chezmoi.os "linux") (not (includeTemplate "has-root" .))) (includeTemplate "tools-skipped" .) -}}
 #!{{ lookPath "sh" }}
-# 沒有 root 的機器才有這支(有 root 的機器渲染成空的,chezmoi diff／status 不會一直看到它)。
-# 各腳本用 skip_root(.chezmoitemplates/sh-skip)略過要 root 的步驟時,會把「略過什麼、手動怎麼做」
-# 記進 ~/.local/state/dotfiles/root-skipped;這支在 apply 最後印一次彙整再刪掉。
+# 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
+# (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoitemplates/tool-env)
+#   root-skipped  沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
 # 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
 # run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
 set -eu
 
-f="$HOME/.local/state/dotfiles/root-skipped"
-[ -s "$f" ] || exit 0
-echo
-echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
-cat "$f"
-rm -f "$f"
+d="$HOME/.local/state/dotfiles"
+if [ -s "$d/env-skipped" ]; then
+  echo
+  echo "== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):"
+  cat "$d/env-skipped"
+fi
+rm -f "$d/env-skipped"
+if [ -s "$d/root-skipped" ]; then
+  echo
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  cat "$d/root-skipped"
+fi
+rm -f "$d/root-skipped"
 {{ end -}}

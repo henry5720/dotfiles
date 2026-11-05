@@ -1,0 +1,10 @@
+{{- /* 要裝的選裝工具:勾了的(.tools)扣掉這台裝不了的(tools-skipped),空白分隔。
+       選裝工具的腳本、套件清單一律看它,不直接看 .tools:裝不了的勾了就安靜不裝,交給略過彙整。
+       用法:{{ if has "<工具>" (splitList " " (includeTemplate "tools-to-install" .)) }}
+       設定檔(.chezmoiignore 決定部署哪些設定)照舊看 .tools。 */ -}}
+{{- $skipped := splitList " " (includeTemplate "tools-skipped" .) -}}
+{{- $out := list -}}
+{{- range index . "tools" -}}
+{{-   if not (has . $skipped) }}{{ $out = append $out . }}{{ end -}}
+{{- end -}}
+{{- $out | join " " -}}

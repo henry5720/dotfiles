@@ -1,0 +1,8 @@
+{{- /* 勾了、但這台裝不了的工具(tool-env 的 unsupported),空白分隔;沒有就是空字串。
+       run_onchange_after_record-env-skipped 記進略過彙整,run_after_zz-root-skipped-summary 看它決定要不要渲染。 */ -}}
+{{- $status := includeTemplate "tool-status" . | fromJson -}}
+{{- $out := list -}}
+{{- range index . "tools" -}}
+{{-   if eq (dig . "state" "" $status) "unsupported" }}{{ $out = append $out . }}{{ end -}}
+{{- end -}}
+{{- $out | join " " -}}

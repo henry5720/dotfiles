@@ -2,7 +2,7 @@
        .chezmoi.toml.tmpl 照這個順序出選單(選單上顯示「工具名 + 說明」,存進 tools 的只有工具名);
        script/tests/e2e.sh 也讀這份組出選單上的文字。
        說明從「用哪個工具做」寫起;不要用 /(e2e 的 --promptMultichoice 拿它分隔選項)。
-       哪些機器不列哪幾項(WSL、ARM)寫在 .chezmoi.toml.tmpl。 */ -}}
+       每台都列全部;哪些環境不建議或裝不了、原因是什麼寫在 tool-env,排版(含原因標註)在 tool-menu-labels。 */ -}}
 zsh zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell
 starship 提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定
 eza 彩色、帶圖示的 ls(ll、la、lt 用它)

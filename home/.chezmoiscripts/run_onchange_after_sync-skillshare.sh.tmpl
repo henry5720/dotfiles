@@ -1,4 +1,4 @@
-{{- if has "agent-config" (index . "tools") -}}
+{{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # config.yaml 釘的 targets、extras 兩段(.chezmoitemplates/skillshare-pinned,照勾的 client 產生)
 # 或 modify_config.yaml.tmpl 本身改了,就讓 skillshare 照新的設定重新同步。

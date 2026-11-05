@@ -4,6 +4,7 @@
 #
 # 用法:
 #   bash script/tests/e2e.sh [ubuntu|termux|noroot]     # 預設 ubuntu;noroot = 沒有 root 的 Ubuntu
+# 主機要有 docker、chezmoi、python3(選單文字在主機上渲染,見 menu_labels)。
 #
 # 環境變數:
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
@@ -253,13 +254,31 @@ use_choice() {  # use_choice minimal → --promptChoice 的值(…=m)
   echo "$USE_PROMPT=$l"
 }
 TOOLS_PROMPT='選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）'
-# 選單上的選項是「工具名 + 說明」(home/.chezmoitemplates/tool-menu),--promptMultichoice 要給這串。
-# menu_choice a/b → 「$TOOLS_PROMPT=a 的選單文字/b 的選單文字」;排版要跟 .chezmoi.toml.tmpl 的 printf 一樣。
+# 選單上的選項是「工具名 + 說明」,這台不建議／裝不了的後面再標原因,--promptMultichoice 要給這串。
+# 排版與標註只寫在 home/.chezmoitemplates/tool-menu-labels:在主機上用主機的 chezmoi 渲染它
+# (第一次 init 時容器裡還沒有 chezmoi)。環境先釘成容器的(amd64、非 WSL 的 Ubuntu),
+# 主機自己是 WSL 或 ARM 也不影響;要模擬別的環境就給第二個參數,跟 --override-data 一樣的 JSON。
+CTR_ENV='{"chezmoi":{"os":"linux","arch":"amd64","kernel":{"osrelease":"6.8.0-e2e"},"osRelease":{"id":"ubuntu","idLike":"debian"}}}'
+menu_labels() {  # menu_labels [override-json] → 選單上每一行
+  local env
+  env=$(python3 -c '
+import json, sys
+def merge(a, b):
+    for k, v in b.items():
+        a[k] = merge(a[k], v) if isinstance(v, dict) and isinstance(a.get(k), dict) else v
+    return a
+print(json.dumps(merge(json.loads(sys.argv[1]), json.loads(sys.argv[2] or "{}"))))' "$CTR_ENV" "${1:-}") || return 1
+  # --config 指向不存在的檔:不讀主機自己的 chezmoi 設定
+  chezmoi --source "$REPO" --config "${TMPDIR:-/tmp}/dotfiles-e2e-no-config.toml" --no-tty execute-template \
+    --override-data "$env" '{{ includeTemplate "tool-menu-labels" . }}'
+}
+# menu_choice a/b [override-json] → 「$TOOLS_PROMPT=a 的選單文字/b 的選單文字」
 menu_choice() {
-  local t out=() line
+  local t out=() line labels
+  labels=$(menu_labels "${2:-}") || { echo "渲染選單失敗" >&2; return 1; }
   for t in ${1//\// }; do
-    line=$(grep -m1 "^$t " "$REPO/home/.chezmoitemplates/tool-menu") || { echo "tool-menu 沒有 $t" >&2; return 1; }
-    out+=("$(printf '%-16s %s' "$t" "${line#"$t "}")")
+    line=$(grep -m1 "^$t " <<<"$labels") || { echo "選單沒有 $t" >&2; return 1; }
+    out+=("$line")
   done
   (IFS=/; echo "$TOOLS_PROMPT=${out[*]}")
 }
@@ -753,11 +772,12 @@ scenario_ubuntu() {
   check "android 上沒有任何選裝工具的腳本會跑" \
     "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
 
-  # WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260),選單不列 headless Chrome。
-  # 用 --override-data 蓋 kernel.osrelease 模擬 WSL;--config 指向不存在的檔,
-  # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:不在選單上的會報 invalid choice。
-  bold "▶ (渲染)WSL 選單不列 headless Chrome、playwright-cli"
-  local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
+  # 選單每台列全部工具(#272)。WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260)、Google 只出 amd64 的 .deb:
+  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoitemplates/tool-env),預設組合不勾,勾了照存、apply 時略過。
+  # 用 --override-data 蓋 kernel.osrelease 模擬 WSL、arch 模擬 ARM;--config 指向不存在的檔,
+  # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:選單文字對不上會報 invalid choice。
+  bold "▶ (渲染)WSL、ARM 選單照列 headless Chrome、playwright-cli,標裝不了"
+  local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' arm='{"chezmoi":{"arch":"arm64"}}'
   # 加引號:~ 要留到容器裡才展開(容器的家目錄是 /home/ubuntu,不是跑 e2e 這台的)
   local tmpl='~/.local/share/chezmoi/home' scripts='~/.local/share/chezmoi/home/.chezmoiscripts'
   check "沒給旗標 = 用途預設精簡、選單勾精簡那九項" \
@@ -766,23 +786,39 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/fresh-linux.toml execute-template --init --no-tty $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome/playwright-cli)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"playwright-cli\"'"
   check "WSL 的選單照常列 AI 工具" \
     "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice agent-config)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"agent-config\"'"
-  for t in headless-chrome playwright-cli; do
-    check "WSL 的選單沒有 $t(勾了會報 invalid choice)" \
-      "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice $t)") < $tmpl/.chezmoi.toml.tmpl 2>&1 | grep -q 'invalid choice'"
+  local ov label
+  for ov in "$wsl" "$arm"; do
+    for t in headless-chrome playwright-cli; do
+      label=$(menu_choice "$t" "$ov")
+      check "$ov 的選單列 $t、標裝不了與原因,勾了照存" \
+        "grep -q '（裝不了：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list "$t")'"
+    done
   done
+  check "(對照)非 WSL 的 amd64 選單沒有任何標註" "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$(menu_labels)")"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
   check "WSL 上就算 tools 裡有 playwright-cli,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
+  local wsl_hc='{"tools":["headless-chrome","fzf"],"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
+  check "WSL 勾了 headless-chrome:略過腳本只記它與原因、彙整腳本(有 root 也)渲染出來,語法對" \
+    "chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/rec.sh && sh -n /tmp/rec.sh && [ \"\$(grep -c '^skip_env ' /tmp/rec.sh)\" = 1 ] && grep -q \"^skip_env 'headless-chrome' '.*WSL\" /tmp/rec.sh && chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum.sh && sh -n /tmp/sum.sh && grep -q 這台裝不了 /tmp/sum.sh"
+  check "(對照)沒有裝不了的勾選:略過腳本、有 root 時的彙整腳本都渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl | tr -d '[:space:]')\" ] && [ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | tr -d '[:space:]')\" ]"
+  # 真的 apply 一次(#272):WSL 勾一個裝不了的 headless-chrome,apply 照樣 exit 0,最後列出略過與原因。
+  # 用另一份 config、目的地、狀態檔,不動這台主要的那份;腳本照樣在這台跑(彙整檔在真的 $HOME)。
+  # 只勾 headless-chrome:其他選裝腳本都不跑,套件腳本的基底前面已經裝好、不用連網。
+  check "WSL 勾 headless-chrome 跑 init --apply:exit 0,彙整列出它和原因,有 root 那段不出現" \
+    "mkdir -p /tmp/wsl-home && chezmoi init --apply --config /tmp/wsl-apply.toml --destination /tmp/wsl-home --persistent-state /tmp/wsl-apply.boltdb --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome "$wsl")") > /tmp/wsl-apply.log 2>&1; rc=\$?; tail -n 8 /tmp/wsl-apply.log; [ \$rc = 0 ] && grep -qxF '$(toml_list headless-chrome)' /tmp/wsl-apply.toml && sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' /tmp/wsl-apply.log | grep -q -- '^- headless-chrome:WSL' && ! grep -q '^== 沒有 root' /tmp/wsl-apply.log && [ ! -e ~/.local/state/dotfiles/env-skipped ]"
 
   # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
   bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部(不列 headless-chrome、playwright-cli)" \
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli" \
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "${FULL_TOOLS/\/headless-chrome\/playwright-cli/}")' /tmp/fedora.toml"
-  check "非 Debian 系的選單沒有 headless-chrome(勾了會報 invalid choice)" \
-    "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptMultichoice "$(menu_choice headless-chrome)") 2>&1 | grep -q 'invalid choice'"
+  label=$(menu_choice headless-chrome "$fedora")
+  check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
+    "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptMultichoice "$label") | grep -qxF '$(toml_list headless-chrome)'"
   check "非 Debian 系有 tools 指令可以重出選單" \
     "chezmoi execute-template --override-data '$fedora' < $tmpl/dot_local/bin/executable_tools.tmpl | grep -q 'chezmoi init --prompt'"
   # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 vim,ffmpeg 沒勾、沒裝。btop 是單一執行檔(always),不看系統
@@ -814,7 +850,7 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
-  bold "▶ (渲染)macOS 出用途選單、沒有 tailscale,套件走 brew bundle"
+  bold "▶ (渲染)macOS 出用途選單、tailscale 標裝不了,套件走 brew bundle"
   local mac='{"chezmoi":{"os":"darwin"}}'
   local mac_full=${FULL_TOOLS/\/tailscale\///}; mac_full=${mac_full/\/headless-chrome\/playwright-cli/}
   check "macOS 選完整、選單不改:存完整,tools 是選單上全部(沒有 tailscale、headless-chrome、playwright-cli)" \
@@ -822,8 +858,9 @@ scenario_ubuntu() {
   check "macOS 選精簡:精簡濾掉 tailscale" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/starship/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
   for t in tailscale headless-chrome playwright-cli; do
-    check "macOS 的選單沒有 $t(勾了會報 invalid choice)" \
-      "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$(menu_choice $t)") 2>&1 | grep -q 'invalid choice'"
+    label=$(menu_choice "$t" "$mac")
+    check "macOS 的選單列 $t、標裝不了,勾了照存" \
+      "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list "$t")'"
   done
   local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr"]}'
   check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,語法對" \
@@ -836,10 +873,12 @@ scenario_ubuntu() {
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-mise \
            run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
-           run_onchange_after_npm-install-playwright-cli run_after_zz-root-skipped-summary; do
-    check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell)" \
+           run_onchange_after_npm-install-playwright-cli run_onchange_after_install-tailscale; do
+    check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
+  check "macOS 勾了裝不了的(tailscale、headless-chrome、playwright-cli):略過腳本列這三項,彙整腳本渲染出來" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'headless-chrome playwright-cli tailscale' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \
     "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
   check "macOS 部署 tools 指令" \
@@ -1124,7 +1163,7 @@ SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
 # 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
 # 情境就是用途(精簡、完整),跟免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
-# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,選單全列)。
+# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,沒有不建議或裝不了的)。
 noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
   step "沒有 sudo(command -v sudo 失敗)" "! command -v sudo"

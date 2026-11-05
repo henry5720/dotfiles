@@ -7,7 +7,7 @@
 
 | 用途 | 代號 | 給誰 | 預設勾哪些 |
 |---|---|---|---|
-| 完整 | `full` | 開發主力機 | 選單上全部（WSL、非 amd64、非 Debian 系本來就不列 `headless-chrome`、`playwright-cli`；macOS 另外不列 `tailscale`） |
+| 完整 | `full` | 開發主力機 | 選單上全部，扣掉這台不建議、裝不了的（見下面〈環境〉） |
 | 精簡 | `minimal` | ssh viewer、server | zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop |
 | 自訂 | `custom` | 有特殊需求 | 都不勾，自己選 |
 
@@ -26,6 +26,21 @@
 
 選項清單與每一項的說明在 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)，
 用途的預設組合在 [`home/.chezmoi.toml.tmpl`](../home/.chezmoi.toml.tmpl) 的 `$lean`。
+
+## 環境：不建議、裝不了
+
+選單每台都列全部工具。這台環境不建議或裝不了的，說明後面標原因，例如
+`headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）`：
+
+| 狀態 | 預設組合 | 勾了 |
+|---|---|---|
+| 可裝 | 照用途 | 裝 |
+| 不建議 | 不勾 | 照裝 |
+| 裝不了 | 不勾 | 略過；apply 照樣跑完，最後跟「沒有 root」分開列出略過了哪些、為什麼 |
+
+目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`，macOS 的 `tailscale`
+（照 Runbook 裝官方 app）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
+[`home/.chezmoitemplates/tool-env`](../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
 
 ## 憑證
 

@@ -1,0 +1,42 @@
+{{- /* 工具 × 環境 → 狀態與原因。原因只寫在這裡:選單標註、預設組合、略過彙整都從這裡拿(經 tool-status)。
+       沒列的工具在每個環境都是「可裝」。狀態只有三種(GLOSSARY「環境」):
+         discouraged 不建議:選單標原因、預設組合不勾,勾了照裝
+         unsupported 裝不了:選單標原因、預設組合不勾,勾了略過,apply 最後由 run_after_zz-root-skipped-summary 列出原因
+       格式(YAML):工具名底下一串規則,由上往下比,第一條 when 對到這台的就是它的狀態;when 對到任一個環境就算:
+         <工具>:
+           - when: [<環境>…]
+             state: discouraged|unsupported
+             reason: <原因>
+       環境(在 tool-status 判斷,全部來自 .chezmoi.*,e2e 用 --override-data 模擬):
+         linux、darwin、android、windows  .chezmoi.os
+         wsl         is-wsl
+         non-amd64   linux 且 .chezmoi.arch 不是 amd64(例如平板上的 proot Ubuntu)
+         non-debian  linux 且不是 Debian 系(is-debian)
+       要新的環境(例如 proot)就在 tool-status 加一個判斷,再加到上面這張表。
+       原因不能用半形 /(e2e 的 --promptMultichoice 拿它分隔選項)、不能有 '(略過的腳本用單引號包它),
+       用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
+       這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
+headless-chrome:
+  - when: [darwin]
+    state: unsupported
+    reason: 這裡裝的是 Google 給 Linux 的 .deb
+  - when: [android]
+    state: unsupported
+    reason: 原生 Termux 裝不了 Google 的 .deb
+  - when: [wsl]
+    state: unsupported
+    reason: WSL 不裝 Linux 的 Chrome，查原因到遠端主機做
+  - when: [non-amd64]
+    state: unsupported
+    reason: Google 只出 amd64 的 .deb
+  - when: [non-debian]
+    state: unsupported
+    reason: .deb 只能裝在 Debian 系
+playwright-cli:
+  - when: [darwin, android, wsl, non-amd64, non-debian]
+    state: unsupported
+    reason: 它用 headless-chrome，這台裝不了 headless-chrome
+tailscale:
+  - when: [darwin]
+    state: unsupported
+    reason: macOS 照 Runbook 裝官方 app

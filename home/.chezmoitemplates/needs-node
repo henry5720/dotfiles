@@ -1,6 +1,7 @@
-{{- /* 這台有沒有勾 node 或要 Node 的選裝工具:有就輸出 true,否則空字串。用法:{{ if includeTemplate "needs-node" . }}
+{{- /* 這台有沒有勾 node 或要 Node 的選裝工具(這台裝不了的不算,見 tools-to-install):有就輸出 true,否則空字串。用法:{{ if includeTemplate "needs-node" . }}
        清單是 .chezmoidata/packages.yaml 的 nodeTools(為什麼要 Node 也寫在那裡)。
        install-node 照它決定裝不裝 nvm 與 Node,套件腳本照它加 nodePackages(libatomic1)。 */ -}}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- range .nodeTools -}}
-{{-   if has . (index $ "tools") }}true{{ break }}{{ end -}}
+{{-   if has . $installing }}true{{ break }}{{ end -}}
 {{- end -}}

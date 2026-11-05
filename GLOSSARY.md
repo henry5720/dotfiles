@@ -119,12 +119,12 @@ _Avoid_: 外掛、optional packages、模組
 _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 
 **預設組合**:
-一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。這台不支援的項目（WSL、ARM 的 headless-chrome、playwright-cli）不算在內。
+一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。都扣掉這台環境「不建議」和「裝不了」的工具（例如 WSL、ARM 的 headless-chrome、playwright-cli）；判斷有沒有改過勾選也用扣完的組合比。
 _Avoid_: preset、套餐
 
 **環境**:
-機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及哪些選裝工具在這台不列。跟用途分開。
-_Avoid_: 用途（兩者是分開的）、機器類型
+機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及每個選裝工具在這台是可裝、不建議還是裝不了。選單每台都列全部工具，不建議、裝不了的標原因、預設不勾；不建議的勾了照裝，裝不了的勾了就略過，apply 最後列出原因。狀態與原因寫在 `home/.chezmoitemplates/tool-env`。跟用途分開。
+_Avoid_: 用途（兩者是分開的）、機器類型；「不支援」「不列」（現在是列出來、標裝不了）
 
 **Windows 主機**:
 WSL 外面那層 Windows，由 Windows 原生 chezmoi 管，只管 shell 體驗（PowerShell、Windows Terminal、字型、`.wslconfig`）。跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。
