@@ -1,5 +1,5 @@
 {{- /* 這台選單上的每一行,一行一項、照 tool-menu 的順序:「工具名(補到 16 寬) 說明」,
-       不建議／裝不了的後面加「（裝不了：原因）」(原因在 tool-env)。
+       不建議／裝不了的後面加「（<label>：原因）」,label 是「不建議」或「裝不了」(兩者都在 tool-env)。
        .chezmoi.toml.tmpl 拿它出選單;script/tests/e2e.sh 的 menu_choice 也渲染它組 --promptMultichoice 的值,排版只寫在這裡。 */ -}}
 {{- $status := includeTemplate "tool-status" . | fromJson -}}
 {{- range splitList "\n" (includeTemplate "tool-menu" .) -}}
