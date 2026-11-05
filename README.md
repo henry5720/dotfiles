@@ -18,7 +18,8 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 ![打上面那行、選用途、在選單勾幾項、裝完](docs/demo/menu.gif)
 
 會問用途（完整／精簡／自訂）和要勾哪些選裝工具；勾到要憑證的工具才問憑證。clone 走 HTTPS，不用 key。
-macOS、Termux、Windows 主機、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)。
+macOS、Windows 主機、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)；
+Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#平板原生-termux-與-proot-ubuntu)。
 
 ## 裝完之後
 
