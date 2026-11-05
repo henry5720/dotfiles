@@ -39,9 +39,133 @@
 各 app 用哪一種、要注意什麼，看 app 自己的文件：
 
 - [code-server 遠端存取](code-server-remote.md)：憑證怎麼選（A–E 方案）
-- [看 agent 的瀏覽器](browser-via-ec2.md)：port、token、`-L`／`-R` 怎麼讀
+- [看 agent 的瀏覽器](browser-via-ec2.md)：port、token、什麼情況要你開哪一條
 
 `tailscale serve` 只開給 tailnet，跟 Funnel 不同，可以用 `--bg` 長駐（code-server 就是這樣）。
+
+### ssh 轉發怎麼讀
+
+三個旗標就夠用：
+
+| 旗標 | 意思 |
+|---|---|
+| `-N` | 只開通道、不開 shell。視窗會停住不動是正常的，**開著別關**；用完按 Ctrl-C。 |
+| `-L` | 本地轉發：**你這台**的 port 接到那台的 port。用來在你的瀏覽器看那台上的東西。 |
+| `-R` | 遠端轉發：**那台**的 port 接回你這台。用來讓那台借你這台的網路或 Chrome。 |
+
+```
+ssh -N -L 127.0.0.1:9377:127.0.0.1:9377 company-ec2
+          └─ 你這台聽哪裡 ─┘└─ 到了那台後連哪裡 ─┘
+
+   個人電腦                               company-ec2
+   瀏覽器 → 127.0.0.1:9377 ══ssh══▶ 127.0.0.1:9377（agent 的畫面）
+
+ssh -N -R 127.0.0.1:1080 company-ec2    （只寫一個 port、不寫目的地 = 反向 SOCKS proxy）
+
+   個人電腦                               company-ec2
+   你的網路 → 網站 ◀══ssh══ 127.0.0.1:1080 ← headless 瀏覽器帶 proxy
+```
+
+- **一定寫 `127.0.0.1`**：只讓同一台的程式連得到。被轉發的服務多半沒有驗證，聽 `0.0.0.0` 等於開給整個網路。
+- **一個 port 同時只能一條**：同一個 port 在兩個視窗（或兩台電腦）各開一條，第二條會失敗。
+  加 `-o ExitOnForwardFailure=yes` 時搶不到就直接結束、印出錯誤，不會默默連上卻沒有轉發。
+- **一般的 `ssh company-ec2` 不帶任何轉發**：每條連線都帶的話，你開第二個視窗就搶不到 port。
+  要轉發時另開一個別名，用完就關。
+- Windows 內建的 OpenSSH 用法一樣。
+
+dotfiles 部署的 `~/.ssh/config` 帶了這幾個轉發別名；沒有這份設定的機器（例如 Windows 的 PowerShell）打右邊的完整指令：
+
+| 別名 | 等於 | 給誰用 |
+|---|---|---|
+| `ssh -N company-ec2-attach` | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：接你本人的 Chrome |
+| `ssh -N company-ec2-socks` | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：借你的網路 |
+| `ssh phone` | `Host phone` 的 `LocalForward 8080 localhost:8080`（Termux sshd，port 8022） | [code-server](code-server-remote.md)：連 phone 上的 code-server |
+
+`LocalForward` 左邊在**執行 ssh 的那台**開 port，右邊的 `localhost` 在**那台**上解析。
+連線中要臨時加 port：換行後按 `~C`，輸入 `-L 5173:localhost:5173`。
+
+### ssh 轉發連不上
+
+| 現象 | 原因 | 怎麼查、怎麼處理 |
+|---|---|---|
+| ssh 一開就結束，訊息有 `Address already in use` | 你這台的這個 port 被別的程式或另一個 ssh 視窗佔著 | Linux：`ss -ltnp \| grep <port>`；Windows：`netstat -ano \| findstr <port>`。把舊的 ssh 視窗關掉 |
+| ssh 一開就結束，訊息有 `remote port forwarding failed` | 那台上的 port 被佔著，通常是你另一台電腦還開著 | 關掉另一台的 ssh；或在那台用 `ss -ltnp \| grep <port>` 查 |
+| 瀏覽器開 `127.0.0.1:<port>` 連不上 | ssh 沒開或已經斷線 | 確認 ssh 視窗還停著；斷了就重開 |
+| 開得到但是空白、一直轉圈，ssh 視窗印 `channel … open failed` | 那台的 port 上沒有程式在聽 | 回 app 的文件，確認 server 起了、port 對 |
+
+### tailscale serve
+
+給 tailnet 內的裝置一個帶真憑證的網址，app 不用改設定，tailscale 在前面當反向代理並終結 TLS：
+
+```bash
+tailscale serve --bg --https=443 <port>     # 設一次就常駐
+tailscale serve status                      # 確認，順便看到完整網址
+tailscale serve --https=443 off             # 撤掉
+```
+
+之後 tailnet 裡任何裝置的瀏覽器開 `tailscale serve status` 印的網址（`https://<機器>.<tailnet>.ts.net`，不用打 port）。
+前提是 admin console 開了 MagicDNS 和 HTTPS Certificates（Settings → DNS）。
+Android 的 Tailscale app 沒有 CLI，手機上開不了 serve。
+
+> ⚠️ **listener 不能跟後端同一個 port**（別寫成 `--https=8080 8080`）。
+> WSL 用 `networkingMode=mirrored` 時 Windows 和 WSL **共用 port 空間**：Windows 的 tailscaled 一綁
+> `<tailnet IP>:8080`，WSL 這邊 `bind 127.0.0.1:8080` 就會拿到
+> `[Errno 98] Address already in use`，app 根本起不來。listener 走 443、後端走 app 的 port 就錯開了。
+
+#### Windows／WSL：serve 設在哪個節點
+
+WSL 可能有自己的 tailscale 節點，Windows 也有一個。下面的節點名稱、IP、介面只是作者機器曾經觀察到的範例，
+**不可當成通用設定**。先在 Windows 和 WSL 各查一次：
+
+```powershell
+tailscale status
+tailscale serve status
+```
+
+```bash
+ip addr
+```
+
+作者的 henry-desktop、henry-laptop 都把 serve 設在 **Windows** 節點（Windows PowerShell 跑上面的 serve 指令，不用系統管理員權限），
+app 在 WSL 裡綁 `127.0.0.1`，靠 mirrored networking 跨進 WSL：
+
+```
+tailnet 裡的瀏覽器 ──https :443──► Windows tailscaled（終結 TLS）
+                                    └─proxy 127.0.0.1:<port>，mirrored 跨進 WSL──► WSL 裡的 app
+```
+
+> ⚠️ **從 WSL 裡打那個網址會 timeout，那是正常的，不是設定壞了。**
+> WSL 有自己的 tailscale 節點，從它去連同一台實體機器上的 Windows 節點是自我參照的路徑，
+> 不會通。要在本機驗證就直接打 `curl -I http://127.0.0.1:<port>`，
+> 或從 Windows 側跑 `curl.exe --noproxy '*' https://<機器>.<tailnet>.ts.net`。
+
+> ⚠️ 用 PowerShell 的 `Invoke-WebRequest` 測會失敗，但那不是服務的問題 ——
+> `.wslconfig` 有 `autoProxy=true`，Windows 的代理設定被同步過來，`Invoke-WebRequest`
+> 會照系統代理走而連不到 localhost。測試一律加 `--noproxy '*'`（curl）或直接用 TCP 連線。
+
+#### WSL 那個節點要不要留
+
+打算收掉、統一走 Windows 節點的話，先確認 `.ssh/config` 裡的 Host 還連得到 ——
+作者過去觀測到它們透過 **WSL 自己的 tailscaled**（tailnet IP）連通，這不是普遍現況，以 `ssh <host>` 和 `tailscale status` 查到的為準。
+
+作者過去的 `/etc/resolv.conf` 曾指向 `100.100.100.100`（MagicDNS），也由 WSL tailscaled 提供；
+作者曾實測把來源位址強制指到 `eth1`（Windows 節點那條）**連不通**，
+所以「鏡射進來的介面有路由」不等於「traffic 走得通」。
+
+不要在依賴這條連線的遠端 session 執行停止；先填好目標資料，並確保本機可恢復，再關掉前這樣試：
+
+```bash
+sudo systemctl stop tailscaled
+target_ip='<查到的 tailnet IP>'
+magic_dns_name='<查到的 MagicDNS 主機名>'
+timeout 6 bash -c 'exec 3<>/dev/tcp/'"$target_ip"'/22 && echo OK'
+getent hosts "$magic_dns_name"
+```
+
+`Connection refused` 也算通 —— 代表封包有到對方，只是那個 port 沒服務；`timeout` 才是不通。
+
+通了就 `sudo systemctl disable --now tailscaled`。不通的話，要嘛保留 WSL 這個節點（它其實不礙事），
+要嘛把那些 Host 改走 Windows 的 ssh。serve 設在 Windows 節點上的 app 不受影響。
 
 ## tailnet 外
 

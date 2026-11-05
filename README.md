@@ -70,9 +70,9 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [看 agent 的瀏覽器](docs/browser-via-ec2.md) | agent 請你開 ssh 轉發時：看畫面、接手登入、借你的網路或 Chrome；`ssh -N`／`-L`／`-R` 怎麼讀、連不上怎麼查 |
+| [看 agent 的瀏覽器](docs/browser-via-ec2.md) | agent 請你開 ssh 轉發時：看畫面、接手登入、借你的網路或 Chrome；各自的 port、token、收掉什麼 |
 | [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
-| [開給別人連](docs/remote-access.md) | 把一個 port 開給別人連：tailnet 內走 ssh／`tailscale serve`，tailnet 外用 Funnel 或 quick tunnel；含 share-shell、dev server |
+| [開給別人連](docs/remote-access.md) | 把一個 port 開給別人連：tailnet 內走 ssh／`tailscale serve`（ssh 轉發怎麼讀、連不上怎麼查），tailnet 外用 Funnel 或 quick tunnel；含 share-shell、dev server |
 
 **背景與決策**
 
