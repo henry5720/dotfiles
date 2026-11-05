@@ -146,6 +146,7 @@ class WindowsDeployTest(unittest.TestCase):
         # 中文訊息用 base64 放進腳本(渲染結果只能有 ASCII,見下一個測試)
         decoded = "\n".join(base64.b64decode(b).decode("utf-8")
                             for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
+        self.assertIn("== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):", decoded)
         self.assertIn("claude", decoded)
         self.assertIn("安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝", decoded)
         self.assertIn("zsh", decoded)

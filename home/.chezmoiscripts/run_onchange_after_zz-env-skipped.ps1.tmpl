@@ -9,7 +9,7 @@
 {{- $status := includeTemplate "tool-status" . | fromJson -}}
 {{ includeTemplate "ps1-text" . }}
 Write-Host ''
-Write-Host (T '{{ "== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):" | b64enc }}')
+Write-Host (T '{{ includeTemplate "env-skipped-header" . | trim | b64enc }}')
 {{- range splitList " " $skipped }}
 Write-Host (T '{{ printf "- %s:%s" . (dig . "reason" "" $status) | b64enc }}')
 {{- end }}

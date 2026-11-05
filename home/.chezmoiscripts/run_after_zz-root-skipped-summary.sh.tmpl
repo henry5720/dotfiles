@@ -13,7 +13,7 @@ set -eu
 d="$HOME/.local/state/dotfiles"
 if [ -s "$d/env-skipped" ]; then
   echo
-  echo "== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):"
+  echo '{{ includeTemplate "env-skipped-header" . | trim }}'
   cat "$d/env-skipped"
 fi
 rm -f "$d/env-skipped"
