@@ -187,10 +187,14 @@ Windows 原生的 tailscale 開 Funnel **未實測**。
 sudo tailscale funnel --https=10000 <port>     # 不加 --bg，Ctrl+C 就撤
 ```
 
+**對外 port 選哪個**：Funnel 只能聽 443、8443、10000，三個都能用，挑那台 `tailscale funnel status`
+裡沒被佔的；同一個 port 同時只能開一條。這份的例子都用 10000，因為 company-ec2 的 443 給 code-server 的
+tailnet serve 用了（`share-shell` 也固定開 10000）。agent 照 `expose-port` skill 開時預設 8443：
+443 常被 serve 佔，8443 又剛好跟這份手動開的 10000 錯開，同一台可以同時開。
+
 開不起來時查這三項（[Tailscale Funnel 官方文件](https://tailscale.com/docs/features/tailscale-funnel)）：
 
-- **只能用 443、8443、10000**（"Funnel can only listen on ports 443, 8443, and 10000"）。
-  company-ec2 的 443 給 code-server 的 tailnet serve 用了，所以用 10000。
+- **只能用 443、8443、10000**（"Funnel can only listen on ports 443, 8443, and 10000"），挑法見上面。
 - **tailnet 要開 MagicDNS 和 HTTPS 憑證。**
 - **tailnet policy 要有 `funnel` node attribute**，決定誰能開 Funnel。第一次開會給一個 admin console 連結開權限。
 
@@ -262,7 +266,7 @@ script 在 [`home/dot_local/bin/executable_share-shell`](../home/dot_local/bin/e
 
 ```bash
 VITE_ALLOWED_HOSTS=<機器>.<tailnet>.ts.net pnpm dev      # 不設的話 Vite 回 Blocked request
-sudo tailscale funnel --https=10000 <dev server 的 port>
+sudo tailscale funnel --https=10000 <dev server 的 port>   # 10000 被佔就換 8443，見〈對外 port 選哪個〉
 ```
 
 - **port 看 dev server 啟動時印的那行。** teamsync-frontend 是 3000（`vite.config.js` 的

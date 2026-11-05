@@ -34,10 +34,10 @@ agent 那邊怎麼做寫在 agent-config 的 skill（`verify-in-browser`、`pers
 
 ## 對連線的要求
 
-- **只能從 tailnet 內經 ssh 轉發連**（見 [remote-access〈tailnet 內〉](remote-access.md#tailnet-內)）。三個服務都沒有驗證或只靠 token，
-  所以只綁 `127.0.0.1`，不改聽 `0.0.0.0`。
+- **預設只走 tailnet 內，經 ssh 轉發連**（見 [remote-access〈tailnet 內〉](remote-access.md#tailnet-內)）。三個服務都沒有驗證或只靠 token，
+  所以只綁 `127.0.0.1`，不改聽 `0.0.0.0`。唯一的例外是下面「tailnet 外的人要看畫面」。
 - **一個 port 同時只能一條轉發**：你另一台電腦或另一個視窗還開著，新的那條就搶不到。
-- **tailnet 外的人要看畫面**：照 [remote-access〈tailnet 外〉](remote-access.md#tailnet-外) 把 9377 開出去。
+- **例外：tailnet 外的人要看畫面**：照 [remote-access〈tailnet 外〉](remote-access.md#tailnet-外) 把 9377 開出去。
   `show` 沒有驗證，公開網址開著的期間，誰拿到網址都能操作那個瀏覽器；Funnel 的網址是固定的
   `<機器>.<tailnet>.ts.net:<port>`，猜得到。所以只在對方要看的那段時間開，看完立刻收。
   這條**未實測**（`show` 會不會因為 `Host` 不是 `127.0.0.1` 而拒絕，還沒試過）。
