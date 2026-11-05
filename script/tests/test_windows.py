@@ -46,7 +46,7 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI,加 winget 裝的 tailscale
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "tailscale"}
 
 
 def parse_jsonc(text):
@@ -108,7 +108,7 @@ class WindowsDeployTest(unittest.TestCase):
 
     def mise_list(self, tools):
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", tools)
-        return {l.split(" = ")[0].strip('"') for l in out.splitlines() if l.endswith(' = "latest"')}
+        return {l.split(" = ")[0].strip('"') for l in out.splitlines() if " = " in l and not l.startswith("#")}
 
     def test_windows_minimal_installs_cli_with_mise(self):
         # #275 驗收:選精簡 apply 後 starship、fastfetch、zoxide 由 mise 裝好
@@ -118,6 +118,12 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_mise_skips_unsupported_and_winget_tools(self):
         # zoxide 不看勾選;tailscale 走 winget;claude 裝不了(它的 poppler 也不裝)
         self.assertEqual(self.mise_list(["tailscale", "claude", "btop", "gh"]), {"zoxide", "gh"})
+
+    def test_windows_node_installs_lts_with_mise(self):
+        # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["node"])
+        self.assertIn('"node" = "lts"', out)
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["node"]).strip(), "")
 
     def test_windows_winget_installs_base_apps_and_ticked_tailscale(self):
         script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
@@ -141,7 +147,7 @@ class WindowsDeployTest(unittest.TestCase):
         decoded = "\n".join(base64.b64decode(b).decode("utf-8")
                             for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
         self.assertIn("claude", decoded)
-        self.assertIn("Windows 的安裝腳本還沒做，到 WSL 裝", decoded)
+        self.assertIn("安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝", decoded)
         self.assertIn("zsh", decoded)
         self.assertNotIn("fzf", decoded)
 

@@ -18,7 +18,10 @@
 
 Windows 主機也出用途與選單、也跑安裝腳本（#275）：CLI 用 mise（跟 Linux 共用 `miseTools`）、app 用 winget，
 腳本寫成 `.ps1`，`.chezmoiignore` 的 Windows 段只放行 `.chezmoiscripts/*.ps1`，sh 腳本照舊不會到 Windows。
-只有 sh 安裝腳本的工具（zsh、coding agent…）在 `tool-env` 標裝不了；Windows 的略過彙整是一支 `zz-env-skipped.ps1`。
+Windows 上 mise 裝得了的都可裝（`node` 也由 mise 裝 LTS，Linux 那邊是 nvm），只有 mise 與 winget 都裝不了的標裝不了：
+工具本身沒有 Windows 版（herdr、code-server、mise 的 btop），或這個 repo 給它的安裝腳本只有 sh 版、沒在 Windows 驗過
+（claude、codex、opencode、agent-config、codegraph；wakatime 是前兩者的 plugin，跟著裝不了）。zsh 則是 Windows 的 shell 換成 PowerShell。
+Windows 的略過彙整是一支 `zz-env-skipped.ps1`。
 
 ## Considered Options
 

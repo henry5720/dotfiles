@@ -51,7 +51,8 @@ tailscale:
 {{- /* 原生 Termux(#274):termux-packages 沒有的、或官方 installer 沒在 Termux 驗過的。
        coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
        Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
-       app 用 winget(toolPackages.windows)。其他工具的安裝腳本都是 sh,Windows 標裝不了,到 WSL 裝。 */}}
+       app 用 winget(toolPackages.windows),node 也由 mise 裝(mise-tools)。
+       其他工具這裡只有 sh 安裝腳本、沒在 Windows 驗過,Windows 標裝不了,到 WSL 裝。 */}}
 zsh:
   - when: [windows]
     state: unsupported
@@ -73,21 +74,21 @@ code-server:
 claude:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 codex:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 opencode:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
@@ -101,22 +102,18 @@ herdr:
 agent-config:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
 codegraph:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
 wakatime:
   - when: [windows]
     state: unsupported
-    reason: Windows 的安裝腳本還沒做，到 WSL 裝
-node:
-  - when: [windows]
-    state: unsupported
-    reason: Windows 的安裝腳本還沒做，要的話自己 mise use -g node
+    reason: 它是 Claude Code、Codex 的 plugin，這兩個在 Windows 裝不了，到 WSL 裝

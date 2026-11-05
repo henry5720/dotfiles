@@ -2,7 +2,7 @@
        呼叫端用「清單是不是空的」判斷這台要不要 mise(清單檔、install-mise、.chezmoiignore)。
        Linux 與 Windows 主機列:Termux 走 pkg、macOS 走 brew。
        Windows(#275):先列 packages.windows.mise(zoxide,不看勾選),再列有勾、在 miseTools 裡的
-       (沒有 apt,不看 always;這台裝不了的不算)。
+       (沒有 apt,不看 always;這台裝不了的不算)。node 勾了列 LTS(Linux 用 nvm 裝,不在 miseTools)。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
        - 其他:apt 用不了(.chezmoitemplates/use-mise)而且系統找不到它的指令才列。
@@ -18,6 +18,9 @@
 {{-   if has $name $installing }}
 {{ $m.tool | quote }} = "latest"
 {{-   end -}}
+{{- end -}}
+{{- if has "node" $installing }}
+"node" = "lts"
 {{- end -}}
 {{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
