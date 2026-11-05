@@ -12,7 +12,9 @@
          wsl         is-wsl
          non-amd64   linux 且 .chezmoi.arch 不是 amd64(例如平板上的 proot Ubuntu)
          non-debian  linux 且不是 Debian 系(is-debian)
-       要新的環境(例如 proot)就在 tool-status 加一個判斷,再加到上面這張表。
+         proot       平板上的 proot Ubuntu(is-proot:kernel 字串有 android,或 /proc/version 有 PRoot-Distro;
+                     data 的 isProot 可以直接指定,測試也用它或蓋 .chezmoi.kernel.osrelease)
+       要新的環境就在 tool-status 加一個判斷(判斷寫成 .chezmoitemplates 的共用樣板),再加到上面這張表。
        原因不能用半形 /(e2e 的 --promptMultichoice 拿它分隔選項)、不能有 '(略過的腳本用單引號包它),
        用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
        這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
@@ -37,6 +39,9 @@ playwright-cli:
     state: unsupported
     reason: 它用 headless-chrome，這台裝不了 headless-chrome
 tailscale:
-  - when: [darwin]
-    state: unsupported
-    reason: macOS 照 Runbook 裝官方 app
+  - when: [wsl]
+    state: discouraged
+    reason: 網路借 Windows 那份 Tailscale（mirrored），再裝一份會變成 tailnet 上兩個節點
+  - when: [proot]
+    state: discouraged
+    reason: 網路借 Android 那份 Tailscale app，再裝一份會變成 tailnet 上兩個節點

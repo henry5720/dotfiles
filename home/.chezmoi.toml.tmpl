@@ -18,7 +18,7 @@
          1. tool-menu 加一行「工具名 說明」(完整 = 選單上全部,自動算進去)。
             哪個環境不建議或裝不了:在 tool-env 加規則與原因(選單標註、預設組合、略過彙整都從那裡拿)。
          2. 要不要放進精簡:改下面的 $lean。
-         3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin;
+         3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin,app 寫成 casks;
             Termux 走 pkg,填 toolPackages.termux):
             - GitHub release 的單一執行檔(mise registry 是 aqua／github backend):只填 miseTools,加 always: true。
             - 要系統函式庫的(mise 只有 conda backend):填 toolPackages.ubuntu,miseTools 再列一次
@@ -38,12 +38,13 @@
        3 = 提示列從 zsh 拆出來成為 starship(#194):第 2 版以前勾了 zsh 的(以前 zsh 附帶 p10k)自動補勾 starship。
        key 名與值已經寫在各台的 config,不要改;格式再變就加到 4。 */ -}}
 {{- $baseSplit := list "zsh" "eza" "fzf" "bat" "ripgrep" "vim" -}}
-{{- /* 精簡的預設組合(ssh viewer、server 用)。完整 = 選單上全部;自訂 = 不預勾。
+{{- /* 精簡的預設組合:只放 shell 體驗(每台開 shell 看到的一樣,連 fastfetch 都有)。連線、監控(tailscale、btop)
+       在完整或自己勾(#273)。完整 = 選單上全部;自訂 = 不預勾。
        用途的提示文字會出現在 Runbook 免回答安裝那一行(--promptChoice 的 key),改了要一起改
        (還有 docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
-{{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "tailscale" "btop" -}}
-{{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）" -}}
+{{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "fastfetch" -}}
+{{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）" -}}
 {{- /* chezmoi 的 promptChoice 輸入對到唯一選項就送出、不等 Enter,灰字是選項值本身:
        選項值用字母,灰字就顯示要按的 f/m/c;存進 config 的還是 full／minimal／custom。 */ -}}
 {{- $useChoices := list "f" "m" "c" -}}

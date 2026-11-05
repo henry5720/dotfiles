@@ -1,0 +1,16 @@
+{{- /* 是 proot Ubuntu(平板上 proot-distro 開的 Linux)就輸出 true,否則空字串。用法:{{ if includeTemplate "is-proot" . }}
+       只看 linux:原生 Termux(.chezmoi.os 是 android)的 kernel 也是 Android 的,但它不是 proot。
+       依序:
+       1. data 有 isProot 就照它(true／false)。偵測不到或誤判時,在 ~/.config/chezmoi/chezmoi.toml 的 [data]
+          寫 isProot = true;測試用 --override-data 給它。
+       2. kernel 版本字串有 android:proot-distro 假了 uname -r 與 /proc/version,但沒假 /proc/sys/kernel/osrelease,
+          .chezmoi.kernel.osrelease 讀到的是 Android 的 kernel(GKI 的格式是 5.15.x-android14-…)。
+       3. /proc/version 有 PRoot-Distro:proot-distro 登入時假的那份(kernel 字串沒帶 android 的舊平板靠這條)。
+       還沒在平板實測過(#273),判斷錯就用 1. 蓋掉。 */ -}}
+{{- if hasKey . "isProot" -}}
+{{-   if .isProot }}true{{ end -}}
+{{- else if eq .chezmoi.os "linux" -}}
+{{-   if contains "android" (lower (dig "kernel" "osrelease" "" .chezmoi)) }}true
+{{-   else if and (stat "/proc/version") (contains "PRoot-Distro" (include "/proc/version")) }}true
+{{-   end -}}
+{{- end -}}

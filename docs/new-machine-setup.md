@@ -10,7 +10,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 |---|---|---|
 | Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[看 agent 的瀏覽器](browser-via-ec2.md)） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
-| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（tailscale、headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝；Homebrew 要先自己裝 |
+| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
 | Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
 
@@ -62,7 +62,8 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 1. 照 [Homebrew 官網](https://brew.sh/)的指令裝 Homebrew（要管理員密碼，會順便裝 Xcode Command Line Tools，
    git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
-2. 要連自己的機器就裝 [Tailscale 官方 app](https://tailscale.com/download/mac)，登入。mac 的選單上 tailscale 標裝不了。
+2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
+   已經從官網或 App Store 裝過的不要勾：brew 會因為 `/Applications/Tailscale.app` 已經在而失敗。
 3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
 
 ### Windows 主機
@@ -181,7 +182,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
-  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）=m" \
+  --promptChoice "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）=m" \
   --promptString "git user.email=<email>" henry5720
 ```
 
@@ -194,7 +195,8 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 選單上每一項後面都有一句說明，清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](machine-use.md#環境不建議裝不了)）。
-WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `tailscale`、`headless-chrome`、`playwright-cli`。
+WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。
+WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
 herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
 

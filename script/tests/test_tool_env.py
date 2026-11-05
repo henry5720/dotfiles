@@ -6,7 +6,6 @@
 真的 init --apply 一台裝不了的工具、看 exit code 與彙整由 e2e 的 ubuntu 目標驗。
 """
 import json
-import shutil
 import subprocess
 import tempfile
 import unittest
@@ -18,7 +17,9 @@ SCRIPTS = "home/.chezmoiscripts"
 RECORDER = "run_onchange_after_record-env-skipped.sh.tmpl"
 SUMMARY = "run_after_zz-root-skipped-summary.sh.tmpl"
 # 提示文字(要跟 config 樣板一字不差,同 e2e.sh 的 USE_PROMPT、TOOLS_PROMPT)
-USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）"
+USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）"
+# 精簡的預設組合(#273,獨立的期望值):只放 shell 體驗
+LEAN = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 SECRETS = ["--promptString", "git user.name=e2e", "--promptString", "git user.email=e2e@example.com",
            "--promptString", "code-server 密碼=x", "--promptString", "codex-lb API key=x",
@@ -28,6 +29,8 @@ WSL = {"chezmoi": {"kernel": {"osrelease": "5.15.167.4-microsoft-standard-WSL2"}
 ARM = {"chezmoi": {"arch": "arm64"}}
 FEDORA = {"chezmoi": {"osRelease": {"id": "fedora", "idLike": ""}}}
 MAC = {"chezmoi": {"os": "darwin"}}
+# proot Ubuntu:userland 是 Ubuntu,kernel 是 Android 的(proot-distro 不假 /proc/sys/kernel/osrelease)
+PROOT = {"chezmoi": {"arch": "arm64", "kernel": {"osrelease": "5.15.123-android14-11-g0a1b2c3d4e5f"}}}
 # 這台(跑測試的主機)可能是 WSL 或 ARM:對照組把環境釘成 amd64 的 Ubuntu
 UBUNTU = {"chezmoi": {"os": "linux", "arch": "amd64", "kernel": {"osrelease": "6.8.0-1-generic"},
                       "osRelease": {"id": "ubuntu", "idLike": "debian"}}}
@@ -112,10 +115,11 @@ class ToolEnvTest(unittest.TestCase):
         # 哪幾項帶標註、標的是哪一種(原因文字由上一個測試與 e2e 對)
         expected = {
             "ubuntu": ({}, {}),
-            "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
+            "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議"}),
+            "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
-            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "裝不了"}),
+            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
             with self.subTest(env=name):
@@ -131,10 +135,11 @@ class ToolEnvTest(unittest.TestCase):
     # 預設組合扣掉不建議與裝不了的;沒改勾選照樣存用途
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
-        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli"}),
+        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale"}),
+                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale"}),
                                    ("arm", ARM, {"headless-chrome", "playwright-cli"}),
                                    ("fedora", FEDORA, {"headless-chrome", "playwright-cli"}),
-                                   ("mac", MAC, {"tailscale", "headless-chrome", "playwright-cli"})):
+                                   ("mac", MAC, {"headless-chrome", "playwright-cli"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -147,22 +152,39 @@ class ToolEnvTest(unittest.TestCase):
         self.assertIn(self.tools_line(menu_tools()), out)
 
     def test_discouraged_is_labelled_unticked_and_still_installed(self):
-        # 現在的 tool-env 還沒有「不建議」的規則(#273 才加):複製一份 source,加一條假的
-        self.source = self.dir / "src"
-        shutil.copytree(ROOT / "home", self.source / "home")
-        (self.source / ".chezmoiroot").write_text("home\n", encoding="utf-8")
-        with open(self.source / "home/.chezmoitemplates/tool-env", "a", encoding="utf-8") as f:
-            f.write("btop:\n  - when: [wsl]\n    state: discouraged\n    reason: 測試用的原因\n")
+        # WSL 的網路借 Windows 那份 Tailscale:選單標不建議、完整不勾,勾了照裝、不記略過
         labels = self.chezmoi(WSL, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
-        self.assertIn("btop             終端機看 CPU、記憶體、行程（不建議：測試用的原因）", labels.splitlines())
-        lean = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "tailscale"]
-        out = self.init(WSL, "minimal").stdout
-        self.assertIn('    machineUse = "minimal"', out)
-        self.assertIn(self.tools_line(lean), out)
-        installing = self.chezmoi(WSL, "execute-template", data={"tools": ["btop"]},
+        self.assertIn("tailscale        私人 VPN,連自己的機器（不建議：網路借 Windows 那份 Tailscale（mirrored），"
+                      "再裝一份會變成 tailnet 上兩個節點）", labels.splitlines())
+        installing = self.chezmoi(WSL, "execute-template", data={"tools": ["tailscale"]},
                                   stdin='{{ includeTemplate "tools-to-install" . }}').stdout
-        self.assertEqual(installing, "btop")
-        self.assertNotIn("skip_env", self.render(WSL, f"home/.chezmoiscripts/{RECORDER}", ["btop"]))
+        self.assertEqual(installing, "tailscale")
+        self.assertNotIn("skip_env", self.render(WSL, f"{SCRIPTS}/{RECORDER}", ["tailscale"]))
+        self.assertIn("tailscale.com/install.sh",
+                      self.render(WSL, f"{SCRIPTS}/run_onchange_after_install-tailscale.sh.tmpl", ["tailscale"]))
+
+    def test_proot_detection(self):
+        detect = '{{ includeTemplate "is-proot" . }}'
+        self.assertEqual(self.chezmoi(PROOT, "execute-template", stdin=detect).stdout, "true")
+        self.assertEqual(self.chezmoi({}, "execute-template", stdin=detect).stdout, "")
+        # 平板的 kernel 字串不一定帶 android:data 的 isProot 可以直接指定(也給測試用)
+        self.assertEqual(self.chezmoi({}, "execute-template", data={"isProot": True}, stdin=detect).stdout, "true")
+        self.assertEqual(self.chezmoi(PROOT, "execute-template", data={"isProot": False}, stdin=detect).stdout, "")
+        # 原生 Termux 的 kernel 也是 Android 的,但它不是 proot
+        android = {"chezmoi": {"os": "android", "kernel": {"osrelease": "5.15.123-android14-11-g0a1b2c3d4e5f"}}}
+        self.assertEqual(self.chezmoi(android, "execute-template", stdin=detect).stdout, "")
+
+    def test_mac_installs_tailscale_app_with_brew_cask(self):
+        darwin = f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl"
+        brew = self.render(MAC, darwin, ["tailscale", "eza"])
+        self.assert_sh(brew)
+        self.assertIn('cask "tailscale-app"', brew.splitlines())
+        self.assertIn('brew "eza"', brew.splitlines())
+        self.assertNotIn('brew "tailscale', brew)
+        self.assertNotIn("cask ", self.render(MAC, darwin, ["eza"]))
+        # Linux 的 installer 不在 mac 跑,也不記略過
+        self.assertEqual(self.render(MAC, f"{SCRIPTS}/run_onchange_after_install-tailscale.sh.tmpl", ["tailscale"]).strip(), "")
+        self.assertNotIn("skip_env", self.render(MAC, f"{SCRIPTS}/{RECORDER}", ["tailscale"]))
 
     # ===============================================================
     # 裝不了的勾了:不裝、記進略過彙整,彙整分得出兩種原因
@@ -180,8 +202,6 @@ class ToolEnvTest(unittest.TestCase):
              "它用 headless-chrome，這台裝不了 headless-chrome"),
             ("arm", ARM, "headless-chrome", "run_onchange_after_install-headless-chrome.sh.tmpl",
              "Google 只出 amd64 的 .deb"),
-            ("mac", MAC, "tailscale", "run_onchange_after_install-tailscale.sh.tmpl",
-             "macOS 照 Runbook 裝官方 app"),
         )
         for name, env, tool, script, reason in cases:
             with self.subTest(env=name, tool=tool):
@@ -210,10 +230,25 @@ class ToolEnvTest(unittest.TestCase):
         self.assertIn("root-skipped", summary)
         self.assertIn("== 沒有 root,以下步驟已略過", summary)
 
-    def test_mac_minimal_skips_tailscale(self):
+    def test_minimal_is_shell_experience_only(self):
+        out = self.init({}, "minimal").stdout
+        self.assertIn('    machineUse = "minimal"', out)
+        self.assertIn(self.tools_line(LEAN), out)
+
+    def test_cloudflared_is_in_full_not_lean_and_installed_by_mise_or_brew(self):
+        labels = self.chezmoi({}, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
+        self.assertIn("cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人", labels.splitlines())
+        self.assertIn('"cloudflared"', self.init({}, "full").stdout)
+        self.assertNotIn('"cloudflared"', self.init({}, "minimal").stdout)
+        mise = self.render({}, "home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["cloudflared"])
+        self.assertIn('"cloudflared" = "latest"', mise.splitlines())
+        brew = self.render(MAC, f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl", ["cloudflared"])
+        self.assertIn('brew "cloudflared"', brew.splitlines())
+
+    def test_mac_minimal_is_the_same_lean(self):
         out = self.init(MAC, "minimal").stdout
         self.assertIn('    machineUse = "minimal"', out)
-        self.assertIn(self.tools_line(["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "btop"]), out)
+        self.assertIn(self.tools_line(LEAN), out)
 
 
 if __name__ == "__main__":

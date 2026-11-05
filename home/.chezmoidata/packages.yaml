@@ -66,8 +66,9 @@ toolPackages:
       - bat
     ripgrep:
       - ripgrep
-  # macOS 全部走 brew(一樣是 formula 名)。zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
-  # mac 不缺 libatomic。tailscale、headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
+  # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),交給 brew bundle 的 cask。
+  # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
+  # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
   # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
   darwin:
@@ -91,6 +92,12 @@ toolPackages:
       - code-server
     ttyd:
       - ttyd
+    # 官方 app(cask tailscale-app,含選單列與 tailscaled)。formula 的 tailscale 只有 CLI 與 daemon,不是官方 app
+    tailscale:
+      casks:
+        - tailscale-app
+    cloudflared:
+      - cloudflared
     claude:
       - poppler
     ffmpeg:
@@ -162,6 +169,11 @@ miseTools:
   ttyd:
     tool: ttyd                      # aqua:tsl0922/ttyd
     cmd: ttyd
+    always: true
+  # 官方也有 apt 源,但 GitHub release 就是單一執行檔:照 #231 的順序走 mise
+  cloudflared:
+    tool: cloudflared               # aqua:cloudflare/cloudflared
+    cmd: cloudflared
     always: true
   vim:
     tool: vim                       # conda:vim

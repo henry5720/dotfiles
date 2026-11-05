@@ -6,6 +6,7 @@
 {{- if eq .chezmoi.os "linux" -}}
 {{-   if ne .chezmoi.arch "amd64" }}{{ $envs = append $envs "non-amd64" }}{{ end -}}
 {{-   if not (includeTemplate "is-debian" .) }}{{ $envs = append $envs "non-debian" }}{{ end -}}
+{{-   if includeTemplate "is-proot" . }}{{ $envs = append $envs "proot" }}{{ end -}}
 {{- end -}}
 {{- $labels := dict "discouraged" "不建議" "unsupported" "裝不了" -}}
 {{- $out := dict -}}

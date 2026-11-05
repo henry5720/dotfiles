@@ -119,7 +119,7 @@ _Avoid_: 外掛、optional packages、模組
 _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 
 **預設組合**:
-一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop，自訂是空的。都扣掉這台環境「不建議」和「裝不了」的工具（例如 WSL、ARM 的 headless-chrome、playwright-cli）；判斷有沒有改過勾選也用扣完的組合比。
+一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、fastfetch（只放 shell 體驗），自訂是空的。都扣掉這台環境「不建議」和「裝不了」的工具（例如 WSL 的 tailscale，WSL、ARM 的 headless-chrome、playwright-cli）；判斷有沒有改過勾選也用扣完的組合比。
 _Avoid_: preset、套餐
 
 **環境**:

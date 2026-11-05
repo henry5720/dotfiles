@@ -8,7 +8,7 @@
 | 用途 | 代號 | 給誰 | 預設勾哪些 |
 |---|---|---|---|
 | 完整 | `full` | 開發主力機 | 選單上全部，扣掉這台不建議、裝不了的（見下面〈環境〉） |
-| 精簡 | `minimal` | ssh viewer、server | zsh、starship、eza、fzf、bat、ripgrep、vim、tailscale、btop |
+| 精簡 | `minimal` | 只要 shell 體驗（每台開 shell 看到的一樣） | zsh、starship、eza、fzf、bat、ripgrep、vim、fastfetch |
 | 自訂 | `custom` | 有特殊需求 | 都不勾，自己選 |
 
 用途那題按一個字母 `f`、`m`、`c` 就送出（chezmoi 的單選輸入對到唯一選項就送出，不等 Enter），不用切輸入法；直接 Enter 是精簡。
@@ -18,6 +18,8 @@
 
 選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上（拉新版時用 `chezmoi update --init`，見[改設定與更新](after-install.md)）。
 改過勾選就存成自訂，照你勾的、不再跟著預設組合走。
+
+精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，但已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
 - 原生 Termux 不問，直接套精簡、濾掉 tailscale、btop。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
@@ -38,8 +40,9 @@
 | 不建議 | 不勾 | 照裝 |
 | 裝不了 | 不勾 | 略過；apply 照樣跑完，最後跟「沒有 root」分開列出略過了哪些、為什麼 |
 
-目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`，macOS 的 `tailscale`
-（照 Runbook 裝官方 app）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
+目前不建議的：WSL、proot Ubuntu 的 `tailscale`（網路借外層 Windows 或 Android 那份 Tailscale，再裝一份會變成 tailnet 上兩個節點）。
+目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`。
+macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
 [`home/.chezmoitemplates/tool-env`](../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
 
 ## 憑證

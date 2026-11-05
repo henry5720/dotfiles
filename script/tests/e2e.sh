@@ -246,7 +246,7 @@ PY
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
 # 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/no-root-machine.md),要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
-USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：server、ssh 連線用／custom 自訂）'
+USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）'
 # 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
 use_choice() {  # use_choice minimal → --promptChoice 的值(…=m)
   local l=$1
@@ -286,10 +286,10 @@ menu_choice() {
 # ffmpeg 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
-TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
-LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "tailscale", "btop"]'
+LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
 FULL_TOOLS=$(grep -E '^[a-z]' "$REPO/home/.chezmoitemplates/tool-menu" | cut -d' ' -f1 | paste -sd/)
 toml_list() {  # toml_list a/b/c → config 裡 tools 那一行
   local t out=()
@@ -327,6 +327,8 @@ declare -A TOOL_CHECK=(
   [node]=". ~/.nvm/nvm.sh && node --version"
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
+  # Linux 由 mise 裝(miseTools 的 always)
+  [cloudflared]="{ [ -x ~/.local/share/mise/shims/cloudflared ] && ~/.local/share/mise/shims/cloudflared --version; } || cloudflared --version"
   [herdr]="command -v herdr"
   [ttyd]="[ -x ~/.local/share/mise/shims/ttyd ] || command -v ttyd"
   # 官方位置:~/.wakatime/wakatime-cli 是指到 wakatime-cli-linux-<arch> 的 symlink
@@ -375,8 +377,8 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(git curl jq python3)
 
-# 原生 Termux 不出選單,自動套精簡、濾掉 tailscale、btop。config 裡那一行應該長這樣:
-TERMUX_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim"]'
+# 原生 Termux 不出選單,自動套精簡。config 裡那一行應該長這樣:
+TERMUX_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
 
 # 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
 CLI_TOOLS=(eza fzf bat rg starship btop fastfetch)
@@ -490,7 +492,7 @@ scenario_ubuntu() {
   check_tool node
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)
   check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
-    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop eza fastfetch fzf ripgrep starship' ]"
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop cloudflared eza fastfetch fzf ripgrep starship' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
     "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd
@@ -542,7 +544,7 @@ scenario_ubuntu() {
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -678,25 +680,30 @@ scenario_ubuntu() {
   bold "▶ (渲染)用途:預設組合展開、沒改存用途、有改存自訂"
   local cfg='~/.config/chezmoi/chezmoi.toml'   # 加引號:~ 留到容器裡才展開
   local use_is="grep -qx '    machineUse = \"%s\"' %s"   # printf "$use_is" <用途> <config>
-  check "選精簡、選單不改:存精簡,tools 是精簡那九項" \
+  check "選精簡、選單不改:存精簡,tools 是精簡那八項" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)") > /tmp/lean.toml && $(printf "$use_is" minimal /tmp/lean.toml) && grep -qxF '$LEAN_TOML' /tmp/lean.toml"
-  check "精簡的機器樣板看到的 .tools 就是那九項" \
-    "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh starship eza fzf bat ripgrep vim tailscale btop' ]"
-  check "精簡的機器裝的是那九項:套件腳本有 zsh、vim(沒有 btop),mise 清單是 bat、btop、eza、fzf、ripgrep、starship" \
-    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && ! grep -qw btop /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -oE '^\"[^\"]+\"' | tr -d '\"' | paste -sd' ')\" = 'bat btop eza fzf ripgrep starship' ]"
-  check "精簡的機器選裝腳本只跑 tailscale(其他選裝工具的腳本都不跑)" \
-    "[ \"\$(chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/$TOOL_SCRIPT_RE' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-tailscale ]"
+  check "精簡的機器樣板看到的 .tools 就是那八項" \
+    "[ \"\$(chezmoi --config /tmp/lean.toml execute-template '{{ .tools | join \" \" }}')\" = 'zsh starship eza fzf bat ripgrep vim fastfetch' ]"
+  check "精簡的機器裝的是那八項:套件腳本有 zsh、vim(沒有 fastfetch),mise 清單是 bat、eza、fastfetch、fzf、ripgrep、starship" \
+    "chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' > /tmp/lean-pkg && grep -qw zsh /tmp/lean-pkg && grep -qw vim /tmp/lean-pkg && ! grep -qw fastfetch /tmp/lean-pkg && [ \"\$(chezmoi --config /tmp/lean.toml execute-template < ~/.local/share/chezmoi/home/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -oE '^\"[^\"]+\"' | tr -d '\"' | paste -sd' ')\" = 'bat eza fastfetch fzf ripgrep starship' ]"
+  # 精簡只放 shell 體驗(#273):tailscale、btop 拿掉了,選裝工具的安裝腳本一支都不跑
+  check "精簡的機器選裝腳本一支都不跑(tailscale 不在精簡裡)" \
+    "chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty > /tmp/lean-dry 2>&1 && ! grep -E '^diff --git a/$TOOL_SCRIPT_RE' /tmp/lean-dry"
   check "選完整、選單不改:存完整,tools 是選單上全部" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)") > /tmp/full.toml && $(printf "$use_is" full /tmp/full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/full.toml"
   check "完整的預設組合有 node,精簡沒有" "grep -q '\"node\"' /tmp/full.toml && ! grep -q '\"node\"' /tmp/lean.toml"
+  check "完整的預設組合有 cloudflared、tailscale、btop,精簡沒有" \
+    "for t in cloudflared tailscale btop; do grep -q \"\\\"\$t\\\"\" /tmp/full.toml && ! grep -q \"\\\"\$t\\\"\" /tmp/lean.toml || exit 1; done"
   local full_no_ttyd=${FULL_TOOLS/\/ttyd\///}
   check "選完整後取消 ttyd:存自訂加 tools 清單" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" custom /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
   check "選精簡後多勾 gh:存自訂" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/tailscale/btop/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
   local full_filtered=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
-  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 headless-chrome、playwright-cli)" \
-    "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-wsl.toml"
+  # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾
+  local full_wsl=${full_filtered/\/tailscale\///}
+  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、headless-chrome、playwright-cli)" \
+    "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_wsl")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
   check "第一次 init 用途預設精簡(--promptDefaults、不給用途)" \
@@ -763,7 +770,7 @@ scenario_ubuntu() {
   # 真的在 termux 容器跑 init 由 termux 目標負責。
   bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
   local android='{"chezmoi":{"os":"android"}}'
-  check "android 的 config 樣板不問用途與選單,套精簡、濾掉 tailscale、btop" \
+  check "android 的 config 樣板不問用途與選單,套精簡" \
     "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$TERMUX_TOML' /tmp/android.toml && grep -qx '    machineUse = \"minimal\"' /tmp/android.toml"
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
@@ -795,6 +802,15 @@ scenario_ubuntu() {
     done
   done
   check "(對照)非 WSL 的 amd64 選單沒有任何標註" "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$(menu_labels)")"
+  label=$(menu_choice tailscale "$wsl")
+  check "WSL 的選單 tailscale 標不建議,勾了照存" \
+    "grep -q '（不建議：網路借 Windows' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list tailscale)'"
+  check "WSL 勾了 tailscale:照裝(安裝腳本渲染出官方 installer)、不記略過" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-tailscale.sh.tmpl | grep -q tailscale.com/install.sh && [ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl | tr -d '[:space:]')\" ]"
+  # proot Ubuntu(#273):kernel 是 Android 的(.chezmoitemplates/is-proot),tailscale 也不建議
+  local proot='{"chezmoi":{"arch":"arm64","kernel":{"osrelease":"5.15.123-android14-11-ge2e"}}}'
+  check "proot Ubuntu 的選單 tailscale 標不建議" \
+    "grep -q '（不建議：網路借 Android' <<<$(printf '%q' "$(menu_choice tailscale "$proot")")"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
   check "WSL 上就算 tools 裡有 playwright-cli,安裝腳本也渲染成空的" \
@@ -850,21 +866,22 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
-  bold "▶ (渲染)macOS 出用途選單、tailscale 標裝不了,套件走 brew bundle"
+  bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
-  local mac_full=${FULL_TOOLS/\/tailscale\///}; mac_full=${mac_full/\/headless-chrome\/playwright-cli/}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(沒有 tailscale、headless-chrome、playwright-cli)" \
+  local mac_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
-  check "macOS 選精簡:精簡濾掉 tailscale" \
-    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$(toml_list zsh/starship/eza/fzf/bat/ripgrep/vim/btop)' /tmp/mac-lean.toml"
-  for t in tailscale headless-chrome playwright-cli; do
+  check "macOS 選精簡:跟 Linux 同一組" \
+    "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
+  check "macOS 的選單 tailscale 沒有標註" "grep -qx 'tailscale *私人 VPN,連自己的機器' <<<$(printf '%q' "$(menu_labels "$mac")")"
+  for t in headless-chrome playwright-cli; do
     label=$(menu_choice "$t" "$mac")
     check "macOS 的選單列 $t、標裝不了,勾了照存" \
       "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list "$t")'"
   done
-  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr"]}'
+  local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr","cloudflared","tailscale"]}'
   check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,語法對" \
-    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ]"
+    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"cloudflared\" brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ] && [ \"\$(grep -E '^cask ' /tmp/brew.sh)\" = 'cask \"tailscale-app\"' ]"
   check "brew bundle 腳本在 Linux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Termux 渲染成空的" \
@@ -877,8 +894,8 @@ scenario_ubuntu() {
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "macOS 勾了裝不了的(tailscale、headless-chrome、playwright-cli):略過腳本列這三項,彙整腳本渲染出來" \
-    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'headless-chrome playwright-cli tailscale' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
+  check "macOS 勾了裝不了的(headless-chrome、playwright-cli):略過腳本只列這兩項(tailscale 走 cask),彙整腳本渲染出來" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'headless-chrome playwright-cli' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \
     "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
   check "macOS 部署 tools 指令" \
@@ -999,9 +1016,11 @@ scenario_ubuntu() {
   bold "▶ tools 把用途改成精簡:已經裝的工具不移除"
   check "tools 選精簡、選單直接 Enter,exit 0" \
     "~/.local/bin/tools --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") </dev/null"
-  check "用途存精簡、tools 是精簡那九項" \
+  check "用途存精簡、tools 是精簡那八項" \
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
-  for t in claude gh herdr codegraph; do check_tool "$t"; done
+  check_tool fastfetch
+  check "選精簡後 fastfetch 跑得起來" "~/.local/share/mise/shims/fastfetch --version"
+  for t in claude gh herdr codegraph tailscale btop; do check_tool "$t"; done
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 
@@ -1085,7 +1104,7 @@ scenario_termux() {
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
   # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的七項、選裝腳本一支都沒跑
-  check "沒有用途與選裝工具選單(config 存精簡、tools 是濾掉 tailscale、btop 的七項)" \
+  check "沒有用途與選裝工具選單(config 存精簡、tools 是精簡那八項)" \
     "grep -qxF '$TERMUX_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
   check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
   for t in zsh starship eza fzf bat ripgrep vim; do check_tool "$t"; done
@@ -1176,9 +1195,10 @@ noroot_init() {  # noroot_init <用途>
   check "家目錄與 /tmp 以外沒有屬於這個使用者的新檔" \
     "out=\$(find / -xdev -user \$(id -un) -newer ~/.e2e-marker -not -path \"\$HOME\" -not -path \"\$HOME/*\" -not -path '/tmp/*' -not -path /tmp 2>/dev/null); echo \"\$out\"; [ -z \"\$out\" ]"
   check "/etc/shells 沒被改" "[ ! /etc/shells -nt ~/.e2e-marker ]"
-  # 彙整之後不能再有別的輸出:看標頭之後每一行都是彙整的格式(「- 項目:」、縮排的續行)
-  check "輸出最後是略過彙整" \
-    "grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | sed 1d | grep -vE '^(- |    |\$)'"
+  # 彙整之後不能再有別的輸出:看標頭之後每一行都是彙整的格式(「- 項目:」、縮排的續行)。
+  # 有沒有彙整看用途:精簡沒有要 root 的步驟(#273 拿掉 tailscale 後),完整有;各自在 noroot_slim_checks、check_skipped 驗
+  check "有略過彙整時,它在輸出最後" \
+    "! grep -q '^$SKIP_HEADER' ~/e2e-init.log || ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | sed 1d | grep -vE '^(- |    |\$)'"
 }
 
 # 沒有 root 時走 apt 的選裝工具改由 mise 裝(#217)。check_mise <指令> [--version 以外的參數]:
@@ -1244,20 +1264,15 @@ check_ssh_client() {
 }
 
 noroot_slim_checks() {
-  # 精簡要 apt 的只剩 jq、zsh、vim、btop:jq、zsh 從 release 裝到家目錄,vim 系統已有,btop 走 mise
-  check "精簡沒有要略過的系統套件(jq、zsh 裝到家目錄,vim、btop 交給 mise)" \
-    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
-  check_skipped "tailscale"
-  # userspace tailscale 由 apply 裝到家目錄(#224):彙整那筆只剩登入、常駐與 ProxyCommand 的說明,不再要人下載
-  check "tailscale 的彙整只剩登入與說明(登入、常駐、ssh ProxyCommand,沒有下載步驟)" \
-    "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q 'tailscaled.sock up' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\" && ! grep -qE 'pkgs.tailscale.com|--tun=userspace-networking' <<<\"\$s\""
-  check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
-    "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
+  # 精簡要 apt 的只剩 jq、zsh、vim:jq、zsh 從 release 裝到家目錄,vim 系統已有;tailscale 不在精簡裡(#273)
+  check "精簡沒有任何要略過的步驟:沒有略過彙整(jq、zsh 裝到家目錄,vim 系統已有)" \
+    "! grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! grep -q '以下選裝工具已略過' ~/e2e-init.log"
   check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
   check "zsh 用 zsh-bin 裝到 ~/.local/bin,版本 5.8" "~/.local/bin/zsh --version | grep -q '^zsh 5\.8 '"
   check "zsh -i 下 starship 有載入" "$(zsh_ok '[[ $STARSHIP_SHELL == zsh && $PROMPT == *starship* ]]')"
-  check "TERM 沒設時 zsh 裡是 xterm-256color" "[ \"\$(env -u TERM ~/.local/bin/zsh -i -c 'print -r -- \$TERM' 2>/dev/null)\" = xterm-256color ]"
+  # zsh -i 開頭會跑 fastfetch(精簡有勾),只看最後一行
+  check "TERM 沒設時 zsh 裡是 xterm-256color" "[ \"\$(env -u TERM ~/.local/bin/zsh -i -c 'print -r -- \$TERM' 2>/dev/null | tail -n1)\" = xterm-256color ]"
   check "pty 開互動 bash 會切成 zsh" "$(pty_bash -i); echo \"\$out\" | tail -n 5; grep -q 'ZV=:5\.8:' <<<\"\$out\""
   check "非互動 bash 留在 bash(bash -c、bash -lc)" \
     "[ \"\$(bash -c 'echo \${ZSH_VERSION:-none}')\" = none ] && [ \"\$(bash -lc 'echo \${ZSH_VERSION:-none}')\" = none ]"
@@ -1271,18 +1286,14 @@ noroot_slim_checks() {
     "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && [ \"\$(env -i HOME=\$HOME PATH=/usr/bin:/bin bash -lc 'command -v chezmoi')\" = \"\$HOME/.local/bin/chezmoi\" ] && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
   check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
   # 單一執行檔的選裝工具跟有 root 時一樣由 mise 裝(#233)
-  for t in btop eza fzf bat rg starship; do check_mise "$t"; done
+  # fastfetch 也在精簡裡(#273):每台開 shell 都跑它
+  for t in eza fzf bat rg starship fastfetch; do check_mise "$t"; done
   check_mise_skips_system_vim
   check "zsh 外掛照常 clone(要的是 git,不用 root)" "git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
   check_ssh_client
-  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
-  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
-  for h in company-ec2 company-ec2-attach company-ec2-socks; do
-    check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
-      "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
-  done
-  check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
-    "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
+  # 精簡只放 shell 體驗(#273):沒有 tailscale,也就沒有 userspace 的 ProxyCommand
+  check "精簡沒裝 tailscale、略過彙整沒有它、ssh config 沒有 ProxyCommand" \
+    "[ ! -e ~/.local/bin/tailscale ] && ! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- tailscale:' && ! ssh -G company-ec2 | grep -qi '^proxycommand'"
 
   bold "▶ 精簡:第二次 apply"
   step "放時間標記(之後看 zsh-bin 有沒有重裝)" "touch ~/.e2e-marker2"
@@ -1291,35 +1302,58 @@ noroot_slim_checks() {
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -qE '略過|安裝|下載' <<<\"\$out\""
   check "第二次 apply 沒有重裝 zsh-bin" \
     "[ ! ~/.local/bin/zsh -nt ~/.e2e-marker2 ] && [ ! ~/.local/share/zsh -nt ~/.e2e-marker2 ]"
-  check "第二次 apply 沒有重新下載 tailscale" \
-    "[ ! ~/.local/bin/tailscale -nt ~/.e2e-marker2 ] && [ ! ~/.local/bin/tailscaled -nt ~/.e2e-marker2 ]"
-  # 腳本內容改了(run_onchange 會重跑)也不重下載:直接渲染再跑一次,PATH 前面放一支會記錄呼叫、一定失敗的 curl
+  # 後面 noroot_tailscale_checks 等用的 stub:會記錄呼叫、一定失敗的 curl;會成功的 sudo(渲染出有 root 那版)
   put_root_file /opt/e2e-stub/curl-log/curl 755 <<'SH'
 #!/bin/sh
 echo "curl $*" >> /tmp/e2e-curl.log
 exit 1
 SH
-  check "tailscale 已經裝過:腳本重跑不下載、exit 0" \
-    "rm -f /tmp/e2e-curl.log && chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts.sh && out=\$(PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '已經裝過' <<<\"\$out\" && [ ! -e /tmp/e2e-curl.log ]; r=\$?; rm -f ~/.local/state/dotfiles/root-skipped; exit \$r"
-  # 同一支渲染好的腳本,換一個空的 HOME 跑:沒裝過、curl 失敗
-  check "tailscale 下載失敗:記進略過彙整、exit 0、不留半套" \
-    "rm -rf /tmp/ts-home && mkdir -p /tmp/ts-home && out=\$(HOME=/tmp/ts-home PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts.sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home/.local/state/dotfiles/root-skipped && [ ! -e /tmp/ts-home/.local/bin/tailscale ] && [ ! -e /tmp/ts-home/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home; exit \$r"
-  # 之後拿到 root:~/.local/bin 的 userspace 版不算已安裝(它沒有系統 unit,systemctl enable 會失敗),要走官方 installer。
-  # 用會成功的 sudo stub 渲染成有 root 那版,curl stub 記錄呼叫(一定失敗,腳本停在下載)
   put_root_file /opt/e2e-stub/sudo-ok/sudo 755 <<'SH'
 #!/bin/sh
 exit 0
 SH
-  check "有 root 時不把 ~/.local/bin 的 userspace tailscale 當成已安裝,改跑官方 installer" \
-    "rm -f /tmp/e2e-curl.log && PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-root.sh && out=\$(PATH=/opt/e2e-stub/curl-log:/opt/e2e-stub/sudo-ok:\$PATH sh /tmp/ts-root.sh 2>&1); echo \"\$out\"; ! grep -q '已安裝' <<<\"\$out\" && grep -q 'tailscale.com/install.sh' /tmp/e2e-curl.log"
   check "待跑的腳本只有略過彙整那支" \
     "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*zz-root-skipped-summary')\" ]"
+  check "zsh 的 PATH 沒有重複" "[ -z \"\$(~/.local/bin/zsh -i -c 'print -l \$path' 2>/dev/null | sort | uniq -d)\" ]"
+}
+
+# userspace tailscale(#224):完整會勾 tailscale(#273 起精簡不勾),在完整的使用者上驗。
+# 腳本重跑、下載失敗、拿到 root 用的 curl-log、sudo-ok stub 在 noroot_slim_checks 放好了。
+noroot_tailscale_checks() {
+  bold "▶ 完整:userspace tailscale"
+  check_skipped "tailscale"
+  # userspace tailscale 由 apply 裝到家目錄(#224):彙整那筆只剩登入、常駐與 ProxyCommand 的說明,不再要人下載
+  check "tailscale 的彙整只剩登入與說明(登入、常駐、ssh ProxyCommand,沒有下載步驟)" \
+    "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q 'tailscaled.sock up' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\" && ! grep -qE 'pkgs.tailscale.com|--tun=userspace-networking' <<<\"\$s\""
+  check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
+    "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
+  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
+  for h in company-ec2 company-ec2-attach company-ec2-socks; do
+    check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
+      "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  done
+  check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
+    "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
+  step "放時間標記(之後看 tailscale 有沒有重新下載)" "touch ~/.e2e-marker-ts"
+  check "再 apply 一次 exit 0" "chezmoi apply --no-tty"
+  check "再 apply 沒有重新下載 tailscale" \
+    "[ ! ~/.local/bin/tailscale -nt ~/.e2e-marker-ts ] && [ ! ~/.local/bin/tailscaled -nt ~/.e2e-marker-ts ]"
+  # 腳本內容改了(run_onchange 會重跑)也不重下載:直接渲染再跑一次,PATH 前面放記錄呼叫、一定失敗的 curl
+  check "tailscale 已經裝過:腳本重跑不下載、exit 0" \
+    "rm -f /tmp/e2e-curl.log && chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-\$(id -un).sh && out=\$(PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts-\$(id -un).sh 2>&1) && echo \"\$out\" && grep -q '已經裝過' <<<\"\$out\" && [ ! -e /tmp/e2e-curl.log ]; r=\$?; rm -f ~/.local/state/dotfiles/root-skipped; exit \$r"
+  # 同一支渲染好的腳本,換一個空的 HOME 跑:沒裝過、curl 失敗
+  check "tailscale 下載失敗:記進略過彙整、exit 0、不留半套" \
+    "rm -rf /tmp/ts-home-\$(id -un) && mkdir -p /tmp/ts-home-\$(id -un) && out=\$(HOME=/tmp/ts-home-\$(id -un) PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts-\$(id -un).sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home-\$(id -un)/.local/state/dotfiles/root-skipped && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscale ] && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home-\$(id -un); exit \$r"
+  # 之後拿到 root:~/.local/bin 的 userspace 版不算已安裝(它沒有系統 unit,systemctl enable 會失敗),要走官方 installer。
+  # 用會成功的 sudo stub 渲染成有 root 那版,curl stub 記錄呼叫(一定失敗,腳本停在下載)
+  check "有 root 時不把 ~/.local/bin 的 userspace tailscale 當成已安裝,改跑官方 installer" \
+    "rm -f /tmp/e2e-curl.log && PATH=/opt/e2e-stub/sudo-ok:\$PATH chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-root.sh && out=\$(PATH=/opt/e2e-stub/curl-log:/opt/e2e-stub/sudo-ok:\$PATH sh /tmp/ts-root.sh 2>&1); echo \"\$out\"; ! grep -q '已安裝' <<<\"\$out\" && grep -q 'tailscale.com/install.sh' /tmp/e2e-curl.log"
   # userspace tailscaled 常駐:用一支叫 tailscaled 的假程式(只會等),看開 zsh 時沒在跑會不會被起來、在跑時不會多起一支。
   # 前面的 zsh -i 已經把 apply 裝的真 tailscaled 起過了:先停掉、把真的移開,測完放回去。
   # 用 KILL:真的 tailscaled 收到 TERM 後要一陣子才結束,接著的「沒在跑」會誤判
   check "userspace tailscaled 沒在跑時,開 zsh 會背景起來;已在跑不會多起" \
     "pkill -KILL -xu \"\$(id -u)\" tailscaled; sleep 1; mv ~/.local/bin/tailscaled ~/.local/bin/tailscaled.real && printf '#!/bin/sh\\nwhile :; do sleep 1; done\\n' > ~/.local/bin/tailscaled && chmod +x ~/.local/bin/tailscaled && ! pgrep -xu \"\$(id -u)\" tailscaled && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ] && ~/.local/bin/zsh -i -c exit >/dev/null 2>&1 && sleep 1 && [ \"\$(pgrep -xu \"\$(id -u)\" tailscaled | wc -l)\" = 1 ]; r=\$?; pkill -xu \"\$(id -u)\" tailscaled; mv -f ~/.local/bin/tailscaled.real ~/.local/bin/tailscaled; exit \$r"
-  check "zsh 的 PATH 沒有重複" "[ -z \"\$(~/.local/bin/zsh -i -c 'print -l \$path' 2>/dev/null | sort | uniq -d)\" ]"
 }
 
 noroot_full_checks() {
@@ -1329,10 +1363,10 @@ noroot_full_checks() {
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
   check "系統套件的手動方式不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' | grep -qwE 'vim|btop|ffmpeg|poppler-utils|jq|zsh'"
-  check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server)" \
-    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server):'"
+  check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
-  for t in btop gh fastfetch code-server eza fzf bat rg starship ttyd; do check_mise "$t"; done
+  for t in btop gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared; do check_mise "$t"; done
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim
@@ -1466,6 +1500,7 @@ scenario_noroot() {
   step "完整:只有 ~/.bash_profile、沒有 ~/.profile" "mv ~/.profile ~/.bash_profile"
   noroot_init full
   noroot_full_checks
+  noroot_tailscale_checks
 
   noroot_has_root_checks
   noroot_ssh_present_checks
