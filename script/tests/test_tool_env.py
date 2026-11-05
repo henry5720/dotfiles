@@ -152,6 +152,20 @@ class ToolEnvTest(unittest.TestCase):
         self.assertIn('    machineUse = "custom"', out)
         self.assertIn(self.tools_line(menu_tools()), out)
 
+    def test_menu_has_no_carriage_return_on_crlf_checkout(self):
+        # Git for Windows 預設 core.autocrlf=true,source 是 CRLF:tool-menu 每行尾巴的 \r 不能跑進選單文字
+        # (henry-laptop 實測:說明和「（裝不了：…）」之間被斷行,--promptMultichoice 的值也對不上)
+        import shutil
+        shutil.copytree(ROOT / "home", self.dir / "src/home")
+        shutil.copy(ROOT / ".chezmoiroot", self.dir / "src/.chezmoiroot")
+        for f in (self.dir / "src/home/.chezmoitemplates").iterdir():
+            f.write_bytes(f.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+        self.source = self.dir / "src"
+        out = self.chezmoi({"chezmoi": {"os": "windows"}}, "execute-template",
+                           stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
+        # text=True 會把 \r 轉成換行:多出來的 \r 會讓行數比工具數多
+        self.assertEqual(len(out.split("\n")) - 1, len(menu_tools()))
+
     def test_discouraged_is_labelled_unticked_and_still_installed(self):
         # WSL 的網路借 Windows 那份 Tailscale:選單標不建議、完整不勾,勾了照裝、不記略過
         labels = self.chezmoi(WSL, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
