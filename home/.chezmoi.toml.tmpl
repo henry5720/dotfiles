@@ -4,11 +4,10 @@
        用途在 config 與提示上是英文代號 full／minimal／custom:chezmoi 的 promptChoice 是打字的輸入框、不是清單,
        中文選項得切輸入法;代號打開頭一個字母就夠(f、m、c),Enter 用預設。
        Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)、
-       macOS、原生 Termux 都問,流程一樣。
+       macOS、原生 Termux、Windows 主機都問,流程一樣(Windows 的 CLI 用 mise、app 用 winget 裝,#275)。
        選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)標原因、預設組合不勾,
        裝不了的勾了 apply 時略過,最後由略過彙整列出原因。
-       Windows 什麼都不問:沒有用途、選單、憑證與 git 身分,tools = [];要改 Windows 部署什麼就改 repo
-       (白名單在 .chezmoiignore 的 Windows 段)。
+       Windows 不問 git 身分(不部署 .gitconfig,見 .chezmoiignore 的 Windows 白名單)。
        存法:選單結果等於這台的預設組合(已扣掉不建議與裝不了的)時存用途,之後預設組合改了,跑 `chezmoi init` 就跟上;
        有改就存自訂(custom),tools 照勾的存、不再跟著預設組合走。
        不管存哪種,[data] 都寫展開後的 tools:其他樣板一律看 .tools,不認得用途。
@@ -55,9 +54,6 @@
 {{- $use := "minimal" -}}
 {{- $tools := list -}}
 {{- $windows := eq .chezmoi.os "windows" -}}
-{{- if $windows -}}
-{{- /* Windows:tools 留空。選裝工具全是 sh 腳本與 Linux／Termux 的套件,Windows 用 winget 手動裝(Runbook)。 */ -}}
-{{- else -}}
 {{- /* 選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)在說明後面標原因,
        預設組合不勾它們,勾了照存(裝不了的 apply 時略過、最後列出原因)。
        $labels 記工具名 → 選單文字(排版在 tool-menu-labels)。
@@ -78,13 +74,14 @@
 {{-   range $lean -}}
 {{-     if has . $full }}{{ $_ := set $presets "minimal" (append (get $presets "minimal") .) }}{{ end -}}
 {{-   end -}}
-{{- /* 現在的用途與勾選(兩個問題的預設值從它算)。只有 tools、沒有用途的舊 config 算自訂。
+{{- /* 現在的用途與勾選(兩個問題的預設值從它算)。只有 tools、沒有用途的舊 config 算自訂;
+       Windows 例外:#275 以前 Windows 一律存 tools = []、沒有用途,那不是選過的,當成第一次、出用途與選單。
        存完整、精簡的,勾選就是現在的預設組合,不看 config 裡那份展開過的 tools。 */ -}}
 {{-   $storedUse := "" -}}
 {{-   if hasKey . "machineUse" -}}
 {{-     $storedUse = .machineUse -}}
 {{-     if hasKey $legacyUse $storedUse }}{{ $storedUse = get $legacyUse $storedUse }}{{ end -}}
-{{-   else if hasKey . "tools" -}}
+{{-   else if and (hasKey . "tools") (not $windows) -}}
 {{-     $storedUse = "custom" -}}
 {{-   end -}}
 {{-   if not (hasKey $presets $storedUse) }}{{ $storedUse = "" }}{{ end -}}
@@ -158,7 +155,6 @@
 {{-     end -}}
 {{-     if not $same }}{{ $use = "custom" }}{{ end -}}
 {{-   end -}}
-{{- end -}}
 {{- /* 憑證與 git 身分:這台已經存過就沿用,沒有才問(chezmoi 官方 setup 指南的寫法,
        https://www.chezmoi.io/user-guide/setup/)。不用 promptStringOnce:`chezmoi init --prompt`
        會讓它重問,而這裡要 --prompt 只重問選單(`tools` 指令靠這個)。
@@ -169,10 +165,9 @@
        憑證刻意不帶現值當預設 —— 預設值會明文印在提示上;反正已經存過的不會再問。
        之後要改:`chezmoi edit-config` 改 [data] 那一行再 apply。
        每一項是 (key 提示文字 預設值 工具);預設值空字串 = 沒有預設。
-       Windows 整段跳過:不部署 .gitconfig、.ssh/config 與用到憑證的設定(見 .chezmoiignore 的 Windows 白名單)。 */ -}}
+       Windows 照同一套規則,只有 git 身分(空的那兩項)不問:Windows 不部署 .gitconfig(.chezmoiignore 的 Windows 白名單)。 */ -}}
 {{- $answers := dict -}}
 {{- $answerKeys := list -}}
-{{- if not $windows -}}
 {{- range $q := list
       (list "codeServerPassword" "code-server 密碼" "" (list "code-server"))
       (list "codexLbApiKey" "codex-lb API key" "" (list "codex" "opencode"))
@@ -181,7 +176,7 @@
       (list "gitUserName" "git user.name" "henry" (list))
       (list "gitUserEmail" "git user.email" "" (list)) -}}
 {{-   $key := index $q 0 -}}
-{{-   $needed := not (index $q 3) -}}
+{{-   $needed := and (not (index $q 3)) (not $windows) -}}
 {{-   range index $q 3 }}{{ if has . $tools }}{{ $needed = true }}{{ end }}{{ end -}}
 {{-   if hasKey $ $key -}}
 {{-     $_ := set $answers $key (index $ $key) -}}
@@ -194,19 +189,28 @@
 {{-   end -}}
 {{-   $answerKeys = append $answerKeys $key -}}
 {{- end -}}
-{{- end -}}
 {{- $personal := default dict (index . "aiPersonal") -}}
 
 [data]
 {{- range $answerKeys }}
     {{ . }} = {{ get $answers . | quote }}
 {{- end }}
-{{- if not $windows }}
     machineUse = {{ $use | quote }}
-{{- end }}
     tools = {{ $tools | toToml }}
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
     [data.aiPersonal]
     codexModel = {{ default "" (index $personal "codexModel") | quote }}
+{{- if $windows }}
+
+{{/* Windows 的 .ps1 腳本(.chezmoiscripts/*.ps1)一律用 Windows PowerShell 5.1 跑,只對這個 process 繞過執行原則。
+     偏離 chezmoi 預設(有 pwsh 用 pwsh,args 是 -NoLogo -File,https://www.chezmoi.io/reference/configuration-file/interpreters/)的理由:
+     第一次 init 時 pwsh 7 多半還沒裝(由 install-packages-windows 用 winget 裝),5.1 每台 Windows 都有;
+     腳本本來就要相容 5.1,固定一個版本行為才一致。Windows client 的 5.1 預設執行原則是 Restricted,
+     不加 -ExecutionPolicy Bypass 第一次 apply 就跑不動;-NoProfile 免得每支腳本都載入 profile(fastfetch、starship)。
+     chezmoi 把腳本路徑接在 args 後面,所以最後一個是 -File。 */ -}}
+[interpreters.ps1]
+    command = "powershell"
+    args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+{{- end }}

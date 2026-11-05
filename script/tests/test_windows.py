@@ -26,6 +26,14 @@ WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 TERMINAL_SETTINGS = "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
 TERMINAL_FIXTURE = ROOT / "script/tests/fixtures/windows-terminal-settings.json"
 PS51_PROFILE_GUID = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
+# 提示文字(要跟 config 樣板一字不差,同 test_tool_env.py)
+USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）"
+TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
+# Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
+WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI,加 winget 裝的 tailscale
+WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
+                "gh", "cloudflared", "ttyd", "ffmpeg", "tailscale"}
 
 
 def parse_jsonc(text):
@@ -77,13 +85,62 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     # config 樣板(chezmoi init 問什麼)
     # ===============================================================
-    def test_windows_init_asks_nothing_and_has_no_tools(self):
-        # stdin 是 /dev/null:樣板只要問任何一題就讀到 EOF 失敗
-        out = self.chezmoi("windows", "execute-template", "--init",
-                           CONFIG_TEMPLATE.read_text(encoding="utf-8"))
-        self.assertIn("\n    tools = []\n", out)
-        for key in ("gitUserName", "gitUserEmail", "machineUse", "ApiKey", "Password"):
-            self.assertNotIn(key, out)
+    def init(self, use, picked=None):
+        """全新 Windows 跑 config 樣板:用途選 use,picked 給選單文字(None = 選單直接 Enter)。
+        stdin 是 /dev/null:沒給答案的提示(例如 git 身分)會讀到 EOF 而失敗。"""
+        flags = ["--promptChoice", f"{USE_PROMPT}={use[0]}"]
+        if picked is not None:
+            flags += ["--promptMultichoice", f"{TOOLS_PROMPT}={'/'.join(picked)}"]
+        return self.chezmoi("windows", "execute-template", "--init", *flags,
+                            CONFIG_TEMPLATE.read_text(encoding="utf-8"))
+
+    def labels(self):
+        return self.chezmoi("windows", "execute-template",
+                            '{{ includeTemplate "tool-menu-labels" . }}').splitlines()
+
+    def tools_of(self, out):
+        line = next(l for l in out.splitlines() if l.startswith("    tools = "))
+        return json.loads(line.split("=", 1)[1])
+
+    def test_windows_init_asks_use_and_menu(self):
+        tailscale = next(l for l in self.labels() if l.startswith("tailscale "))
+        out = self.init("custom", [tailscale])
+        self.assertIn('\n    machineUse = "custom"\n', out)
+        self.assertEqual(self.tools_of(out), ["tailscale"])
+        # Windows 不部署 .gitconfig:git 身分不問(問了會讀到 EOF 失敗)
+        self.assertNotIn("gitUser", out)
+
+    def test_old_windows_config_gets_asked_on_next_init(self):
+        # #275 以前 Windows 的 config 是 tools = []、沒有 machineUse:不能當成「自訂、什麼都不勾」沿用,
+        # 下次 chezmoi init 要出用途與選單(這裡給 m,Enter 選單 = 精簡)
+        self.cfg.write_text("[data]\n    tools = []\n    toolsSchema = 3\n", encoding="utf-8")
+        out = self.init("minimal")
+        self.assertIn('\n    machineUse = "minimal"\n', out)
+        self.assertEqual(self.tools_of(out), WINDOWS_LEAN)
+
+    def test_windows_minimal_is_lean_without_zsh(self):
+        out = self.init("minimal")
+        self.assertIn('\n    machineUse = "minimal"\n', out)
+        self.assertEqual(self.tools_of(out), WINDOWS_LEAN)
+
+    def test_windows_full_is_what_windows_can_install(self):
+        out = self.init("full")
+        self.assertIn('\n    machineUse = "full"\n', out)
+        self.assertEqual(set(self.tools_of(out)), WINDOWS_FULL)
+
+    def test_windows_menu_lists_every_tool_and_marks_the_rest(self):
+        labels = self.labels()
+        menu = {l.split(" ")[0] for l in labels}
+        marked = {l.split(" ")[0] for l in labels if "（裝不了：" in l}
+        self.assertEqual(menu - marked, WINDOWS_FULL)
+        self.assertTrue({"zsh", "btop", "headless-chrome", "claude"} <= marked)
+
+    def test_windows_runs_ps1_scripts_with_powershell_bypassing_policy(self):
+        # 第一次 init 時 pwsh 可能還沒裝、執行原則可能是 Restricted:固定用 5.1,只對這個 process 繞過執行原則
+        out = self.init("minimal")
+        self.assertIn("\n[interpreters.ps1]\n", out)
+        self.assertIn('    command = "powershell"\n', out)
+        self.assertIn('    args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]\n', out)
 
     # ===============================================================
     # PowerShell profile(pwsh 7 與 5.1 共用一份)

@@ -19,7 +19,7 @@
        用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
        這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
 headless-chrome:
-  - when: [darwin]
+  - when: [darwin, windows]
     state: unsupported
     reason: 這裡裝的是 Google 給 Linux 的 .deb
   - when: [android]
@@ -35,7 +35,7 @@ headless-chrome:
     state: unsupported
     reason: .deb 只能裝在 Debian 系
 playwright-cli:
-  - when: [darwin, android, wsl, non-amd64, non-debian]
+  - when: [darwin, android, windows, wsl, non-amd64, non-debian]
     state: unsupported
     reason: 它用 headless-chrome，這台裝不了 headless-chrome
 tailscale:
@@ -49,36 +49,74 @@ tailscale:
     state: unsupported
     reason: 原生 Termux 裝 Tailscale 的 Android app
 {{- /* 原生 Termux(#274):termux-packages 沒有的、或官方 installer 沒在 Termux 驗過的。
-       coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。 */}}
+       coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
+       Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
+       app 用 winget(toolPackages.windows)。其他工具的安裝腳本都是 sh,Windows 標裝不了,到 WSL 裝。 */}}
+zsh:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的 shell 是 PowerShell，補全、語法上色內建，跳目錄的 zoxide 每台 Windows 都裝
 btop:
+  - when: [windows]
+    state: unsupported
+    reason: mise 的 btop 只有 Linux 版
   - when: [android]
     state: unsupported
     reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
 code-server:
+  - when: [windows]
+    state: unsupported
+    reason: code-server 官方不出 Windows 版，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: termux-packages 沒有，到 proot Ubuntu 裝
 claude:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 codex:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 opencode:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 herdr:
+  - when: [windows]
+    state: unsupported
+    reason: herdr 沒有 Windows 版，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 agent-config:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
 codegraph:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
+wakatime:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，到 WSL 裝
+node:
+  - when: [windows]
+    state: unsupported
+    reason: Windows 的安裝腳本還沒做，要的話自己 mise use -g node
