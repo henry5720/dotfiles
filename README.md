@@ -33,7 +33,7 @@ Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#�
 最常用的兩個：
 
 ```bash
-tools                                  # 改用途、加減選裝工具（Linux、macOS；Termux 沒有）；取消勾選不會解除安裝
+tools                                  # 改用途、加減選裝工具（Linux、macOS、Termux）；取消勾選不會解除安裝
 chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 ```
 

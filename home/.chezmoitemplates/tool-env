@@ -40,3 +40,40 @@ tailscale:
   - when: [darwin]
     state: unsupported
     reason: macOS 照 Runbook 裝官方 app
+  - when: [android]
+    state: unsupported
+    reason: 原生 Termux 裝 Tailscale 的 Android app
+{{- /* 原生 Termux(#274):termux-packages 沒有的、或官方 installer 沒在 Termux 驗過的。
+       coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。 */}}
+btop:
+  - when: [android]
+    state: unsupported
+    reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
+code-server:
+  - when: [android]
+    state: unsupported
+    reason: termux-packages 沒有，到 proot Ubuntu 裝
+claude:
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+codex:
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+opencode:
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+herdr:
+  - when: [android]
+    state: unsupported
+    reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+agent-config:
+  - when: [android]
+    state: unsupported
+    reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
+codegraph:
+  - when: [android]
+    state: unsupported
+    reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
