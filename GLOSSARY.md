@@ -104,6 +104,22 @@ _Avoid_: 自己電腦、本機、client、local（指這個角色時）
 從個人電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 share-shell 網址。
 _Avoid_: 連線方式（只指 ssh 時）、登入方式
 
+## 開給別人連
+
+把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/remote-access.md`。
+
+**tailnet 內**:
+連的人（或他的裝置）已經登入你的 tailnet。直接連 tailnet IP，用 `ssh -L`、`ssh -R` 或 `tailscale serve`，不開公網。
+_Avoid_: 內網、區網、私有網路
+
+**tailnet 外**:
+連的人不在你的 tailnet，只能從公網連，要給他一個公開網址。開出去的那台加進你的 tailnet 用 Funnel，不加用 Cloudflare quick tunnel。
+_Avoid_: 外網、訪客模式
+
+**公開網址**:
+Funnel 或 quick tunnel 開出來、任何人拿到都能連的 https 網址。擋陌生人的只剩 app 自己的驗證，用完要收掉。
+_Avoid_: 對外入口（「入口」指從個人電腦操作已配置主機的方式）、public URL、外部連結
+
 ## 裝機
 
 **基底**:
