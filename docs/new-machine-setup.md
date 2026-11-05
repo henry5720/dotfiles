@@ -11,7 +11,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[看 agent 的瀏覽器](browser-via-ec2.md)） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、精簡（濾掉 tailscale、btop：zsh、starship、eza、fzf、bat、ripgrep、vim）、終端機字型、`authorized_keys`；**不問**用途與選單（開發環境放 proot Ubuntu） |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
 | Windows 主機 | `chezmoi.os` 是 `windows` | 只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型），**不問**任何問題、不跑任何 `run_` 腳本；見[Windows 主機](windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
@@ -99,9 +99,13 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
 2. 要桌面才需要：從 [termux-x11 的 nightly release](https://github.com/termux/termux-x11/releases/tag/nightly)
    裝 Termux:X11 app（`termux-x11-universal-debug.apk`，它不在 F-Droid）。
 3. 在原生 Termux 跑第 2 步 Termux 那行。要用手機儲存空間時另外跑 `termux-setup-storage`（會跳 Android 權限對話框）。
-4. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
+4. 裝 [Tailscale 的 Android app](https://tailscale.com/download/android) 並登入：Termux 裡裝不了 tailscale
+   （選單上標裝不了），整台平板由這個 app 上 tailnet。
+5. 要讓別台用 ssh config 的 `pad`／`phone` 連進來：放好 SSH key（第 2.2 節）後在 Termux 跑 `sshd`
+   （聽 8022 port）。sshd 不會自己開機啟動，Termux 被關掉後要再跑一次。
+6. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
-5. 要 proot Ubuntu（開發環境放這裡）：
+7. 要 proot Ubuntu（開發環境放這裡）：
 
    ```bash
    bash ~/.local/share/chezmoi/script/termux/setup-proot-ubuntu.sh   # 使用者名稱預設 henry
@@ -199,6 +203,7 @@ WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
 herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
+原生 Termux 有勾的工具走 `pkg`（清單在同一份檔案的 termux 欄，Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。
 
 勾了 zsh 和 starship 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + starship 提示列。原生 Termux 到這裡就結束了。
 

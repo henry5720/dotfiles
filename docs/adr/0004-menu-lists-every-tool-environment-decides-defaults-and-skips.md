@@ -11,7 +11,8 @@
 
 「工具 × 環境 → 狀態＋原因」只寫在 `home/.chezmoitemplates/tool-env`，選單標註、預設組合、略過彙整都從那裡拿
 （經 `tool-status`）。放 `.chezmoitemplates/` 不放 `.chezmoidata/`：config 樣板（`chezmoi init`）讀不到 `.chezmoidata`。
-選裝工具的腳本與套件清單一律看 `tools-to-install`（勾了的扣掉裝不了的），裝不了的勾了就不跑；
+選裝工具的腳本、套件清單與各 client 的設定目錄（`.chezmoiignore`）一律看 `tools-to-install`（勾了的扣掉裝不了的），
+裝不了的勾了就不跑、不部署；
 略過由一支 `run_onchange_after_record-env-skipped` 統一記下，`run_after_zz-root-skipped-summary` 跟「沒有 root」分兩段列出。
 加一個環境限制只要在 `tool-env` 加一條規則，不用改各工具的腳本。
 

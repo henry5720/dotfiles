@@ -31,6 +31,7 @@ FEDORA = {"chezmoi": {"osRelease": {"id": "fedora", "idLike": ""}}}
 MAC = {"chezmoi": {"os": "darwin"}}
 # proot Ubuntu:userland 是 Ubuntu,kernel 是 Android 的(proot-distro 不假 /proc/sys/kernel/osrelease)
 PROOT = {"chezmoi": {"arch": "arm64", "kernel": {"osrelease": "5.15.123-android14-11-g0a1b2c3d4e5f"}}}
+ANDROID = {"chezmoi": {"os": "android"}}
 # 這台(跑測試的主機)可能是 WSL 或 ARM:對照組把環境釘成 amd64 的 Ubuntu
 UBUNTU = {"chezmoi": {"os": "linux", "arch": "amd64", "kernel": {"osrelease": "6.8.0-1-generic"},
                       "osRelease": {"id": "ubuntu", "idLike": "debian"}}}
@@ -106,7 +107,7 @@ class ToolEnvTest(unittest.TestCase):
 
     def test_every_environment_lists_every_tool(self):
         names = menu_tools()
-        for name, env in {"ubuntu": {}, "wsl": WSL, "arm": ARM, "fedora": FEDORA, "mac": MAC}.items():
+        for name, env in {"ubuntu": {}, "wsl": WSL, "arm": ARM, "fedora": FEDORA, "mac": MAC, "android": ANDROID}.items():
             with self.subTest(env=name):
                 out = self.chezmoi(env, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
                 self.assertEqual([l.split(" ")[0] for l in out.splitlines()], names)
@@ -249,6 +250,100 @@ class ToolEnvTest(unittest.TestCase):
         out = self.init(MAC, "minimal").stdout
         self.assertIn('    machineUse = "minimal"', out)
         self.assertIn(self.tools_line(LEAN), out)
+
+    # ===============================================================
+    # 原生 Termux(#274):跟 Linux、macOS 同一套用途與選單,pkg 有的工具都能勾
+    # ===============================================================
+    def write_config(self, use, tools):
+        (self.dir / "none.toml").write_text(
+            f'[data]\n    machineUse = "{use}"\n    tools = {json.dumps(tools)}\n    toolsSchema = 3\n'
+            '    gitUserName = "e2e"\n    gitUserEmail = "e2e@example.com"\n', encoding="utf-8")
+
+    def labels(self, env):
+        return self.chezmoi(env, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout.splitlines()
+
+    def test_android_asks_use_and_menu(self):
+        gh = next(l for l in self.labels(ANDROID) if l.startswith("gh "))
+        out = self.init(ANDROID, "custom", [gh]).stdout
+        self.assertIn('    machineUse = "custom"', out)
+        self.assertIn(self.tools_line(["gh"]), out)
+
+    def test_android_minimal_is_ubuntu_minimal_without_unsupported(self):
+        # 精簡的組合由 #273 決定;這裡只管 Termux 的精簡 = Ubuntu 的精簡扣掉 Termux 裝不了的 tailscale、btop
+        ubuntu = self.init({}, "minimal").stdout
+        line = next(l for l in ubuntu.splitlines() if l.startswith("    tools = "))
+        lean = [t for t in json.loads(line.split("=", 1)[1]) if t not in ("tailscale", "btop")]
+        out = self.init(ANDROID, "minimal").stdout
+        self.assertIn('    machineUse = "minimal"', out)
+        self.assertIn(self.tools_line(lean), out)
+
+    def test_android_keeps_hand_added_tool_after_init(self):
+        # 以前 android 每次 init 都把 tools 重算回固定那幾項,edit-config 手動加的會不見
+        self.write_config("custom", ["gh", "ttyd"])
+        template = (self.source / CONFIG_TEMPLATE).read_text(encoding="utf-8")
+        out = self.chezmoi(ANDROID, "execute-template", "--init", stdin=template).stdout
+        self.assertIn(self.tools_line(["gh", "ttyd"]), out)
+
+    def test_android_unsupported_tools_not_installed_but_recorded(self):
+        scripts = {
+            "tailscale": "run_onchange_after_install-tailscale.sh.tmpl",
+            "code-server": "run_onchange_after_install-code-server.sh.tmpl",
+            "claude": "run_onchange_after_install-claude.sh.tmpl",
+            "codex": "run_onchange_after_install-codex.sh.tmpl",
+            "opencode": "run_onchange_after_install-opencode.sh.tmpl",
+            "herdr": "run_onchange_after_install-herdr.sh.tmpl",
+            "agent-config": "run_onchange_after_install-agent-config.sh.tmpl",
+            "codegraph": "run_onchange_after_npm-install-codegraph.sh.tmpl",
+            "headless-chrome": "run_onchange_after_install-headless-chrome.sh.tmpl",
+            "playwright-cli": "run_onchange_after_npm-install-playwright-cli.sh.tmpl",
+        }
+        for tool, script in scripts.items():
+            with self.subTest(tool=tool):
+                self.assertEqual(self.render(ANDROID, f"{SCRIPTS}/{script}", [tool]).strip(), "")
+        rec = self.render(ANDROID, f"{SCRIPTS}/{RECORDER}", [*scripts, "btop", "gh", "wakatime"])
+        self.assert_sh(rec)
+        recorded = sorted(l.split("'")[1] for l in rec.splitlines() if l.startswith("skip_env "))
+        self.assertEqual(recorded, sorted([*scripts, "btop"]))
+        self.assertIn("Android app", next(l for l in rec.splitlines() if l.startswith("skip_env 'tailscale'")))
+        summary = self.render(ANDROID, f"{SCRIPTS}/{SUMMARY}", ["claude"])
+        self.assert_sh(summary)
+        self.assertIn("== 這台裝不了,以下選裝工具已略過", summary)
+
+    def test_android_annotations(self):
+        got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
+        self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
+                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph"})
+
+    def test_android_installs_pkg_tools(self):
+        tools = ["fastfetch", "gh", "ffmpeg", "ttyd", "cloudflared", "zsh"]
+        pkgs = self.render(ANDROID, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", tools)
+        line = next(l for l in pkgs.splitlines() if l.startswith("for pkg in"))
+        for p in tools:
+            self.assertIn(p, line.replace(";", " ").split())
+        self.assertNotIn("nodejs-lts", pkgs)
+
+    def test_android_node_is_pkg_nodejs_lts_not_nvm(self):
+        for tool in ("node", "wakatime"):
+            with self.subTest(tool=tool):
+                self.assertEqual(self.render(ANDROID, f"{SCRIPTS}/run_onchange_after_install-node.sh.tmpl", [tool]).strip(), "")
+                pkgs = self.render(ANDROID, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", [tool])
+                self.assertIn("nodejs-lts", pkgs)
+                self.assert_sh(pkgs)
+                self.assertNotIn("libatomic1", pkgs)
+        # wakatime 在 Termux 實測裝得起來(linux 版 wakatime-cli 能跑、連得到 API),不標裝不了
+        self.assertNotEqual(self.render(ANDROID, f"{SCRIPTS}/run_onchange_after_install-wakatime.sh.tmpl", ["wakatime"]).strip(), "")
+
+    def test_android_gets_tools_command(self):
+        out = self.render(ANDROID, "home/dot_local/bin/executable_tools.tmpl", [])
+        first = out.splitlines()[0]
+        self.assertTrue(first.startswith("#!") and first != "#!/bin/sh", first)
+        self.assertIn("chezmoi init --prompt", out)
+
+    def test_android_does_not_deploy_config_of_unsupported_clients(self):
+        ignore = self.render(ANDROID, "home/.chezmoiignore", ["claude", "codex", "opencode", "agent-config", "code-server"])
+        lines = {l.strip() for l in ignore.splitlines()}
+        for target in (".claude", ".codex", ".config/opencode", ".config/skillshare", ".config/code-server"):
+            self.assertIn(target, lines)
 
 
 if __name__ == "__main__":

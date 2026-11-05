@@ -24,7 +24,9 @@ missing=""
 {{- range $tool, $tp := $toolPkgs }}
 {{-   if and (has $tool $installing) (not (and $mise (hasKey $.miseTools $tool))) }}{{ $pkgs = concat $pkgs $tp }}{{ end }}
 {{- end }}
-{{- /* 勾了要 Node 的工具:nvm 裝的 Node 官方 binary 要 libatomic.so.1(.chezmoitemplates/needs-node) */}}
+{{- /* 勾了要 Node 的工具(.chezmoitemplates/needs-node):Linux 加 nvm 的 Node 要的 libatomic.so.1;
+       Termux 的 Node 本身走 pkg(nodePackages.termux),下面另外判斷 */}}
+{{- $termuxNode := and (eq .chezmoi.os "android") (includeTemplate "needs-node" .) }}
 {{- if and (ne .chezmoi.os "android") (includeTemplate "needs-node" .) }}{{ $pkgs = concat $pkgs .nodePackages.ubuntu }}{{ end }}
 {{- /* apt 用不了時 jq、zsh 改裝到家目錄(run_onchange_before_install-home-jq-zsh),這裡不算缺 */}}
 {{- if $mise }}{{ $pkgs = without $pkgs "jq" "zsh" }}{{ end }}
@@ -32,6 +34,10 @@ for pkg in {{ $pkgs | uniq | join " " }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done
+{{- if $termuxNode }}
+# Termux 的 Node:nodejs-lts 跟 nodejs、nodejs-current 互斥,已經有 node 指令就不裝
+command -v node >/dev/null 2>&1 || missing="$missing {{ .nodePackages.termux | join " " }}"
+{{- end }}
 [ -n "$missing" ] || exit 0
 
 # 2. 有缺才裝

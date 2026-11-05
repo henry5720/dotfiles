@@ -3,8 +3,8 @@
 {{- /* 用途與選裝工具:先問這台的用途(完整／精簡／自訂),再出選裝工具選單,照用途的預設組合勾好,可以再調。
        用途在 config 與提示上是英文代號 full／minimal／custom:chezmoi 的 promptChoice 是打字的輸入框、不是清單,
        中文選項得切輸入法;代號打開頭一個字母就夠(f、m、c),Enter 用預設。
-       只在 Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)
-       與 macOS 問。原生 Termux 不問,自動套用精簡,濾掉 tailscale、btop。
+       Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)、
+       macOS、原生 Termux 都問,流程一樣。
        選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)標原因、預設組合不勾,
        裝不了的勾了 apply 時略過,最後由略過彙整列出原因。
        Windows 什麼都不問:沒有用途、選單、憑證與 git 身分,tools = [];要改 Windows 部署什麼就改 repo
@@ -57,11 +57,6 @@
 {{- $windows := eq .chezmoi.os "windows" -}}
 {{- if $windows -}}
 {{- /* Windows:tools 留空。選裝工具全是 sh 腳本與 Linux／Termux 的套件,Windows 用 winget 手動裝(Runbook)。 */ -}}
-{{- else if eq .chezmoi.os "android" -}}
-{{- /* 不出選單的機器:原生 Termux 沒有 tailscale、btop 的套件腳本。濾完剩下的就是 $baseSplit。 */ -}}
-{{-   range $lean -}}
-{{-     if not (has . (list "tailscale" "btop")) }}{{ $tools = append $tools . }}{{ end -}}
-{{-   end -}}
 {{- else -}}
 {{- /* 選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)在說明後面標原因,
        預設組合不勾它們,勾了照存(裝不了的 apply 時略過、最後列出原因)。

@@ -1,4 +1,5 @@
-{{- if includeTemplate "needs-node" . -}}
+{{- /* 原生 Termux 不走 nvm:Node 由套件腳本用 pkg 裝(packages.yaml 的 nodePackages.termux) */ -}}
+{{- if and (includeTemplate "needs-node" .) (ne .chezmoi.os "android") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
 # codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、

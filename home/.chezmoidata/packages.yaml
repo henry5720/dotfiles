@@ -49,8 +49,9 @@ toolPackages:
     headless-chrome:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
-  # 原生 Termux 沒有選單,tools 由 .chezmoi.toml.tmpl 自動帶入。
-  # eza、fzf、bat、ripgrep、starship、btop 在 Linux 一律由 mise 裝(下面 miseTools 的 always),Termux 走 pkg。
+  # 原生 Termux:termux-packages 主 repo 有的都走 pkg(Linux 上 eza、fzf 這些由 mise 裝,見下面 miseTools)。
+  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、tailscale、code-server、coding agent…)
+  # 在 .chezmoitemplates/tool-env 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
   termux:
     zsh:
       - zsh
@@ -66,6 +67,16 @@ toolPackages:
       - bat
     ripgrep:
       - ripgrep
+    fastfetch:
+      - fastfetch
+    gh:
+      - gh
+    ffmpeg:
+      - ffmpeg
+    ttyd:
+      - ttyd
+    cloudflared:
+      - cloudflared
   # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),交給 brew bundle 的 cask。
   # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
   # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
@@ -106,7 +117,7 @@ toolPackages:
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
 # 判斷在 .chezmoitemplates/needs-node。
-#   node:選單上的 nvm＋Node LTS
+#   node:選單上的 Node LTS(Linux、macOS 用 nvm;Termux 用 pkg 的 nodejs-lts)
 #   codegraph、playwright-cli:npm 全域套件
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
@@ -116,12 +127,16 @@ nodeTools:
   - playwright-cli
   - opencode
   - wakatime
-# 勾了 nodeTools 其中一個時一起裝的系統套件(套件腳本只在 apt 那條路用;Termux、macOS 不用)。
-# nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
-# 基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+# 勾了 nodeTools 其中一個時一起裝的系統套件(macOS 不用)。
+# ubuntu:nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
+#   基底拿掉它之後要自己列,不然 node 一執行就 exit 127
+# termux:Node 本身。nvm 的 Node 官方 binary 在 Android 跑不起來,改用 pkg 的 LTS 版、不跑 install-node。
+#   nodejs-lts 跟 nodejs、nodejs-current 互斥:已經有 node 指令(裝了其中一個)就不裝,見套件腳本
 nodePackages:
   ubuntu:
     - libatomic1
+  termux:
+    - nodejs-lts
 
 # Linux 由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
 # 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。分兩種,看 mise 用什麼 backend 裝(#233):

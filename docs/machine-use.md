@@ -21,7 +21,7 @@
 
 精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，但已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
-- 原生 Termux 不問，直接套精簡、濾掉 tailscale、btop。
+- 原生 Termux 也問，流程一樣；精簡、完整扣掉 Termux 裝不了的（見下面〈環境〉）。`node` 在 Termux 是 pkg 的 `nodejs-lts`，不走 nvm。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
 - `node` 裝 nvm 與 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
 - `starship` 是 zsh、bash 共用的提示列，跟 `zsh` 分開勾：只要 zsh 外掛、不要提示列，或用 bash 配 starship 都行；沒勾就是 shell 預設的提示列。以前存自訂、勾了 `zsh` 的 config（當時 zsh 附帶 p10k），下次 `chezmoi init` 自動補勾 `starship`。
@@ -41,7 +41,9 @@
 | 裝不了 | 不勾 | 略過；apply 照樣跑完，最後跟「沒有 root」分開列出略過了哪些、為什麼 |
 
 目前不建議的：WSL、proot Ubuntu 的 `tailscale`（網路借外層 Windows 或 Android 那份 Tailscale，再裝一份會變成 tailnet 上兩個節點）。
-目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`。
+目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`；原生 Termux 除了這兩項，
+還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`code-server`、`claude`、`codex`、`opencode`、`herdr`、
+`agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
 macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
 [`home/.chezmoitemplates/tool-env`](../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
 

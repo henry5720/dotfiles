@@ -97,7 +97,9 @@ check_git_remotes() {
   # 不連網:git 自己算出 fetch／push 各用哪個 URL。Termux 沒有 /tmp,用 $TMPDIR
   check "HTTPS remote 的 fetch 不改寫、push 改寫成 git@github.com:" \
     "d=\${TMPDIR:-/tmp}/pio; rm -rf \$d && git init -q \$d && git -C \$d remote add origin $GH_HTTPS/dotfiles.git && [ \"\$(git -C \$d remote get-url origin)\" = $GH_HTTPS/dotfiles.git ] && [ \"\$(git -C \$d remote get-url --push origin)\" = git@github.com:henry5720/dotfiles.git ]"
-  # e2e 用 AGENT_CONFIG_REMOTE 換成假 remote,這裡另外看沒換時的預設值,並確認不帶 key 真的 clone 得到
+  # e2e 用 AGENT_CONFIG_REMOTE 換成假 remote,這裡另外看沒換時的預設值,並確認不帶 key 真的 clone 得到。
+  # Termux 裝不了 agent-config(#274),腳本渲染成空的,只在 Linux 驗
+  [ "$TARGET" = termux ] && return 0
   check "agent-config 腳本預設 remote 是 HTTPS,而且不用 key 就讀得到" \
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
@@ -377,8 +379,11 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 # 不然 yaml 少列一個測試也照樣過。
 UBUNTU_BASE=(git curl jq python3)
 
-# 原生 Termux 不出選單,自動套精簡。config 裡那一行應該長這樣:
-TERMUX_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
+# 原生 Termux(#274):跟 Linux 同一套用途與選單,環境用 --override-data 模擬時給 ANDROID_ENV。
+# Termux 的精簡 = Ubuntu 的精簡扣掉 Termux 裝不了的 tailscale、btop(.chezmoitemplates/tool-env)。
+ANDROID_ENV='{"chezmoi":{"os":"android"}}'
+TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | grep -vxE 'tailscale|btop' | paste -sd/)
+TERMUX_TOML=$(toml_list "$TERMUX_LEAN")
 
 # 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
 CLI_TOOLS=(eza fzf bat rg starship btop fastfetch)
@@ -766,18 +771,21 @@ scenario_ubuntu() {
   check "精簡(沒有任何憑證)的 config 渲染得了所有檔案" \
     "chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --no-tty --exclude externals,scripts"
 
-  # 原生 Termux 不出選單、不跑選裝腳本。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
-  # 真的在 termux 容器跑 init 由 termux 目標負責。
-  bold "▶ (渲染)Termux 不出選單、不跑選裝腳本"
-  local android='{"chezmoi":{"os":"android"}}'
-  check "android 的 config 樣板不問用途與選單,套精簡" \
-    "chezmoi execute-template --init --no-tty --override-data '$android' $(printf '%q ' "${INIT_FLAGS[@]}") < ~/.local/share/chezmoi/home/.chezmoi.toml.tmpl > /tmp/android.toml && grep -qxF '$TERMUX_TOML' /tmp/android.toml && grep -qx '    machineUse = \"minimal\"' /tmp/android.toml"
+  # 原生 Termux 跟 Linux 同一套用途與選單(#274)。這裡只驗樣板(把 .chezmoi.os 蓋成 android 來渲染);
+  # 真的在 termux 容器跑 init、apply 由 termux 目標負責。
+  bold "▶ (渲染)Termux 出用途與選單、裝不了的不跑腳本"
+  local android=$ANDROID_ENV
+  check "android 選精簡:存精簡,tools 是 Termux 的精簡(扣掉裝不了的 tailscale、btop)" \
+    "$(render_cmd /tmp/u-android.toml --override-data "$android" --promptChoice "$(use_choice minimal)") > /tmp/android.toml && $(printf "$use_is" minimal /tmp/android.toml) && grep -qxF '$TERMUX_TOML' /tmp/android.toml"
+  check "android 選單全部勾(含裝不了的):照存,存自訂" \
+    "$(render_cmd /tmp/u-android.toml --override-data "$android" --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice "$FULL_TOOLS" "$android")") > /tmp/android-all.toml && $(printf "$use_is" custom /tmp/android-all.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/android-all.toml"
   # dry-run 的輸出含所有檔案的 diff,只看腳本自己的 diff 標頭,避免檔案內容裡提到腳本名就誤判。
   # 先確認同一招在 linux 上看得到選裝腳本,不然下一項「看不到」可能只是指令本身看不到腳本
   check "(對照)linux 用同一招看得到選裝腳本" \
     "chezmoi --destination /tmp/linux-home --persistent-state /tmp/linux.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -q '^diff --git a/\.chezmoiscripts/install-gh'"
-  check "android 上沒有任何選裝工具的腳本會跑" \
-    "out=\$(chezmoi --config /tmp/android.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1); ! printf '%s' \"\$out\" | grep -E '^diff --git a/$TOOL_SCRIPT_RE'"
+  # 全部勾了,Termux 會跑的選裝腳本只剩 wakatime(其他走 pkg,或裝不了);Node 走 pkg、不跑 install-node
+  check "android 全部勾:選裝工具的腳本只跑 install-wakatime" \
+    "[ \"\$(chezmoi --config /tmp/android-all.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/($TOOL_SCRIPT_RE|\\.chezmoiscripts/install-node)' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-wakatime ]"
 
   # 選單每台列全部工具(#272)。WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260)、Google 只出 amd64 的 .deb:
   # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoitemplates/tool-env),預設組合不勾,勾了照存、apply 時略過。
@@ -1058,8 +1066,9 @@ scenario_termux() {
   # 選完會留下的 symlink,固定用預設那組;真機上 pkg 自己挑,不受影響。
   step "固定用預設 mirror" "ln -sfn \$PREFIX/etc/termux/mirrors/default \$PREFIX/etc/termux/chosen_mirrors"
   # init 輸出留在 ~/e2e-init.log,給 reload 那項檢查看。
-  step "全新 Termux 跑 README 的安裝指令(pkg upgrade、pkg install chezmoi、init --apply)" \
-    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}")"
+  # 跟 Runbook 免回答那行一樣:用途選精簡、選單直接 Enter(--promptDefaults)
+  step "全新 Termux 跑 README 的安裝指令(pkg upgrade、pkg install chezmoi、init --apply,用途選精簡)" \
+    "$(install_cmd '~/e2e-init.log' --no-tty "${INIT_FLAGS[@]}" --promptDefaults --promptChoice "$(use_choice minimal)")"
   check "pkg upgrade 有跑:沒有可升級的套件" "[ -z \"\$(apt list --upgradable 2>/dev/null | grep -v '^Listing')\" ]"
   check "chezmoi 用 pkg 裝" "dpkg-query -W -f='\${Status}' chezmoi | grep -q 'install ok installed'"
   check_git_remotes
@@ -1068,23 +1077,14 @@ scenario_termux() {
   for p in "${TERMUX_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
-  # Termux 沒有選單、沒勾任何 agent:client 的設定目錄都不部署(#211)。
+  # 精簡沒勾任何 agent:client 的設定目錄都不部署(#211)。
   check "沒勾的 client 不部署設定目錄(~/.claude、~/.codex、~/.config/opencode、skillshare 的 config.yaml)" \
     "[ ! -e ~/.claude ] && [ ! -e ~/.codex ] && [ ! -e ~/.config/opencode ] && [ ! -e ~/.config/skillshare/config.yaml ]"
-  # modify_ 腳本在 Termux 上照樣跑得動(shebang、jq、python3):用 chezmoi cat 假裝勾了三個 client,
-  # 看它算出來的內容,不實際部署。
-  # codexLbApiKey 一併給:沒勾 codex、opencode 的機器不會問這個秘密(#210)
-  local agents='{"tools":["claude","codex","opencode"],"codexLbApiKey":"e2e"}'
-  check "(勾 claude 時)modify_ 產物:~/.claude/settings.json 關掉 chrome-devtools plugin" \
-    "chezmoi cat --override-data '$agents' ~/.claude/settings.json | jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false'"
-  check "(勾 codex 時)modify_ 產物:~/.codex/config.toml 有 codex-lb provider" \
-    "chezmoi cat --override-data '$agents' ~/.codex/config.toml | python3 -c 'import tomllib,sys; c=tomllib.loads(sys.stdin.read()); assert c[\"model_provider\"]==\"codex-lb-gcp\" and \"codex-lb-gcp\" in c[\"model_providers\"]'"
-  check "(勾 codex 時)modify_ 產物:~/.codex/personal.config.toml 有 chatgpt 登入" \
-    "chezmoi cat --override-data '$agents' ~/.codex/personal.config.toml | python3 -c 'import tomllib,sys; c=tomllib.loads(sys.stdin.read()); assert c[\"forced_login_method\"]==\"chatgpt\"'"
-  check "(勾 opencode 時)modify_ 產物:~/.config/opencode/opencode.json 有 repo 的 model" \
-    "chezmoi cat --override-data '$agents' ~/.config/opencode/opencode.json | jq -e '.model == \"codex-lb-gcp/gpt-6.1-sol\" and .mcp == {}'"
+  # claude、codex、opencode、agent-config 在 Termux 裝不了(#274):勾了也不部署它們的設定目錄,
+  # 所以不再在 Termux 驗它們的 modify_ 產物(Ubuntu 目標驗)。勾了不部署由下面 tools 那段驗。
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
-  check "沒有 tools 指令(Termux 沒有選單)" "[ ! -e ~/.local/bin/tools ]"
+  check "tools 指令部署成可執行檔、shebang 指得到(Termux 沒有 /bin/sh)" \
+    "[ -x ~/.local/bin/tools ] && sh_path=\$(head -n1 ~/.local/bin/tools | sed 's/^#!//') && [ -x \"\$sh_path\" ]"
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
     "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
@@ -1103,11 +1103,16 @@ scenario_termux() {
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
-  # init 沒給 --promptMultichoice 也跑完了,本身就證明沒出選單;再確認存下來的是自動帶入的七項、選裝腳本一支都沒跑
-  check "沒有用途與選裝工具選單(config 存精簡、tools 是精簡那八項)" \
+  # 用途與選單跟 Linux 一樣會問(#274):--no-tty 時答案從 stdin 一行一題讀(用途、選單、git user.name),
+  # 提示文字會印出來。另一份 config,不動上面裝好的那份。
+  check "init 出用途與選裝工具選單(打 m、選單 Enter 得到精簡)" \
+    "out=\$(printf 'm\\n\\n\\n' | chezmoi --config ~/q-use.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -qF $(printf '%q' "$USE_PROMPT") <<<\"\$out\" && grep -qF $(printf '%q' "$TOOLS_PROMPT") <<<\"\$out\" && grep -qx '    machineUse = \"minimal\"' ~/q-use.toml && grep -qxF '$TERMUX_TOML' ~/q-use.toml"
+  check "選單列全部工具,Termux 裝不了的標原因(tailscale 提示裝 Android app)" \
+    "out=\$(printf 'c\\n\\n\\n' | chezmoi --config ~/q-menu.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -q 'claude .*（裝不了：' <<<\"\$out\" && grep -q 'tailscale .*（裝不了：.*Android app' <<<\"\$out\" && grep -q 'agent-config .*（裝不了：' <<<\"\$out\""
+  check "config 存精簡、tools 是 Termux 的精簡(Ubuntu 的精簡扣掉 tailscale、btop)" \
     "grep -qxF '$TERMUX_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
   check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
-  for t in zsh starship eza fzf bat ripgrep vim; do check_tool "$t"; done
+  for t in ${TERMUX_LEAN//\// }; do check_tool "$t"; done
   check "選裝工具的腳本一支都沒跑" \
     "! chezmoi state dump --format json | jq -r '.scriptState[].name' | grep -E '^$TOOL_SCRIPT_RE'"
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
@@ -1135,6 +1140,42 @@ scenario_termux() {
   check "第二次 apply exit 0、pkg 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
+
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime),
+  # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
+  # cloudflared 由 #273 加進選單;選單上有它才一起勾。
+  bold "▶ tools 勾 gh、node、wakatime 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/wakatime/claude/headless-chrome
+  if grep -q '^cloudflared ' "$REPO/home/.chezmoitemplates/tool-menu"; then
+    picks+=/cloudflared
+  else
+    bold "  (選單還沒有 cloudflared,等 #273;這輪不勾)"
+  fi
+  check "tools 選自訂、勾 $picks:exit 0" \
+    "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
+  check "config 存自訂、tools 照勾的存(含裝不了的)" \
+    "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml && grep -qxF '$(toml_list "$picks")' ~/.config/chezmoi/chezmoi.toml"
+  check "gh 用 pkg 裝好" "dpkg-query -W -f='\${Status}' gh | grep -q 'install ok installed' && gh --version"
+  if [[ $picks == */cloudflared ]]; then
+    check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
+  fi
+  # Node 走 pkg 的 nodejs-lts,不走 nvm(nvm 的官方 binary 在 Android 跑不起來)
+  check "node 是 pkg 的 nodejs-lts、沒有 ~/.nvm" \
+    "dpkg-query -W -f='\${Status}' nodejs-lts | grep -q 'install ok installed' && node --version && [ ! -e ~/.nvm ]"
+  # wakatime 在 Termux 實測裝得起來:linux 版 wakatime-cli 能跑(連得到 API 由 #274 手動驗過,這裡不連)
+  check_tool wakatime
+  check "claude 沒裝、~/.claude 沒部署" "! command -v claude && [ ! -e ~/.local/bin/claude ] && [ ! -e ~/.claude ]"
+  check "headless-chrome 沒裝" "! command -v google-chrome"
+  check "略過彙整列出 claude、headless-chrome 與原因,沒有「沒有 root」那段" \
+    "s=\$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' ~/e2e-tools.log) && grep -q -- '^- claude:.*proot Ubuntu' <<<\"\$s\" && grep -q -- '^- headless-chrome:.*Termux' <<<\"\$s\" && ! grep -q '^== 沒有 root' ~/e2e-tools.log"
+
+  # 以前 android 每次 init 都把 tools 重算回固定那幾項,手動加的會不見(#274)
+  bold "▶ 手動在 config 的 tools 加 ttyd,再 init、apply"
+  step "config 的 tools 加 ttyd" \
+    "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"ttyd\"]/' ~/.config/chezmoi/chezmoi.toml && grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -qF '\"ttyd\"'"
+  check "chezmoi init 之後 ttyd 還在" \
+    "chezmoi init --no-tty </dev/null && grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml | grep -qF '\"ttyd\"'"
+  check "apply 用 pkg 裝好 ttyd" "chezmoi apply --no-tty && dpkg-query -W -f='\${Status}' ttyd | grep -q 'install ok installed'"
 }
 
 # ===============================================================
