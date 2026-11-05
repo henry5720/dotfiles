@@ -100,41 +100,10 @@ Host openab
 # ===============================================================
 # 6. 公司 AWS EC2
 # ===============================================================
-# 走 tailnet。一般連線不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話
-# 先連的搶到、其他默默失敗(以前 9222 轉發就是這樣)。要轉發另開 Host,只在要用時連。
-# 四個別名連的是同一台:各別名的轉發寫在前面,共用的設定寫在最後一段。
-# ssh 每個設定取第一個符合的值,轉發(LocalForward、RemoteForward)是累加的;
-# 共用段不寫任何轉發,所以一般的 company-ec2 不會帶到別名的轉發。
-
-# 要 agent 接上個人電腦日常的 Chrome(passkey、硬體金鑰、裝置 SSO)時才連:`ssh -N company-ec2-attach`。
-# EC2 上的 personal-chrome-attach(agent-config 的 personal-pc-tunnel skill)把 Playwright Extension
-# 的 relay 固定在 127.0.0.1:9555,這條把個人電腦的 9555 接過去。不放進一般的 company-ec2:個人電腦的 9555
-# 也只有一個位子,每條連線都帶的話第二條起就搶不到。
-Host company-ec2-attach
-    LocalForward 127.0.0.1:9555 127.0.0.1:9555
-
-# 網站擋機房 IP、agent 要借個人電腦的對外 IP 時才連:`ssh -N company-ec2-socks`,用完 Ctrl-C 關掉。
-# RemoteForward 只寫 port、不寫目的地 = 反向 SOCKS:EC2 的 127.0.0.1:1080 進來的連線由個人電腦的 ssh 代連出去,
-# EC2 上的 headless Chrome 帶 proxy 指到 1080(agent-config 的 personal-pc-tunnel skill)。不放進一般的
-# company-ec2:平常 agent 的流量不該經過個人電腦,EC2 的 1080 也只有一個位子。
-Host company-ec2-socks
-    RemoteForward 127.0.0.1:1080
-
-# 讓 agent 控你在個人電腦開的 remote browser(獨立 profile 的 Chrome)時才連:`ssh -N company-ec2-chrome`(#278)。
-# 那支 Chrome 開在個人電腦的 9222,這條把它帶到 EC2 的 127.0.0.1:9222,EC2 上的 playwright-cli attach --cdp
-# 和 chrome-devtools MCP 都接這個 port。Windows 用 remote-browser 指令(開 Chrome + 這條轉發一起做),
-# 這個別名給有這份 ssh config、自己開好 Chrome 的機器。EC2 的 9222 只有一個位子:remote-chrome-headless
-# 開著時這條會失敗。
-Host company-ec2-chrome
-    RemoteForward 127.0.0.1:9222 127.0.0.1:9222
-
-# 帶轉發的別名:位子被另一個視窗占著就直接失敗,不默默連上;開著等人用,定時送 keepalive。
-Host company-ec2-attach company-ec2-socks company-ec2-chrome
-    ExitOnForwardFailure yes
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
-
-Host company-ec2 company-ec2-attach company-ec2-socks company-ec2-chrome
+# 走 tailnet。不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話先連的搶到、其他默默失敗
+# (以前 9222 轉發就是這樣)。要轉發就在要用時另打一條 ssh -N -o ExitOnForwardFailure=yes -L/-R …,
+# 指令見 docs/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
+Host company-ec2
     HostName 100.98.146.109
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem

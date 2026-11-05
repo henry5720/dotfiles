@@ -26,8 +26,6 @@ WINDOWS_TARGETS = {
     ".config/mise/conf.d/dotfiles.toml",
     # PowerShell 版的 tools
     ".local/bin/tools.ps1",
-    # remote-browser(#278)
-    ".local/bin/remote-browser.ps1",
 }
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
@@ -159,8 +157,7 @@ class WindowsDeployTest(unittest.TestCase):
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["claude", "zsh"]),
-                            ("home/dot_local/bin/tools.ps1.tmpl", []),
-                            ("home/dot_local/bin/remote-browser.ps1.tmpl", [])):
+                            ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):
                 out = self.render(path, tools)
                 self.assertTrue(out.strip())
@@ -171,26 +168,10 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("chezmoi init --prompt @args", out)
         self.assertIn("chezmoi apply", out)
 
-    def test_windows_remote_browser_forwards_9222_only_to_loopback(self):
-        # #278:獨立 profile 開 9222,ssh -R 只綁已配置主機的 127.0.0.1,搶不到 port 就直接結束
-        out = self.render("home/dot_local/bin/remote-browser.ps1.tmpl", [])
-        self.assertIn("$Port = 9222", out)
-        self.assertIn('"--remote-debugging-port=$Port"', out)
-        self.assertIn("--user-data-dir=", out)
-        self.assertIn('-R "127.0.0.1:${Port}:127.0.0.1:${Port}" $SshHost', out)
-        self.assertIn("ExitOnForwardFailure=yes", out)
-        self.assertIn("param([string]$SshHost = 'company-ec2')", out)
-        # 不能蓋掉 PowerShell 內建的 $PROFILE(變數名不分大小寫)
-        self.assertNotRegex(out, r"(?i)\$profile\b")
-        decoded = "".join(base64.b64decode(b).decode("utf-8")
-                          for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
-        self.assertIn("remote port forwarding failed", decoded)
-
     def test_windows_apply_deploys_tools_and_mise_list(self):
         # 不跑腳本(--exclude scripts):Linux 上沒有 powershell
         self.chezmoi("windows", "apply", "--exclude", "scripts", data={"tools": WINDOWS_LEAN})
         self.assertTrue((self.home / ".local/bin/tools.ps1").is_file())
-        self.assertTrue((self.home / ".local/bin/remote-browser.ps1").is_file())
         self.assertIn('"zoxide" = "latest"',
                       (self.home / ".config/mise/conf.d/dotfiles.toml").read_text(encoding="utf-8"))
 

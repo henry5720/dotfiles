@@ -13,24 +13,24 @@
 company-ec2 上的 headless 瀏覽器留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
 
 - **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。
-- **查原因**：`remote-chrome-headless` 開在 9222 給 chrome-devtools-mcp。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=http://127.0.0.1:9222`，MCP 只負責接、不自己開 Chrome：Chrome 由這支開、用完收掉，9222 只在查原因時佔著。
+- **查原因**：`google-chrome --headless --remote-debugging-port=9222` 開在 9222 給 chrome-devtools-mcp（指令見 [瀏覽器](../remote-access/browser.md)）。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=http://127.0.0.1:9222`，MCP 只負責接、不自己開 Chrome：Chrome 由 agent 開、用完收掉，9222 只在查原因時佔著。以前包成 `remote-chrome-headless`，#278 拿掉：只包一行指令。
 - **人要看畫面、接手**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
 
 瀏覽器在人的個人電腦上時，有兩個入口，接的是不同的 Chrome：
 
 | 入口 | 接到哪支 Chrome | 什麼時候用 | 分頁 |
 |---|---|---|---|
-| **CDP 9222**（remote browser） | 個人電腦上**獨立 profile** 的 Chrome，Windows 跑 `remote-browser` 開好並 `ssh -R` 到 company-ec2 的 9222 | 人自己要用、讓 agent 控：人看著本地視窗，agent 遠端操作 | 多個 |
+| **CDP 9222** | 個人電腦上**獨立 profile** 的 Chrome，開 `--remote-debugging-port=9222` 再 `ssh -R` 到 company-ec2 的 9222 | 人自己要用、讓 agent 控：人看著本地視窗，agent 遠端操作 | 多個 |
 | **Playwright 插件**（9555） | 人**日常 profile** 的 Chrome，`playwright-cli attach --extension=chrome` | 一定要日常 profile 裡的東西：passkey、硬體金鑰、裝置 SSO | 只有人貼網址的那一個 |
 
 - **9222 是通用的 CDP 入口，不是 chrome-devtools-mcp 專用。** `playwright-cli attach --cdp=http://127.0.0.1:9222` 操作、chrome-devtools-mcp 查原因，兩個都能接同一支 Chrome。
-  [#261](https://github.com/henry5720/dotfiles/issues/261) 拿掉這條，是當時以為它只給 chrome-devtools-mcp 用；[#278](https://github.com/henry5720/dotfiles/issues/278) 加回來。
+  [#261](https://github.com/henry5720/dotfiles/issues/261) 拿掉這條，是當時以為它只給 chrome-devtools-mcp 用；[#278](https://github.com/henry5720/dotfiles/issues/278) 加回來，指令寫在 [瀏覽器](../remote-access/browser.md)、不另外包 script。
 - **為什麼要獨立 profile**：Chrome 136 起不能對日常 profile 開 debugging port，只能另開一個 user-data-dir。那個 profile 一開始沒有人的登入，
   人在視窗裡登入一次就會留著。日常 profile 只能靠插件從裡面接出一個分頁，所以插件只是另一個入口，不是另一種工具。
-- **company-ec2 的 9222 同時只有一個**：人的轉發開著時是 remote browser；沒開時才由 `remote-chrome-headless` 開 headless 給查原因用。
+- **company-ec2 的 9222 同時只有一個**：人的轉發開著時是他的獨立 profile；沒開時才開 headless 給查原因用。
   `mcp.yaml` 寫死 9222，所以 chrome-devtools-mcp 不用改設定就接得上當下佔著 9222 的那支。
 - **自動化、驗收照舊用 company-ec2 上的 headless 瀏覽器**（上面那兩支）：不靠人的電腦開著，能無人值守。
-- 插件那條：agent-config 的 `personal-pc-tunnel` skill 附的 `personal-chrome-attach` 把 relay 固定在 127.0.0.1:9555，人開 `ssh -N company-ec2-attach`、把網址貼進新分頁；
+- 插件那條：agent-config 的 `browser-access` skill 附的 `personal-chrome-attach` 把 relay 固定在 127.0.0.1:9555，人開 `ssh -L` 9555 的轉發、把網址貼進新分頁；
   agent 只看得到那一個分頁，用完 `detach`，Chrome 和分頁留著（2026-11-04 實測，[#248](https://github.com/henry5720/dotfiles/issues/248)）。
 
 省 token 是 CLI 和 MCP 的差別，不是牌子的差別：chrome-devtools-mcp 也附了 `chrome-devtools` CLI

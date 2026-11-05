@@ -10,7 +10,7 @@
 ```
 
 已配置主機就是你面前這台的話，跳過〈入口〉和〈傳檔案〉，直接開 terminal 從〈herdr〉開始。
-各工具的常用指令與官網見[工具一覽](tools.md)。agent 請你開 ssh 轉發看它的瀏覽器、或借你的網路時，見[看 agent 的瀏覽器](browser-via-ec2.md)。
+各工具的常用指令與官網見[工具一覽](tools.md)。agent 請你開 ssh 轉發看它的瀏覽器、或借你的網路時，見[瀏覽器](remote-access/browser.md)。
 
 ## 入口
 
@@ -18,8 +18,8 @@
 |---|---|---|---|
 | terminal `ssh` | ssh key、在 tailnet 裡 | 自己 | **預設**：跑 herdr、agent |
 | VS Code Remote-SSH | VS Code、同上 | 自己 | **預設**：看檔、改檔、拖拉傳檔 |
-| 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server 遠端存取](code-server-remote.md) |
-| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見[開給別人連](remote-access.md#tailnet-外) |
+| 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server](remote-access/code-server.md) |
+| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見 [share-shell](remote-access/share-shell.md) |
 
 ### 第一次連：找管理員要兩樣
 

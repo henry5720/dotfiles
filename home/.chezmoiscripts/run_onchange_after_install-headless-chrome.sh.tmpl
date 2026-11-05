@@ -2,7 +2,7 @@
 {{- if has "headless-chrome" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# 給 remote-chrome skill 的 remote-chrome-headless 用:agent 查原因時在這台開 headless Chrome 佔 9222。
+# agent 在這台開 headless Chrome 用(指令見 docs/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
 # Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(toolPackages)。
 set -eu
 {{ template "sh-apt" . }}

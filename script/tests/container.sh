@@ -37,8 +37,8 @@ cleanup() {
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
 #                        origin 是 GitHub 的 HTTPS URL
 #   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
-#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是三個 skill(e2e-hello、remote-chrome 的假 headless 腳本、
-#                        personal-pc-tunnel 的真 personal-chrome-attach,從 $AGENT_CONFIG_DIR 複製)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
+#   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是兩個 skill(e2e-hello、
+#                        browser-access 的真 personal-chrome-attach,從 $AGENT_CONFIG_DIR 複製)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。
 make_fixtures() {
   FIX=$CTR_HOME/e2e-fixtures
@@ -56,23 +56,18 @@ make_fixtures() {
   ssh-keygen -q -t ed25519 -N '' -C e2e -f "$tmp/key"
   mkdir -p "$tmp/ac/skills/e2e-hello"
   printf -- '---\nname: e2e-hello\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/e2e-hello/SKILL.md"
-  # remote-chrome-headless 的 symlink 指到這裡(#261),放一支假的讓 e2e 驗「指得到檔案」
-  mkdir -p "$tmp/ac/skills/remote-chrome/scripts"
-  printf -- '---\nname: remote-chrome\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/remote-chrome/SKILL.md"
-  printf '#!/bin/sh\necho e2e-remote-chrome-headless\n' > "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
-  chmod +x "$tmp/ac/skills/remote-chrome/scripts/remote-chrome-headless"
   # personal-chrome-attach 要真的跑 dry run(#264),放 agent-config 的真腳本:從 $AGENT_CONFIG_DIR 指定的
   # checkout 拿(預設主機的 ~/.config/skillshare;改 agent-config 那支時指到自己的 worktree)。
   # 找不到就停:少了它,後面的 dry run 和「指得到檔案」都沒有意義。
-  local attach_src=${AGENT_CONFIG_DIR:-$HOME/.config/skillshare}/skills/personal-pc-tunnel/scripts/personal-chrome-attach
+  local attach_src=${AGENT_CONFIG_DIR:-$HOME/.config/skillshare}/skills/browser-access/scripts/personal-chrome-attach
   if [ ! -f "$attach_src" ]; then
     red "找不到 $attach_src:設 AGENT_CONFIG_DIR=<agent-config 的 checkout> 再跑"
     exit 1
   fi
-  mkdir -p "$tmp/ac/skills/personal-pc-tunnel/scripts"
-  printf -- '---\nname: personal-pc-tunnel\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/personal-pc-tunnel/SKILL.md"
-  cp "$attach_src" "$tmp/ac/skills/personal-pc-tunnel/scripts/personal-chrome-attach"
-  chmod +x "$tmp/ac/skills/personal-pc-tunnel/scripts/personal-chrome-attach"
+  mkdir -p "$tmp/ac/skills/browser-access/scripts"
+  printf -- '---\nname: browser-access\ndescription: e2e 測試用\n---\nhello\n' > "$tmp/ac/skills/browser-access/SKILL.md"
+  cp "$attach_src" "$tmp/ac/skills/browser-access/scripts/personal-chrome-attach"
+  chmod +x "$tmp/ac/skills/browser-access/scripts/personal-chrome-attach"
   printf 'servers:\n  e2e-mcp:\n    url: https://example.com/mcp\n    targets: [claude]\n' > "$tmp/ac/mcp.yaml"
   mkdir -p "$tmp/ac/instructions/agents-md"
   printf 'e2e-agents\n' > "$tmp/ac/instructions/agents-md/AGENTS.md"

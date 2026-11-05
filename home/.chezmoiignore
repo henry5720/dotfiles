@@ -43,8 +43,6 @@
 !.local
 !.local/bin
 !.local/bin/tools.ps1
-# remote-browser:開獨立 profile 的 Chrome、ssh -R 9222 給已配置主機的 agent 控(#278)
-!.local/bin/remote-browser.ps1
 {{ else }}
 # ===============================================================
 # 2. Linux、macOS、Termux
@@ -55,7 +53,6 @@ AppData
 .wslconfig
 .chezmoiscripts/*.ps1
 .local/bin/tools.ps1
-.local/bin/remote-browser.ps1
 {{ if not (has "zsh" (index . "tools")) }}
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
@@ -100,7 +97,7 @@ AppData
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
-# personal-chrome-attach 指向 agent-config 的 personal-pc-tunnel skill,跑起來要 playwright-cli:
+# personal-chrome-attach 指向 agent-config 的 browser-access skill,跑起來要 playwright-cli:
 # 兩個都勾才部署,不然是斷掉的連結(例如 Termux)。
 {{ if not (and (has "playwright-cli" $tools) (has "agent-config" $tools)) }}.local/bin/personal-chrome-attach{{ end }}
 # code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。

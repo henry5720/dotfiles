@@ -62,17 +62,13 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
 | [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
 | [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [remote-chrome](https://github.com/henry5720/agent-config/blob/main/skills/remote-chrome/reference.md)（在 agent-config） | 查原因前開 headless Chrome 給 chrome-devtools MCP、排錯 9222 |
-| [personal-pc-tunnel](https://github.com/henry5720/agent-config/blob/main/docs/skills/personal-pc-tunnel.md)（在 agent-config） | 一定要你自己的 Chrome 時（passkey、硬體金鑰、裝置 SSO）讓 agent 接上：`personal-chrome-attach` + `ssh -N company-ec2-attach`；網站擋機房 IP 時借你那台的對外 IP：`ssh -N company-ec2-socks` |
 | [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 
 **連線與分享**
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [看 agent 的瀏覽器](docs/browser-via-ec2.md) | agent 請你開 ssh 轉發時：看畫面、接手登入、借你的網路或 Chrome；各自的 port、token、收掉什麼 |
-| [code-server remote](docs/code-server-remote.md) | 從其他裝置連 code-server |
-| [開給別人連](docs/remote-access.md) | 把一個 port 開給別人連：tailnet 內走 ssh／`tailscale serve`（ssh 轉發怎麼讀、連不上怎麼查），tailnet 外用 Funnel 或 quick tunnel；含 share-shell、dev server |
+| [開給別人連](docs/remote-access/) | 把一個服務開給人或 agent 連：概念圖、tailnet 內走 ssh／`tailscale serve`、tailnet 外用 Funnel 或 quick tunnel；服務卡：[瀏覽器](docs/remote-access/browser.md)（agent 的 headless、讓 agent 控你的 Chrome）、[share-shell](docs/remote-access/share-shell.md)、[code-server](docs/remote-access/code-server.md) |
 
 **背景與決策**
 
@@ -106,7 +102,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、remote-chrome-headless…）
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、share-shell…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config
 script/                         不部署，自己手動跑
