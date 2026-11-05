@@ -11,7 +11,7 @@ shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node
 其他            ffmpeg  wakatime
-自寫指令        tools  ai-profile  share-shell  remote-chrome-headless  personal-chrome-attach
+自寫指令        tools  ai-profile  share-shell  remote-chrome-headless  personal-chrome-attach  remote-browser
                 codegraph-setup-repo
 ```
 
@@ -87,5 +87,6 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-profile-routing.md) |
 | `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [開給別人連](remote-access.md#shellshare-shell) |
 | `remote-chrome-headless` | 查原因前在本機開 headless Chrome 佔 9222，給 chrome-devtools MCP（勾了 `headless-chrome` 才能用） | agent-config 的 remote-chrome skill |
+| `remote-browser`（只有 Windows） | 開一支獨立 profile 的 Chrome，`ssh -R` 把它的 9222 帶到 company-ec2，讓 agent 控、你一邊用（多分頁）；Ctrl+C 只斷轉發，Chrome 和登入留著 | [看 agent 的瀏覽器](browser-via-ec2.md#你要用讓-agent-控你的瀏覽器) |
 | `personal-chrome-attach` | 讓 agent 接你日常的 Chrome（passkey、硬體金鑰、裝置 SSO）：印出 connect 網址，你開 `ssh -N company-ec2-attach`、把網址貼進新分頁（勾了 `playwright-cli` 才能用） | agent-config 的 [personal-pc-tunnel](https://github.com/henry5720/agent-config/blob/main/docs/skills/personal-pc-tunnel.md) |
 | `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](codegraph.md) |

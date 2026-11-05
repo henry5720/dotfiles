@@ -104,13 +104,15 @@ check_git_remotes() {
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
-# remote-chrome 只剩 headless 瀏覽器(#261):ssh config 不再有把個人電腦 Chrome 的 9222 帶到遠端的 Host,
-# ~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
+# remote-chrome 只剩 headless 瀏覽器(#261):~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
+# 個人電腦的 remote browser 經 9222 給 agent 控(#278):ssh config 有只在要用時連的 company-ec2-chrome
+# (RemoteForward 只綁 127.0.0.1:9222、ExitOnForwardFailure),一般的 company-ec2 照舊不帶轉發。
 # 有裝 agent-config 才看得到腳本(fixture 放了一支假的);沒裝時只看 symlink 指向哪。
 RC_HEADLESS_TARGET='$HOME/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless'
 check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no>
-  check "ssh config 沒有 company-ec2-chrome、沒有 RemoteForward 9222" \
-    "[ -f ~/.ssh/config ] && ! grep -q company-ec2-chrome ~/.ssh/config && ! grep -Eqi '^[[:space:]]*RemoteForward[[:space:]]+([^[:space:]]*:)?9222([[:space:]]|\$)' ~/.ssh/config"
+  # 新版 OpenSSH(Termux)的 ssh -G 把位址印成 [127.0.0.1]:9222,比對前拿掉括號
+  check "ssh config 的 company-ec2-chrome:RemoteForward 只有 127.0.0.1:9222、ExitOnForwardFailure yes" \
+    "c=\$(ssh -G company-ec2-chrome) && grep -i '^remoteforward' <<<\"\$c\" && [ \"\$(grep -i '^remoteforward' <<<\"\$c\" | tr -d '[]')\" = 'remoteforward 127.0.0.1:9222 127.0.0.1:9222' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\" && ! grep -Ei '^(localforward|dynamicforward) ' <<<\"\$c\""
   check "沒有 ~/.local/bin/remote-chrome(WSL 開 Windows Chrome 那支)" \
     "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
   check "remote-chrome-headless 指向 agent-config 的腳本" \
@@ -1362,8 +1364,8 @@ noroot_tailscale_checks() {
   check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
     "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
-  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
-  for h in company-ec2 company-ec2-attach company-ec2-socks; do
+  # 帶轉發的 company-ec2-attach、company-ec2-socks、company-ec2-chrome 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
+  for h in company-ec2 company-ec2-attach company-ec2-socks company-ec2-chrome; do
     check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
       "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
   done

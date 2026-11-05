@@ -88,6 +88,11 @@ _Avoid_: 目標機器、桌機、實體機、remote（指經 Funnel 開到公網
 跑在操作者那台、沒有畫面的瀏覽器。沒有畫面，所以不算 local GUI。
 _Avoid_: a1、local 瀏覽器
 
+**Remote browser**:
+個人電腦上一支獨立 profile 的 Chrome，CDP port 9222 經 `ssh -R` 帶到已配置主機，給那邊的 agent 控、人一邊看著用。
+跟 Playwright 插件的差別：插件接的是日常 profile，只交出一個分頁。
+_Avoid_: 遠端瀏覽器（指已配置主機上的 headless 瀏覽器時）、9222 Chrome、MCP Chrome
+
 ## 操作已配置主機
 
 不分 local、remote：坐在前面或從別台連過去，操作方式一樣，只差第一步要不要先連過去。

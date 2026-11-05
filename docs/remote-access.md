@@ -78,6 +78,7 @@ dotfiles 部署的 `~/.ssh/config` 帶了這幾個轉發別名；沒有這份設
 | 別名 | 等於 | 給誰用 |
 |---|---|---|
 | `ssh -N company-ec2-attach` | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：接你本人的 Chrome |
+| `ssh -N company-ec2-chrome` | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:9222:127.0.0.1:9222 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：讓 agent 控你的 remote browser（Windows 直接跑 `remote-browser`，開 Chrome 加這條一起做） |
 | `ssh -N company-ec2-socks` | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：借你的網路 |
 | `ssh phone` | `Host phone` 的 `LocalForward 8080 localhost:8080`（Termux sshd，port 8022） | [code-server](code-server-remote.md)：連 phone 上的 code-server |
 

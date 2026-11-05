@@ -43,6 +43,8 @@
 !.local
 !.local/bin
 !.local/bin/tools.ps1
+# remote-browser:開獨立 profile 的 Chrome、ssh -R 9222 給已配置主機的 agent 控(#278)
+!.local/bin/remote-browser.ps1
 {{ else }}
 # ===============================================================
 # 2. Linux、macOS、Termux
@@ -53,6 +55,7 @@ AppData
 .wslconfig
 .chezmoiscripts/*.ps1
 .local/bin/tools.ps1
+.local/bin/remote-browser.ps1
 {{ if not (has "zsh" (index . "tools")) }}
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
