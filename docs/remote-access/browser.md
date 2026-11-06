@@ -270,9 +270,15 @@ agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你�
 [`connectedTabGroup.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/connectedTabGroup.ts#L63-L70)、
 relay 轉給插件的指令包含 `chrome.tabs.create`（[`relayConnection.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/relayConnection.ts#L41-L47)）。
 
-2026-11-06 實機只驗到這一項（Chrome Web Store 版插件、playwright-cli 0.1.23，經上面的 tcp tunnel 從 company-ec2 接
-henry-desktop 的獨立 profile）：接上後 `tab-new` 兩次，`tab-list` 列出三個分頁（connect 頁加兩個新分頁）。
-**未實測**：分頁收進同一個群組、手動拖進拖出群組會接上／放開、`tab-select` 切回舊分頁後還能操作。
+2026-11-06 實機驗過（Chrome Web Store 版插件、playwright-cli 0.1.23，經上面的 tcp tunnel 從 company-ec2 接
+henry-desktop 的獨立 profile）：
+
+| 做了什麼 | 結果 |
+|---|---|
+| 接上後 `tab-new` 兩次 | `tab-list` 列出三個分頁（connect 頁加兩個新分頁）；你那邊看到三個都在同一個分頁群組 |
+| `tab-select 1` 後點連結，再 `tab-select 2`、切回 1 | 每次 `eval` 讀到的都是選中那頁；分頁 1 的點擊只換了分頁 1 的頁面 |
+| 你把一個分頁拖出群組 | 它從 `tab-list` 消失 |
+| 再拖回群組 | 它回到 `tab-list`，`tab-select` 過去讀得到標題 |
 
 ## 連不上時
 
