@@ -41,7 +41,8 @@
 | 同一台：直接連 `127.0.0.1` | ✓ | ✓ |
 | tailnet 內：[ssh -L／-R](README.md#ssh-轉發怎麼讀) | ✓ | ✓ |
 | tailnet 內：`tailscale serve` | ✗ tailnet 裡每台裝置都連得到，等於把 Chrome 交給整個 tailnet | ✗ 同左 |
-| tailnet 外：Funnel、quick tunnel | ✗ 見下 | tailnet 外：一次性 tcp tunnel ✓（[`personal-chrome-attach --tunnel`](#tailnet-外一次性-tunnel)）；http 的 Funnel、quick tunnel ✗ |
+| tailnet 外：一次性 tcp tunnel | ✗ 見下 | ✓（[`personal-chrome-attach --tunnel`](#tailnet-外一次性-tunnel)） |
+| tailnet 外：Funnel、http quick tunnel | ✗ 見下 | ✗ |
 
 9555 能開出去，因為 **connect 網址就是鑰匙，用完就收掉**：
 
