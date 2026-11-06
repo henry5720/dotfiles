@@ -6,14 +6,11 @@
 
 ## 先挑哪支 Chrome
 
-```
-                      瀏覽器在哪          操作者怎麼接                          分頁   什麼時候用
-headless              已配置主機          agent：playwright-cli open            多個   預設：agent 自己操作、驗收、查原因
-                                          人：playwright-cli show（9377）
-獨立 profile          個人電腦（或任一台） CDP 9222：playwright-cli attach --cdp  多個   你坐在前面、要 agent 在你看得到的瀏覽器做事
-                                          chrome-devtools-mcp 也接得上
-日常 profile          個人電腦             Playwright 插件（relay 9555）          一個   一定要日常 profile 裡的東西：passkey、硬體金鑰、裝置 SSO
-```
+| Chrome | 在哪一台 | 什麼時候用 | agent 怎麼接 | 人怎麼看 | 分頁 |
+|---|---|---|---|---|---|
+| [headless](#headlessagent-自己的瀏覽器) | 已配置主機 | 預設：agent 自己操作、驗收、查原因 | `playwright-cli open`；查原因時開在 9222 給 chrome-devtools-mcp | `playwright-cli show`（9377）+ `ssh -L` | 多個 |
+| [獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome) | 個人電腦（任一台都行） | 你坐在前面，要 agent 在你看得到的 Chrome 做事 | CDP 9222 經 `ssh -R`：`playwright-cli attach --cdp`、chrome-devtools-mcp | 就是你眼前的視窗 | 多個 |
+| [日常 profile](#日常-profile一定要你平常的-chrome) | 個人電腦 | 一定要日常 profile 裡的東西：passkey、硬體金鑰、裝置 SSO | 插件 relay 9555 經 `ssh -L`：`personal-chrome-attach` | 就是你眼前的視窗 | 一個 |
 
 - **獨立 profile 和日常 profile 是兩支 Chrome。** Chrome 136 起，日常 profile 不能開 debug port，
   一定要另一個 `--user-data-dir`（[Chrome 官方說明](https://developer.chrome.com/blog/remote-debugging-port)）。
@@ -23,12 +20,14 @@ headless              已配置主機          agent：playwright-cli open      
 
 ## port、綁定與驗證
 
-| port | 是什麼 | 驗證 |
-|---|---|---|
-| 9222 | Chrome 的 CDP（headless 或獨立 profile） | **沒有**：連得到就能操作整支 Chrome，包括它的登入 |
-| 9377 | `playwright-cli show`（看 agent 的畫面、接手） | **沒有**：連得到就能操作 |
-| 9555 | 插件的 relay（`personal-chrome-attach` 固定在這） | 插件的 token（選用） |
-| 1080 | 反向 SOCKS（借你的網路） | **沒有** |
+| port | 是什麼 | 誰定的 | 驗證 |
+|---|---|---|---|
+| 9222 | Chrome 的 CDP（headless 或獨立 profile） | 慣例（Chrome 沒有預設，要自己給 `--remote-debugging-port`）；我們固定用它，因為 `mcp.yaml` 寫死 | **沒有**：連得到就能操作整支 Chrome，包括它的登入 |
+| 9377 | `playwright-cli show`（看 agent 的畫面、接手） | 我們選的（`show --port` 沒有預設，`0` 是隨機） | **沒有**：連得到就能操作 |
+| 9555 | 插件的 relay | 我們選的（relay 本身每次隨機，`personal-chrome-attach` 轉到這裡，ssh 指令才能固定） | 插件的 token（選用） |
+| 1080 | 反向 SOCKS（借你的網路） | SOCKS 的慣例 port | **沒有** |
+
+除了 9222，其他都能換：ssh 指令兩邊的 port 和服務起的 port 一起改就好。
 
 全部只綁 `127.0.0.1`，只走同一台或 tailnet 內的 ssh 轉發，**不開公網**：開了等於把整支 Chrome 交給拿到網址的人。
 同一台的同一個 port 同時只能一個：個人電腦把 9222 轉到已配置主機時，那台就不能再開 headless 的 9222，反過來也一樣。

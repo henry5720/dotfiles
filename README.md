@@ -26,7 +26,7 @@ Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#�
 | 想做什麼 | 看哪份 |
 |---|---|
 | 知道裝了什麼、各自怎麼用 | [工具一覽](docs/tools.md) |
-| 從個人電腦連進這台、開 herdr 與 coding agent、傳檔案 | [操作已配置主機](docs/configured-host.md) |
+| 從個人電腦連進這台、開 herdr 與 coding agent、傳檔案、讓 agent 用瀏覽器 | [操作已配置主機](docs/configured-host.md)（開頭有常用指令速查） |
 | 加減選裝工具、改 API key 與密碼、拉最新版 | [改設定與更新](docs/after-install.md) |
 | Windows 主機：裝了什麼、PowerShell 的 `z`、補全、灰字建議 | [Windows 主機：裝了什麼、怎麼用](docs/windows.md#裝了什麼怎麼用) |
 
