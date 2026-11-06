@@ -75,3 +75,10 @@ Playwright MCP、agent-browser、dev-browser、Playwriter、Claude in Chrome 等
 
 數字、來源和哪些是實測見 [coding agent 臨時驗收前端的瀏覽器工具調查](../research/agent-browser-tools.md)；
 各工具其他功能的對照見 [瀏覽器偵錯 MCP 對照](../research/browser-mcp-comparison.md)。
+
+## 更新（2026-11-06）：插件也能多分頁
+
+上面寫插件只有人貼網址的那一個分頁，是 2026-11-04 實測時的狀況，現在不成立：插件接上後能開多個分頁，也不再限日常 profile。
+依據與實機驗收狀態見[瀏覽器〈多分頁〉](../remote-access/browser.md#多分頁)，裝在哪支 profile 見同頁[〈插件〉](../remote-access/browser.md#插件獨立-profile日常-profile-都能裝)。
+
+結論不變：插件只是另一個入口，不是另一種工具，選工具照舊看動作。

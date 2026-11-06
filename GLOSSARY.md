@@ -68,6 +68,10 @@ _Avoid_: role（單獨使用時）、persona
 CLI 自帶、不用寫設定就能派的 subagent，例如 Claude 的 Explore、Plan、general-purpose，Codex 的 default、explorer、worker。自己寫一個同名的原生角色會蓋掉它。
 _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
 
+**company agent**:
+在 Slack 給公司同事共用的 coding agent，定義見 agent-company 的 [CONTEXT.md](https://github.com/henry5720/agent-company/blob/main/CONTEXT.md)。
+_Avoid_: bot、workspace agent
+
 ## GUI 控制
 
 local、remote 從操作者看：當下在操作 GUI 的那一方，agent 或人都算。同一個 GUI，agent 在 company-ec2 操作時是 remote，人坐到那台接手時對人是 local。
