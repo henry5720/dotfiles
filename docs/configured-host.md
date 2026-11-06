@@ -27,7 +27,7 @@
 | 看機器忙不忙 | 已配置主機 | `btop` | [看已配置主機忙不忙](#看已配置主機忙不忙) |
 | 讓 agent 控我看得到的 Chrome（多分頁） | 個人電腦 | `chrome --remote-debugging-port=9222 --user-data-dir=<另一個資料夾>`<br>`ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:9222:127.0.0.1:9222 <帳號>@<已配置主機>` | [瀏覽器：獨立 profile](remote-access/browser.md#獨立-profile讓-agent-控你看得到的-chrome) |
 | 看 agent 的瀏覽器、接手、替它登入 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9377:127.0.0.1:9377 <帳號>@<已配置主機>` → 瀏覽器開 `http://127.0.0.1:9377` | [瀏覽器：headless](remote-access/browser.md#headlessagent-自己的瀏覽器) |
-| agent 一定要用我日常的 Chrome（passkey、SSO） | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 <帳號>@<已配置主機>` | [瀏覽器：日常 profile](remote-access/browser.md#日常-profile一定要你平常的-chrome) |
+| agent 一定要用我日常的 Chrome（passkey、SSO） | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 <帳號>@<已配置主機>` | [瀏覽器：插件](remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
 | 網站擋機房 IP，借我的網路 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 <帳號>@<已配置主機>` | [瀏覽器：headless](remote-access/browser.md#headlessagent-自己的瀏覽器) |
 | 給不在 tailnet 的人一個 shell | 已配置主機 | `share-shell` | [share-shell](remote-access/share-shell.md) |
 | 把 dev server 給 tailnet 外的人看 | 已配置主機 | `sudo tailscale funnel --https=10000 <port>` | [開給別人連](remote-access/README.md#dev-server兩行不用-script) |

@@ -75,3 +75,18 @@ Playwright MCP、agent-browser、dev-browser、Playwriter、Claude in Chrome 等
 
 數字、來源和哪些是實測見 [coding agent 臨時驗收前端的瀏覽器工具調查](../research/agent-browser-tools.md)；
 各工具其他功能的對照見 [瀏覽器偵錯 MCP 對照](../research/browser-mcp-comparison.md)。
+
+## 更新（2026-11-06）：插件也能多分頁
+
+上面寫插件「只有人貼網址的那一個」分頁、「agent 只看得到那一個分頁」，是 2026-11-04 實測時的狀況，現在不成立。
+Playwright Extension 加了分頁群組：接上後，受控的分頁收在同一個 Chrome 分頁群組，`tab-new` 開的分頁會被拉進群組，
+人把分頁拖進、拖出群組也會接上、放開（microsoft/playwright main 2026-11-05 的
+[`connectedTabGroup.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/connectedTabGroup.ts#L63-L70)、
+[`relayConnection.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/relayConnection.ts#L41-L47)）。
+這是讀原始碼得到的結論；Chrome Web Store 上的插件搭配 playwright-cli 0.1.23 實際接上、`tab-new` 兩次後列出三個分頁，
+還等 [agent-config#83](https://github.com/henry5720/agent-config/issues/83) 的實機驗收。
+
+插件也不再限日常 profile：獨立 profile 一樣能裝，人不在 tailnet 時經一次性 tcp tunnel 接
+（[agent-company#43](https://github.com/henry5720/agent-company/issues/43)，做法見 [瀏覽器〈插件〉](../remote-access/browser.md#插件獨立-profile日常-profile-都能裝)）。
+
+結論不變：插件只是另一個入口，不是另一種工具，選工具照舊看動作。

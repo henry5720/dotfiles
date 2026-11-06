@@ -3,7 +3,7 @@
 一台機器上有個服務在聽某個 port，要讓別人、agent 或自己的另一台裝置連進來。
 這份只講**連線**；每個服務自己的事（port、驗證、人看什麼、agent 接什麼、用完收什麼）寫在服務卡：
 
-- [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、日常 profile（插件）
+- [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、插件（裝在獨立或日常 profile，tailnet 外也接得上）
 - [網頁 shell：share-shell](share-shell.md)
 - [code-server](code-server.md)
 
@@ -198,7 +198,8 @@ getent hosts "$magic_dns_name"
 | dev server | app 自己的登入 | 可以，對方看到的就是你的網站 |
 | ttyd | **它自己沒有密碼**，`share-shell` 每次產一組 | 可以，用 [share-shell](share-shell.md) |
 | code-server | 自己的固定密碼 | **不要**：它能開 terminal，等於整台機器，只靠一組固定密碼 |
-| 瀏覽器（CDP 9222、`show` 9377、插件 9555） | **沒有** | **不要**：拿到網址等於拿到那支 Chrome 的所有登入；CDP 還會擋外來的 `Host`。只走 ssh，見[瀏覽器〈能怎麼連〉](browser.md#能怎麼連) |
+| 瀏覽器（CDP 9222、`show` 9377） | **沒有** | **不要**：拿到網址等於拿到那支 Chrome 的所有登入；CDP 還會擋外來的 `Host`。只走 ssh，見[瀏覽器〈能怎麼連〉](browser.md#能怎麼連) |
+| 瀏覽器插件 9555 | connect 網址裡的隨機路徑，加上人在插件畫面按允許 | 可以，只用一次性 tcp tunnel：`personal-chrome-attach --tunnel` 開，connect 網址就是鑰匙，用完就收掉。見[瀏覽器〈tailnet 外〉](browser.md#tailnet-外一次性-tunnel) |
 
 ### Tailscale Funnel
 
