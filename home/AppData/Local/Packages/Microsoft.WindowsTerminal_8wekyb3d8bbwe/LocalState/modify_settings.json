@@ -4,7 +4,7 @@ Windows Terminal(Store 版)的 settings.json:只管兩個值,其餘照 Terminal 
   1. defaultProfile = profiles.list 裡 source 是 Windows.Terminal.PowershellCore 的那個設定檔的 guid。
      guid 不寫死:Terminal 文件的 UUIDv5 公式算出來的跟實機的 dynamic profile 對不上。
      找不到(pwsh 裝了但 Terminal 還沒開過)就不改,免得指到不存在的設定檔。
-  2. profiles.defaults.font.face = Hack Nerd Font(字型本身照 docs/fonts.md 手動裝)。
+  2. profiles.defaults.font.face = Hack Nerd Font(字型本身照 docs/install/fonts.md 手動裝)。
 兩個值都已經對時原樣輸出 stdin:不經過 toPrettyJson,key 順序、註解、縮排都不動,
 Terminal 自己改寫過檔案後 chezmoi diff 仍是空的。要改時才解析再輸出,這時註解會消失、key 照字母排。
 settings.json 不存在(stdin 空的)時只輸出字型那一項:Terminal 會把缺的設定補上預設值;

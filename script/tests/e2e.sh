@@ -225,7 +225,7 @@ PY
 }
 
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
-# 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/no-root-machine.md),要一字不差。
+# 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/install/no-root-machine.md),要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
 USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）'
 # 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
@@ -695,7 +695,7 @@ scenario_ubuntu() {
   # 免回答安裝那一行(#253 起在 Runbook 與沒有 root 的那份,不在 README)的 --promptChoice
   # 要跟樣板一字不差,不然 init 會報錯或停下來問。兩份都要有、都要一致。
   check "免回答安裝那一行的用途提示跟樣板一致(new-machine-setup、no-root-machine)" \
-    "for f in docs/new-machine-setup.md docs/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
+    "for f in docs/new-machine-setup.md docs/install/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
   # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
   # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
   check "用途那題打 m 得到 minimal" \

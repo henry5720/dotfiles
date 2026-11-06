@@ -21,7 +21,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
   --promptString "git user.email=<email>" henry5720
 ```
 
-參數說明見[新機器設定 2.3](new-machine-setup.md#23-一行指令裝好)。
+參數說明見[新機器設定 2.3](../new-machine-setup.md#23-一行指令裝好)。
 
 不要用 `sudo chezmoi …`：以 root 執行、`$HOME` 又不屬於 root 時，chezmoi 一開頭就停，免得家目錄的檔案變成 root 擁有。
 

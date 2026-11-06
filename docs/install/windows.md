@@ -1,7 +1,7 @@
 # Windows 主機
 
 原生 Windows 由 Windows 原生 chezmoi 管，跟 Linux 用同一個 repo。可以是 WSL 的外層，也可以沒有 WSL、
-Windows 本身就是開發機。怎麼裝見[新機器設定](new-machine-setup.md#windows-主機)。
+Windows 本身就是開發機。怎麼裝見[新機器設定](../new-machine-setup.md#windows-主機)。
 
 ## 部署什麼
 
@@ -108,7 +108,7 @@ pwsh 和 `powershell`（5.1）的 `$PROFILE` 是不同檔案，兩邊都要看�
 ### mirrored 模式（目前預設）
 
 優先使用 `networkingMode=mirrored`；Windows 與 WSL 共用 localhost，不要同時套用下方 NAT
-portproxy。設定來源：[`home/dot_wslconfig`](../home/dot_wslconfig)。
+portproxy。設定來源：[`home/dot_wslconfig`](../../home/dot_wslconfig)。
 
 ### NAT fallback：查詢實際 WSL IPv4 後再轉發
 

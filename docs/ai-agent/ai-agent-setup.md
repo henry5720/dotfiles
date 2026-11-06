@@ -33,7 +33,7 @@ Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ C
 
 只有一份真的檔案,其他都是 skillshare extras 建的 symlink;連到哪寫在本 repo 的
 `home/.chezmoitemplates/skillshare-pinned`,照選單勾了哪些 client 產生,由
-`home/dot_config/skillshare/modify_config.yaml.tmpl` 釘進 config.yaml(決策見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md))。
+`home/dot_config/skillshare/modify_config.yaml.tmpl` 釘進 config.yaml(決策見 [ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md))。
 下面是三個 client 都勾的樣子;沒勾的 client 沒有它那幾條,`agent-commit` 勾任一個 agent 就有:
 
 ```text
@@ -70,7 +70,7 @@ Claude 專屬的擴充包,一個 plugin 裡可能同時有 skill、MCP、slash �
 **`skillshare update` 完全管不到它們**,這是最容易搞混的地方。
 
 - Claude 裡打 `/plugin` 瀏覽、安裝、更新、移除。檔案在 `~/.claude/plugins/`,清單在 `installed_plugins.json`。
-- 新機器要裝哪些、`chrome-devtools-mcp` 為什麼關掉,見[新機器設定 4.5](new-machine-setup.md#45-mcpskills-與-claude-plugin)。
+- 新機器要裝哪些、`chrome-devtools-mcp` 為什麼關掉,見[新機器設定 4.5](../new-machine-setup.md#45-mcpskills-與-claude-plugin)。
 - opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由本 repo 的 [opencode 設定](opencode.md)管,
   跟 Claude 的 plugin 無關。
 - ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供一般 skill repo 和 Claude plugin
@@ -81,11 +81,11 @@ Claude 專屬的擴充包,一個 plugin 裡可能同時有 skill、MCP、slash �
 | 想做什麼 | 怎麼做 |
 |---|---|
 | 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
-| 新機器套用規則、要重裝什麼 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
+| 新機器套用規則、要重裝什麼 | 照[新機器設定 Runbook](../new-machine-setup.md) 跑 `chezmoi init --apply` |
 | 裝／更新 skill、寫自己的 skill、接 MCP | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 見 agent-config 的[〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關);新機器裝完 skill 會全部是開的,要重關一次 |
-| 讓 agent 用瀏覽器查原因 | 遠端主機勾 `headless-chrome`(見[新機器設定 4.1](new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有)),agent 照[瀏覽器](remote-access/browser.md#headlessagent-自己的瀏覽器)開 headless Chrome 在 9222,再在 session 裡 `/mcp` 確認連上。WSL 沒有這一項,查原因到遠端主機做 |
+| 讓 agent 用瀏覽器查原因 | 遠端主機勾 `headless-chrome`(見[新機器設定 4.1](../new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有)),agent 照[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)開 headless Chrome 在 9222,再在 session 裡 `/mcp` 確認連上。WSL 沒有這一項,查原因到遠端主機做 |
 | 讓 agent 點、跑流程、截圖 | 遠端主機勾 `playwright-cli`,見 [playwright-cli](playwright-cli.md) |
 | 讓 agent 用 symbol 圖查程式碼,不要一直 grep | `codegraph-setup-repo ~/code/<repo>`,見 [codegraph](codegraph.md) |
 | 換過 node 版本後 codegraph／playwright-cli 不見了 | 重裝那個 npm 全域套件,見 [codegraph](codegraph.md#換-node-版本之後) |

@@ -224,7 +224,7 @@ miseTools:
   gh:
     tool: gh                        # aqua:cli/cli
     cmd: gh
-  # 有 root 用官方 .deb(install-code-server):docs/code-server-remote.md 的 systemd user unit 靠它
+  # 有 root 用官方 .deb(install-code-server):docs/remote-access/code-server.md 的 systemd user unit 靠它
   code-server:
     tool: github:coder/code-server  # registry 沒有
     cmd: code-server

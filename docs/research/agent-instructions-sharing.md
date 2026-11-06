@@ -61,7 +61,7 @@ OpenCode v1.18.35 的 `systemPaths` 使用 `Set<string>` 與 `path.resolve`，�
 | `home/dot_local/bin/executable_ai-profile:85` | Codex personal 使用 `--profile personal`，不改 CODEX_HOME；因此 work/personal 共用全域指引。 |
 | `home/dot_local/bin/executable_ai-profile:94` | OpenCode personal 使用 `OPENCODE_CONFIG_DIR` 指向 route。 |
 
-OpenCode v1.18.35 [Global.make 原碼 L64](https://github.com/anomalyco/opencode/blob/53d1eabb61e21162157817bf677da0a4ad3332e3/packages/core/src/global.ts#L64) 將 `global.config` 設為 `OPENCODE_CONFIG_DIR ?? Path.config`；instruction loader 從該路徑讀 AGENTS。故 route symlink 仍有明確用途：讓 personal 読到跟 work 相同的內容。遷移只需替換 global AGENTS 的生成方式，不因模型/provider 不同而複製指引。repo 的 `docs/ai-profile-routing.md` 亦明確把 rules 列為共用。
+OpenCode v1.18.35 [Global.make 原碼 L64](https://github.com/anomalyco/opencode/blob/53d1eabb61e21162157817bf677da0a4ad3332e3/packages/core/src/global.ts#L64) 將 `global.config` 設為 `OPENCODE_CONFIG_DIR ?? Path.config`；instruction loader 從該路徑讀 AGENTS。故 route symlink 仍有明確用途：讓 personal 読到跟 work 相同的內容。遷移只需替換 global AGENTS 的生成方式，不因模型/provider 不同而複製指引。repo 的 `docs/ai-agent/ai-profile-routing.md` 亦明確把 rules 列為共用。
 
 repo 目前根只有 CLAUDE.md，Codex 不會因 global symlink 就自動取得 repo CLAUDE.md；若需要跨工具 project 規範，應另決定使用 AGENTS 或 Codex fallback。這是全域分享與 repo 分享的不同問題，不能只換 global symlink 就宣稱解決。
 
