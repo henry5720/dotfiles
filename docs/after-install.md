@@ -10,7 +10,7 @@
 │          ──→ Enter ──→ 自動 apply，新勾的才裝；改用途也不會移除已裝的
 │
 ├─ 更新 eza、fzf 這類工具（Linux，mise 裝的）
-│    mise outdated ──→ mise up ──→ mise prune（清掉舊版）；其他指令見 mise.md
+│    mise outdated ──→ mise up ──→ mise prune（清掉舊版）；其他指令見 install/mise.md
 │
 ├─ 移除工具
 │    取消勾選不會解除安裝 ──→ 用它自己的方式移除 ──→ 再打 tools 取消勾選

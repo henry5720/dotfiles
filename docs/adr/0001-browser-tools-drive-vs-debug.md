@@ -74,4 +74,4 @@ Playwright MCP、agent-browser、dev-browser、Playwriter、Claude in Chrome 等
 所以無人值守也登得進去。
 
 數字、來源和哪些是實測見 [coding agent 臨時驗收前端的瀏覽器工具調查](../research/agent-browser-tools.md)；
-各工具其他功能的對照見 [瀏覽器偵錯 MCP 對照](../browser-mcp-comparison.md)。
+各工具其他功能的對照見 [瀏覽器偵錯 MCP 對照](../research/browser-mcp-comparison.md)。

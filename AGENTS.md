@@ -123,8 +123,13 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 | README | 第一次看到這個 repo | `README.md`:是什麼、主截圖、安裝一行、裝完之後的入口(工具一覽、操作已配置主機、改設定與更新)、文件索引、改 repo 的人看的結構與 fork 清單 |
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
 | 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
-| 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>.md`,README 索引連過去 |
-| 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、選型比較、`docs/research/` |
+| 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>/<檔>.md`(`install/`、`ai-agent/`、`remote-access/`),README 索引連過去 |
+| 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、`docs/research/`(選型比較也放這) |
+| 改這個 repo | 要改 repo、照 issue 做事 | `docs/agents/`、`docs/issue-lifecycle.md` |
+
+`docs/` 最上層只放 README 直接連的入口:Runbook、日常操作、工具一覽(`docs/tools.md`)、
+操作已配置主機(`docs/configured-host.md`),外加 `docs/issue-lifecycle.md`。其他新文件進上表的資料夾,
+主題沒有合適的資料夾就開一個新的。
 
 - 能畫成圖的用文字圖(箭頭、縮排樹)和表格,不用 mermaid:終端機和 agent 讀的是原始文字
 - 只有 agent 要遵守的限制寫在這份 AGENTS.md,或 Runbook「交給 coding agent」那段 prompt,不另寫一份給 agent 的文件

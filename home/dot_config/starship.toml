@@ -1,7 +1,7 @@
 # starship 提示列(選裝工具 starship;zsh 在 home/dot_zshrc、bash 在 home/modify_dot_bashrc.tmpl 啟用)。
 # 內容就是 `starship preset catppuccin-powerline` 的輸出、沒有改。換主題的步驟見 docs/after-install.md;
 # 自己的調整加在最後面,換 preset 時才分得出哪些是自己加的。
-# 圖示要 Nerd Font v3,裝在看畫面的那台終端機(見 docs/no-root-machine.md)。
+# 圖示要 Nerd Font v3,裝在看畫面的那台終端機(見 docs/install/no-root-machine.md)。
 
 "$schema" = 'https://starship.rs/config-schema.json'
 

@@ -220,7 +220,7 @@ chrome-devtools-mcp 留著的理由（照 ADR 0001 的實測）：minify 過的�
 
 這份調查自己做的
 
-- `cmp`：[瀏覽器偵錯 MCP 對照](../browser-mcp-comparison.md)（2026-10-06，版本與這次相同）
+- `cmp`：[瀏覽器偵錯 MCP 對照](browser-mcp-comparison.md)（2026-10-06，版本與這次相同）
 - 實測腳本與原始輸出在 `/tmp/btok/`、`/tmp/btres/scripts/`，沒進 repo
 
 Anthropic

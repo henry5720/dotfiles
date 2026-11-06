@@ -3,7 +3,7 @@
 個人公開設定，用 [chezmoi](https://www.chezmoi.io/) 管理：一行指令裝好 zsh、常用 CLI 工具與 coding agent
 （Claude Code、Codex、opencode）。以 **Linux + 純 zsh** 為主，Ubuntu 等 Debian 系最完整；也用在 macOS 與
 Android 平板（Termux）。實體機、雲端主機、WSL2 都一樣裝，有沒有 root 都行，機器種類自動判斷。
-Windows 也用同一個 repo（WSL 的外層，或沒有 WSL 的開發機）：同一套用途與選單，CLI 用 mise、app 用 winget 裝，見[Windows 主機](docs/windows.md)。
+Windows 也用同一個 repo（WSL 的外層，或沒有 WSL 的開發機）：同一套用途與選單，CLI 用 mise、app 用 winget 裝，見[Windows 主機](docs/install/windows.md)。
 
 ![裝完之後開 terminal：fastfetch 印出系統資訊，進 repo 後 starship 提示列顯示 git 分支、eza 列表、rg 搜尋，最後一行打到一半有語法上色與灰字 autosuggestion](docs/demo/shell.png)
 
@@ -28,7 +28,7 @@ Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#�
 | 知道裝了什麼、各自怎麼用 | [工具一覽](docs/tools.md) |
 | 從個人電腦連進這台、開 herdr 與 coding agent、傳檔案、讓 agent 用瀏覽器 | [操作已配置主機](docs/configured-host.md)（開頭有常用指令速查） |
 | 加減選裝工具、改 API key 與密碼、拉最新版 | [改設定與更新](docs/after-install.md) |
-| Windows 主機：裝了什麼、PowerShell 的 `z`、補全、灰字建議 | [Windows 主機：裝了什麼、怎麼用](docs/windows.md#裝了什麼怎麼用) |
+| Windows 主機：裝了什麼、PowerShell 的 `z`、補全、灰字建議 | [Windows 主機：裝了什麼、怎麼用](docs/install/windows.md#裝了什麼怎麼用) |
 
 最常用的兩個：
 
@@ -45,24 +45,24 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [用途與憑證](docs/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
-| [沒有 root 的機器](docs/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
-| [mise](docs/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
-| [終端機字型](docs/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
-| [Windows 主機](docs/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
-| [WSL 網路](docs/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
-| [Herdr notifications](docs/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
+| [用途與憑證](docs/install/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
+| [沒有 root 的機器](docs/install/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
+| [mise](docs/install/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
+| [終端機字型](docs/install/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
+| [Windows 主機](docs/install/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
+| [WSL 網路](docs/install/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
+| [Herdr notifications](docs/ai-agent/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
 
 **coding agent**
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [AI agent 環境：誰管什麼](docs/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
-| [AI profile routing](docs/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
-| [opencode 設定](docs/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
-| [codegraph](docs/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
-| [playwright-cli](docs/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [WakaTime](docs/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
+| [AI agent 環境：誰管什麼](docs/ai-agent/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
+| [AI profile routing](docs/ai-agent/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
+| [opencode 設定](docs/ai-agent/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
+| [codegraph](docs/ai-agent/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
+| [playwright-cli](docs/ai-agent/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
+| [WakaTime](docs/ai-agent/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 
 **連線與分享**
 
@@ -74,8 +74,8 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [AI agent 環境：為什麼這樣分](docs/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
-| [瀏覽器偵錯 MCP 對照](docs/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
+| [AI agent 環境：為什麼這樣分](docs/ai-agent/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
+| [瀏覽器偵錯 MCP 對照](docs/research/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
 | [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
 
 ## 改這個 repo
@@ -118,7 +118,7 @@ docs/                           說明（見上面的文件索引）
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
   skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
-- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](docs/windows.md)；
+- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](docs/install/windows.md)；
   為什麼這樣分見 [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
 - chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
 

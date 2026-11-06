@@ -3,7 +3,7 @@
 已配置主機上有哪些工具、各自最常用的一兩個指令。其餘用法照官網；這個 repo 有細節文件的，連在最後一欄。
 怎麼連上已配置主機、怎麼開 agent，見[操作已配置主機](configured-host.md)。
 
-哪些工具會裝，看那台的用途與勾選（[用途與憑證](machine-use.md)）；要加減用 `tools`。
+哪些工具會裝，看那台的用途與勾選（[用途與憑證](install/machine-use.md)）；要加減用 `tools`。
 
 ```
 shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
@@ -37,7 +37,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node
 
 ![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
 
-Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](mise.md)。
+Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](install/mise.md)。
 
 ## 入口與連線
 
@@ -56,8 +56,8 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | herdr | terminal 多工，同時開多個 agent | `herdr --session <名字>` | [herdr](https://github.com/herdrdev/herdr) | [操作已配置主機〈herdr〉](configured-host.md#herdr) |
 | claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent) |
 | codex | Codex CLI | `codex` | [Codex CLI](https://developers.openai.com/codex/cli) | |
-| opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](opencode.md) |
-| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent-setup.md) |
+| opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](ai-agent/opencode.md) |
+| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent/ai-agent-setup.md) |
 
 ## agent 輔助
 
@@ -65,9 +65,9 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
-| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](codegraph.md) |
+| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md) |
 | headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
-| playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](playwright-cli.md) |
+| playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
 | node | nvm＋Node LTS，給要 Node 的工具 | `node -v` | [nvm](https://github.com/nvm-sh/nvm) | |
 
 ## 其他
@@ -75,7 +75,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
 | ffmpeg | 影音轉檔、抽音軌與影格 | `ffmpeg -i 輸入.mov 輸出.mp4` | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | |
-| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](wakatime.md) |
+| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md) |
 
 ## 自寫指令
 
@@ -84,7 +84,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | 指令 | 做什麼 | 細節 |
 |---|---|---|
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
-| `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-profile-routing.md) |
+| `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-agent/ai-profile-routing.md) |
 | `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](remote-access/share-shell.md) |
 | `personal-chrome-attach` | 讓 agent 接你日常的 Chrome（passkey、硬體金鑰、裝置 SSO）：印出 connect 網址，你開 9555 的 ssh 轉發、把網址貼進新分頁（勾了 `playwright-cli` 才能用） | [瀏覽器](remote-access/browser.md#日常-profile一定要你平常的-chrome) |
-| `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](codegraph.md) |
+| `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](ai-agent/codegraph.md) |

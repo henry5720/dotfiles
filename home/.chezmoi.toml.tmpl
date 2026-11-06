@@ -42,7 +42,7 @@
 {{- /* 精簡的預設組合:只放 shell 體驗(每台開 shell 看到的一樣,連 fastfetch 都有)。連線、監控(tailscale、btop)
        在完整或自己勾(#273)。完整 = 選單上全部;自訂 = 不預勾。
        用途的提示文字會出現在 Runbook 免回答安裝那一行(--promptChoice 的 key),改了要一起改
-       (還有 docs/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
+       (還有 docs/install/machine-use.md、script/tests/e2e.sh 的 USE_PROMPT);
        不能有半形逗號和 =(chezmoi 拿它們切 --promptChoice 的值)。 */ -}}
 {{- $lean := list "zsh" "starship" "eza" "fzf" "bat" "ripgrep" "vim" "fastfetch" -}}
 {{- $usePrompt := "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）" -}}

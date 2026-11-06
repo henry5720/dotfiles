@@ -12,9 +12,9 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
-| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale）用 winget 裝；zsh、btop、coding agent 這類只有 sh 安裝腳本的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單），只跑 `.ps1` 腳本；見[Windows 主機](windows.md) |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale）用 winget 裝；zsh、btop、coding agent 這類只有 sh 安裝腳本的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單），只跑 `.ps1` 腳本；見[Windows 主機](install/windows.md) |
 
-機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](no-root-machine.md)。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](install/no-root-machine.md)。
 
 ```text
 機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
@@ -48,11 +48,11 @@ SSH private key、各服務帳號登入、秘密不會由文件代替你決定�
 ### Linux（Ubuntu 等）
 
 拿到一個一般使用者的 shell 就好：本機、SSH 進雲端主機、WSL2 都一樣。帳號不一定要能 `sudo`
-（見[沒有 root 的機器](no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台（見[終端機字型](fonts.md)）。
+（見[沒有 root 的機器](install/no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台（見[終端機字型](install/fonts.md)）。
 
 WSL2 另外做兩件事（都在 Windows 那側）：
 
-- 終端機字型裝在 Windows，見[終端機字型](fonts.md#windows-terminal)。
+- 終端機字型裝在 Windows，見[終端機字型](install/fonts.md#windows-terminal)。
 - `.wslconfig` 由 Windows 主機上的 chezmoi 部署：在 Windows 照下面「[Windows 主機](#windows-主機)」那節 `chezmoi init --apply`。
 
 平板上的 proot Ubuntu 先照下面「平板」那節進到 proot，之後跟一般 Linux 一樣。
@@ -65,7 +65,7 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
    已經從官網或 App Store 裝過的不用勾：勾了 brew 會因為 `/Applications/Tailscale.app` 已經在而裝不起來，
    apply 印一行「略過 tailscale-app」照樣跑完、其他套件照裝；要改由 brew 管就先刪掉那份 app 再 `chezmoi apply`。
-3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](fonts.md#macos)。
+3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](install/fonts.md#macos)。
 
 ### Windows 主機
 
@@ -81,8 +81,8 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    其他的（mise、pwsh 7、Windows Terminal，以及選單勾的 CLI 與 tailscale）由 chezmoi apply 裝。
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
    `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
-2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](windows.md#documents-移出-onedrive)。
-3. Hack Nerd Font 照[終端機字型](fonts.md#windows-terminal)手動右鍵「安裝」。
+2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](install/windows.md#documents-移出-onedrive)。
+3. Hack Nerd Font 照[終端機字型](install/fonts.md#windows-terminal)手動右鍵「安裝」。
 4. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
    本機的 `.ps1` 都不能跑（chezmoi 的安裝腳本自己繞過，不受影響）：
 
@@ -96,14 +96,14 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    chezmoi init --apply henry5720
    ```
 
-   跟 Linux 一樣問用途、出選單（[用途與憑證](machine-use.md)），Enter 是精簡；git 身分不問。
+   跟 Linux 一樣問用途、出選單（[用途與憑證](install/machine-use.md)），Enter 是精簡；git 身分不問。
    要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
-   部署了什麼、裝完怎麼用，見[Windows 主機](windows.md)；之後要加減工具打 `tools`。
+   部署了什麼、裝完怎麼用，見[Windows 主機](install/windows.md)；之後要加減工具打 `tools`。
 6. 開一次 Windows Terminal 再關掉，再跑一次 `chezmoi apply`：pwsh 7 是上一步才裝的，Terminal 開過才會
    產生它的設定檔；上一步的 apply 找不到就只設字型，這次才把預設分頁改成 pwsh 7。
    沒做這步，新分頁會是 `powershell`（5.1）—— 它也讀同一份 profile、一樣有 starship，看提示列分不出來，
    看分頁標題（「PowerShell」是 7，「Windows PowerShell」是 5.1）。
-7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](windows.md#從舊的手寫-profile-遷移)。
+7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](install/windows.md#從舊的手寫-profile-遷移)。
    以前照 Runbook 用 winget 裝的 starship、fastfetch、zoxide 可以 `winget uninstall` 掉，改由 mise 管
    （留著也行：profile 先找 mise 那份）。
 
@@ -196,7 +196,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
-各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](machine-use.md)。
+各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](install/machine-use.md)。
 
 要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
 
@@ -214,7 +214,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 選單上每一項後面都有一句說明，清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
-預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](machine-use.md#環境不建議裝不了)）。
+預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
 WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
@@ -225,7 +225,7 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 
 ### 沒有 root 的機器
 
-不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連 company-ec2 的專用 key、字型，見[沒有 root 的機器](no-root-machine.md)。
+不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連 company-ec2 的專用 key、字型，見[沒有 root 的機器](install/no-root-machine.md)。
 
 ### 2.4 裝完之後
 
@@ -275,7 +275,7 @@ claude auth status
 
 只有顯示尚未登入時才執行 `claude auth login`，並由人類完成 OAuth。Claude OAuth 登入
 狀態不能搬到另一台機器，也不能放進 repo。個人入口要另外登入並填妥 personal model，見
-[AI profile routing](ai-profile-routing.md)，未完成前不要視為可用。
+[AI profile routing](ai-agent/ai-profile-routing.md)，未完成前不要視為可用。
 
 ### 4.4 驗證 OpenCode 與 Claude Code ACP
 
@@ -299,8 +299,8 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。Claude plugin 在 Claude
 裡輸入 `/plugin` 安裝與更新；`chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它
-關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](wakatime.md)）。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
-[plugin](ai-agent-setup.md#plugin)。
+關掉；其他 plugin 依該 marketplace 與官方 marketplace 的提示逐一安裝（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](ai-agent/wakatime.md)）。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
+[plugin](ai-agent/ai-agent-setup.md#plugin)。
 
 claude-hud 不在官方 marketplace，要先加它自己的：
 
@@ -348,11 +348,11 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 不要用 `.git/config` 覆蓋共用 `core.hooksPath`：套件安裝可能把 husky 設定寫回去，而且
 會讓 husky 自己的 hook 停止運作。完整的 worktree 同步與 hook 判斷見
-[codegraph](codegraph.md#共用-git-hook-怎麼接上)。
+[codegraph](ai-agent/codegraph.md#共用-git-hook-怎麼接上)。
 
 ### 4.7 WakaTime（勾了 `wakatime` 才有）
 
-第一次開 Codex 要同意 WakaTime 的 hook；裝了什麼、怎麼確認見 [WakaTime](wakatime.md)。
+第一次開 Codex 要同意 WakaTime 的 hook；裝了什麼、怎麼確認見 [WakaTime](ai-agent/wakatime.md)。
 
 ## 恢復邊界
 

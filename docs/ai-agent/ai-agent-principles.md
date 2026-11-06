@@ -15,7 +15,7 @@
 每家 agent 讀的全域檔名不一樣 —— Claude 是 `~/.claude/CLAUDE.md`,Codex、opencode 是 `AGENTS.md`。
 各寫一份的話,改了 A 忘了改 B,兩邊行為就會不一樣(這件事真的發生過)。
 所以只留一份真的檔案在 agent-config,各 client 的檔名都是 skillshare extras 建的 symlink;內容和「連到哪」為什麼分兩個 repo 管,
-見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)。
+見 [ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md)。
 
 ## 規則要寫什麼
 
@@ -56,7 +56,7 @@ caveman 只挑一個裝的例子見 [agent-config 的〈選 skill 的原則〉](
 ### 2. 成本量過了嗎
 
 量,不要估。codegraph 的數字是實際跑出來的:7,135 檔的前端 261 MB、20 秒、**峰值 2.9 GB
-記憶體**;[`.wslconfig`](../home/dot_wslconfig) 只給 16 GB,這個數字會影響「幾個 worktree 能同時 init」這種決定。
+記憶體**;[`.wslconfig`](../../home/dot_wslconfig) 只給 16 GB,這個數字會影響「幾個 worktree 能同時 init」這種決定。
 
 而量過之後結論可能翻盤:原本因為「11 個 worktree × 261 MB 太貴」打算不在 worktree 用
 codegraph,量完發現 `df` 有 931 G 可用(0.3%),而且複製主索引只要 1 秒 —— 反對的理由兩個
@@ -74,7 +74,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見 [codegraph〈索引什�
 
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|
-| `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
+| `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,在[新機器 Runbook](../new-machine-setup.md) 記一行重裝指令 |
 | `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份,見 [opencode](opencode.md) |
 | 規則的 symlink(`~/.claude/CLAUDE.md`、各 `AGENTS.md`) | 寫進去就改到 agent-config 的 source | 在 agent-config 看 `git diff`,要留就 commit |
-| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](new-machine-setup.md) 記一行重裝指令 |
+| 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](../new-machine-setup.md) 記一行重裝指令 |
