@@ -225,20 +225,23 @@ personal-chrome-attach --tunnel -s=<session>
 - 不帶 token：tunnel 模式不讀 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，每次你在插件畫面選分頁、按允許。
 - 不在 agent 這台聽 9555，所以同一台可以同時開多條，session 名要不同。
 
-它印出的樣子（agent-config 測試用假的 `cloudflared`、`playwright-cli` 跑出來的，hostname 和 UUID 是假的，每次不同）：
+它印出的樣子（2026-11-06 在 company-ec2 實跑 `personal-chrome-attach --tunnel -s=tunneltest --timeout=600`，
+cloudflared 2026.10.7、playwright-cli 0.1.23；hostname 和 UUID 每次不同，這條 tunnel 已收掉，UUID 改成 `<uuid>`）：
 
 ```text
-tunnel 開好了。connect 網址就是鑰匙,只交給使用者本人。把下面三步交給他,請他在 300 秒內做完:
+tunnel 開好了。connect 網址就是鑰匙,只交給使用者本人。把下面三步交給他,請他在 600 秒內做完:
   1. 安裝 cloudflared(第一次才要),依 OS 從官方下載頁選:https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
   2. 開一個新的終端機貼這行,開著別關:
-     cloudflared access tcp --hostname quiet-fox-123.trycloudflare.com --url 127.0.0.1:9555
+     cloudflared access tcp --hostname lamps-meetings-entity-possession.trycloudflare.com --url 127.0.0.1:9555
   3. 在裝了 Playwright Extension 的 Chrome 開新分頁,網址列貼上這個 connect 網址,在插件畫面選分頁、按允許:
-     chrome-extension://mmlmfjhmonkocbjadbfplnigmagldckm/connect.html?mcpRelayUrl=ws%3A%2F%2F127.0.0.1%3A9555%2Fcdp%2F0f8e2a4c-1b3d-4e5f-9a7b-6c8d0e1f2a3b&client=%7B%22name%22%3A%22playwright-cli%22%7D
-等使用者接上(最多 300 秒)…
-已接上,session:personal-chrome。用 playwright-cli -s=personal-chrome <指令> 操作;用完 playwright-cli -s=personal-chrome detach(Chrome 和分頁留著)。
-session personal-chrome 結束了,收掉 tunnel。
+     chrome-extension://mmlmfjhmonkocbjadbfplnigmagldckm/connect.html?mcpRelayUrl=ws%3A%2F%2F127.0.0.1%3A9555%2Fextension%2F<uuid>&client=%7B%22name%22%3A%22Claude+Code%22%7D&protocolVersion=2
+等使用者接上(最多 600 秒)…
+已接上,session:tunneltest。用 playwright-cli -s=tunneltest <指令> 操作;用完 playwright-cli -s=tunneltest detach(Chrome 和分頁留著)。
+session tunneltest 結束了,收掉 tunnel。
 cloudflared 剩 0 個(要 0)。
 ```
+
+（「等使用者接上」和「已接上」之間還會夾 playwright-cli attach 自己的輸出，這裡省略。）
 
 agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你；印到「等使用者接上」就可以交了。
 
@@ -267,8 +270,8 @@ agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你�
 [`connectedTabGroup.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/connectedTabGroup.ts#L63-L70)、
 relay 轉給插件的指令包含 `chrome.tabs.create`（[`relayConnection.ts`](https://github.com/microsoft/playwright/blob/58d69dcc392af3a6994eab0323dc2e883f05f396/packages/extension/src/relayConnection.ts#L41-L47)）。
 
-還沒實機確認：Chrome Web Store 上目前的插件版本搭配 playwright-cli 0.1.23 是否已經這樣運作。
-`tab-new` 兩次後 `tab-list` 列出三個分頁，是 [agent-config#83](https://github.com/henry5720/agent-config/issues/83) 的實機驗收項目。
+2026-11-06 實機確認過（Chrome Web Store 版插件、playwright-cli 0.1.23，經上面的 tcp tunnel 從 company-ec2 接 henry-desktop
+的獨立 profile）：接上後 `tab-new` 兩次，`tab-list` 列出三個分頁（connect 頁加兩個新分頁）；detach 後公網打 tunnel 網址回 `530`。
 
 ## 連不上時
 
