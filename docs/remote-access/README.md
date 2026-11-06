@@ -1,10 +1,31 @@
 # 開給別人連：remote-access
 
-一台機器上有個 web server 在聽某個 port，要讓別人（或自己的另一台裝置）連進來。
-這份是「把一個 port 開給別人連」的唯一說明；各 app 的文件只寫 app 自己的事（port、驗證、
-對連線的要求、用完收什麼），怎麼開出去都連到這裡。
+一台機器上有個服務在聽某個 port，要讓別人、agent 或自己的另一台裝置連進來。
+這份只講**連線**；每個服務自己的事（port、驗證、人看什麼、agent 接什麼、用完收什麼）寫在服務卡：
 
-要開的東西都是 **web server**，自己用 CLI 前景起、只綁 127.0.0.1；「開給誰」是另外一層，就是這份。
+- [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、日常 profile（插件）
+- [網頁 shell：share-shell](share-shell.md)
+- [code-server](code-server.md)
+
+## 概念
+
+```
+操作者   人（要畫面）／agent（要協定：CDP、MCP、ssh）
+  │
+連線     同一台    → 直接連 127.0.0.1
+  │      tailnet 內 → ssh -L／-R、tailscale serve
+  │      tailnet 外 → Funnel、quick tunnel（公開網址）
+  │
+服務     瀏覽器、shell、code-server、dev server…（各自有 port、有沒有驗證）
+```
+
+agent 跑在另一台時，它的 `localhost` 不是你的；用哪一條只看連的那一方在哪。
+
+- ssh 轉發：[A Practical Guide to SSH Tunnels](https://newsletter.iximiuz.com/posts/a-practical-guide-to-ssh-tunnels-local-and-remote-port-forwarding)
+- serve／Funnel：[Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel)
+- quick tunnel：[Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+
+服務自己用 CLI 前景起、只綁 127.0.0.1；「開給誰」是這份。
 
 ## 判準
 
@@ -36,10 +57,7 @@
 | `ssh -R <遠端 port>:localhost:<本機 port> <機器>` | 反過來，把你這台的 port 借給那台用 | 借你的網路或 Chrome 給 agent |
 | `tailscale serve --https=443 <port>` | 給 tailnet 內的裝置一個帶真憑證的 `https://<機器>.<tailnet>.ts.net` | code-server 長駐、手機開 |
 
-各 app 用哪一種、要注意什麼，看 app 自己的文件：
-
-- [code-server 遠端存取](code-server-remote.md)：憑證怎麼選（A–E 方案）
-- [看 agent 的瀏覽器](browser-via-ec2.md)：port、token、什麼情況要你開哪一條
+各服務用哪一種、要注意什麼，看它的服務卡（[瀏覽器](browser.md)、[code-server](code-server.md)）。
 
 `tailscale serve` 只開給 tailnet，跟 Funnel 不同，可以用 `--bg` 長駐（code-server 就是這樣）。
 
@@ -69,17 +87,20 @@ ssh -N -R 127.0.0.1:1080 company-ec2    （只寫一個 port、不寫目的地 =
 - **一定寫 `127.0.0.1`**：只讓同一台的程式連得到。被轉發的服務多半沒有驗證，聽 `0.0.0.0` 等於開給整個網路。
 - **一個 port 同時只能一條**：同一個 port 在兩個視窗（或兩台電腦）各開一條，第二條會失敗。
   加 `-o ExitOnForwardFailure=yes` 時搶不到就直接結束、印出錯誤，不會默默連上卻沒有轉發。
-- **一般的 `ssh company-ec2` 不帶任何轉發**：每條連線都帶的話，你開第二個視窗就搶不到 port。
-  要轉發時另開一個別名，用完就關。
-- Windows 內建的 OpenSSH 用法一樣。
+- **ssh config 的 Host 不寫轉發**：每條連線都帶的話，你開第二個視窗就搶不到 port。
+  要轉發時另打一條帶 `-L`／`-R` 的 ssh，用完就關。例外是 `ssh phone`（Termux 的 code-server，見 [code-server](code-server.md)）。
+- Windows 內建的 OpenSSH 用法一樣，指令照打。
 
-dotfiles 部署的 `~/.ssh/config` 帶了這幾個轉發別名；沒有這份設定的機器（例如 Windows 的 PowerShell）打右邊的完整指令：
+要轉發時打的完整指令（`company-ec2` 換成你要連的 Host）：
 
-| 別名 | 等於 | 給誰用 |
-|---|---|---|
-| `ssh -N company-ec2-attach` | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：接你本人的 Chrome |
-| `ssh -N company-ec2-socks` | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 company-ec2` | [看 agent 的瀏覽器](browser-via-ec2.md)：借你的網路 |
-| `ssh phone` | `Host phone` 的 `LocalForward 8080 localhost:8080`（Termux sshd，port 8022） | [code-server](code-server-remote.md)：連 phone 上的 code-server |
+```bash
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:<port>:127.0.0.1:<port> company-ec2   # 把那台的 port 拉到你這台
+ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:<port>:127.0.0.1:<port> company-ec2   # 把你這台的 port 借給那台
+ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 company-ec2                      # 反向 SOCKS：那台借你的網路
+```
+
+怎麼確認通了：ssh 停住不動、沒有印錯誤；在要連的那一端 `curl -sI http://127.0.0.1:<port>` 有回應。
+各服務用哪個 port 見服務卡。
 
 `LocalForward` 左邊在**執行 ssh 的那台**開 port，右邊的 `localhost` 在**那台**上解析。
 連線中要臨時加 port：換行後按 `~C`，輸入 `-L 5173:localhost:5173`。
@@ -175,7 +196,7 @@ getent hosts "$magic_dns_name"
 | server | 誰擋陌生人 | 能開到公網嗎 |
 |---|---|---|
 | dev server | app 自己的登入 | 可以，對方看到的就是你的網站 |
-| ttyd | **它自己沒有密碼**，`share-shell` 每次產一組 | 可以，用 `share-shell` |
+| ttyd | **它自己沒有密碼**，`share-shell` 每次產一組 | 可以，用 [share-shell](share-shell.md) |
 | code-server | 自己的固定密碼 | **不要**：它能開 terminal，等於整台機器，只靠一組固定密碼 |
 
 ### Tailscale Funnel
@@ -224,46 +245,11 @@ cloudflared tunnel --url http://localhost:<port>    # 印出 https://<隨機>.tr
 - **每條最多 200 個並行請求**，超過的回 `429`。
 - **網址每次都變**：每開一次就是新的 hostname，要重新傳給對方。
 
-chezmoi 管的機器在工具選單勾 `cloudflared` 就會裝（見 [工具一覽](tools.md#入口與連線)）；不歸 chezmoi 管的機器（例如別人的 Windows）自己裝，Windows 用 `winget install --id Cloudflare.cloudflared -e`，裝完當下的 PowerShell 找不到它，用完整路徑 `C:\Program Files (x86)\cloudflared\cloudflared.exe`。
+chezmoi 管的機器在工具選單勾 `cloudflared` 就會裝（見 [工具一覽](../tools.md#入口與連線)）；不歸 chezmoi 管的機器（例如別人的 Windows）自己裝，Windows 用 `winget install --id Cloudflare.cloudflared -e`，裝完當下的 PowerShell 找不到它，用完整路徑 `C:\Program Files (x86)\cloudflared\cloudflared.exe`。
 
 ### shell：`share-shell`
 
-在 Funnel 上開一個網頁版 shell：
-
-```bash
-share-shell                                   # 開 login zsh
-share-shell herdr session attach default      # 最後面接什麼，網頁就開什麼（tail -f 也行）
-```
-
-```
-  https://company-ec2.tail9b4b9b.ts.net:10000
-  帳號 guest  密碼 <每次隨機>
-  (Ctrl+C 關閉，關了就失效)
-```
-
-整段複製給對方。用完 Ctrl+C，或直接關掉那個終端機。
-
-```
-對方的瀏覽器 ──公網──► funnel :10000 ──► ttyd 127.0.0.1:7681
-```
-
-`share-shell` 同時起這兩個，Ctrl+C 一起關。
-
-script 在 [`home/dot_local/bin/executable_share-shell`](../home/dot_local/bin/executable_share-shell)。
-它比 dev server 多做的只有一件：**幫 ttyd 產密碼**。
-
-- **密碼每次隨機。** 這是公網上能打字的 shell（`-W`），擋在前面的只有這組密碼。固定密碼等於
-  每個拿過的人永遠有效，貼在聊天室也收不回來。反正網址也要傳給對方，順便帶上密碼不多一步。
-- **從 herdr 的 pane 裡跑也能 attach herdr。** ttyd 會繼承 `HERDR_ENV`，網頁裡再
-  `herdr session attach` 會被當成巢狀擋掉（nested herdr is disabled）；script 起 ttyd 前先拿掉它。
-- **要不要 sudo 自己判斷**：看 `tailscale debug prefs` 的 `OperatorUser`，是你就不加。
-
-2026-10-02 在 company-ec2 實測收尾：
-
-| 怎麼結束的 | funnel | ttyd |
-|---|---|---|
-| Ctrl+C（SIGINT） | 撤掉 | 被 trap 收掉 |
-| 整個 process group 被 SIGKILL（例如 herdr 關 pane） | 撤掉，公網連過去 connection refused | 跟著死 |
+在 Funnel 上開一個帶隨機密碼的網頁 shell，見 [share-shell](share-shell.md)。
 
 ### dev server：兩行，不用 script
 

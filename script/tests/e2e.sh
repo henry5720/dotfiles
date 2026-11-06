@@ -14,7 +14,7 @@
 #
 # 測的是 repo 的工作目錄(含未 commit 的修改)加上 AGENT_CONFIG_DIR 指定的 agent-config checkout,不經過 GitHub。
 # agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):personal-chrome-attach 是從那份 checkout
-# 複製的真腳本(工作目錄的現況,含未 commit),其他 skill、remote-chrome-headless 都是 fixture 自己寫的假檔。
+# 複製的真腳本(工作目錄的現況,含未 commit),其他 skill 都是 fixture 自己寫的假檔。
 # dotfiles 這邊:
 # 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
 # 再照抄 README 那行:source 已經在,chezmoi init 就不 clone,直接用它渲染、apply。
@@ -104,33 +104,20 @@ check_git_remotes() {
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
-# remote-chrome 只剩 headless 瀏覽器(#261):ssh config 不再有把個人電腦 Chrome 的 9222 帶到遠端的 Host,
-# ~/.local/bin 只剩 remote-chrome-headless(指向 agent-config 的腳本)。
-# 有裝 agent-config 才看得到腳本(fixture 放了一支假的);沒裝時只看 symlink 指向哪。
-RC_HEADLESS_TARGET='$HOME/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless'
-check_remote_chrome() {  # check_remote_chrome <有沒有裝 agent-config:yes|no>
-  check "ssh config 沒有 company-ec2-chrome、沒有 RemoteForward 9222" \
-    "[ -f ~/.ssh/config ] && ! grep -q company-ec2-chrome ~/.ssh/config && ! grep -Eqi '^[[:space:]]*RemoteForward[[:space:]]+([^[:space:]]*:)?9222([[:space:]]|\$)' ~/.ssh/config"
-  check "沒有 ~/.local/bin/remote-chrome(WSL 開 Windows Chrome 那支)" \
-    "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
-  check "remote-chrome-headless 指向 agent-config 的腳本" \
-    "[ \"\$(readlink ~/.local/bin/remote-chrome-headless)\" = \"$RC_HEADLESS_TARGET\" ]"
-  if [ "$1" = yes ]; then
-    check "remote-chrome-headless 指得到檔案、可執行" "[ -f ~/.local/bin/remote-chrome-headless ] && [ -x ~/.local/bin/remote-chrome-headless ]"
-  fi
+# 瀏覽器與轉發(#261、#278):一兩行指令的包裝都拿掉了,指令寫在 docs/remote-access/。
+# ssh config 只有不帶轉發的 company-ec2,沒有 company-ec2-attach／-socks／-chrome 這些轉發別名;
+# ~/.local/bin 沒有 remote-chrome、remote-chrome-headless。
+check_no_browser_wrappers() {
+  check "ssh config 沒有轉發別名,company-ec2 不帶任何轉發" \
+    "[ -f ~/.ssh/config ] && ! grep -Eqi '^[[:space:]]*Host .*company-ec2-(attach|socks|chrome)' ~/.ssh/config && ! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
+  check "沒有 ~/.local/bin/remote-chrome、remote-chrome-headless" \
+    "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ] && [ ! -e ~/.local/bin/remote-chrome-headless ] && [ ! -L ~/.local/bin/remote-chrome-headless ]"
 }
 
-# 接個人電腦日常的 Chrome(#264)。ssh config 有只在要用時連的 company-ec2-attach(LocalForward 9555,
-# 只綁 127.0.0.1、ExitOnForwardFailure),一般的 company-ec2 不帶轉發。
-# ~/.local/bin/personal-chrome-attach 指向 agent-config 的 personal-pc-tunnel skill,勾了 playwright-cli
-# 和 agent-config 才部署(.chezmoiignore);fixture 放的是 agent-config 的真腳本,見 container.sh。
-ATTACH_TARGET='$HOME/.config/skillshare/skills/personal-pc-tunnel/scripts/personal-chrome-attach'
+# 接個人電腦日常的 Chrome(#264):~/.local/bin/personal-chrome-attach 指向 agent-config 的 browser-access skill,
+# 勾了 playwright-cli 和 agent-config 才部署(.chezmoiignore);fixture 放的是 agent-config 的真腳本,見 container.sh。
+ATTACH_TARGET='$HOME/.config/skillshare/skills/browser-access/scripts/personal-chrome-attach'
 check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有勾 playwright-cli 和 agent-config:yes|no>
-  # 新版 OpenSSH(Termux)的 ssh -G 把位址印成 [127.0.0.1]:9555,比對前拿掉括號
-  check "ssh config 的 company-ec2-attach:LocalForward 只有 127.0.0.1:9555、ExitOnForwardFailure yes" \
-    "c=\$(ssh -G company-ec2-attach) && grep -i '^localforward' <<<\"\$c\" && [ \"\$(grep -i '^localforward' <<<\"\$c\" | tr -d '[]')\" = 'localforward 127.0.0.1:9555 127.0.0.1:9555' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\""
-  check "一般的 company-ec2 不帶任何轉發" \
-    "! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
   if [ "$1" = yes ]; then
     check "personal-chrome-attach 指向 agent-config 的腳本" \
       "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$ATTACH_TARGET\" ]"
@@ -139,14 +126,6 @@ check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有勾 p
     check "沒有 ~/.local/bin/personal-chrome-attach(沒勾 playwright-cli、agent-config 不部署)" \
       "[ ! -e ~/.local/bin/personal-chrome-attach ] && [ ! -L ~/.local/bin/personal-chrome-attach ]"
   fi
-}
-
-# 擋機房 IP:headless 瀏覽器經個人電腦的反向 SOCKS(#265)。ssh config 有只在要用時連的 company-ec2-socks
-# (RemoteForward 1080 不帶目的地 = 個人電腦當 SOCKS proxy,只綁 EC2 的 127.0.0.1、ExitOnForwardFailure)。
-check_personal_pc_socks() {
-  # 新版 OpenSSH 的 ssh -G 把反向 SOCKS 印成 [127.0.0.1]:1080 [socks]:0,比對前拿掉括號和 socks 那欄
-  check "ssh config 的 company-ec2-socks:RemoteForward 只有 127.0.0.1:1080(反向 SOCKS)、ExitOnForwardFailure yes" \
-    "c=\$(ssh -G company-ec2-socks) && grep -i '^remoteforward' <<<\"\$c\" && [ \"\$(grep -i '^remoteforward' <<<\"\$c\" | tr -d '[]' | sed 's/ socks:0\$//')\" = 'remoteforward 127.0.0.1:1080' ] && grep -qx 'exitonforwardfailure yes' <<<\"\$c\" && ! grep -Ei '^(localforward|dynamicforward) ' <<<\"\$c\""
 }
 
 # 秘密類 prompt 的假值。--promptString 的 key 是「提示文字」不是資料名稱,
@@ -532,9 +511,8 @@ scenario_ubuntu() {
   check "沒有 ~/.local/share/fonts(連空目錄都不建)" "[ ! -e ~/.local/share/fonts ]"
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
-  check_remote_chrome yes
+  check_no_browser_wrappers
   check_personal_chrome_attach yes
-  check_personal_pc_socks
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -585,8 +563,8 @@ scenario_ubuntu() {
   step "放一份舊的 ~/.local/bin/fzf、rg" \
     "printf '#!/bin/sh\\necho old\\n' > ~/.local/bin/fzf && cp ~/.local/bin/fzf ~/.local/bin/rg && chmod +x ~/.local/bin/fzf ~/.local/bin/rg"
   # 模擬 #261 以前的機器:部署過 remote-chrome(WSL 開 Windows Chrome 那支)的 symlink,apply 之後要被 .chezmoiremove 清掉
-  step "放一份舊的 ~/.local/bin/remote-chrome" \
-    "ln -sfn ~/.config/skillshare/skills/remote-chrome/scripts/remote-chrome ~/.local/bin/remote-chrome"
+  step "放一份舊的 ~/.local/bin/remote-chrome、remote-chrome-headless(#278 以前部署過)" \
+    "ln -sfn ~/.config/skillshare/skills/remote-chrome/scripts/remote-chrome ~/.local/bin/remote-chrome && ln -sfn ~/.config/skillshare/skills/remote-chrome/scripts/remote-chrome-headless ~/.local/bin/remote-chrome-headless"
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
@@ -599,7 +577,7 @@ scenario_ubuntu() {
     "[ ! -e ~/.p10k.zsh ] && [ ! -e ~/.config/zsh/powerlevel10k ] && [ ! -e ~/.cache/gitstatus ] && ! ls ~/.cache/p10k-* 2>/dev/null && [ -d ~/.config/zsh/zsh-z ]"
   check "舊的 ~/.local/bin/fzf、rg 清掉了,zsh 用的是 mise 那份" \
     "[ ! -e ~/.local/bin/fzf ] && [ ! -e ~/.local/bin/rg ] && [ \"\$(zsh -i -c 'whence -p fzf' 2>/dev/null | tail -n1)\" = \"\$HOME/.local/share/mise/shims/fzf\" ]"
-  check "舊的 ~/.local/bin/remote-chrome 清掉了" "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ]"
+  check "舊的 ~/.local/bin/remote-chrome、remote-chrome-headless 清掉了" "[ ! -L ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome-headless ]"
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
@@ -1089,11 +1067,9 @@ scenario_termux() {
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
     "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
-  # Termux 沒勾 agent-config:remote-chrome-headless 照部署(指不到檔案是預期的);
   # personal-chrome-attach 要勾 playwright-cli 和 agent-config 才部署,Termux 沒有
-  check_remote_chrome no
+  check_no_browser_wrappers
   check_personal_chrome_attach no
-  check_personal_pc_socks
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1362,11 +1338,8 @@ noroot_tailscale_checks() {
   check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
     "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
-  # 帶轉發的 company-ec2-attach、company-ec2-socks 跟 company-ec2 共用同一段,也要經同一條 ProxyCommand
-  for h in company-ec2 company-ec2-attach company-ec2-socks; do
-    check "ssh config:$h 經 userspace tailscale 的 ProxyCommand" \
-      "ssh -G $h | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
-  done
+  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
+    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
   step "放時間標記(之後看 tailscale 有沒有重新下載)" "touch ~/.e2e-marker-ts"
@@ -1410,9 +1383,8 @@ noroot_full_checks() {
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
-  check_remote_chrome yes
+  check_no_browser_wrappers
   check_personal_chrome_attach yes
-  check_personal_pc_socks
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

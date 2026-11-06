@@ -8,7 +8,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[看 agent 的瀏覽器](browser-via-ec2.md)） |
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](remote-access/browser.md)） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
@@ -248,7 +248,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 ### 4.1 headless Chrome（選了 `headless-chrome` 才有）
 
 裝的是 Google 官方的 `.deb`，外加中文和 emoji 字型（沒裝的話截圖會是方框）。agent 查原因時用
-`remote-chrome-headless` 開在 9222 給 chrome-devtools MCP，怎麼開見 agent-config 的 remote-chrome skill。
+查原因時開在 9222 給 chrome-devtools MCP，指令見[瀏覽器](remote-access/browser.md#headlessagent-自己的瀏覽器)。
 
 ### 4.2 安裝／同步 oh-my-opencode-slim
 
@@ -358,7 +358,7 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 | 類別 | 內容 |
 |---|---|
-| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／插件與預設 shell、starship 提示列）、規則、OpenCode core config、agent preset、`modify_` 設定、`remote-chrome-headless`、`personal-chrome-attach` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
+| **chezmoi 自動恢復** | 基底套件、勾選的選裝工具（含 zsh／插件與預設 shell、starship 提示列）、規則、OpenCode core config、agent preset、`modify_` 設定、`personal-chrome-attach` 的 symlink、Git 全域 hooks、`codegraph-setup-repo`、Termux 字型。 |
 | **需登入或人工選擇** | 平板上的 app（Termux、Termux:X11）、Windows 字型、SSH private key、chezmoi 的憑證（勾了用得到的工具才問）與 2 個 Git 身分欄位、選裝工具選單、Claude OAuth、`gh auth login`、Claude plugin、Codex WakaTime hook 的首次同意。 |
 | **手動腳本** | Docker、swap、平板桌面、proot Ubuntu 的使用者。 |
 | **各 repo 需重跑** | `codegraph-setup-repo ~/code/<repo>`、該 repo 的 index 與必要 hook 轉接。 |

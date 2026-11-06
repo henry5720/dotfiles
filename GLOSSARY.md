@@ -73,7 +73,7 @@ _Avoid_: 預設 subagent（Codex 有個內建 subagent 就叫 `default`）
 local、remote 從操作者看：當下在操作 GUI 的那一方，agent 或人都算。同一個 GUI，agent 在 company-ec2 操作時是 remote，人坐到那台接手時對人是 local。
 
 **操作者**:
-當下在操作 GUI 的那一方，agent 或人。
+當下在用某個服務的那一方，agent 或人。人要畫面，agent 要協定（CDP、MCP、ssh）。
 _Avoid_: 使用者（指 agent 時）
 
 **Local GUI**:
@@ -87,6 +87,14 @@ _Avoid_: 目標機器、桌機、實體機、remote（指經 Funnel 開到公網
 **Headless 瀏覽器**:
 跑在操作者那台、沒有畫面的瀏覽器。沒有畫面，所以不算 local GUI。
 _Avoid_: a1、local 瀏覽器
+
+**日常 profile**:
+人平常用的那個 Chrome profile，帶著他的登入、passkey、裝置 SSO。agent 只能經插件或使用者同意接上，不能開 debug port。
+_Avoid_: 個人瀏覽器、主 profile、本機 Chrome
+
+**獨立 profile**:
+另外開一個資料夾給 Chrome 用的 profile，跟日常 profile 分開，所以能開 debug port 給 agent 接。不管開在哪一台都叫這個名字。
+_Avoid_: remote browser、遠端瀏覽器、MCP Chrome、專用 profile
 
 ## 操作已配置主機
 
@@ -106,7 +114,15 @@ _Avoid_: 連線方式（只指 ssh 時）、登入方式
 
 ## 開給別人連
 
-把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/remote-access.md`。
+把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/remote-access/`。
+
+**服務**:
+跑在某一台、聽某個 port 的程式，例如瀏覽器的 debug port、網頁 shell、code-server、dev server。各自決定有沒有驗證。
+_Avoid_: server（指機器時）、app（指要開出去的那個 port 時）
+
+**連線**:
+從連的那一方到服務中間怎麼走，只看雙方在不在同一台、在不在同一個 tailnet：同一台直接連，tailnet 內走 ssh 轉發或 `tailscale serve`，tailnet 外給公開網址。
+_Avoid_: 遠端（「遠端」對人和 agent 指的方向不同）、隧道（指全部做法時）
 
 **tailnet 內**:
 連的人（或他的裝置）已經登入你的 tailnet。直接連 tailnet IP，用 `ssh -L`、`ssh -R` 或 `tailscale serve`，不開公網。

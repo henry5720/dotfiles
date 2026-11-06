@@ -10,7 +10,27 @@
 ```
 
 已配置主機就是你面前這台的話，跳過〈入口〉和〈傳檔案〉，直接開 terminal 從〈herdr〉開始。
-各工具的常用指令與官網見[工具一覽](tools.md)。agent 請你開 ssh 轉發看它的瀏覽器、或借你的網路時，見[看 agent 的瀏覽器](browser-via-ec2.md)。
+單一工具的指令與官網見[工具一覽](tools.md)。
+
+## 速查
+
+想做什麼就複製那一行；卡住、想知道為什麼，點「細節」。`<帳號>@<已配置主機>` 換成你的（第一次連見〈入口〉）。
+帶 `ssh -N` 的那幾行會停住不動，開著別關，用完 Ctrl-C。
+
+| 想做什麼 | 在哪跑 | 指令 | 細節 |
+|---|---|---|---|
+| 連進已配置主機 | 個人電腦 | `ssh <帳號>@<已配置主機>` | [入口](#入口) |
+| 開自己的工作畫面、斷線後接回去 | 已配置主機 | `herdr --session <你的名字>` | [herdr](#herdr) |
+| 丟一件事給 agent 背景做 | 已配置主機 | `claude --bg "<任務>"`；看進度 `claude agents` | [coding agent](#coding-agent) |
+| 看別人的 agent 做到哪 | 已配置主機 | `herdr agent list` → `herdr agent read <pane_id> --source recent-unwrapped --lines 80` | [coding agent](#同一個對話在兩個地方打開) |
+| 傳檔案過去／拿回來 | 個人電腦 | `scp ./檔案 <帳號>@<已配置主機>:~/`／`scp <帳號>@<已配置主機>:~/檔案 ./` | [傳檔案](#傳檔案) |
+| 看機器忙不忙 | 已配置主機 | `btop` | [看已配置主機忙不忙](#看已配置主機忙不忙) |
+| 讓 agent 控我看得到的 Chrome（多分頁） | 個人電腦 | `chrome --remote-debugging-port=9222 --user-data-dir=<另一個資料夾>`<br>`ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:9222:127.0.0.1:9222 <帳號>@<已配置主機>` | [瀏覽器：獨立 profile](remote-access/browser.md#獨立-profile讓-agent-控你看得到的-chrome) |
+| 看 agent 的瀏覽器、接手、替它登入 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9377:127.0.0.1:9377 <帳號>@<已配置主機>` → 瀏覽器開 `http://127.0.0.1:9377` | [瀏覽器：headless](remote-access/browser.md#headlessagent-自己的瀏覽器) |
+| agent 一定要用我日常的 Chrome（passkey、SSO） | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 <帳號>@<已配置主機>` | [瀏覽器：日常 profile](remote-access/browser.md#日常-profile一定要你平常的-chrome) |
+| 網站擋機房 IP，借我的網路 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 <帳號>@<已配置主機>` | [瀏覽器：headless](remote-access/browser.md#headlessagent-自己的瀏覽器) |
+| 給不在 tailnet 的人一個 shell | 已配置主機 | `share-shell` | [share-shell](remote-access/share-shell.md) |
+| 把 dev server 給 tailnet 外的人看 | 已配置主機 | `sudo tailscale funnel --https=10000 <port>` | [開給別人連](remote-access/README.md#dev-server兩行不用-script) |
 
 ## 入口
 
@@ -18,8 +38,8 @@
 |---|---|---|---|
 | terminal `ssh` | ssh key、在 tailnet 裡 | 自己 | **預設**：跑 herdr、agent |
 | VS Code Remote-SSH | VS Code、同上 | 自己 | **預設**：看檔、改檔、拖拉傳檔 |
-| 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server 遠端存取](code-server-remote.md) |
-| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見[開給別人連](remote-access.md#tailnet-外) |
+| 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server](remote-access/code-server.md) |
+| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見 [share-shell](remote-access/share-shell.md) |
 
 ### 第一次連：找管理員要兩樣
 

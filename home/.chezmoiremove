@@ -21,8 +21,11 @@
 .local/bin/chrome-mcp
 .local/bin/chrome-headless
 # remote-chrome 只剩 headless 瀏覽器(#261):WSL 開 Windows Chrome、經 ssh 轉發 9222 的那支連同 agent-config 的 script 一起拿掉,
-# 留著只會是斷掉的連結。remote-chrome-headless 照舊。
+# 留著只會是斷掉的連結。
 .local/bin/remote-chrome
+# remote-chrome-headless 拿掉(#278):只包一行 google-chrome --headless,指令改寫在 docs/remote-access/browser.md;
+# agent-config 的 remote-chrome skill 也併進 browser-access,留著只會是斷掉的連結。
+.local/bin/remote-chrome-headless
 # zsh 提示列從 powerlevel10k 換成 starship(#194):p10k 的設定、主題 clone、gitstatusd 與 instant prompt 的快取。
 .p10k.zsh
 .config/zsh/powerlevel10k

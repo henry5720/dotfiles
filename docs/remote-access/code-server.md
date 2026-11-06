@@ -4,16 +4,16 @@
 這份列出所有可行做法和各自代價，phone 和 desktop 各自選一個就好。
 
 這份只寫 code-server 自己的事：port 與綁定、密碼、對連線的要求（secure context）、用完收掉什麼。
-連線指令（ssh 轉發、`serve`）見 [remote-access〈tailnet 內〉](remote-access.md#tailnet-內)。
+連線指令（ssh 轉發、`serve`）見 [remote-access〈tailnet 內〉](README.md#tailnet-內)。
 
 > 這份是**自己**從別台裝置連 code-server。code-server 不開給訪客，見
-> [remote-access〈tailnet 外〉](remote-access.md#tailnet-外)。
+> [remote-access〈tailnet 外〉](README.md#tailnet-外)。
 
 ---
 
 ## 先把它裝起來
 
-chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[改設定與更新](after-install.md)),apply 時會用官方腳本裝 binary。
+chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[改設定與更新](../after-install.md)),apply 時會用官方腳本裝 binary。
 設定檔不用自己弄,由 chezmoi 從 `home/dot_config/private_code-server/private_config.yaml.tmpl`
 部署(權限與密碼見[密碼放哪](#密碼放哪))。
 
@@ -49,8 +49,8 @@ tailscale 負責的是**連得到**，secure context 要另外生出來。
 
 | | 做法 | 誰負責 TLS | 要改 code-server 設定 | 主要代價 |
 |---|---|---|---|---|
-| **A** | [SSH tunnel](remote-access.md#ssh-轉發怎麼讀)（本地轉發 8080） | 不需要，走 localhost | 否 | 每次要先開 tunnel，斷線就掛 |
-| **B** | [tailscale serve](remote-access.md#tailscale-serve)（443 → 8080） | tailscale（真憑證） | 否 | 需要該台有 tailscale CLI |
+| **A** | [SSH tunnel](README.md#ssh-轉發怎麼讀)（本地轉發 8080） | 不需要，走 localhost | 否 | 每次要先開 tunnel，斷線就掛 |
+| **B** | [tailscale serve](README.md#tailscale-serve)（443 → 8080） | tailscale（真憑證） | 否 | 需要該台有 tailscale CLI |
 | **C** | `tailscale cert` + code-server 吃憑證 | code-server（真憑證） | 是 | 憑證要自己續期 |
 | **D** | code-server 自簽憑證 | code-server（自簽） | 是 | service worker 會壞 |
 | **E** | mkcert 自簽 + 手機裝 CA | code-server（自簽但被信任） | 是 | 每台 client 都要裝 CA |
@@ -65,7 +65,7 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 
 **能用：A、D、E。B、C 實質上不行。**
 
-原因：Android 的 Tailscale app 只有 GUI，沒有 CLI，B 的 [serve](remote-access.md#tailscale-serve) 和 C 的 `tailscale cert`
+原因：Android 的 Tailscale app 只有 GUI，沒有 CLI，B 的 [serve](README.md#tailscale-serve) 和 C 的 `tailscale cert`
 都碰不到。要有 CLI 就得在 Termux 自己裝 tailscale + tailscaled，而且非 root 沒有 TUN 權限，
 得跑 `--tun=userspace-networking`——它會變成 tailnet 裡的**第二個節點**（跟 app 那個不同 IP、
 不同名字），加上 Android 會殺背景 process，還要 `termux-wake-lock` 和 Termux:Boot 才活得久。
@@ -73,7 +73,7 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 code-server 本身也**不是裝在原生 Termux**：原生 Termux 的選單一樣列 `code-server`，但標
 （裝不了：termux-packages 沒有，到 proot Ubuntu 裝），勾了也只會在 apply 最後列為略過
 （原因寫在 `home/.chezmoitemplates/tool-env`）。要在 phone 跑，先照
-[新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
+[新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](../new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
 裝好 proot Ubuntu，在裡面勾 `code-server`。proot 跟 Termux 共用網路，proot 裡綁的
 `127.0.0.1:8080`，從 Termux 的 sshd（`Host phone`，port 8022）轉出去一樣連得到。
 
@@ -92,7 +92,7 @@ code-server --bind-addr 127.0.0.1:8080
 ```
 
 發起端用 `Host phone` 連進 phone 的 Termux，8080 就轉到發起端，瀏覽器開 `http://localhost:8080`。
-`Host phone` 已經帶好這條轉發，指令與 `LocalForward` 怎麼讀見 [remote-access 的別名表](remote-access.md#ssh-轉發怎麼讀)。
+`Host phone` 已經帶好這條轉發，指令與 `LocalForward` 怎麼讀見 [remote-access 的別名表](README.md#ssh-轉發怎麼讀)。
 
 ---
 
@@ -100,12 +100,12 @@ code-server --bind-addr 127.0.0.1:8080
 
 **全部都能用。B 最省事。**
 
-作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（[`home/dot_wslconfig`](../home/dot_wslconfig)），
+作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（[`home/dot_wslconfig`](../../home/dot_wslconfig)），
 eth0 上直接掛著 tailnet IP `100.119.136.27`，WSL 裡的服務綁 `127.0.0.1`，
 Windows 側也看得到，中間不用接任何東西。
 
 這個 IP、介面與 DNS 行為只是作者機器的觀察值，不保證你現在或其他主機相同；先用
-`tailscale status`、`ip addr` 查自己的現況（serve 的現況怎麼查見 [remote-access](remote-access.md#tailscale-serve)）。
+`tailscale status`、`ip addr` 查自己的現況（serve 的現況怎麼查見 [remote-access](README.md#tailscale-serve)）。
 
 作者這台的 tailscale CLI 在 Windows；WSL 內曾是 `Logged out`。這不是通用前提，請先查
 `tailscale status`，確認你要用的節點及登入狀態。
@@ -113,7 +113,7 @@ Windows 側也看得到，中間不用接任何東西。
 ### B|讓 tailscale 終結 TLS（建議）
 
 code-server 完全不用改設定，tailscale 在前面當反向代理並終結 TLS。照
-[remote-access〈tailscale serve〉](remote-access.md#tailscale-serve) 把 443 接到 8080，之後任何裝置的瀏覽器開
+[remote-access〈tailscale serve〉](README.md#tailscale-serve) 把 443 接到 8080，之後任何裝置的瀏覽器開
 `https://henry-desktop.<你的 tailnet>.ts.net`（不用打 port）。code-server 這邊要注意的：
 
 - **listener 走 443，不能也用 8080**：mirrored networking 下 Windows 和 WSL 共用 port 空間，
@@ -154,10 +154,10 @@ chezmoi apply
 
 ### A|SSH tunnel
 
-臨時用、不想動任何設定的時候，照 [remote-access〈ssh 轉發怎麼讀〉](remote-access.md#ssh-轉發怎麼讀) 把 henry-desktop 的 8080 拉到你這台的 localhost:8080。
+臨時用、不想動任何設定的時候，照 [remote-access〈ssh 轉發怎麼讀〉](README.md#ssh-轉發怎麼讀) 把 henry-desktop 的 8080 拉到你這台的 localhost:8080。
 
 henry-laptop 跟 henry-desktop 一樣走 B，serve 設在 Windows 那個節點；其他 Windows/WSL 主機先照
-[remote-access〈tailscale serve〉](remote-access.md#tailscale-serve) 查現況再套用，不要套用作者的主機名與 IP。
+[remote-access〈tailscale serve〉](README.md#tailscale-serve) 查現況再套用，不要套用作者的主機名與 IP。
 
 ---
 
@@ -240,13 +240,13 @@ sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
 | 前景跑 `code-server` | Ctrl-C;確認 `ss -ltnp \| grep 8080` 沒有輸出 |
 | systemd 常駐 | `systemctl --user disable --now code-server` |
 | 走 A | 關掉那條 ssh |
-| 走 B | 撤掉 serve,指令見 [remote-access〈tailscale serve〉](remote-access.md#tailscale-serve) |
+| 走 B | 撤掉 serve,指令見 [remote-access〈tailscale serve〉](README.md#tailscale-serve) |
 | 走 C、D、E | 憑證檔不在 repo 裡,不用了就刪;`cert` / `cert-key` 改回來再 `chezmoi apply` |
 
 ## 一句話結論
 
-- **phone** → A（[`Host phone`](remote-access.md#ssh-轉發怎麼讀)，config 已備好）
-- **henry-desktop** → B（[tailscale serve](remote-access.md#tailscale-serve)，設一次就好）
+- **phone** → A（[`Host phone`](README.md#ssh-轉發怎麼讀)，config 已備好）
+- **henry-desktop** → B（[tailscale serve](README.md#tailscale-serve)，設一次就好）
 - **henry-laptop** → B（同上,serve 設在 **Windows** 那個節點;WSL 裡打那個網址會 timeout 是正常的）
 
 ---
