@@ -217,7 +217,7 @@ agent 經 [Playwright Extension](https://chromewebstore.google.com/detail/playwr
 
 ```bash
 # 起 relay，再開一條 cloudflared tcp quick tunnel 指向它；印出你要做的三步，停到 session 結束
-#   --timeout=<秒>  等你接上的秒數（預設 300）
+#   --timeout=<秒>  等你接上的秒數（--tunnel 預設 600：第一次要裝 cloudflared 和插件）
 personal-chrome-attach --tunnel -s=<session>
 ```
 
@@ -233,7 +233,12 @@ tunnel 開好了。connect 網址就是鑰匙,只交給使用者本人。把下�
   1. 安裝 cloudflared(第一次才要),依 OS 從官方下載頁選:https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/
   2. 開一個新的終端機貼這行,開著別關:
      cloudflared access tcp --hostname lamps-meetings-entity-possession.trycloudflare.com --url 127.0.0.1:9555
-  3. 在裝了 Playwright Extension 的 Chrome 開新分頁,網址列貼上這個 connect 網址,在插件畫面選分頁、按允許:
+  3. 開一支裝了 Playwright Extension 的 Chrome。建議用獨立 profile:跟你平常的 Chrome 分開,agent 碰不到你的登入;
+     第一次開是空的,要到 Chrome 線上應用程式商店裝 Playwright Extension。依 OS 貼這行開它(之後每次用同一行):
+       Windows(PowerShell):& "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir="$env:LOCALAPPDATA\chrome-agent" --no-first-run
+       macOS:open -na "Google Chrome" --args --user-data-dir="$HOME/.local/state/chrome-agent" --no-first-run
+       Linux:google-chrome --user-data-dir="$HOME/.local/state/chrome-agent" --no-first-run &
+     在這支 Chrome 開新分頁,網址列貼上這個 connect 網址,在插件畫面選分頁、按允許:
      chrome-extension://mmlmfjhmonkocbjadbfplnigmagldckm/connect.html?mcpRelayUrl=ws%3A%2F%2F127.0.0.1%3A9555%2Fextension%2F<uuid>&client=%7B%22name%22%3A%22Claude+Code%22%7D&protocolVersion=2
 等使用者接上(最多 600 秒)…
 已接上,session:tunneltest。用 playwright-cli -s=tunneltest <指令> 操作;用完 playwright-cli -s=tunneltest detach(Chrome 和分頁留著)。
@@ -241,7 +246,8 @@ session tunneltest 結束了,收掉 tunnel。
 cloudflared 剩 0 個(要 0)。
 ```
 
-（「等使用者接上」和「已接上」之間還會夾 playwright-cli attach 自己的輸出，這裡省略。）
+（「等使用者接上」和「已接上」之間還會夾 playwright-cli attach 自己的輸出，這裡省略。第 3 步「建議用獨立 profile」那幾行是實跑之後加的，
+其他照實跑原樣。）
 
 agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你；印到「等使用者接上」就可以交了。
 
@@ -256,7 +262,22 @@ agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你�
    cloudflared access tcp --hostname <x>.trycloudflare.com --url 127.0.0.1:9555
    ```
 
-3. 在裝了插件的 Chrome 開**新分頁**，網址列貼 connect 網址，在插件畫面選分頁、按允許。
+3. 開一支裝了插件的 Chrome，開**新分頁**，網址列貼 connect 網址，在插件畫面選分頁、按允許。
+   建議用獨立 profile：跟你平常那支分開，agent 碰不到你的登入。第一次開是空的，要到商店裝 Playwright Extension；之後每次用同一行開：
+
+   ```powershell
+   # Windows：開一支專給 agent 用的 Chrome（--user-data-dir 是獨立的資料夾，登入和插件留在這裡）
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir="$env:LOCALAPPDATA\chrome-agent" --no-first-run
+   ```
+
+   ```bash
+   # macOS
+   open -na "Google Chrome" --args --user-data-dir="$HOME/.local/state/chrome-agent" --no-first-run
+   # Linux
+   google-chrome --user-data-dir="$HOME/.local/state/chrome-agent" --no-first-run &
+   ```
+
+   這跟〈[獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome)〉是同一個資料夾，只是不開 9222：tailnet 外 9222 不開公網，agent 經插件接。
 
 - **connect 網址就是鑰匙**：拿到它和 hostname 的人能搶在 agent 前面接上你的 Chrome（見[能怎麼連](#能怎麼連)）。只給本人，不貼到別人看得到的地方。
 - 收：agent detach 後 `personal-chrome-attach` 收掉 tunnel，印「cloudflared 剩 0 個(要 0)。」；你那台的 `cloudflared access tcp` 按 Ctrl-C。
@@ -289,7 +310,7 @@ henry-desktop 的獨立 profile）：
 | 9222 一直不通，Chrome 卻開著 | 同 profile 的 Chrome 早就開著、沒帶 debug port，新參數被吞掉 | 關掉那個 Chrome 視窗，重開 |
 | `remote port forwarding failed`（9222 或 1080） | 已配置主機的 port 被佔 | `ss -ltnp \| grep <port>` 看是誰；另一台的 ssh 或 headless 先收掉 |
 | chrome-devtools-mcp 接到的不是你要的那支 | 9222 同時只有一支 Chrome | `curl 127.0.0.1:9222/json/version` 看 `User-Agent` |
-| `personal-chrome-attach` 說「等了 N 秒沒人連進來」 | `--timeout` 秒內（預設 300）沒人連進來 | 重跑，用新的網址 |
+| `personal-chrome-attach` 說「等了 N 秒沒人連進來」 | `--timeout` 秒內（預設 300，`--tunnel` 600）沒人連進來 | 重跑，用新的網址 |
 | `找不到 cloudflared:--tunnel 要它` | agent 那台沒有 cloudflared | 照它印的官方下載頁裝 |
 | `cloudflared 沒開出 trycloudflare.com 網址` | quick tunnel 沒開成，常見是被限流回 `429`；它會印 cloudflared 最後幾行 | 看那幾行，過一陣子重跑 |
 | `cloudflared 自己結束了,tunnel 斷了` | 接上之後 agent 那台的 cloudflared 掉了 | 重跑，用新的三步 |
