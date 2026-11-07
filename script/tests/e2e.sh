@@ -318,8 +318,9 @@ declare -A TOOL_CHECK=(
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
-  # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)與開關指令 voice-out;服務的檢查在 check_snapserver
-  [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ]"
+  # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
+  # 與它用的 edge-tts(pipx 裝在 ~/.local/bin);服務與朗讀的檢查在 check_snapserver
+  [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && [ -x ~/.local/bin/edge-tts ]"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -466,6 +467,11 @@ check_snapserver() {
     "out=\$(voice-out status 2>&1); rc=\$?; echo \"\$out\"; [ \$rc = 3 ] && grep -q 停止 <<<\"\$out\""
   check "照部署的設定跑 snapserver:三個 port 只綁 127.0.0.1,沒有 0.0.0.0;pipe 建在 ~/.local/state/voice-out" \
     "mkdir -p ~/.local/state/voice-out && { snapserver --config=\$HOME/.config/snapserver/snapserver.conf > /tmp/snapserver.log 2>&1 & p=\$!; sleep 3; l=\$(awk '\$4 == \"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6); kill \$p; echo \"\$l\"; ok=1; for port in 06A8 06A9 06F4; do [ \"\$(grep -c \":\$port\$\" <<<\"\$l\")\" = 1 ] && grep -qx \"0100007F:\$port\" <<<\"\$l\" || ok=0; done; [ \$ok = 1 ] && [ -p ~/.local/state/voice-out/snapfifo ]; }"
+  # 朗讀指令(#291)。pipe 是上一項 snapserver 建的;服務沒開 = 沒有人讀 pipe
+  check "voice-out-speak:服務沒開時 1 秒內結束、exit 0" \
+    "s=\$(date +%s%N); echo '{\"last_assistant_message\":\"沒人在聽\"}' | voice-out-speak; rc=\$?; ms=\$(( (\$(date +%s%N) - s) / 1000000 )); echo \"rc=\$rc \${ms}ms\"; [ \$rc = 0 ] && [ \$ms -lt 1000 ]"
+  check "voice-out-speak:有人讀 pipe 時,真的用 edge-tts 唸成 PCM 寫進去(連網)" \
+    "cat ~/.local/state/voice-out/snapfifo > /tmp/speak.pcm & c=\$!; echo '{\"last_assistant_message\":\"**測試**朗讀。\"}' | timeout 60 voice-out-speak; rc=\$?; sleep 1; kill \$c 2>/dev/null; n=\$(stat -c %s /tmp/speak.pcm); echo \"rc=\$rc bytes=\$n\"; [ \$rc = 0 ] && [ \$n -gt 48000 ]"
 }
 
 # 容器裡做不到、刻意不驗的事:

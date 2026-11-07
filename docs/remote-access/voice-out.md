@@ -5,19 +5,18 @@
 
 ```
 已配置主機                                         個人電腦（tailnet 內）
-agent 回完話 → 朗讀指令 → pipe → snapserver ══tailnet══▶ Snapcast app／snapclient → 喇叭
-                                 （voice-out 開關）
+agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══▶ Snapcast app／snapclient → 喇叭
+              （Stop hook）                （voice-out 開關）
 ```
-
-朗讀指令（把回覆轉成語音寫進 pipe）是下一張 ticket（#291）；這份先讓服務能開、裝置能連。
 
 ## 裝
 
 已配置主機的選裝工具選單勾 `snapserver`（之後要加見[改設定與更新](../after-install.md)），apply 時：
 
-- 用 apt 裝 snapserver 與 ffmpeg。
+- 用 apt 裝 snapserver、ffmpeg、pipx，再用 pipx 把 TTS 的 edge-tts 裝到 `~/.local/bin`。
 - 停用並關掉套件自帶的系統服務（它監聽所有網卡、開機自動啟動）。
-- 部署 user service `voice-out.service`、設定 `~/.config/snapserver/snapserver.conf`、開關指令 `voice-out`。
+- 部署 user service `voice-out.service`、設定 `~/.config/snapserver/snapserver.conf`、開關指令 `voice-out`、
+  朗讀指令 `voice-out-speak`。
 
 只能裝在有 systemd 的 Debian 系 Linux（雲端主機、Ubuntu）。Windows、macOS、原生 Termux、平板的 proot Ubuntu
 在選單上標裝不了；WSL 標不建議（抓不到自己的 tailnet IP）。
@@ -34,12 +33,63 @@ agent 回完話 → 朗讀指令 → pipe → snapserver ══tailnet══▶ 
 | `voice-out off` | 關 |
 | `voice-out status` | 看狀態與伺服器位址。在跑 exit 0、停止 exit 3 |
 
-預設不啟動、不開機自動啟動，跟 code-server 一樣想聽才開。沒開的時候 agent 照常跑，朗讀指令會直接略過。
+預設不啟動、不開機自動啟動，跟 code-server 一樣想聽才開。沒開的時候 agent 照常跑，`voice-out-speak` 會直接略過。
 
 - **登出後要繼續跑**：user service 在你 ssh 全斷後會跟著停，除非帳號開了 linger：
   `sudo loginctl enable-linger "$USER"`（一次就好）。`voice-out on` 沒有 linger 時會提醒。
 - **改了設定**（例如換了 tailnet IP 後 `chezmoi apply`）：`voice-out off` 再 `voice-out on` 才會套用。
 - 看服務的 log：`journalctl --user -u voice-out -f`。
+
+## 朗讀指令：voice-out-speak
+
+agent 的 Stop hook 呼叫它（hook 定義在 agent-config）。手動試：
+
+```bash
+echo '{"last_assistant_message":"改好了，測試都過。"}' | voice-out-speak
+```
+
+stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Codex 都有這欄）。
+
+| 情況 | 結果 |
+|---|---|
+| 服務開著 | 唸出來，唸完才結束（9 秒的語音寫 9 秒） |
+| 服務沒開（`voice-out off`） | 0.5 秒內結束，什麼都不寫 |
+| `last_assistant_message` 空的、沒有這欄、stdin 不是 JSON | 立刻結束，什麼都不寫 |
+| 同時來好幾則 | 語音各自先轉好，播放排隊一則一則來，不交錯 |
+| edge-tts 失敗（沒網路） | exit 1，錯誤印在 stderr；不會回 2（Stop hook exit 2 會擋住 agent 結束） |
+
+**唸什麼、不唸什麼。** 唸給人聽的結論：
+
+- 程式碼區塊（` ``` ` 包起來的）整段不唸；只有程式碼的回覆就不唸。
+- 連結只唸文字、不唸網址；裸網址拿掉。
+- 標題、粗體、斜體、引用、清單、表格的符號拿掉，字留著；行內程式碼留內容（多半是檔名、指令名）。
+- 超過 600 字元截斷（約 2 分鐘語音）；再長就去看畫面。
+
+**多快聽到。** 從 agent 講完到聽到約 3 秒，大部分花在 edge-tts 產生語音（約 2.5 秒）。
+2026-11-07 實測：原型在 Android 平板上約 2.8 秒聽到；`voice-out-speak` 在 company-ec2 從觸發到 snapclient 輸出聲音約 2.4 秒。
+
+**hook 要不要等它。** 唸多久就跑多久，hook 不能同步等。Claude Code 的 hook 設 `"async": true`；
+不支援 async 的 agent 加 `--background`：讀完 stdin、確認服務開著就回來，剩下的在背景做，
+錯誤寫到 `~/.local/state/voice-out/speak.log`。
+
+**沒裝時。** 沒勾 `snapserver` 的機器沒有這支指令。hook 寫成
+`[ -x "$HOME/.local/bin/voice-out-speak" ] && exec "$HOME/.local/bin/voice-out-speak" --background; exit 0`，
+沒裝就安靜略過。
+
+### TTS 換別的
+
+聲音是 edge-tts 的 `zh-TW-HsiaoChenNeural`（台灣華語女聲）。edge-tts 呼叫微軟 Edge 的線上朗讀服務，
+免費、不用帳號，但不是公開 API，哪天可能被擋。被擋時改用離線 TTS，接法是環境變數 `VOICE_OUT_TTS`：
+指令從 stdin 讀文字，stdout 吐 48000 Hz、16 bit、雙聲道的 PCM。
+
+| 備援 | 說明 |
+|---|---|
+| [Piper](https://github.com/OHF-Voice/piper1-gpl) | 離線、CPU 就快；中文只有 `zh_CN` 的聲音（例如 `zh_CN-huayan-medium`），沒有台灣腔 |
+| [Kokoro](https://github.com/hexgrad/kokoro) | 離線、音質比 Piper 自然，有中文聲音；要 Python 套件與模型（約 300 MB），CPU 上比 Piper 慢 |
+
+兩個都還沒在這裡實測過。輸出的取樣率不是 48000 Hz 時，在指令後面接一段 ffmpeg 轉：
+`ffmpeg -loglevel error -f s16le -ar <原取樣率> -ac 1 -i - -f s16le -ar 48000 -ac 2 -`。
+`VOICE_OUT_TTS` 要在呼叫 `voice-out-speak` 的環境裡（例如 hook 的指令前面加上）。
 
 ## port 與綁定
 
@@ -52,7 +102,7 @@ agent 回完話 → 朗讀指令 → pipe → snapserver ══tailnet══▶ 
 三個 port 都只綁 tailnet IP，沒有驗證：tailnet 內的裝置都連得到，tailnet 外連不到，不用開 security group
 或公開網址。確認：`ss -ltnp | grep snapserver`，位址欄要是 `100.` 開頭，不能是 `0.0.0.0` 或 `*`。
 
-輸入是 `~/.local/state/voice-out/snapfifo` 這個 pipe（48000 Hz、16 bit、雙聲道 PCM），朗讀指令寫進去。
+輸入是 `~/.local/state/voice-out/snapfifo` 這個 pipe（48000 Hz、16 bit、雙聲道 PCM），`voice-out-speak` 寫進去。
 
 ## 個人電腦怎麼連
 

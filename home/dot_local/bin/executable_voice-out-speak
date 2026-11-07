@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""把 agent 的最後一則回覆唸到朗讀串流服務(選裝工具 snapserver,#291)。
+
+    voice-out-speak [--background] < stop-hook.json
+
+stdin 是一則 Stop hook JSON(Claude Code、Codex 都有 last_assistant_message),唸那一欄。
+服務沒開(voice-out off)時立刻結束、什麼都不做,exit 0;沒東西可唸也是 exit 0。
+TTS 失敗(沒網路)exit 1,絕不回 2:Stop hook exit 2 會擋住 agent 結束。
+
+寫進 pipe 的速度等於播放速度(9 秒語音寫 9 秒),所以 hook 要嘛設成 async,
+要嘛加 --background:讀完 stdin、確認服務在跑就回來,剩下的在背景做(錯誤寫到 speak.log)。
+
+環境變數(測試用):
+  VOICE_OUT_FIFO  snapserver 的輸入 pipe,預設 ~/.local/state/voice-out/snapfifo
+  VOICE_OUT_TTS   換掉 TTS 的指令:stdin 是要唸的文字,stdout 是 48000:16:2 的 PCM
+說明:dotfiles 的 docs/remote-access/voice-out.md。
+"""
+import fcntl
+import json
+import os
+import re
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+VOICE = "zh-TW-HsiaoChenNeural"
+LIMIT = 600  # 約 2 分鐘語音;再長就去看畫面
+OPEN_TIMEOUT = 0.5  # snapserver 每 100 ms 開一次 pipe,等 5 輪
+FIFO = Path(os.environ.get("VOICE_OUT_FIFO") or Path.home() / ".local/state/voice-out/snapfifo")
+
+
+class TTSError(Exception):
+    pass
+
+
+def read_message():
+    """stdin 的 Stop hook JSON 裡的 last_assistant_message;不是 JSON、沒有這欄都當空的。"""
+    try:
+        message = json.load(sys.stdin).get("last_assistant_message")
+    except (ValueError, AttributeError):
+        return ""
+    return message if isinstance(message, str) else ""
+
+
+def to_speech(message):
+    """回覆 → 要唸的文字:拿掉程式碼區塊與 Markdown 符號,截斷到 LIMIT 字元。
+
+    唸的是給人聽的結論:程式碼區塊整段不唸;連結只唸文字、不唸網址;
+    行內程式碼留內容(多半是檔名、指令名)只拿掉反引號。字中間的 - _ 不動(voice-out-speak)。"""
+    text = re.sub(r"```.*?(```|$)", " ", message, flags=re.S)       # 程式碼區塊
+    text = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", text)                # 圖片
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)              # 連結 → 文字
+    text = re.sub(r"https?://\S+", " ", text)                        # 裸網址
+    lines = []
+    for line in text.splitlines():
+        line = line.strip()
+        if re.fullmatch(r"[|:\-\s]*-{3,}[|:\-\s]*|[*_]{3,}", line):    # 分隔線、表格的 |---|
+            continue
+        line = re.sub(r"^(#{1,6}|>+|[-*+]|\d+[.)])\s+", "", line)      # 標題、引用、清單記號
+        line = re.sub(r"^>+", "", line)
+        lines.append(line.replace("|", " "))                         # 表格
+    text = "\n".join(lines)
+    text = re.sub(r"[`*]|(?<!\w)_+|_+(?!\w)|[#>\[\]]", "", text)       # 強調、行內程式碼、殘留符號
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\s*\n\s*", "\n", text).strip()
+    return text[:LIMIT].strip()
+
+
+def open_pipe():
+    """服務在跑就回傳 pipe 寫端的 fd,沒在跑回傳 None;最多等 OPEN_TIMEOUT 秒。
+
+    snapserver 不是一直開著 pipe:沒有寫入者時每 100 ms 開一次、讀到 EOF 就關(strace 實測 0.34)。
+    所以「現在有沒有讀者」(O_NONBLOCK 開)幾乎都是沒有;改用阻塞的 open 等它下一次輪詢,
+    逾時就當服務沒開。不能無限等:服務沒開時阻塞的 open 會永遠卡住。
+    pipe 不存在(服務從沒開過)open 立刻失敗,不會自己建一個普通檔案。"""
+    if not FIFO.is_fifo():
+        return None
+
+    def timeout(signum, frame):
+        raise TimeoutError
+
+    old = signal.signal(signal.SIGALRM, timeout)
+    signal.setitimer(signal.ITIMER_REAL, OPEN_TIMEOUT)
+    try:
+        return os.open(FIFO, os.O_WRONLY)
+    except (TimeoutError, OSError):
+        return None
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
+def run(cmd, **kwargs):
+    try:
+        return subprocess.run(cmd, check=True, stderr=subprocess.PIPE, **kwargs)
+    except (OSError, subprocess.CalledProcessError) as e:
+        detail = getattr(e, "stderr", None) or str(e).encode()
+        raise TTSError(f"{Path(cmd[0]).name} 失敗:{detail.decode(errors='replace').strip()}") from e
+
+
+def which(name):
+    # pipx 把 edge-tts 裝在 ~/.local/bin;hook 的 PATH 不一定有它
+    return shutil.which(name) or shutil.which(name, path=str(Path.home() / ".local/bin")) or name
+
+
+def tts(text, out):
+    """文字 → PCM 寫進 out(檔案)。"""
+    custom = os.environ.get("VOICE_OUT_TTS")
+    if custom:
+        run(shlex.split(custom), input=text.encode("utf-8"), stdout=out)
+        return
+    with tempfile.TemporaryDirectory(prefix="voice-out-") as tmp:
+        txt, mp3 = Path(tmp, "text.txt"), Path(tmp, "speech.mp3")
+        txt.write_text(text, encoding="utf-8")  # 用檔案傳:文字開頭是 - 也不會被當成參數
+        run([which("edge-tts"), "--voice", VOICE, "--file", str(txt), "--write-media", str(mp3)],
+            stdout=subprocess.DEVNULL)
+        # 跟 snapserver.conf 的 sampleformat=48000:16:2 一致
+        run([which("ffmpeg"), "-loglevel", "error", "-i", str(mp3), "-f", "s16le", "-ar", "48000", "-ac", "2", "-"],
+            stdout=out)
+
+
+def speak(text, fd):
+    with tempfile.TemporaryFile() as pcm:
+        # 語音各自先產生好(不用等前一則播完才開始轉)
+        tts(text, pcm)
+        pcm.seek(0)
+        # 排隊:寫進 pipe 這段一次一則。鎖涵蓋整段寫入:寫入速度等於播放速度,放開鎖時前一則已經唸完
+        with open(FIFO.with_name("speak.lock"), "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                while chunk := pcm.read(65536):
+                    os.write(fd, chunk)
+            except BrokenPipeError:
+                pass  # 唸到一半服務被關掉
+
+
+def detach():
+    """--background:父行程直接回去(hook 馬上結束),子行程脫離後繼續;錯誤寫到 speak.log。"""
+    if os.fork():
+        os._exit(0)
+    os.setsid()
+    log = os.open(FIFO.with_name("speak.log"), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    null = os.open(os.devnull, os.O_RDWR)
+    os.dup2(null, 0)
+    os.dup2(null, 1)
+    os.dup2(log, 2)
+
+
+def main():
+    text = to_speech(read_message())
+    if not text:
+        return 0
+    fd = open_pipe()
+    if fd is None:
+        return 0
+    if "--background" in sys.argv[1:]:
+        detach()
+    try:
+        speak(text, fd)
+    except TTSError as e:
+        print(f"voice-out-speak:{e}", file=sys.stderr)
+        return 1
+    finally:
+        os.close(fd)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

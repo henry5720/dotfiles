@@ -102,11 +102,13 @@ AppData
 {{ if not (and (has "playwright-cli" $tools) (has "agent-config" $tools)) }}.local/bin/personal-chrome-attach{{ end }}
 # code-server 的設定要 codeServerPassword,沒勾 code-server 的機器不會問、config 裡也沒有(見 .chezmoi.toml.tmpl)。
 {{ if not (has "code-server" $tools) }}.config/code-server{{ end }}
-# 朗讀串流服務(#290):snapserver 的設定、voice-out 開關與它包的 user service,裝了 snapserver 才部署。
+# 朗讀串流服務(#290):snapserver 的設定、voice-out 開關與它包的 user service、
+# 朗讀指令 voice-out-speak(#291),裝了 snapserver 才部署。
 {{ if not (has "snapserver" $tools) }}
 .config/snapserver
 .config/systemd/user/voice-out.service
 .local/bin/voice-out
+.local/bin/voice-out-speak
 {{ end }}
 
 # 沒有工具要交給 mise 的機器(Termux、macOS、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
