@@ -41,6 +41,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | `TERM` | 沒設時 `.zshrc` 補成 `xterm-256color` |
 | ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝 |
 | 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
+| snapserver（勾了才有） | 只能用 apt 裝，略過；apply 最後的彙整印出要請有 root 的人跑的 apt 指令。管理員裝過的話，系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)） |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。

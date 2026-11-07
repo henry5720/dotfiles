@@ -264,10 +264,10 @@ menu_choice() {
   (IFS=/; echo "$TOOLS_PROMPT=${out[*]}")
 }
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
-# ffmpeg 一般用不到、相依套件一大串,不在這裡實裝,只做下面的渲染檢查。
+# ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
-TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
@@ -318,6 +318,8 @@ declare -A TOOL_CHECK=(
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
+  # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)與開關指令 voice-out;服務的檢查在 check_snapserver
+  [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ]"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -451,6 +453,21 @@ check_personal_chrome_attach_dry_run() {
     "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
 }
 
+# 朗讀串流服務(#290)。容器的 PID 1 不是 systemd、也沒有 systemctl:user service 起不來,
+# 改成直接用部署的設定跑 snapserver,看三個 port 綁哪裡(容器裡 tailscale 沒登入,設定綁 127.0.0.1;
+# 綁 tailnet IP 由 test_tool_env 用假的 tailscale 驗)。/proc/net/tcp 的位址是十六進位:
+# 0100007F = 127.0.0.1;port 06A8 = 1704(串流)、06A9 = 1705(控制)、06F4 = 1780(網頁);狀態 0A = LISTEN。
+check_snapserver() {
+  check "snapserver 套件自帶的系統服務已停用(multi-user.target.wants 沒有它)" \
+    "[ -f /lib/systemd/system/snapserver.service ] && [ ! -e /etc/systemd/system/multi-user.target.wants/snapserver.service ]"
+  check "user service voice-out 已部署、預設 disabled(default.target.wants 沒有它)" \
+    "[ -f ~/.config/systemd/user/voice-out.service ] && [ ! -e ~/.config/systemd/user/default.target.wants/voice-out.service ]"
+  check "voice-out status:停止、exit 3" \
+    "out=\$(voice-out status 2>&1); rc=\$?; echo \"\$out\"; [ \$rc = 3 ] && grep -q 停止 <<<\"\$out\""
+  check "照部署的設定跑 snapserver:三個 port 只綁 127.0.0.1,沒有 0.0.0.0;pipe 建在 ~/.local/state/voice-out" \
+    "mkdir -p ~/.local/state/voice-out && { snapserver --config=\$HOME/.config/snapserver/snapserver.conf > /tmp/snapserver.log 2>&1 & p=\$!; sleep 3; l=\$(awk '\$4 == \"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6); kill \$p; echo \"\$l\"; ok=1; for port in 06A8 06A9 06F4; do [ \"\$(grep -c \":\$port\$\" <<<\"\$l\")\" = 1 ] && grep -qx \"0100007F:\$port\" <<<\"\$l\" || ok=0; done; [ \$ok = 1 ] && [ -p ~/.local/state/voice-out/snapfifo ]; }"
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -483,7 +500,7 @@ scenario_ubuntu() {
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
-  check_no_tool ffmpeg
+  check_snapserver
   # agent 有裝、wakatime 沒勾:不裝 plugin
   for a in "${!WAKA_PLUGIN[@]}"; do check_no_waka_plugin "$a"; done
   check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
@@ -528,7 +545,7 @@ scenario_ubuntu() {
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -684,9 +701,10 @@ scenario_ubuntu() {
   check "選精簡後多勾 gh:存自訂" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
   local full_filtered=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
-  # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾
+  # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾;snapserver 抓不到 tailnet IP(#290),同樣不建議
   local full_wsl=${full_filtered/\/tailscale\///}
-  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、headless-chrome、playwright-cli)" \
+  full_wsl=${full_wsl/\/snapserver\///}
+  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、snapserver、headless-chrome、playwright-cli)" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_wsl")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
@@ -817,17 +835,22 @@ scenario_ubuntu() {
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
   bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli" \
-    "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "${FULL_TOOLS/\/headless-chrome\/playwright-cli/}")' /tmp/fedora.toml"
+  # snapserver 走 apt(#290),非 Debian 系同樣裝不了
+  local fedora_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
+  fedora_full=${fedora_full/\/snapserver\///}
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver" \
+    "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "$fedora_full")' /tmp/fedora.toml"
   label=$(menu_choice headless-chrome "$fedora")
   check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
     "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptMultichoice "$label") | grep -qxF '$(toml_list headless-chrome)'"
   check "非 Debian 系有 tools 指令可以重出選單" \
     "chezmoi execute-template --override-data '$fedora' < $tmpl/dot_local/bin/executable_tools.tmpl | grep -q 'chezmoi init --prompt'"
-  # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 vim,ffmpeg 沒勾、沒裝。btop 是單一執行檔(always),不看系統
+  # 這台(有 root 的 Ubuntu)前面已經 apt 裝了 vim,也跟著 snapserver 裝了 ffmpeg(#290)。
+  # 樣板用 lookPath 看系統有沒有:PATH 換成只放 vim(和渲染要的 chezmoi、id、sh、sudo)的目錄,當成系統沒有 ffmpeg。
+  # btop 是單一執行檔(always),不看系統
   local fedora_mise='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["ffmpeg","btop","vim"]}'
   check "非 Debian 系(就算有 root)選裝工具走 mise:清單有系統沒有的 ffmpeg、always 的 btop,沒有系統已有的 vim" \
-    "chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && grep -qx '\"btop\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q vim /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
+    "rm -rf /tmp/nopath && mkdir /tmp/nopath && for c in chezmoi id sh sudo vim; do ln -s \"\$(command -v \$c)\" /tmp/nopath/\$c; done && PATH=/tmp/nopath chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && grep -qx '\"btop\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q vim /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
   check "有 root 的 Ubuntu:只勾 conda 的(ffmpeg)忽略 ~/.config/mise,勾了 always 的(fzf)不忽略;非 Debian 系不忽略" \
     "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise && ! chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
   check "有 root 的 Ubuntu:系統已經有 vim,always 的工具照樣列(mise 清單不看 lookPath)" \
@@ -855,8 +878,10 @@ scenario_ubuntu() {
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
+  # snapserver 靠 systemd user service(#290),macOS 裝不了
   local mac_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli)" \
+  mac_full=${mac_full/\/snapserver\///}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli、snapserver)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
@@ -901,10 +926,10 @@ scenario_ubuntu() {
   check "macOS 勾 starship:部署 .bashrc(只有 starship 那段)、不部署 .profile" \
     "chezmoi --config /tmp/mac.toml managed --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"zsh\",\"starship\"]}' > /tmp/mac-managed && grep -qx .bashrc /tmp/mac-managed && ! grep -qx .profile /tmp/mac-managed && chezmoi --config /tmp/mac.toml execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"zsh\",\"starship\"]}' < $tmpl/modify_dot_bashrc.tmpl > /tmp/mac-bashrc.sh && echo HIST | sh /tmp/mac-bashrc.sh | grep -q 'starship 提示列 >>>' && ! echo HIST | sh /tmp/mac-bashrc.sh | grep -q '切到 zsh'"
 
-  # ffmpeg 不在 e2e 實裝(見 TOOLS_FIRST 上方);只驗勾了才裝、而且語法對。
+  # ffmpeg 不單獨勾(見 TOOLS_FIRST 上方);這裡只驗單獨勾了才裝、而且語法對。
   bold "▶ (渲染)ffmpeg"
   check "沒勾時套件腳本不含 ffmpeg" \
-    "! chezmoi execute-template < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
+    "! chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -q ffmpeg"
   check "勾 ffmpeg 時套件腳本裝 ffmpeg" \
     "chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/dm.sh && grep -q ffmpeg /tmp/dm.sh && sh -n /tmp/dm.sh"
 

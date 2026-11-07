@@ -57,6 +57,11 @@ toolPackages:
     # 影音轉檔、抽音軌與影格
     ffmpeg:
       - ffmpeg
+    # 朗讀串流服務(#290)。ffmpeg 給朗讀指令把 TTS 的 mp3 解成 PCM;套件自帶的系統服務
+    # 由 run_onchange_after_install-snapserver 停用,改用 voice-out 開關的 user service
+    snapserver:
+      - snapserver
+      - ffmpeg
     # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
     # 沒這兩個字型,中文和 emoji 截圖全是方框
     headless-chrome:

@@ -61,13 +61,17 @@ class ToolEnvTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def chezmoi(self, env, *args, data=None, stdin=None, check=True):
+    def chezmoi(self, env, *args, data=None, stdin=None, check=True, path_prepend=None):
         override = merge(merge(UBUNTU, env), data or {})
+        run_env = None
+        if path_prepend:
+            import os
+            run_env = {**os.environ, "PATH": f"{path_prepend}:{os.environ['PATH']}"}
         return subprocess.run([
             "chezmoi", "--no-tty", "--source", str(self.source),
             "--config", str(self.dir / "none.toml"), "--persistent-state", str(self.dir / "state.boltdb"),
             "--override-data", json.dumps(override), *args,
-        ], input=stdin, capture_output=True, text=True, check=check)
+        ], input=stdin, capture_output=True, text=True, check=check, env=run_env)
 
     def init(self, env, use, picked=None, check=True):
         """全新機器跑 config 樣板:用途選 use,picked 給選單文字(None = 選單直接 Enter)。"""
@@ -116,11 +120,13 @@ class ToolEnvTest(unittest.TestCase):
         # 哪幾項帶標註、標的是哪一種(原因文字由上一個測試與 e2e 對)
         expected = {
             "ubuntu": ({}, {}),
-            "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議"}),
-            "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議"}),
+            "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
+                           "snapserver": "不建議"}),
+            "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
+                               "snapserver": "裝不了"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
-            "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
-            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
+            "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了"}),
+            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
             with self.subTest(env=name):
@@ -136,11 +142,11 @@ class ToolEnvTest(unittest.TestCase):
     # 預設組合扣掉不建議與裝不了的;沒改勾選照樣存用途
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
-        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale"}),
-                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale"}),
+        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale", "snapserver"}),
+                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale", "snapserver"}),
                                    ("arm", ARM, {"headless-chrome", "playwright-cli"}),
-                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli"}),
-                                   ("mac", MAC, {"headless-chrome", "playwright-cli"})):
+                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver"}),
+                                   ("mac", MAC, {"headless-chrome", "playwright-cli", "snapserver"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -356,7 +362,7 @@ exit 0
     def test_android_annotations(self):
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
-                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph"})
+                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph", "snapserver"})
 
     def test_android_installs_pkg_tools(self):
         tools = ["fastfetch", "gh", "ffmpeg", "ttyd", "cloudflared", "zsh"]
@@ -388,6 +394,112 @@ exit 0
         lines = {l.strip() for l in ignore.splitlines()}
         for target in (".claude", ".codex", ".config/opencode", ".config/skillshare", ".config/code-server"):
             self.assertIn(target, lines)
+
+    # ===============================================================
+    # snapserver(#290):已配置主機上自己開關的朗讀串流服務
+    # ===============================================================
+    def test_snapserver_menu_states_per_environment(self):
+        # 靠 systemd user service 開關、apt 裝:沒有 systemd 或 apt 的環境裝不了,WSL 抓不到自己的 tailnet IP 不建議
+        expected = {
+            "ubuntu": ({}, None),
+            "arm": (ARM, None),
+            "wsl": (WSL, "不建議"),
+            "proot": (PROOT, "裝不了"),
+            "fedora": (FEDORA, "裝不了"),
+            "mac": (MAC, "裝不了"),
+            "android": (ANDROID, "裝不了"),
+            "windows": ({"chezmoi": {"os": "windows"}}, "裝不了"),
+        }
+        for name, (env, mark) in expected.items():
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("snapserver "))
+                self.assertIn("會一併裝 ffmpeg", line)
+                if mark is None:
+                    self.assertNotIn("（", line.split("ffmpeg", 1)[1])
+                else:
+                    self.assertIn(f"（{mark}：", line)
+        windows = next(l for l in self.labels({"chezmoi": {"os": "windows"}}) if l.startswith("snapserver "))
+        self.assertIn("沒有 Windows 版", windows)
+
+    def test_snapserver_installs_snapserver_and_ffmpeg_with_apt(self):
+        pkgs = self.render({}, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["snapserver"])
+        self.assert_sh(pkgs)
+        line = next(l for l in pkgs.splitlines() if l.startswith("for pkg in"))
+        words = line.replace(";", " ").split()
+        self.assertIn("snapserver", words)
+        self.assertIn("ffmpeg", words)
+
+    def fake_tailscale(self, script):
+        """PATH 最前面放一支假的 tailscale(樣板在 apply 時跑 tailscale ip -4 取 tailnet IP)。"""
+        bindir = self.dir / "fakebin"
+        bindir.mkdir(exist_ok=True)
+        fake = bindir / "tailscale"
+        fake.write_text("#!/bin/sh\n" + script + "\n", encoding="utf-8")
+        fake.chmod(0o755)
+        return str(bindir)
+
+    def snapserver_conf(self, tailscale_script):
+        template = (ROOT / "home/dot_config/snapserver/snapserver.conf.tmpl").read_text(encoding="utf-8")
+        return self.chezmoi({}, "execute-template", data={"tools": ["snapserver"]}, stdin=template,
+                            path_prepend=self.fake_tailscale(tailscale_script)).stdout
+
+    def binds(self, conf):
+        return [l.split("=", 1)[1].strip() for l in conf.splitlines() if l.startswith("bind_to_address")]
+
+    def test_snapserver_binds_every_port_to_tailnet_ip(self):
+        conf = self.snapserver_conf('[ "$1 $2" = "ip -4" ] && echo 100.64.0.7')
+        # 串流、控制、網頁三個 port;新舊版的段名各寫一次(Ubuntu 24.04 是 0.27、26.04 是 0.34)
+        self.assertTrue(self.binds(conf))
+        self.assertEqual(set(self.binds(conf)), {"100.64.0.7"})
+        for section in ("[http]", "[tcp]", "[tcp-control]", "[stream]", "[tcp-streaming]"):
+            self.assertIn(section, conf.splitlines())
+        settings = "\n".join(l for l in conf.splitlines() if not l.startswith("#"))
+        self.assertNotIn("0.0.0.0", settings)
+        self.assertNotIn("= ::", settings)
+        source = next(l for l in conf.splitlines() if l.startswith("source"))
+        self.assertIn("pipe://" + str(Path.home() / ".local/state/voice-out/snapfifo"), source)
+        self.assertIn("sampleformat=48000:16:2", source)
+        self.assertIn("mode=create", source)
+
+    def test_snapserver_falls_back_to_loopback_without_tailnet_ip(self):
+        # tailscale 沒登入(或還沒裝):只綁 127.0.0.1,不會變成所有網卡
+        conf = self.snapserver_conf("echo 'Tailscale is stopped.' >&2; exit 1")
+        self.assertEqual(set(self.binds(conf)), {"127.0.0.1"})
+
+    def test_snapserver_files_deployed_only_when_installing(self):
+        targets = {".config/snapserver", ".config/systemd/user/voice-out.service", ".local/bin/voice-out"}
+        for name, env, tools, ignored in (("ubuntu ticked", {}, ["snapserver"], False),
+                                          ("ubuntu unticked", {}, ["ffmpeg"], True),
+                                          ("android ticked", ANDROID, ["snapserver"], True)):
+            with self.subTest(case=name):
+                lines = {l.strip() for l in self.render(env, "home/.chezmoiignore", tools).splitlines()}
+                if ignored:
+                    self.assertLessEqual(targets, lines)
+                else:
+                    self.assertFalse(targets & lines)
+
+    def test_snapserver_disables_packaged_system_service(self):
+        # 套件自帶的系統服務監聽所有網卡、開機自動啟動:停用並關掉,改由 voice-out 開關 user service
+        script = f"{SCRIPTS}/run_onchange_after_install-snapserver.sh.tmpl"
+        self.assertEqual(self.render(ANDROID, script, ["snapserver"]).strip(), "")
+        self.assertEqual(self.render({}, script, ["ffmpeg"]).strip(), "")
+        text = self.render({}, script, ["snapserver"])
+        self.assert_sh(text)
+        bindir = self.dir / "bin"
+        bindir.mkdir()
+        log = self.dir / "calls.log"
+        for name, body in (("sudo", '"$@"'), ("systemctl", "exit 0"), ("snapserver", "exit 0"),
+                           ("deb-systemd-helper", "exit 0")):
+            (bindir / name).write_text(f'#!/bin/sh\necho "{name} $*" >> {log}\n{body}\n', encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        path = self.dir / "s.sh"
+        path.write_text(text, encoding="utf-8")
+        run = subprocess.run(["sh", str(path)], env={"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)},
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        calls = log.read_text(encoding="utf-8").splitlines()
+        self.assertIn("systemctl disable snapserver.service", calls)
+        self.assertFalse([c for c in calls if "enable " in c and "disable" not in c])
 
 
 if __name__ == "__main__":

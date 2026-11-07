@@ -1,0 +1,38 @@
+{{- if has "snapserver" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
+# 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
+# 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
+# apt 裝完時 postinst 會先把系統服務起來,到這支跑完之前那幾秒是開著的;雲端主機外面還有 security group 擋。
+# disable 之後 apt 升級不會再 enable(Debian 的 deb-systemd-helper 記得管理員停用過)。
+set -eu
+{{ if includeTemplate "has-root" . -}}
+{{ template "sh-sudo" . }}
+# 1. 沒裝起來(apt 失敗)就沒有服務可停
+if ! command -v snapserver >/dev/null 2>&1; then
+  echo "snapserver 沒裝起來,跳過停用系統服務"
+  exit 0
+fi
+
+# 2. 停用:有 systemctl 就用它(systemd 沒在跑也能 disable,改的是 unit 的 symlink);
+#    沒有 systemctl(最小化容器)改用 postinst 用來 enable 的 deb-systemd-helper
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl disable snapserver.service
+elif command -v deb-systemd-helper >/dev/null 2>&1; then
+  $SUDO deb-systemd-helper disable snapserver.service
+fi
+
+# 3. 關掉:只有 systemd 在跑才有東西可關(容器的 PID 1 不是 systemd)
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl stop snapserver.service
+fi
+echo "snapserver 的系統服務已停用。開關朗讀服務:voice-out on、voice-out off"
+{{- else }}
+{{ template "sh-skip" . }}
+# 沒有 root:snapserver 只能由管理員用 apt 裝(套件腳本已經記了略過);管理員裝過的話,系統服務要他停
+if command -v snapserver >/dev/null 2>&1; then
+  skip_root "停用 snapserver 系統服務" "請有 root 的人跑 sudo systemctl disable --now snapserver(它監聽所有網卡)"
+fi
+{{- end }}
+{{ end -}}

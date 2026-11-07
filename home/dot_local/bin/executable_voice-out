@@ -1,0 +1,77 @@
+#!/bin/sh
+# 開關朗讀串流服務(選裝工具 snapserver,#290):把 agent 的回覆唸到開著 Snapcast 的個人電腦。
+#
+#   voice-out on       開(只開這一次,不開機自動啟動)
+#   voice-out off      關
+#   voice-out status   看狀態;在跑 exit 0,停止 exit 3
+#
+# 包的是 user service voice-out.service(~/.config/systemd/user/,跑 snapserver,設定在
+# ~/.config/snapserver/snapserver.conf)。刻意不 enable:像 code-server 一樣想聽才開。
+# 朗讀指令用 `voice-out status >/dev/null` 判斷要不要寫 pipe:沒在跑時沒有讀者,寫 pipe 會一直卡。
+# 說明:dotfiles 的 docs/remote-access/voice-out.md。
+set -eu
+
+UNIT=voice-out.service
+CONF=$HOME/.config/snapserver/snapserver.conf
+
+usage() {
+  echo "用法:voice-out on | off | status" >&2
+  exit 2
+}
+
+# 設定檔綁的位址(三個 port 一樣,取第一個)
+bound_ip() {
+  sed -n 's/^bind_to_address *= *//p' "$CONF" 2>/dev/null | head -n 1
+}
+
+# 綁的位址不是現在的 tailnet IP 時提醒:個人電腦會連不到
+check_ip() {
+  ip=$(bound_ip)
+  now=$(tailscale ip -4 2>/dev/null | head -n 1) || now=
+  if [ "$ip" = 127.0.0.1 ] || [ -z "$ip" ]; then
+    echo "注意:設定只綁 127.0.0.1(chezmoi apply 時抓不到 tailnet IP),個人電腦連不到。" >&2
+    echo "      tailscale up 之後跑 chezmoi apply,再 voice-out off、voice-out on。" >&2
+  elif [ -n "$now" ] && [ "$now" != "$ip" ]; then
+    echo "注意:設定綁 $ip,但這台現在的 tailnet IP 是 $now。跑 chezmoi apply,再 voice-out off、voice-out on。" >&2
+  fi
+}
+
+# 登出後還要跑得靠 linger
+check_linger() {
+  if [ "$(loginctl show-user "${USER:-$(id -un)}" -p Linger --value 2>/dev/null | sed 's/^Linger=//')" != yes ]; then
+    echo "注意:這個帳號沒開 linger,登出(ssh 全斷)後服務會跟著停。要常駐:sudo loginctl enable-linger \"\$USER\"" >&2
+  fi
+}
+
+status() {
+  if systemctl --user is-active --quiet "$UNIT" 2>/dev/null; then
+    ip=$(bound_ip)
+    echo "朗讀服務在跑:Snapcast app 或 snapclient 的伺服器填 $ip(串流 port 1704),網頁 http://$ip:1780"
+    check_ip
+    return 0
+  fi
+  echo "朗讀服務停止。開:voice-out on"
+  check_ip
+  return 3
+}
+
+[ $# -eq 1 ] || usage
+case $1 in
+  on)
+    # 剛 apply 過的 unit 檔要 daemon-reload 才看得到
+    systemctl --user daemon-reload
+    systemctl --user start "$UNIT"
+    check_linger
+    status
+    ;;
+  off)
+    systemctl --user stop "$UNIT"
+    echo "朗讀服務已關。"
+    ;;
+  status)
+    status
+    ;;
+  *)
+    usage
+    ;;
+esac
