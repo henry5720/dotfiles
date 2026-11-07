@@ -75,7 +75,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 | 服務沒開（`voice-out off`） | 0.5 秒內結束，什麼都不寫 |
 | `last_assistant_message` 空的、沒有這欄、stdin 不是 JSON | 立刻結束，什麼都不寫 |
 | 同時來好幾則 | 語音各自先轉好，一次唸一則、不交錯；同時到的幾則誰先唸不一定 |
-| 同一個 session 又回了一則 | 新的那則語音轉好時，這個 session 正在唸的舊回覆停下（最慢約 0.3 秒）、排隊中的不唸，只唸最新的；別的 session、沒有 `session_id` 的照排隊 |
+| 同一個 session 又回了一則 | 新的那則語音轉好時，這個 session 正在唸的舊回覆停下（最慢約 0.7 秒聽不到，Snapcast 端的緩衝另計）、排隊中和語音還沒轉好的舊回覆不唸，只唸最新的；別的 session、沒有 `session_id` 的照排隊 |
 | edge-tts 失敗（沒網路） | exit 1，錯誤印在 stderr；不會回 2（Stop hook exit 2 會擋住 agent 結束） |
 
 **唸什麼、不唸什麼。** 唸給人聽的結論：
