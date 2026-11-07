@@ -31,7 +31,9 @@ agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══�
 |---|---|
 | `voice-out on` | 開。只開這一次，重開機後是關的 |
 | `voice-out off` | 關 |
-| `voice-out status` | 看狀態與伺服器位址。在跑 exit 0、停止 exit 3 |
+| `voice-out status` | 看狀態、伺服器位址與朗讀設定。在跑 exit 0、停止 exit 3 |
+| `voice-out skip` | 跳過正在唸的那則；排隊的照唸、服務照開。沒在唸就說一聲 |
+| `voice-out help` | 列出所有子指令 |
 
 預設不啟動、不開機自動啟動，跟 code-server 一樣想聽才開。沒開的時候 agent 照常跑，`voice-out-speak` 會直接略過。
 
@@ -39,6 +41,23 @@ agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══�
   `sudo loginctl enable-linger "$USER"`（一次就好）。`voice-out on` 沒有 linger 時會提醒。
 - **改了設定**（例如換了 tailnet IP 後 `chezmoi apply`）：`voice-out off` 再 `voice-out on` 才會套用。
 - 看服務的 log：`journalctl --user -u voice-out -f`。
+- 要整個停掉（連排隊的都不唸）用 `voice-out off`；只想跳過眼前這則用 `voice-out skip`。
+
+## 朗讀設定：語速、聲音、長度上限
+
+| 指令 | 做什麼 | 預設 |
+|---|---|---|
+| `voice-out rate [值]` | 語速，正負號＋整數＋%，例如 `+20%`、`-10%` | `+0%` |
+| `voice-out voice [名稱]` | 聲音，名稱要在 `voice-out voices` 的清單裡 | `zh-TW-HsiaoChenNeural` |
+| `voice-out voices` | 列出 edge-tts 的中文聲音（台灣、大陸、香港）與性別 | |
+| `voice-out max [字數]` | 一則最多唸幾個字元，`0` = 不限 | `600` |
+| `voice-out reset` | 全部回到預設 | |
+
+- 不帶值就印目前的值；值不對（格式錯、沒有這個聲音）當場報錯、不存。`voice`、`voices` 要連網拿清單。
+- 改完從下一則回覆生效，不用重開 Claude Code、Codex；已經在轉語音、排隊中的照舊。服務關著時也能改。
+- 存在 `~/.config/voice-out/settings`，每台各一份。chezmoi 不管這個檔，`chezmoi apply` 不會蓋掉；重裝機器就回到預設。
+- **上限設多少。** 整則轉完語音才開始播，約 40 字要 2.5 秒才轉完；設成不限時，幾千字的回覆要等幾十秒才出聲，
+  唸完要十幾分鐘，排在後面的都要等。不想聽就 `voice-out skip`。
 
 ## 朗讀指令：voice-out-speak
 
@@ -63,7 +82,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 - 程式碼區塊（` ``` ` 包起來的）整段不唸；只有程式碼的回覆就不唸。
 - 連結只唸文字、不唸網址；裸網址拿掉。
 - 標題、粗體、斜體、引用、清單、表格的符號拿掉，字留著；行內程式碼留內容（多半是檔名、指令名）。
-- 超過 600 字元截斷（約 2 分鐘語音）；再長就去看畫面。
+- 超過長度上限截斷，預設 600 字元（約 2 分鐘語音），可以用 `voice-out max` 調（見上面〈朗讀設定〉）。
 
 **多快聽到。** 從 agent 講完到聽到約 3 秒，大部分花在 edge-tts 產生語音（約 2.5 秒）。
 2026-11-07 實測：原型在 Android 平板上約 2.8 秒聽到；`voice-out-speak` 在 company-ec2 從觸發到 snapclient 輸出聲音約 2.4 秒。
@@ -74,7 +93,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 
 **hook 要不要等它。** 唸多久就跑多久，hook 不能同步等。Claude Code 的 hook 設 `"async": true`；
 不支援 async 的 agent 加 `--background`：讀完 stdin、確認服務開著就回來，剩下的在背景做，
-錯誤寫到 `~/.local/state/voice-out/speak.log`。
+錯誤寫到 `~/.local/state/voice-out/speak.log`（超過約 1 MB 就從頭清空）。
 
 **沒裝時。** 沒勾 `snapserver` 的機器沒有這支指令。hook 寫成
 `[ -x "$HOME/.local/bin/voice-out-speak" ] && exec "$HOME/.local/bin/voice-out-speak" --background; exit 0`，
@@ -82,7 +101,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 
 ### TTS 換別的
 
-聲音是 edge-tts 的 `zh-TW-HsiaoChenNeural`（台灣華語女聲）。edge-tts 呼叫微軟 Edge 的線上朗讀服務，
+預設聲音是 edge-tts 的 `zh-TW-HsiaoChenNeural`（台灣華語女聲，可以用 `voice-out voice` 換）。edge-tts 呼叫微軟 Edge 的線上朗讀服務，
 免費、不用帳號，但不是公開 API，哪天可能被擋。被擋時改用離線 TTS，接法是環境變數 `VOICE_OUT_TTS`：
 指令從 stdin 讀文字，stdout 吐 48000 Hz、16 bit、雙聲道的 PCM。
 

@@ -117,6 +117,141 @@ exit 0""")
         self.assertEqual(run.returncode, 2)
         self.assertIn("voice-out on", run.stderr)
 
+    def test_help_lists_every_subcommand_on_stdout(self):
+        for flag in ("help", "-h", "--help"):
+            with self.subTest(flag=flag):
+                run = self.run_voice_out(flag)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                for sub in ("on", "off", "status", "skip", "rate", "voice", "voices", "max", "reset", "help"):
+                    self.assertRegex(run.stdout, rf"voice-out {sub}\b")
+
+    def test_no_argument_prints_help_to_stderr(self):
+        run = self.run_voice_out()
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("voice-out skip", run.stderr)
+        self.assertEqual(run.stdout, "")
+
+    def test_extra_argument_prints_usage(self):
+        self.assertEqual(self.run_voice_out("on", "now").returncode, 2)
+        self.assertEqual(self.run_voice_out("rate", "+1%", "+2%").returncode, 2)
+
+    # ===============================================================
+    # 朗讀設定(#294):rate／max／voice 存進 ~/.config/voice-out/settings,寫入前檢查;不帶值印目前值
+    # ===============================================================
+    def settings(self):
+        path = self.home / ".config/voice-out/settings"
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    def test_rate_is_saved_and_shown(self):
+        run = self.run_voice_out("rate", "+20%")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("rate=+20%", self.settings())
+        self.assertIn("+20%", self.run_voice_out("rate").stdout)
+
+    def test_rate_without_value_shows_default(self):
+        run = self.run_voice_out("rate")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("+0%", run.stdout)
+
+    def test_invalid_rate_is_rejected_and_not_saved(self):
+        for value in ("20%", "+20", "快一點", "+2.5%"):
+            with self.subTest(value=value):
+                run = self.run_voice_out("rate", value)
+                self.assertNotEqual(run.returncode, 0)
+                self.assertIn("+20%", run.stderr)  # 告訴你格式長怎樣
+        self.assertEqual(self.settings(), "")
+
+    def test_max_is_saved_and_zero_means_unlimited(self):
+        self.assertEqual(self.run_voice_out("max", "1200").returncode, 0)
+        self.assertIn("1200", self.run_voice_out("max").stdout)
+        self.assertEqual(self.run_voice_out("max", "0").returncode, 0)
+        self.assertIn("不限", self.run_voice_out("max").stdout)
+        self.assertIn("max=0", self.settings())
+        self.assertEqual(self.settings().count("max="), 1)  # 覆蓋舊值,不是一直往後加
+
+    def test_max_default_is_600(self):
+        self.assertIn("600", self.run_voice_out("max").stdout)
+
+    def test_invalid_max_is_rejected(self):
+        for value in ("-1", "很多", "1.5"):
+            with self.subTest(value=value):
+                self.assertNotEqual(self.run_voice_out("max", value).returncode, 0)
+        self.assertEqual(self.settings(), "")
+
+    def test_changing_one_setting_keeps_the_others(self):
+        self.run_voice_out("rate", "-10%")
+        self.run_voice_out("max", "900")
+        self.assertIn("rate=-10%", self.settings())
+        self.assertIn("max=900", self.settings())
+
+    def test_reset_restores_defaults(self):
+        self.run_voice_out("rate", "+20%")
+        run = self.run_voice_out("reset")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("+0%", self.run_voice_out("rate").stdout)
+
+    def test_status_shows_reading_settings(self):
+        self.run_voice_out("rate", "+20%")
+        for running in (False, True):
+            with self.subTest(running=running):
+                if running:
+                    self.state.touch()
+                out = self.run_voice_out("status").stdout
+                self.assertIn("+20%", out)
+                self.assertIn("zh-TW-HsiaoChenNeural", out)
+                self.assertIn("600", out)
+
+    # 假 uv:`uv tool run --from edge-tts edge-tts --list-voices` 印 edge-tts 7 的表格;voices_fail 時模擬沒網路
+    VOICE_TABLE = """Name                               Gender    ContentCategories      VoicePersonalities
+---------------------------------  --------  ---------------------  --------------------------------------
+en-US-AriaNeural                   Female    News, Novel            Positive, Confident
+zh-CN-XiaoxiaoNeural               Female    News, Novel            Warm
+zh-HK-WanLungNeural                Male      General                Friendly, Positive
+zh-TW-HsiaoChenNeural              Female    General                Friendly, Positive
+zh-TW-YunJheNeural                 Male      General                Friendly, Positive
+"""
+
+    def fake_uv(self, fail=False):
+        table = self.dir / "voices.txt"
+        table.write_text(self.VOICE_TABLE, encoding="utf-8")
+        body = "exit 1" if fail else f'[ "$*" = "tool run --from edge-tts edge-tts --list-voices" ] && cat {table}'
+        self.fake("uv", body)
+
+    def test_voice_is_saved_when_in_edge_tts_list(self):
+        self.fake_uv()
+        run = self.run_voice_out("voice", "zh-TW-YunJheNeural")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("voice=zh-TW-YunJheNeural", self.settings())
+        self.assertIn("zh-TW-YunJheNeural", self.run_voice_out("voice").stdout)
+
+    def test_unknown_voice_is_rejected(self):
+        self.fake_uv()
+        run = self.run_voice_out("voice", "zh-TW-NobodyNeural")
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn("voice-out voices", run.stderr)
+        self.assertEqual(self.settings(), "")
+
+    def test_voice_not_saved_when_list_unavailable(self):
+        # 沒網路拿不到清單:不能確認就不存
+        self.fake_uv(fail=True)
+        run = self.run_voice_out("voice", "zh-TW-YunJheNeural")
+        self.assertNotEqual(run.returncode, 0)
+        self.assertEqual(self.settings(), "")
+
+    def test_voices_lists_chinese_voices_only(self):
+        self.fake_uv()
+        run = self.run_voice_out("voices")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        for name in ("zh-CN-XiaoxiaoNeural", "zh-HK-WanLungNeural", "zh-TW-HsiaoChenNeural", "zh-TW-YunJheNeural"):
+            self.assertIn(name, run.stdout)
+        self.assertNotIn("en-US", run.stdout)
+        self.assertIn("Male", run.stdout)  # 帶性別,挑的時候用得到
+
+    def test_settings_can_change_while_service_is_off(self):
+        run = self.run_voice_out("rate", "+5%")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertFalse(self.state.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
