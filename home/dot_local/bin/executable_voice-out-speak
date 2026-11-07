@@ -9,6 +9,7 @@ TTS 失敗(沒網路)exit 1,絕不回 2:Stop hook exit 2 會擋住 agent 結束�
 
 語速、聲音、長度上限照朗讀設定(~/.config/voice-out/settings,voice-out rate／voice／max 改),每則重讀;
 正在寫 pipe 時 PID 記在 playing.pid,voice-out skip 送 SIGTERM 就停止這則(排隊的照唸)。
+同一個 session(Stop hook JSON 的 session_id)有新回覆時,舊的不唸了(#296),見 Reply。
 
 寫進 pipe 的速度等於播放速度(9 秒語音寫 9 秒),所以 hook 要嘛設成 async,
 要嘛加 --background:讀完 stdin、確認服務在跑就回來,剩下的在背景做(錯誤寫到 speak.log)。
@@ -19,6 +20,7 @@ TTS 失敗(沒網路)exit 1,絕不回 2:Stop hook exit 2 會擋住 agent 結束�
 說明:dotfiles 的 docs/remote-access/voice-out.md。
 """
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -28,6 +30,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 VOICE = "zh-TW-HsiaoChenNeural"
@@ -72,13 +75,86 @@ def load_settings():
     }
 
 
-def read_message():
-    """stdin 的 Stop hook JSON 裡的 last_assistant_message;不是 JSON、沒有這欄都當空的。"""
+def read_hook():
+    """stdin 的 Stop hook JSON → (last_assistant_message, session_id);不是 JSON、沒有這欄都當空的。"""
     try:
-        message = json.load(sys.stdin).get("last_assistant_message")
+        hook = json.load(sys.stdin)
+        message, session = hook.get("last_assistant_message"), hook.get("session_id")
     except (ValueError, AttributeError):
-        return ""
-    return message if isinstance(message, str) else ""
+        return "", ""
+    return (message if isinstance(message, str) else "",
+            session if isinstance(session, str) else "")
+
+
+class Reply:
+    """一則回覆在它 session 裡的先後(#296):同一個 session 的新回覆取代舊的。
+
+    每則回覆到達時拿一個到達時間(ns),每個 session 在狀態目錄有一個檔 session-<hash>,記兩個數字:
+      arrived  最晚到達的那則
+      ready    最晚到達、而且語音轉好了的那則
+    比自己大就是有更新的:語音轉好時、排隊拿到鎖時看 arrived(有更新的就不唸);
+    正在唸時每寫一塊看 ready(更新的已經轉好、要接著唸了,就停)。
+
+    改檔一律在 sessions.lock 的 flock 裡「讀、取最大值、寫」,os.replace 換上去,所以不會被先到的蓋回去,
+    讀的人(正在唸的那則每塊讀一次,不拿鎖)也不會讀到寫一半的。檔案不在每則唸完時刪:刪了,
+    還在轉語音的舊回覆就看不出有更新的。改在每次到達時清掉一天沒動的 session 檔。
+    沒有 session_id(手動測試)的回覆不寫檔:不取代、也不被取代。"""
+
+    STALE = 24 * 3600
+
+    def __init__(self, session_id):
+        self.time = time.time_ns()
+        self.path = None
+        if session_id:
+            # session_id 不一定能當檔名
+            self.path = FIFO.with_name("session-" + hashlib.sha256(session_id.encode()).hexdigest()[:16])
+            self.update(arrived=True, prune=True)
+
+    def read(self):
+        """→ (arrived, ready);沒有檔案或壞了當 (0, 0)。"""
+        try:
+            arrived, ready = (int(n) for n in self.path.read_text().split())
+            return arrived, ready
+        except (OSError, ValueError):
+            return 0, 0
+
+    def update(self, arrived=False, ready=False, prune=False):
+        """在鎖裡把自己的到達時間併進 arrived／ready(取最大值);ready 只在自己還是最晚到達時才寫。
+        回傳寫完之後的 (arrived, ready)。"""
+        with open(FIFO.with_name("sessions.lock"), "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if prune:
+                self.prune()
+            last_arrived, last_ready = self.read()
+            if arrived:
+                last_arrived = max(last_arrived, self.time)
+            if ready and last_arrived <= self.time:
+                last_ready = max(last_ready, self.time)
+            tmp = self.path.with_name(f"{self.path.name}.tmp")
+            tmp.write_text(f"{last_arrived} {last_ready}")
+            os.replace(tmp, self.path)
+            return last_arrived, last_ready
+
+    def prune(self):
+        now = time.time()
+        for path in self.path.parent.glob("session-*"):
+            try:
+                if now - path.stat().st_mtime > self.STALE:
+                    path.unlink()
+            except OSError:
+                pass
+
+    def ready(self):
+        """語音轉好了:有更晚到的就回傳 False(這則不唸),不然記下來,讓正在唸的舊回覆停下。"""
+        return self.path is None or self.update(ready=True)[0] <= self.time
+
+    def replaced(self):
+        """排隊拿到鎖時:有更晚到的了。"""
+        return self.path is not None and self.read()[0] > self.time
+
+    def replaced_while_playing(self):
+        """正在唸時:有更晚到、而且語音已經轉好的了。"""
+        return self.path is not None and self.read()[1] > self.time
 
 
 def to_speech(message, limit=LIMIT):
@@ -163,22 +239,28 @@ def tts(text, out, voice=VOICE, rate=None):
             stdout=out)
 
 
-def speak(text, fd, settings):
+def speak(text, fd, settings, reply):
     with tempfile.TemporaryFile() as pcm:
         # 語音各自先產生好(不用等前一則播完才開始轉)
         tts(text, pcm, settings["voice"], settings["rate"])
         pcm.seek(0)
+        if not reply.ready():
+            return
         # 排隊:寫進 pipe 這段一次一則、不交錯。鎖涵蓋整段寫入:寫入速度等於播放速度,放開鎖時前一則已經唸完。
         # flock 不保證先等的先拿到,同時到的幾則誰先唸不一定
         with open(FIFO.with_name("speak.lock"), "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
+            if reply.replaced():
+                return
             # 跳過(voice-out skip):拿著鎖的這則把 PID 寫進 playing.pid,收到 SIGTERM 就停止寫入、安靜結束。
             # 排隊等鎖、還在轉語音的不受影響
             playing = FIFO.with_name("playing.pid")
             try:
                 signal.signal(signal.SIGTERM, skipped)
                 playing.write_text(str(os.getpid()))
-                while chunk := pcm.read(65536):
+                # 一塊 64 KB(pipe 緩衝區大小)約 0.34 秒語音:同 session 的新回覆轉好後,最多再寫一塊就停;
+                # 加上 pipe 裡已經寫進去的,最慢約 0.7 秒聽不到舊的(snapclient 的緩衝另計)
+                while (chunk := pcm.read(65536)) and not reply.replaced_while_playing():
                     os.write(fd, chunk)
             except BrokenPipeError:
                 pass  # 唸到一半服務被關掉
@@ -223,16 +305,19 @@ def detach():
 
 def main():
     settings = load_settings()
-    text = to_speech(read_message(), settings["max"])
+    message, session_id = read_hook()
+    text = to_speech(message, settings["max"])
     if not text:
         return 0
     fd = open_pipe()
     if fd is None:
         return 0
+    # 到達的先後在前景記下(--background 之前),跟 hook 觸發的順序一致
+    reply = Reply(session_id)
     if "--background" in sys.argv[1:]:
         detach()
     try:
-        speak(text, fd, settings)
+        speak(text, fd, settings, reply)
     except TTSError as e:
         print(f"voice-out-speak:{e}", file=sys.stderr)
         return 1

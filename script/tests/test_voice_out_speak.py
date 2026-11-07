@@ -24,8 +24,12 @@ SPEAK = ROOT / "home/dot_local/bin/executable_voice-out-speak"
 ECHO_TTS = f"{sys.executable} -c 'import sys; sys.stdout.write(sys.stdin.read())'"
 
 
-def stop_json(message):
-    return json.dumps({"session_id": "s", "hook_event_name": "Stop", "last_assistant_message": message})
+def stop_json(message, session="s"):
+    """session=None:沒有 session_id 欄(手動測試的寫法)。"""
+    hook = {"session_id": session, "hook_event_name": "Stop", "last_assistant_message": message}
+    if session is None:
+        del hook["session_id"]
+    return json.dumps(hook)
 
 
 class Reader:
@@ -123,6 +127,18 @@ class VoiceOutSpeakTest(unittest.TestCase):
         proc = self.start(stdin, tts, *args)
         proc.wait(timeout=10)
         return proc
+
+    def wait_for(self, reader, text):
+        """等到讀端讀到 text(那則開始唸了);5 秒沒等到就讓測試失敗,不在前提不成立時往下比。"""
+        deadline = time.monotonic() + 5
+        while text.encode() not in reader.data:
+            self.assertLess(time.monotonic(), deadline, f"{text} 一直沒開始唸")
+            time.sleep(0.05)
+
+    def finish(self, *procs):
+        for proc in procs:
+            proc.wait(timeout=30)
+            self.assertEqual(proc.returncode, 0, proc.stderr.read())
 
     # ===============================================================
     # 服務在跑:唸 last_assistant_message
@@ -230,7 +246,7 @@ class VoiceOutSpeakTest(unittest.TestCase):
         # 每則「語音」放大成 200 KB(大過 pipe 緩衝區 64 KB),讀端又讀得慢:沒排隊就會交錯
         big_tts = f"{sys.executable} -c 'import sys; sys.stdout.write(sys.stdin.read() * 200000)'"
         reader = Reader(self.fifo, delay=0.001)
-        procs = [self.start(stop_json(m), big_tts) for m in ("A", "B")]
+        procs = [self.start(stop_json(m, session=m), big_tts) for m in ("A", "B")]  # 不同 session 才排隊
         for proc in procs:
             proc.wait(timeout=60)
             self.assertEqual(proc.returncode, 0, proc.stderr.read())
@@ -252,11 +268,9 @@ class VoiceOutSpeakTest(unittest.TestCase):
         tts = (f"{sys.executable} -c 'import sys; t = sys.stdin.read(); "
                f"sys.stdout.write(t * (3000000 if t == \"A\" else 3000))'")
         reader = Reader(self.fifo, delay=0.01)
-        a = self.start(stop_json("A"), tts)
-        deadline = time.monotonic() + 5
-        while b"A" not in reader.data and time.monotonic() < deadline:
-            time.sleep(0.05)
-        b = self.start(stop_json("B"), tts)
+        a = self.start(stop_json("A", session="a"), tts)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session="b"), tts)  # 不同 session:B 不會取代 A
         time.sleep(0.5)  # B 轉完語音、在等排隊的鎖
         skipped = time.monotonic()
         run = self.voice_out("skip")
@@ -269,6 +283,81 @@ class VoiceOutSpeakTest(unittest.TestCase):
         data = reader.close()
         self.assertEqual(data.count("B"), 3000, "排隊的 B 應該整則唸完")
         self.assertLess(data.count("A"), 3000000)
+
+    # ===============================================================
+    # 取代(#296):同一個 session 的新回覆語音轉好時,這個 session 正在唸、還在排隊的舊回覆不唸了;
+    # 別的 session、沒有 session_id 的照唸
+    # ===============================================================
+    # A 的「語音」600000 bytes(讀端慢慢讀,約 1.5 秒),其他的 3000
+    LONG_TTS = (f"{sys.executable} -c 'import sys; t = sys.stdin.read(); "
+                f"sys.stdout.write(t * (600000 if t == \"A\" else 3000))'")
+    # 要被切掉的 A 唸很久(約 7 秒),B 的兩個行程起得再慢也來得及切
+    VERY_LONG_TTS = LONG_TTS.replace("600000", "3000000")
+
+    def test_new_reply_of_same_session_replaces_the_one_playing(self):
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A", session="x"), self.VERY_LONG_TTS)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session="x"), self.VERY_LONG_TTS)
+        self.finish(a, b)
+        data = reader.close()
+        self.assertLess(data.count("A"), 3000000, "A 應該被同 session 的 B 取代")
+        self.assertEqual(data.count("B"), 3000, "B 應該整則唸完")
+        self.assertNotIn("A", data[data.index("B"):], "B 開始唸之後不該再有 A")
+
+    def test_queued_reply_is_dropped_when_same_session_has_newer_one(self):
+        # A(別的 session)唸著;B 排在後面;同 session 的 C 來了 → B 不唸、A 唸完、C 唸
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A", session="other"), self.LONG_TTS)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session="x"), self.LONG_TTS)
+        time.sleep(0.5)  # B 轉完語音、在等排隊的鎖
+        c = self.start(stop_json("C", session="x"), self.LONG_TTS)
+        self.finish(a, b, c)
+        data = reader.close()
+        self.assertEqual(data.count("A"), 600000, "別的 session 的 A 應該整則唸完")
+        self.assertEqual(data.count("B"), 0, "排隊的 B 被同 session 的 C 取代,不該唸")
+        self.assertEqual(data.count("C"), 3000)
+
+    def test_older_reply_whose_speech_is_ready_later_is_not_spoken(self):
+        # A 先到、語音轉得慢(2 秒);B 後到、轉得快,唸完了 A 才轉好 → A 不唸
+        slow_tts = (f"{sys.executable} -c 'import sys, time; t = sys.stdin.read(); "
+                    f"time.sleep(2 if t == \"A\" else 0); sys.stdout.write(t * 3000)'")
+        reader = Reader(self.fifo)
+        a = self.start(stop_json("A", session="x"), slow_tts)
+        time.sleep(0.3)  # A 先到
+        b = self.start(stop_json("B", session="x"), slow_tts)
+        self.finish(a, b)
+        data = reader.close()
+        self.assertEqual((data.count("A"), data.count("B")), (0, 3000), "比較早到的 A 不該在 B 之後唸")
+
+    def test_reply_of_other_session_waits_its_turn(self):
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A", session="x"), self.LONG_TTS)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session="y"), self.LONG_TTS)
+        self.finish(a, b)
+        data = reader.close()
+        self.assertEqual(re.sub(r"(.)\1*", r"\1", data), "AB", "A 唸完才輪到 B")
+        self.assertEqual((data.count("A"), data.count("B")), (600000, 3000))
+
+    def test_replies_without_session_id_never_replace(self):
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A", session=None), self.LONG_TTS)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session=None), self.LONG_TTS)
+        self.finish(a, b)
+        data = reader.close()
+        self.assertEqual((data.count("A"), data.count("B")), (600000, 3000))
+
+    def test_reply_with_session_never_replaces_one_without(self):
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A", session=None), self.LONG_TTS)
+        self.wait_for(reader, "A")
+        b = self.start(stop_json("B", session="x"), self.LONG_TTS)
+        self.finish(a, b)
+        data = reader.close()
+        self.assertEqual((data.count("A"), data.count("B")), (600000, 3000))
 
     def test_skip_when_nothing_is_playing(self):
         run = self.voice_out("skip")
