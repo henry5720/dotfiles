@@ -9,8 +9,8 @@ dotfiles(chezmoi)
   ├─ 裝 skillshare、放它的 config.yaml(之後只釘 targets、extras 段)─→ agent-config
   └─ client 本身的設定 ──────────────────────────────┐
 agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode
-  └─ 規則內容與連結(extras)、skills、MCP ──────────────┘
-Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ Claude Code
+  ├─ 規則內容與連結(extras)、skills、MCP ──────────────┘
+  └─ plugin(skillshare plugin,記在本機 config.yaml)──→ Claude Code 等
 ```
 
 ## 四種東西
@@ -20,10 +20,10 @@ Claude plugin ── Claude 自己的 /plugin 管,兩個 repo 都不碰 ─→ C
 | **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,skillshare extras 連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
 | **skill** | 一套做某件事的步驟,用到才載入 | agent-config,skillshare 同步到各 client | `skillshare update --all`,見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md) |
 | **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md) |
-| **plugin** | Claude 的擴充包(可同時含 skill、MCP、指令) | `~/.claude/plugins/` | Claude 裡打 `/plugin`,見 [plugin](#plugin) |
+| **plugin** | 一整包擴充(可同時含 skill、MCP、指令、subagent) | 宣告在 config.yaml 的 `plugins:`,裝進 `~/.claude/plugins/` 等 | `skillshare plugin update`,見 [plugin](#plugin) |
 
 - skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作),這份不重寫。
-- 不歸 skillshare 管的例外(obsidian-wiki、plugin…)和 herdr skill 要跟版本的事,見
+- 不歸 skillshare 管的例外(obsidian-wiki…)和 herdr skill 要跟版本的事,見
   agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
 - **這個 repo 不寫任何 MCP 條目。** dotfiles 自己部署、跟 MCP 有關的只有
   [codegraph](codegraph.md)(CLI、索引、git hook)、[playwright-cli](playwright-cli.md)(操作瀏覽器時代替 MCP)
@@ -66,10 +66,15 @@ targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、cod
 
 ## plugin
 
-Claude 專屬的擴充包,一個 plugin 裡可能同時有 skill、MCP、slash 指令。
-**`skillshare update` 完全管不到它們**,這是最容易搞混的地方。
+一整包擴充,一個 plugin 裡可能同時有 skill、MCP、slash 指令、subagent。
+**用 `skillshare plugin` 管,不是 `skillshare update`**,這是最容易搞混的地方。
+指令照 agent-config 的 skillshare skill(或 `skillshare plugin --help`)。
 
-- Claude 裡打 `/plugin` 瀏覽、安裝、更新、移除。檔案在 `~/.claude/plugins/`,清單在 `installed_plugins.json`。
+- 宣告寫在 skillshare 的 `config.yaml` 的 `plugins:`。chezmoi 只釘 targets、extras 兩段,這段照留;
+  但 config.yaml 不進任何 repo,**換一台機器要再 `skillshare plugin add` 一次**。
+- skillshare 底下用各 client 原生的 plugin 系統裝,Claude 的 `claude plugin list` 看得到,
+  marketplace 名字是 `skillshare-<名字>-<hash>`,不是作者 README 寫的那個。更新走 `skillshare plugin update`。
+- WakaTime 的 plugin 例外:由 apply 用 `claude plugin install` 裝(見 [WakaTime](wakatime.md)),不收進 skillshare。
 - 新機器要裝哪些、`chrome-devtools-mcp` 為什麼關掉,見[新機器設定 4.5](../new-machine-setup.md#45-mcpskills-與-claude-plugin)。
 - opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由本 repo 的 [opencode 設定](opencode.md)管,
   跟 Claude 的 plugin 無關。
@@ -91,4 +96,4 @@ Claude 專屬的擴充包,一個 plugin 裡可能同時有 skill、MCP、slash �
 | 換過 node 版本後 codegraph／playwright-cli 不見了 | 重裝那個 npm 全域套件,見 [codegraph](codegraph.md#換-node-版本之後) |
 | 某個 repo 的共用 git hook 沒生效 | 見 [codegraph](codegraph.md#repo-自己搶走-corehookspath) |
 | 改 opencode 的 provider、agent、plugin | 見 [opencode](opencode.md) |
-| 更新 Claude plugin | Claude 裡打 `/plugin` |
+| 更新 plugin | `skillshare plugin update --all -g` |
