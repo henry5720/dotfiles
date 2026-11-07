@@ -1,5 +1,5 @@
 #!/bin/sh
-# 開關朗讀串流服務(選裝工具 snapserver,#290):把 agent 的回覆唸到開著 Snapcast 的個人電腦。
+# 開關朗讀服務(選裝工具 snapserver,#290):把 agent 的回覆唸到開著 Snapcast 的個人電腦。
 #
 #   voice-out on       開(只開這一次,不開機自動啟動)
 #   voice-out off      關
@@ -24,7 +24,7 @@ DEFAULT_MAX=600
 STATE_DIR=$(dirname "${VOICE_OUT_FIFO:-$HOME/.local/state/voice-out/snapfifo}")
 
 help() {
-  cat <<'EOF2'
+  cat <<'EOF'
 用法:voice-out <子指令>
 
   voice-out on             開朗讀服務(只開這一次,不開機自動啟動)
@@ -39,7 +39,7 @@ help() {
   voice-out help           這份說明
 
 朗讀設定從下一則回覆生效。說明:dotfiles 的 docs/remote-access/voice-out.md
-EOF2
+EOF
 }
 
 usage() {
@@ -79,8 +79,9 @@ setting() {
 
 save_setting() {
   mkdir -p "$(dirname "$SETTINGS")"
-  { grep -v "^$1=" "$SETTINGS" 2>/dev/null || :; echo "$1=$2"; } > "$SETTINGS.tmp"
-  mv "$SETTINGS.tmp" "$SETTINGS"
+  tmp=$(mktemp "$SETTINGS.XXXXXX")  # 同時改兩個設定時暫存檔不互蓋
+  { grep -v "^$1=" "$SETTINGS" 2>/dev/null || :; echo "$1=$2"; } > "$tmp"
+  mv "$tmp" "$SETTINGS"
 }
 
 # edge-tts 的中文聲音(台灣、大陸、香港):名稱與性別。跟 voice-out-speak 一樣用 uv 跑,不另裝全域套件;
@@ -179,7 +180,7 @@ case $cmd in
     case $1 in
       ''|*[!0-9]*) echo "長度上限要寫非負整數(字元數),0 = 不限。" >&2; exit 2 ;;
     esac
-    save_setting max "$1"
+    save_setting max "$(expr "$1" + 0)"  # 0600 → 600、00 → 0
     echo "長度上限改成 $(show_max),下一則回覆生效。"
     ;;
   reset)

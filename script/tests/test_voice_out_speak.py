@@ -357,7 +357,7 @@ sys.stdout.write('PCM:' + open(a[a.index('-i') + 1], encoding='utf-8').read())
 
     def test_invalid_settings_fall_back_to_defaults(self):
         # 手改壞的設定檔不能讓整則不出聲
-        self.write_settings(rate="快一點", voice="", max="很多")
+        self.write_settings(rate="快一點", voice="", max="²")  # ² 是 isdigit() 但 int() 會炸
         edge = self.edge_tts_args()
         self.assertEqual(edge[edge.index("--voice") + 1], "zh-TW-HsiaoChenNeural")
         self.assertFalse([a for a in edge if a.startswith("--rate")])

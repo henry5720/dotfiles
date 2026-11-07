@@ -47,7 +47,7 @@ agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══�
 
 | 指令 | 做什麼 | 預設 |
 |---|---|---|
-| `voice-out rate [值]` | 語速，正負號＋整數＋%，例如 `+20%`、`-10%` | `+0%` |
+| `voice-out rate [值]` | 語速，正負號＋整數＋%，例如 `+20%`、`-10%` | edge-tts 的預設（`+0%`） |
 | `voice-out voice [名稱]` | 聲音，名稱要在 `voice-out voices` 的清單裡 | `zh-TW-HsiaoChenNeural` |
 | `voice-out voices` | 列出 edge-tts 的中文聲音（台灣、大陸、香港）與性別 | |
 | `voice-out max [字數]` | 一則最多唸幾個字元，`0` = 不限 | `600` |
@@ -101,7 +101,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 
 ### TTS 換別的
 
-預設聲音是 edge-tts 的 `zh-TW-HsiaoChenNeural`（台灣華語女聲，可以用 `voice-out voice` 換）。edge-tts 呼叫微軟 Edge 的線上朗讀服務，
+預設聲音是 edge-tts 的 `zh-TW-HsiaoChenNeural`（台灣華語女聲，可以用 `voice-out voice` 換）。edge-tts 呼叫微軟 Edge 的線上 TTS，
 免費、不用帳號，但不是公開 API，哪天可能被擋。被擋時改用離線 TTS，接法是環境變數 `VOICE_OUT_TTS`：
 指令從 stdin 讀文字，stdout 吐 48000 Hz、16 bit、雙聲道的 PCM。
 

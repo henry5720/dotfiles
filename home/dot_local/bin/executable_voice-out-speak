@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把 agent 的最後一則回覆唸到朗讀串流服務(選裝工具 snapserver,#291)。
+"""把 agent 的最後一則回覆唸到朗讀服務(選裝工具 snapserver,#291)。
 
     voice-out-speak [--background] < stop-hook.json
 
@@ -53,8 +53,8 @@ def skipped(signum, frame):
 
 
 def load_settings():
-    """朗讀設定 → {"voice", "rate", "limit"};沒有檔案、值不合格式(手改壞了)都用預設,不能讓整則不出聲。
-    格式跟 voice-out 寫入前檢查的一樣;limit 0 = 不限。"""
+    """朗讀設定 → {"voice", "rate", "max"};沒有檔案、值不合格式(手改壞了)都用預設,不能讓整則不出聲。
+    格式跟 voice-out 寫入前檢查的一樣;max 0 = 不限。"""
     values = {}
     try:
         for line in SETTINGS.read_text(encoding="utf-8").splitlines():
@@ -68,7 +68,7 @@ def load_settings():
     return {
         "voice": voice if re.fullmatch(r"[A-Za-z]{2,3}-[A-Za-z]+(-[A-Za-z]+)*Neural", voice) else VOICE,
         "rate": rate if re.fullmatch(r"[+-]\d+%", rate) else None,
-        "limit": int(limit) if limit.isdigit() else LIMIT,
+        "max": int(limit) if limit.isascii() and limit.isdigit() else LIMIT,  # ² 這類 isdigit() 但 int() 不收
     }
 
 
@@ -185,12 +185,14 @@ def speak(text, fd, settings):
             except Skipped:
                 pass
             finally:
-                signal.signal(signal.SIGTERM, signal.SIG_DFL)
+                # 先刪 playing.pid 再還原 SIGTERM:反過來的話,夾在中間的 SIGTERM 會直接殺掉行程、留下舊 PID,
+                # 之後 skip 可能殺到重用這個 PID 的另一則
                 try:
                     if playing.read_text() == str(os.getpid()):
                         playing.unlink()
-                except OSError:
+                except (OSError, Skipped):
                     pass
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
 
 def detach():
@@ -221,7 +223,7 @@ def detach():
 
 def main():
     settings = load_settings()
-    text = to_speech(read_message(), settings["limit"])
+    text = to_speech(read_message(), settings["max"])
     if not text:
         return 0
     fd = open_pipe()

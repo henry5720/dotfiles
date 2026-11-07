@@ -169,6 +169,12 @@ exit 0""")
         self.assertIn("max=0", self.settings())
         self.assertEqual(self.settings().count("max="), 1)  # 覆蓋舊值,不是一直往後加
 
+    def test_max_leading_zeros_are_normalized(self):
+        self.run_voice_out("max", "0600")
+        self.assertIn("600 字元", self.run_voice_out("max").stdout)
+        self.run_voice_out("max", "00")
+        self.assertIn("不限", self.run_voice_out("max").stdout)
+
     def test_max_default_is_600(self):
         self.assertIn("600", self.run_voice_out("max").stdout)
 
