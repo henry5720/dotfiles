@@ -267,7 +267,7 @@ menu_choice() {
 # ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
-TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
@@ -321,6 +321,8 @@ declare -A TOOL_CHECK=(
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
   # 與它用的 edge-tts(pipx 裝在 ~/.local/bin);服務與朗讀的檢查在 check_snapserver
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && [ -x ~/.local/bin/edge-tts ]"
+  # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
+  [snapclient]="snapclient --version"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -474,6 +476,16 @@ check_snapserver() {
     "cat ~/.local/state/voice-out/snapfifo > /tmp/speak.pcm & c=\$!; echo '{\"last_assistant_message\":\"**測試**朗讀。\"}' | timeout 60 voice-out-speak; rc=\$?; sleep 1; kill \$c 2>/dev/null; n=\$(stat -c %s /tmp/speak.pcm); echo \"rc=\$rc bytes=\$n\"; [ \$rc = 0 ] && [ \$n -gt 48000 ]"
 }
 
+# 收聽朗讀串流(#292)。容器沒有音效裝置:snapclient 用 file player 把收到的 PCM 寫進檔案。
+# 跑 check_snapserver 同一份設定的 snapserver,往 pipe 寫一秒亂數,收到的檔案裡有非 0 的 byte 就是串流到了
+# (沒有資料時 file player 寫的是靜音,全是 0)。
+check_snapclient() {
+  check "snapclient 套件自帶的系統服務已停用(multi-user.target.wants 沒有它)" \
+    "[ -f /usr/lib/systemd/system/snapclient.service ] && [ ! -e /etc/systemd/system/multi-user.target.wants/snapclient.service ]"
+  check "snapclient 連上照部署設定跑的 snapserver(127.0.0.1),收得到寫進 pipe 的音訊" \
+    "mkdir -p ~/.local/state/voice-out && rm -f /tmp/snapclient.pcm && { snapserver --config=\$HOME/.config/snapserver/snapserver.conf > /tmp/snapserver.log 2>&1 & s=\$!; sleep 2; snapclient --host 127.0.0.1 --player file:filename=/tmp/snapclient.pcm > /tmp/snapclient.log 2>&1 & c=\$!; sleep 2; head -c 192000 /dev/urandom > ~/.local/state/voice-out/snapfifo; sleep 2; kill \$c \$s; tail -n 3 /tmp/snapclient.log; [ \"\$(tr -d '\\000' < /tmp/snapclient.pcm | head -c 1 | wc -c)\" = 1 ]; }"
+}
+
 # 容器裡做不到、刻意不驗的事:
 # - tailscale:容器 PID 1 不是 systemd,`systemctl enable --now tailscaled` 一定會跳過。
 #   只驗 tailscale 有裝、而且安裝腳本有印出「跳過 systemd」的訊息(證明走到了那個分支、沒有失敗)。
@@ -507,6 +519,7 @@ scenario_ubuntu() {
   check_no_tool wakatime
   check_no_tool opencode
   check_snapserver
+  check_snapclient
   # agent 有裝、wakatime 沒勾:不裝 plugin
   for a in "${!WAKA_PLUGIN[@]}"; do check_no_waka_plugin "$a"; done
   check "tools 指令部署成可執行檔" "[ -x ~/.local/bin/tools ]"
@@ -551,7 +564,7 @@ scenario_ubuntu() {
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -844,7 +857,9 @@ scenario_ubuntu() {
   # snapserver 走 apt(#290),非 Debian 系同樣裝不了
   local fedora_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
   fedora_full=${fedora_full/\/snapserver\///}
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver" \
+  # snapclient 也走 apt(#292)
+  fedora_full=${fedora_full/\/snapclient\///}
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver、snapclient" \
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "$fedora_full")' /tmp/fedora.toml"
   label=$(menu_choice headless-chrome "$fedora")
   check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
@@ -1149,15 +1164,18 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、cloudflared),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  bold "▶ tools 勾 gh、node、wakatime、cloudflared 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/headless-chrome/cloudflared
+  bold "▶ tools 勾 gh、node、wakatime、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/wakatime/claude/headless-chrome/cloudflared/snapclient
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
     "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml && grep -qxF '$(toml_list "$picks")' ~/.config/chezmoi/chezmoi.toml"
   check "gh 用 pkg 裝好" "dpkg-query -W -f='\${Status}' gh | grep -q 'install ok installed' && gh --version"
+  # snapclient(#292):pkg 的 snapcast-client,出聲靠它依賴的 pulseaudio(容器沒有音效裝置,只驗能執行)
+  check "snapclient 用 pkg 的 snapcast-client 裝好,pulseaudio 跟著裝" \
+    "dpkg-query -W -f='\${Status}' snapcast-client | grep -q 'install ok installed' && command -v pulseaudio && snapclient --version"
   check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
   # Node 走 pkg 的 nodejs-lts,不走 nvm(nvm 的官方 binary 在 Android 跑不起來)
   check "node 是 pkg 的 nodejs-lts、沒有 ~/.nvm" \

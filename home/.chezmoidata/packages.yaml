@@ -64,6 +64,9 @@ toolPackages:
       - snapserver
       - ffmpeg
       - pipx
+    # 收聽朗讀串流(#292)。套件自帶、開機自動啟動的系統服務由 run_onchange_after_install-snapclient 停用
+    snapclient:
+      - snapclient
     # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
     # 沒這兩個字型,中文和 emoji 截圖全是方框
     headless-chrome:
@@ -97,6 +100,9 @@ toolPackages:
       - ttyd
     cloudflared:
       - cloudflared
+    # snapcast 的 subpackage,依賴 pulseaudio(出聲要先 pulseaudio --start,見 voice-out 主題文件)
+    snapclient:
+      - snapcast-client
   # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),用 brew install --cask 裝。
   # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
   # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
@@ -133,6 +139,9 @@ toolPackages:
       - poppler
     ffmpeg:
       - ffmpeg
+    # formula 叫 snapcast,snapclient 與 snapserver 都在裡面
+    snapclient:
+      - snapcast
   # Windows 主機:只列 app,值是 winget id(run_onchange_before_install-packages-windows)。
   # CLI 一律走 mise(下面 miseTools,Windows 上不分 always,勾了就列);兩邊都沒有的在 tool-env 標裝不了。
   windows:
