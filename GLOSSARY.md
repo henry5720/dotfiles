@@ -116,6 +116,18 @@ _Avoid_: 自己電腦、本機、client、local（指這個角色時）
 從個人電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 share-shell 網址。
 _Avoid_: 連線方式（只指 ssh 時）、登入方式
 
+**朗讀服務**:
+已配置主機上把 agent 的回覆唸給個人電腦聽的服務，自己決定開或關。
+_Avoid_: TTS 服務、語音服務、speaker
+
+**跳過**:
+只停掉正在唸的那一則回覆；排隊的照唸、朗讀服務照開。
+_Avoid_: 停止、中斷（會跟「關掉朗讀服務」混在一起）
+
+**朗讀設定**:
+每台已配置主機各自的語速、聲音、長度上限，改了從下一則回覆生效。
+_Avoid_: 語音參數、TTS 設定
+
 ## 開給別人連
 
 把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/remote-access/`。
