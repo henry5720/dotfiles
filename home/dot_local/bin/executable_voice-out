@@ -1,9 +1,10 @@
 #!/bin/sh
-# 開關朗讀串流服務(選裝工具 snapserver,#290):把 agent 的回覆唸到開著 Snapcast 的個人電腦。
+# 開關朗讀服務(選裝工具 snapserver,#290):把 agent 的回覆唸到開著 Snapcast 的個人電腦。
 #
 #   voice-out on       開(只開這一次,不開機自動啟動)
 #   voice-out off      關
 #   voice-out status   看狀態;在跑 exit 0,停止 exit 3
+#   voice-out help     其他子指令(skip、rate、voice、max…,#294)
 #
 # 包的是 user service voice-out.service(~/.config/systemd/user/,跑 snapserver,設定在
 # ~/.config/snapserver/snapserver.conf)。刻意不 enable:像 code-server 一樣想聽才開。
@@ -14,9 +15,35 @@ set -eu
 
 UNIT=voice-out.service
 CONF=$HOME/.config/snapserver/snapserver.conf
+# 朗讀設定:key=value,voice-out-speak 每則回覆重讀(它也有一份同樣的預設值與格式)。chezmoi 不管這個檔
+SETTINGS=$HOME/.config/voice-out/settings
+DEFAULT_VOICE=zh-TW-HsiaoChenNeural
+DEFAULT_RATE=+0%
+DEFAULT_MAX=600
+# voice-out-speak 的狀態目錄(snapfifo、playing.pid 所在);VOICE_OUT_FIFO 是測試用,跟 voice-out-speak 同一個
+STATE_DIR=$(dirname "${VOICE_OUT_FIFO:-$HOME/.local/state/voice-out/snapfifo}")
+
+help() {
+  cat <<'EOF'
+用法:voice-out <子指令>
+
+  voice-out on             開朗讀服務(只開這一次,不開機自動啟動)
+  voice-out off            關;唸到一半的切掉,之後的也不唸
+  voice-out status         看狀態、伺服器位址與朗讀設定;在跑 exit 0,停止 exit 3
+  voice-out skip           跳過正在唸的那則;排隊的照唸
+  voice-out rate [值]      語速,例如 +20%、-10%;不帶值印目前的
+  voice-out voice [名稱]   聲音;不帶值印目前的
+  voice-out voices         列出可以選的中文聲音(台灣、大陸、香港)
+  voice-out max [字數]     一則最多唸幾個字元,0 = 不限;不帶值印目前的
+  voice-out reset          朗讀設定回到預設
+  voice-out help           這份說明
+
+朗讀設定從下一則回覆生效。說明:dotfiles 的 docs/remote-access/voice-out.md
+EOF
+}
 
 usage() {
-  echo "用法:voice-out on | off | status" >&2
+  help >&2
   exit 2
 }
 
@@ -44,7 +71,38 @@ check_linger() {
   fi
 }
 
+# 朗讀設定的值;沒設就印預設
+setting() {
+  v=$(sed -n "s/^$1=//p" "$SETTINGS" 2>/dev/null | tail -n 1)
+  echo "${v:-$2}"
+}
+
+save_setting() {
+  mkdir -p "$(dirname "$SETTINGS")"
+  tmp=$(mktemp "$SETTINGS.XXXXXX")  # 同時改兩個設定時暫存檔不互蓋
+  { grep -v "^$1=" "$SETTINGS" 2>/dev/null || :; echo "$1=$2"; } > "$tmp"
+  mv "$tmp" "$SETTINGS"
+}
+
+# edge-tts 的中文聲音(台灣、大陸、香港):名稱與性別。跟 voice-out-speak 一樣用 uv 跑,不另裝全域套件;
+# uv 由 mise 裝,PATH 沒有 shims 時自己找。清單要連網拿,拿不到 exit 非 0
+chinese_voices() {
+  PATH=$PATH:$HOME/.local/bin:$HOME/.local/share/mise/shims
+  list=$(uv tool run --from edge-tts edge-tts --list-voices 2>/dev/null) || return 1
+  printf '%s\n' "$list" | awk '$1 ~ /^zh-(TW|CN|HK)-/ { print $1, $2 }'
+}
+
+show_max() {
+  m=$(setting max $DEFAULT_MAX)
+  if [ "$m" = 0 ]; then echo "不限"; else echo "$m 字元"; fi
+}
+
+show_settings() {
+  echo "朗讀設定:語速 $(setting rate $DEFAULT_RATE)、聲音 $(setting voice $DEFAULT_VOICE)、長度上限 $(show_max)"
+}
+
 status() {
+  show_settings
   if systemctl --user is-active --quiet "$UNIT" 2>/dev/null; then
     ip=$(bound_ip)
     echo "朗讀服務在跑:Snapcast app 或 snapclient 的伺服器填 $ip(串流 port 1704),網頁 http://$ip:1780"
@@ -56,8 +114,15 @@ status() {
   return 3
 }
 
-[ $# -eq 1 ] || usage
-case $1 in
+[ $# -ge 1 ] || usage
+cmd=$1
+shift
+# 只有 rate、voice、max 可以帶一個值
+case $cmd in
+  rate|voice|max) [ $# -le 1 ] || usage ;;
+  *) [ $# -eq 0 ] || usage ;;
+esac
+case $cmd in
   on)
     # 剛 apply 過的 unit 檔要 daemon-reload 才看得到
     systemctl --user daemon-reload
@@ -71,6 +136,57 @@ case $1 in
     ;;
   status)
     status
+    ;;
+  help|-h|--help)
+    help
+    ;;
+  skip)
+    # 正在寫 pipe 的那則 voice-out-speak 把 PID 寫在 playing.pid;確認那個 PID 真的是它(PID 可能被重用)才送 SIGTERM
+    pid=$(cat "$STATE_DIR/playing.pid" 2>/dev/null) || pid=
+    if [ -n "$pid" ] && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q voice-out-speak \
+      && kill -TERM "$pid" 2>/dev/null; then
+      echo "跳過正在唸的那則;排隊的照唸。"
+    else
+      echo "現在沒在唸。"
+    fi
+    ;;
+  rate)
+    if [ $# -eq 0 ]; then setting rate $DEFAULT_RATE; exit 0; fi
+    case $1 in
+      [+-]*%) n=${1#?}; n=${n%\%} ;;
+      *) n= ;;
+    esac
+    case $n in
+      ''|*[!0-9]*) echo "語速要寫成正負號＋整數＋%,例如 +20%、-10%。" >&2; exit 2 ;;
+    esac
+    save_setting rate "$1"
+    echo "語速改成 $1,下一則回覆生效。"
+    ;;
+  voice)
+    if [ $# -eq 0 ]; then setting voice $DEFAULT_VOICE; exit 0; fi
+    voices=$(chinese_voices) || { echo "拿不到 edge-tts 的聲音清單(沒網路?),沒有改。" >&2; exit 1; }
+    if ! printf '%s\n' "$voices" | awk -v v="$1" '$1 == v { found = 1 } END { exit !found }'; then
+      echo "沒有 $1 這個聲音。可以選的:voice-out voices" >&2
+      exit 2
+    fi
+    save_setting voice "$1"
+    echo "聲音改成 $1,下一則回覆生效。"
+    ;;
+  voices)
+    chinese_voices || { echo "拿不到 edge-tts 的聲音清單(沒網路?)。" >&2; exit 1; }
+    ;;
+  max)
+    if [ $# -eq 0 ]; then show_max; exit 0; fi
+    case $1 in
+      ''|*[!0-9]*) echo "長度上限要寫非負整數(字元數),0 = 不限。" >&2; exit 2 ;;
+    esac
+    save_setting max "$(expr "$1" + 0)"  # 0600 → 600、00 → 0
+    echo "長度上限改成 $(show_max),下一則回覆生效。"
+    ;;
+  reset)
+    rm -f "$SETTINGS"
+    echo "朗讀設定回到預設。"
+    show_settings
     ;;
   *)
     usage

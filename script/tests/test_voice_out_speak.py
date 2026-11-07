@@ -113,6 +113,8 @@ class VoiceOutSpeakTest(unittest.TestCase):
     def start(self, stdin, tts=ECHO_TTS, *args):
         proc = subprocess.Popen([sys.executable, str(SPEAK), *args], env=self.env(tts), text=True,
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # 測試失敗時也收掉:不然它卡在寫 pipe,變成孤兒
+        self.addCleanup(lambda: proc.poll() is None and (proc.kill(), proc.wait()))
         proc.stdin.write(stdin)
         proc.stdin.close()
         return proc
@@ -238,6 +240,42 @@ class VoiceOutSpeakTest(unittest.TestCase):
 
 
     # ===============================================================
+    # 跳過(#294):voice-out skip 停掉正在寫 pipe 的那則,排隊的照唸
+    # ===============================================================
+    def voice_out(self, *args):
+        voice_out = ROOT / "home/dot_local/bin/executable_voice-out"
+        return subprocess.run(["sh", str(voice_out), *args], env=self.env(), capture_output=True, text=True,
+                              timeout=10)
+
+    def test_skip_stops_current_reply_and_queued_one_still_plays(self):
+        # A 的「語音」很長(讀端照播放速度慢慢讀,要唸好幾秒),B 很短、在排隊
+        tts = (f"{sys.executable} -c 'import sys; t = sys.stdin.read(); "
+               f"sys.stdout.write(t * (3000000 if t == \"A\" else 3000))'")
+        reader = Reader(self.fifo, delay=0.01)
+        a = self.start(stop_json("A"), tts)
+        deadline = time.monotonic() + 5
+        while b"A" not in reader.data and time.monotonic() < deadline:
+            time.sleep(0.05)
+        b = self.start(stop_json("B"), tts)
+        time.sleep(0.5)  # B 轉完語音、在等排隊的鎖
+        skipped = time.monotonic()
+        run = self.voice_out("skip")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        a.wait(timeout=5)
+        self.assertLess(time.monotonic() - skipped, 2, "A 沒有被跳過")
+        self.assertEqual(a.returncode, 0, a.stderr.read())
+        b.wait(timeout=10)
+        self.assertEqual(b.returncode, 0, b.stderr.read())
+        data = reader.close()
+        self.assertEqual(data.count("B"), 3000, "排隊的 B 應該整則唸完")
+        self.assertLess(data.count("A"), 3000000)
+
+    def test_skip_when_nothing_is_playing(self):
+        run = self.voice_out("skip")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("沒在唸", run.stdout)
+
+    # ===============================================================
     # 預設的 TTS:用 uv 跑 edge-tts(zh-TW-HsiaoChenNeural,不另裝全域套件)產生 mp3,ffmpeg 解成 snapserver 要的 PCM
     # 換成假的 uv、ffmpeg 放 PATH 最前面,記下參數
     # ===============================================================
@@ -280,6 +318,50 @@ sys.stdout.write('PCM:' + open(a[a.index('-i') + 1], encoding='utf-8').read())
         ffmpeg = " ".join(self.args_of("ffmpeg")[0])
         # 跟 snapserver.conf 的 sampleformat=48000:16:2 一致
         self.assertIn("-f s16le -ar 48000 -ac 2", ffmpeg)
+
+    # ===============================================================
+    # 朗讀設定(#294):~/.config/voice-out/settings,由 voice-out rate／voice／max 寫入;每則回覆重讀
+    # ===============================================================
+    def write_settings(self, **values):
+        path = self.dir / ".config/voice-out/settings"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8")
+
+    def edge_tts_args(self):
+        self.fake_uv_and_ffmpeg()
+        reader = Reader(self.fifo)
+        proc = self.speak(stop_json("設定"), None)
+        self.assertEqual(proc.returncode, 0, proc.stderr.read())
+        reader.close()
+        return self.args_of("uv")[0]
+
+    def test_rate_and_voice_from_settings_reach_edge_tts(self):
+        self.write_settings(rate="-10%", voice="zh-TW-YunJheNeural")
+        edge = self.edge_tts_args()
+        # 值以 - 開頭:要寫成 --rate=值,不然 edge-tts 把它當成另一個選項
+        self.assertIn("--rate=-10%", edge)
+        self.assertEqual(edge[edge.index("--voice") + 1], "zh-TW-YunJheNeural")
+
+    def test_without_settings_uses_default_voice_and_rate(self):
+        edge = self.edge_tts_args()
+        self.assertEqual(edge[edge.index("--voice") + 1], "zh-TW-HsiaoChenNeural")
+        self.assertFalse([a for a in edge if a.startswith("--rate")])
+
+    def test_max_from_settings_limits_length(self):
+        self.write_settings(max="20")
+        self.assertEqual(self.spoken("很長的回覆。" * 300), "很長的回覆。很長的回覆。很長的回覆。很長")
+
+    def test_max_zero_means_unlimited(self):
+        self.write_settings(max="0")
+        self.assertEqual(len(self.spoken("很長的回覆。" * 300)), 1800)
+
+    def test_invalid_settings_fall_back_to_defaults(self):
+        # 手改壞的設定檔不能讓整則不出聲
+        self.write_settings(rate="快一點", voice="", max="²")  # ² 是 isdigit() 但 int() 會炸
+        edge = self.edge_tts_args()
+        self.assertEqual(edge[edge.index("--voice") + 1], "zh-TW-HsiaoChenNeural")
+        self.assertFalse([a for a in edge if a.startswith("--rate")])
+        self.assertEqual(len(self.spoken("很長的回覆。" * 300)), 600)
 
     def test_finds_uv_in_mise_shims_when_hook_path_lacks_it(self):
         # uv 由 mise 裝(miseTools);hook 的 PATH 不一定有 mise 的 shims
@@ -327,6 +409,34 @@ sys.stdout.write('PCM:' + open(a[a.index('-i') + 1], encoding='utf-8').read())
         self.assertLess(time.monotonic() - started, 1)
         time.sleep(2.5)
         self.assertEqual(reader.close(), "背景唸")
+
+    def test_background_log_is_cleared_when_too_big(self):
+        # speak.log 只有 --background 的錯誤會寫;超過約 1 MB 就從頭清空,不會無限長大
+        log = self.fifo.with_name("speak.log")
+        log.write_text("舊錯誤\n" * 200000, encoding="utf-8")  # 約 2 MB
+        self.fake_uv_and_ffmpeg(edge_tts_exit=1)
+        reader = Reader(self.fifo)
+        proc = self.speak(stop_json("沒網路"), None, "--background")
+        self.assertEqual(proc.returncode, 0, proc.stderr.read())
+        deadline = time.monotonic() + 5
+        while "edge-tts" not in log.read_text(encoding="utf-8", errors="ignore") and time.monotonic() < deadline:
+            time.sleep(0.1)
+        reader.close()
+        text = log.read_text(encoding="utf-8")
+        self.assertIn("edge-tts", text)
+        self.assertFalse("舊錯誤" in text, f"speak.log 沒被清空({len(text)} 字)")
+
+    def test_background_log_is_kept_when_small(self):
+        log = self.fifo.with_name("speak.log")
+        log.write_text("舊錯誤\n", encoding="utf-8")
+        self.fake_uv_and_ffmpeg(edge_tts_exit=1)
+        reader = Reader(self.fifo)
+        self.speak(stop_json("沒網路"), None, "--background")
+        deadline = time.monotonic() + 5
+        while "edge-tts" not in log.read_text(encoding="utf-8") and time.monotonic() < deadline:
+            time.sleep(0.1)
+        reader.close()
+        self.assertTrue(log.read_text(encoding="utf-8").startswith("舊錯誤\n"))
 
     def test_background_survives_hook_process_group_kill(self):
         # Codex 的 hook 行程結束時會 kill 整個 process group:背景的子行程要在父行程回來之前就脫離。

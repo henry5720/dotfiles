@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""把 agent 的最後一則回覆唸到朗讀串流服務(選裝工具 snapserver,#291)。
+"""把 agent 的最後一則回覆唸到朗讀服務(選裝工具 snapserver,#291)。
 
     voice-out-speak [--background] < stop-hook.json
 
 stdin 是一則 Stop hook JSON(Claude Code、Codex 都有 last_assistant_message),唸那一欄。
 服務沒開(voice-out off)時立刻結束、什麼都不做,exit 0;沒東西可唸也是 exit 0。
 TTS 失敗(沒網路)exit 1,絕不回 2:Stop hook exit 2 會擋住 agent 結束。
+
+語速、聲音、長度上限照朗讀設定(~/.config/voice-out/settings,voice-out rate／voice／max 改),每則重讀;
+正在寫 pipe 時 PID 記在 playing.pid,voice-out skip 送 SIGTERM 就停止這則(排隊的照唸)。
 
 寫進 pipe 的速度等於播放速度(9 秒語音寫 9 秒),所以 hook 要嘛設成 async,
 要嘛加 --background:讀完 stdin、確認服務在跑就回來,剩下的在背景做(錯誤寫到 speak.log)。
@@ -29,6 +32,9 @@ from pathlib import Path
 
 VOICE = "zh-TW-HsiaoChenNeural"
 LIMIT = 600  # 約 2 分鐘語音;再長就去看畫面
+# 朗讀設定:voice-out rate／voice／max 寫的 key=value,chezmoi 不管這個檔(apply 不會蓋掉)。每則回覆重讀
+SETTINGS = Path.home() / ".config/voice-out/settings"
+LOG_LIMIT = 1024 * 1024  # speak.log 超過就清空
 OPEN_TIMEOUT = 0.5  # snapserver 每 100 ms 開一次 pipe,等 5 輪
 # 預設位置跟 snapserver.conf.tmpl 的 source、voice-out.service 的 ExecStartPre 寫死的目錄一致,改位置三處一起改
 FIFO = Path(os.environ.get("VOICE_OUT_FIFO") or Path.home() / ".local/state/voice-out/snapfifo")
@@ -36,6 +42,34 @@ FIFO = Path(os.environ.get("VOICE_OUT_FIFO") or Path.home() / ".local/state/voic
 
 class TTSError(Exception):
     pass
+
+
+class Skipped(Exception):
+    pass
+
+
+def skipped(signum, frame):
+    raise Skipped
+
+
+def load_settings():
+    """朗讀設定 → {"voice", "rate", "max"};沒有檔案、值不合格式(手改壞了)都用預設,不能讓整則不出聲。
+    格式跟 voice-out 寫入前檢查的一樣;max 0 = 不限。"""
+    values = {}
+    try:
+        for line in SETTINGS.read_text(encoding="utf-8").splitlines():
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip()
+    except OSError:
+        pass
+    voice = values.get("voice", "")
+    rate = values.get("rate", "")
+    limit = values.get("max", "")
+    return {
+        "voice": voice if re.fullmatch(r"[A-Za-z]{2,3}-[A-Za-z]+(-[A-Za-z]+)*Neural", voice) else VOICE,
+        "rate": rate if re.fullmatch(r"[+-]\d+%", rate) else None,
+        "max": int(limit) if limit.isascii() and limit.isdigit() else LIMIT,  # ² 這類 isdigit() 但 int() 不收
+    }
 
 
 def read_message():
@@ -47,8 +81,8 @@ def read_message():
     return message if isinstance(message, str) else ""
 
 
-def to_speech(message):
-    """回覆 → 要唸的文字:拿掉程式碼區塊與 Markdown 符號,截斷到 LIMIT 字元。
+def to_speech(message, limit=LIMIT):
+    """回覆 → 要唸的文字:拿掉程式碼區塊與 Markdown 符號,截斷到 limit 字元(0 = 不限)。
 
     唸的是給人聽的結論:程式碼區塊整段不唸;連結只唸文字、不唸網址;
     行內程式碼留內容(多半是檔名、指令名)只拿掉反引號。字中間的 - _ 不動(voice-out-speak)。"""
@@ -68,7 +102,7 @@ def to_speech(message):
     text = re.sub(r"[`*]|(?<!\w)_+|_+(?!\w)|[#>\[\]]", "", text)       # 強調、行內程式碼、殘留符號
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\s*\n\s*", "\n", text).strip()
-    return text[:LIMIT].strip()
+    return (text[:limit] if limit else text).strip()
 
 
 def open_pipe():
@@ -110,7 +144,7 @@ def which(name):
     return shutil.which(name) or shutil.which(name, path=extra) or name
 
 
-def tts(text, out):
+def tts(text, out, voice=VOICE, rate=None):
     """文字 → PCM 寫進 out(檔案)。"""
     custom = os.environ.get("VOICE_OUT_TTS")
     if custom:
@@ -121,27 +155,44 @@ def tts(text, out):
         txt.write_text(text, encoding="utf-8")  # 用檔案傳:文字開頭是 - 也不會被當成參數
         # edge-tts 用 uv 跑,不另裝全域套件:第一次會下載到 uv 的快取(約多 1 秒),之後直接用快取、不連 PyPI
         run([which("uv"), "tool", "run", "--from", "edge-tts", "edge-tts",
-             "--voice", VOICE, "--file", str(txt), "--write-media", str(mp3)],
+             "--voice", voice, *([f"--rate={rate}"] if rate else []),  # 值以 - 開頭,要用 = 接
+             "--file", str(txt), "--write-media", str(mp3)],
             label="edge-tts(uv tool run)", stdout=subprocess.DEVNULL)
         # 跟 snapserver.conf 的 sampleformat=48000:16:2 一致
         run([which("ffmpeg"), "-loglevel", "error", "-i", str(mp3), "-f", "s16le", "-ar", "48000", "-ac", "2", "-"],
             stdout=out)
 
 
-def speak(text, fd):
+def speak(text, fd, settings):
     with tempfile.TemporaryFile() as pcm:
         # 語音各自先產生好(不用等前一則播完才開始轉)
-        tts(text, pcm)
+        tts(text, pcm, settings["voice"], settings["rate"])
         pcm.seek(0)
         # 排隊:寫進 pipe 這段一次一則、不交錯。鎖涵蓋整段寫入:寫入速度等於播放速度,放開鎖時前一則已經唸完。
         # flock 不保證先等的先拿到,同時到的幾則誰先唸不一定
         with open(FIFO.with_name("speak.lock"), "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
+            # 跳過(voice-out skip):拿著鎖的這則把 PID 寫進 playing.pid,收到 SIGTERM 就停止寫入、安靜結束。
+            # 排隊等鎖、還在轉語音的不受影響
+            playing = FIFO.with_name("playing.pid")
             try:
+                signal.signal(signal.SIGTERM, skipped)
+                playing.write_text(str(os.getpid()))
                 while chunk := pcm.read(65536):
                     os.write(fd, chunk)
             except BrokenPipeError:
                 pass  # 唸到一半服務被關掉
+            except Skipped:
+                pass
+            finally:
+                # 先刪 playing.pid 再還原 SIGTERM:反過來的話,夾在中間的 SIGTERM 會直接殺掉行程、留下舊 PID,
+                # 之後 skip 可能殺到重用這個 PID 的另一則
+                try:
+                    if playing.read_text() == str(os.getpid()):
+                        playing.unlink()
+                except (OSError, Skipped):
+                    pass
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
 
 def detach():
@@ -157,7 +208,13 @@ def detach():
     os.close(r)
     os.setsid()
     os.close(w)
-    log = os.open(FIFO.with_name("speak.log"), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    # speak.log 只往後加:超過 LOG_LIMIT 就從頭清空,不會無限長大
+    log_path = FIFO.with_name("speak.log")
+    try:
+        too_big = log_path.stat().st_size > LOG_LIMIT
+    except OSError:
+        too_big = False
+    log = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | (os.O_TRUNC if too_big else 0), 0o600)
     null = os.open(os.devnull, os.O_RDWR)
     os.dup2(null, 0)
     os.dup2(null, 1)
@@ -165,7 +222,8 @@ def detach():
 
 
 def main():
-    text = to_speech(read_message())
+    settings = load_settings()
+    text = to_speech(read_message(), settings["max"])
     if not text:
         return 0
     fd = open_pipe()
@@ -174,7 +232,7 @@ def main():
     if "--background" in sys.argv[1:]:
         detach()
     try:
-        speak(text, fd)
+        speak(text, fd, settings)
     except TTSError as e:
         print(f"voice-out-speak:{e}", file=sys.stderr)
         return 1
