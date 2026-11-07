@@ -218,6 +218,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
+`snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 手動下載、非 Debian 系裝不了，proot Ubuntu 標不建議。
 macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
 herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
 原生 Termux 有勾的工具走 `pkg`（清單在同一份檔案的 termux 欄，Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。

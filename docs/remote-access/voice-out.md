@@ -67,16 +67,66 @@ agent 回完話 → 朗讀指令 → pipe → snapserver ══tailnet══▶ 
 
 2026-11-07 原型實測：Snapcast app v0.29.0（Android 16 平板）接 snapserver v0.34.0 聽得到。
 
-### 桌機、筆電：snapclient
+### 桌機、筆電、Termux：snapclient
 
-勾選裝工具 `snapclient`（#292，之後加）就會裝。手動跑：
+勾選裝工具 `snapclient`（之後要加見[改設定與更新](../after-install.md)）：
+
+| 平台 | 裝法 | 備註 |
+|---|---|---|
+| Debian 系 Linux（含 WSL） | apt 的 `snapclient` | apply 會停用套件自帶的系統服務（開機自動啟動、靠 mDNS 找伺服器，過不了 tailnet） |
+| 原生 Termux | pkg 的 `snapcast-client` | 跟著裝 pulseaudio，出聲靠它 |
+| macOS | brew 的 `snapcast` | |
+| Windows | 裝不了，手動下載 | 見下面 [Windows](#windows手動下載) |
+
+非 Debian 系 Linux 裝不了（只走 apt）；平板的 proot Ubuntu 標不建議（沒有音效裝置，到同一台的原生 Termux 勾，或用 Snapcast app）。
+
+收聽（Ctrl+C 停）：
 
 ```bash
 snapclient --host <tailnet IP>
 ```
 
-Windows：官方 [release](https://github.com/badaix/snapcast/releases) 的 `snapclient_win64.zip`，解開後只需要 exe 與 dll，
-在 PowerShell 跑 `.\snapclient.exe --host <tailnet IP>`。
+Termux 要先起 pulseaudio：`pulseaudio --start --exit-idle-time=-1`，再跑上面那行。
+Linux 桌機沒聲音時加 `--player pulse` 試（預設走 ALSA）。
+
+**常駐（Linux）**：寫一個 user service，登入後自己連上。`~/.config/systemd/user/snapclient.service`：
+
+```ini
+[Unit]
+Description=收聽朗讀串流
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/snapclient --host <tailnet IP>
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now snapclient
+```
+
+伺服器沒開（`voice-out off`）時 snapclient 會一直重連，不用重啟它。Termux、macOS 沒有對應做法，要聽時手動開；
+Android 要常駐就用上面的 Snapcast app。
+
+### Windows：手動下載
+
+winget 沒有 snapclient，選單標裝不了。官方有 Windows 版：
+
+1. 下載 Snapcast [release](https://github.com/badaix/snapcast/releases) 的 `snapclient_win64.zip`。
+2. 解開到 `$HOME\.local\opt\snapclient`。只需要 `snapclient.exe` 與同層的 `.dll`；
+   跑起來說缺 `VCRUNTIME` 的 DLL 時，才裝 zip 裡附的 `vc_redist.x64.exe`。
+3. 在 PowerShell 用 `&` 呼叫（路徑放在引號裡，PowerShell 要 `&` 才會執行）：
+
+```powershell
+& "$HOME\.local\opt\snapclient\snapclient.exe" --host <tailnet IP>
+```
+
+要登入後自動開，用工作排程器建一個「登入時」執行上面那行的工作（會留一個主控台視窗）。這段還沒在 Windows 實機驗過。
 
 ### iPad、iPhone
 

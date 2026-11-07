@@ -123,9 +123,10 @@ class ToolEnvTest(unittest.TestCase):
             "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
                            "snapserver": "不建議"}),
             "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
-                               "snapserver": "裝不了"}),
+                               "snapserver": "裝不了", "snapclient": "不建議"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
-            "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了"}),
+            "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了",
+                                "snapclient": "裝不了"}),
             "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
@@ -143,9 +144,10 @@ class ToolEnvTest(unittest.TestCase):
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
         for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale", "snapserver"}),
-                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale", "snapserver"}),
+                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale", "snapserver",
+                                                     "snapclient"}),
                                    ("arm", ARM, {"headless-chrome", "playwright-cli"}),
-                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver"}),
+                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver", "snapclient"}),
                                    ("mac", MAC, {"headless-chrome", "playwright-cli", "snapserver"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
@@ -499,6 +501,71 @@ exit 0
         self.assertEqual(run.returncode, 0, run.stderr)
         calls = log.read_text(encoding="utf-8").splitlines()
         self.assertIn("systemctl disable snapserver.service", calls)
+        self.assertFalse([c for c in calls if "enable " in c and "disable" not in c])
+
+    # ===============================================================
+    # snapclient(#292):個人電腦用 CLI 收聽朗讀串流
+    # ===============================================================
+    def test_snapclient_menu_states_per_environment(self):
+        # apt、Termux 的 pkg、brew 都有;winget 沒有,非 Debian 系沒有 apt;proot 沒有音效裝置
+        expected = {
+            "ubuntu": ({}, None),
+            "arm": (ARM, None),
+            "wsl": (WSL, None),
+            "mac": (MAC, None),
+            "android": (ANDROID, None),
+            "proot": (PROOT, "不建議"),
+            "fedora": (FEDORA, "裝不了"),
+            "windows": ({"chezmoi": {"os": "windows"}}, "裝不了"),
+        }
+        for name, (env, mark) in expected.items():
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("snapclient "))
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+        windows = next(l for l in self.labels({"chezmoi": {"os": "windows"}}) if l.startswith("snapclient "))
+        self.assertIn("winget 沒有", windows)
+        self.assertIn("snapclient_win64.zip", windows)
+
+    def test_snapclient_package_per_platform(self):
+        # apt 的 snapclient、Termux 的 snapcast-client(主 repo 的 subpackage,靠 pulseaudio)、brew 的 snapcast
+        for name, env, path, pkg in (
+                ("ubuntu", {}, "run_onchange_before_install-packages.sh.tmpl", "snapclient"),
+                ("android", ANDROID, "run_onchange_before_install-packages.sh.tmpl", "snapcast-client"),
+                ("mac", MAC, "run_onchange_before_install-packages-darwin.sh.tmpl", "snapcast")):
+            with self.subTest(env=name):
+                ticked = self.render(env, f"{SCRIPTS}/{path}", ["snapclient"])
+                self.assert_sh(ticked)
+                self.assertRegex(ticked, rf"(?<![\w-]){pkg}(?![\w-])")
+                self.assertNotRegex(self.render(env, f"{SCRIPTS}/{path}", ["vim"]), rf"(?<![\w-]){pkg}(?![\w-])")
+
+    def test_snapclient_disables_packaged_system_service(self):
+        # apt 的 snapclient 自帶開機自動啟動的系統服務(_snapclient 帳號、靠 mDNS 找伺服器):停用並關掉,
+        # 要聽時自己跑或用 user service(voice-out 主題文件)
+        script = f"{SCRIPTS}/run_onchange_after_install-snapclient.sh.tmpl"
+        for name, env, tools in (("android", ANDROID, ["snapclient"]), ("mac", MAC, ["snapclient"]),
+                                 ("unticked", {}, ["snapserver"])):
+            with self.subTest(case=name):
+                self.assertEqual(self.render(env, script, tools).strip(), "")
+        text = self.render({}, script, ["snapclient"])
+        self.assert_sh(text)
+        bindir = self.dir / "bin"
+        bindir.mkdir()
+        log = self.dir / "calls.log"
+        for name, body in (("sudo", '"$@"'), ("systemctl", "exit 0"), ("snapclient", "exit 0"),
+                           ("deb-systemd-helper", "exit 0")):
+            (bindir / name).write_text(f'#!/bin/sh\necho "{name} $*" >> {log}\n{body}\n', encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        path = self.dir / "s.sh"
+        path.write_text(text, encoding="utf-8")
+        run = subprocess.run(["sh", str(path)], env={"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)},
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        calls = log.read_text(encoding="utf-8").splitlines()
+        self.assertIn("systemctl disable snapclient.service", calls)
         self.assertFalse([c for c in calls if "enable " in c and "disable" not in c])
 
 

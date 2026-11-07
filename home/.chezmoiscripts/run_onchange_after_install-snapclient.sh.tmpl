@@ -1,0 +1,39 @@
+{{- if and (includeTemplate "is-debian" .) (has "snapclient" (splitList " " (includeTemplate "tools-to-install" .))) -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 snapclient(選單見 .chezmoi.toml.tmpl,#292)。只有 Debian 系要跑:沒勾、這台裝不了(tool-env),
+# 或是 Termux(pkg 的 snapcast-client 沒有系統服務)、macOS(brew 不自動起服務)就渲染成空的,chezmoi 不跑。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 這支只做一件事:停用並關掉 apt 套件自帶的系統服務 —— 它開機自動啟動、用 _snapclient 帳號直接開 ALSA,
+# 靠 mDNS 找伺服器(過不了 tailnet,區網裡有別的 snapserver 反而會自己連上去),還會跟桌面的音效伺服器搶裝置。
+# 要聽時自己跑 snapclient --host <tailnet IP>,要常駐用 user service(docs/remote-access/voice-out.md)。
+# disable 之後 apt 升級不會再 enable(Debian 的 deb-systemd-helper 記得管理員停用過)。
+set -eu
+{{ if includeTemplate "has-root" . -}}
+{{ template "sh-sudo" . }}
+# 1. 沒裝起來(apt 失敗)就沒有服務可停
+if ! command -v snapclient >/dev/null 2>&1; then
+  echo "snapclient 沒裝起來,跳過停用系統服務"
+  exit 0
+fi
+
+# 2. 停用:有 systemctl 就用它(systemd 沒在跑也能 disable,改的是 unit 的 symlink);
+#    沒有 systemctl(最小化容器)改用 postinst 用來 enable 的 deb-systemd-helper
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl disable snapclient.service
+elif command -v deb-systemd-helper >/dev/null 2>&1; then
+  $SUDO deb-systemd-helper disable snapclient.service
+fi
+
+# 3. 關掉:只有 systemd 在跑才有東西可關(容器的 PID 1 不是 systemd)
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl stop snapclient.service
+fi
+echo "snapclient 的系統服務已停用。收聽朗讀:snapclient --host <tailnet IP>"
+{{- else }}
+{{ template "sh-skip" . }}
+# 沒有 root:snapclient 只能由管理員用 apt 裝(套件腳本已經記了略過);管理員裝過的話,系統服務要他停
+if command -v snapclient >/dev/null 2>&1; then
+  skip_root "停用 snapclient 系統服務" "請有 root 的人跑 sudo systemctl disable --now snapclient(它開機自動啟動、靠 mDNS 找伺服器)"
+fi
+{{- end }}
+{{ end -}}

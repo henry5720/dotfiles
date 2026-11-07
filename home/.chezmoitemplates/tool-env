@@ -131,3 +131,15 @@ snapserver:
   - when: [wsl]
     state: discouraged
     reason: WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機
+{{- /* snapclient(#292):Debian 系 apt、原生 Termux pkg(snapcast-client)、macOS brew(snapcast)。
+       winget 沒有 Snapcast(2026-11 查 winget-pkgs 的 manifests,沒有 badaix、Snapcast),mise registry 也沒有。 */}}
+snapclient:
+  - when: [windows]
+    state: unsupported
+    reason: winget 沒有 snapclient，手動下載官方 release 的 snapclient_win64.zip，見 voice-out 主題文件
+  - when: [non-debian]
+    state: unsupported
+    reason: snapclient 走 apt，只能裝在 Debian 系
+  - when: [proot]
+    state: discouraged
+    reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app
