@@ -319,8 +319,8 @@ declare -A TOOL_CHECK=(
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
-  # 與它用的 edge-tts(pipx 裝在 ~/.local/bin);服務與朗讀的檢查在 check_snapserver
-  [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && [ -x ~/.local/bin/edge-tts ]"
+  # 與它跑 edge-tts 用的 uv(mise 裝,miseTools 的 snapserver;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
+  [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
@@ -472,7 +472,7 @@ check_snapserver() {
   # 朗讀指令(#291)。pipe 是上一項 snapserver 建的;服務沒開 = 沒有人讀 pipe
   check "voice-out-speak:服務沒開時 1 秒內結束、exit 0" \
     "s=\$(date +%s%N); echo '{\"last_assistant_message\":\"沒人在聽\"}' | voice-out-speak; rc=\$?; ms=\$(( (\$(date +%s%N) - s) / 1000000 )); echo \"rc=\$rc \${ms}ms\"; [ \$rc = 0 ] && [ \$ms -lt 1000 ]"
-  check "voice-out-speak:有人讀 pipe 時,真的用 edge-tts 唸成 PCM 寫進去(連網)" \
+  check "voice-out-speak:有人讀 pipe 時,真的用 uv 跑 edge-tts 唸成 PCM 寫進去(連網;bash -l 沒有 mise shims,要自己找到 uv)" \
     "cat ~/.local/state/voice-out/snapfifo > /tmp/speak.pcm & c=\$!; echo '{\"last_assistant_message\":\"**測試**朗讀。\"}' | timeout 60 voice-out-speak; rc=\$?; sleep 1; kill \$c 2>/dev/null; n=\$(stat -c %s /tmp/speak.pcm); echo \"rc=\$rc bytes=\$n\"; [ \$rc = 0 ] && [ \$n -gt 48000 ]"
 }
 
@@ -510,9 +510,10 @@ scenario_ubuntu() {
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入
   check_tool node
-  # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)
+  # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
+  # uv 是 snapserver 帶的(照 miseTools 的工具名排序,在 starship 前面)
   check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
-    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop cloudflared eza fastfetch fzf ripgrep starship' ]"
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
     "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd

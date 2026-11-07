@@ -117,7 +117,8 @@ wakatime:
   - when: [windows]
     state: unsupported
     reason: 它是 Claude Code、Codex 的 plugin，這兩個在 Windows 裝不了，到 WSL 裝
-{{- /* snapserver(#290):apt 裝、voice-out 包 systemd user service、服務只綁 tailscale ip -4 的位址。 */}}
+{{- /* snapserver(#290):apt 裝、voice-out 包 systemd user service、服務只綁 tailscale ip -4 的位址;
+       朗讀指令的 edge-tts 用 mise 裝的 uv 跑。 */}}
 snapserver:
   - when: [windows]
     state: unsupported

@@ -415,7 +415,7 @@ exit 0
         for name, (env, mark) in expected.items():
             with self.subTest(env=name):
                 line = next(l for l in self.labels(env) if l.startswith("snapserver "))
-                self.assertIn("會一併裝 ffmpeg", line)
+                self.assertIn("會一併裝 ffmpeg、uv)", line)
                 if mark is None:
                     self.assertNotIn("（", line.split("ffmpeg", 1)[1])
                 else:
@@ -571,41 +571,25 @@ exit 0
 
 
     # ===============================================================
-    # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 用 edge-tts(pipx 裝)
+    # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 的 edge-tts 用 uv 跑(uv 由 mise 裝),不另裝全域套件
     # ===============================================================
-    def test_snapserver_installs_pipx_with_apt(self):
+    def test_snapserver_installs_uv_with_mise(self):
+        mise = '{{ includeTemplate "mise-tools" . }}'
+        for name, env in (("ubuntu", {}), ("arm", ARM)):
+            with self.subTest(env=name):
+                ticked = self.chezmoi(env, "execute-template", data={"tools": ["snapserver"]}, stdin=mise).stdout
+                self.assertIn('"uv" = "latest"', ticked.splitlines())
+        unticked = self.chezmoi({}, "execute-template", data={"tools": ["ffmpeg"]}, stdin=mise).stdout
+        self.assertNotIn('"uv"', unticked)
+
+    def test_snapserver_installs_no_global_edge_tts(self):
         pkgs = self.render({}, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["snapserver"])
         line = next(l for l in pkgs.splitlines() if l.startswith("for pkg in"))
-        self.assertIn("pipx", line.replace(";", " ").split())
-
-    def run_install_snapserver(self, has_pipx=True):
-        text = self.render({}, f"{SCRIPTS}/run_onchange_after_install-snapserver.sh.tmpl", ["snapserver"])
-        bindir = self.dir / "bin-speak"
-        bindir.mkdir()
-        log = self.dir / "speak-calls.log"
-        fakes = [("sudo", '"$@"'), ("systemctl", "exit 0"), ("snapserver", "exit 0")]
-        if has_pipx:
-            fakes.append(("pipx", "exit 0"))
-        for name, body in fakes:
-            (bindir / name).write_text(f'#!/bin/sh\necho "{name} $*" >> {log}\n{body}\n', encoding="utf-8")
-            (bindir / name).chmod(0o755)
-        path = self.dir / "s.sh"
-        path.write_text(text, encoding="utf-8")
-        run = subprocess.run(["sh", str(path)], env={"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)},
-                             capture_output=True, text=True)
-        calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
-        return run, calls
-
-    def test_install_snapserver_installs_edge_tts_with_pipx_as_user(self):
-        run, calls = self.run_install_snapserver()
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn("pipx install edge-tts", calls)
-        self.assertFalse([c for c in calls if c.startswith("sudo") and "pipx" in c], "pipx 要裝在自己帳號底下")
-
-    def test_install_snapserver_without_pipx_does_not_fail(self):
-        run, calls = self.run_install_snapserver(has_pipx=False)
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertIn("edge-tts", run.stdout + run.stderr)
+        self.assertNotIn("pipx", line.replace(";", " ").split())
+        script = self.render({}, f"{SCRIPTS}/run_onchange_after_install-snapserver.sh.tmpl", ["snapserver"])
+        code = "\n".join(l for l in script.splitlines() if not l.lstrip().startswith("#"))
+        self.assertNotIn("pipx", code)
+        self.assertNotIn("edge-tts", code)
 
 
 if __name__ == "__main__":

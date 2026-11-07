@@ -23,7 +23,7 @@ claude Claude Code CLI
 codex Codex CLI
 opencode OpenCode CLI(會一併裝 Node)
 ffmpeg 影音轉檔、抽音軌與影格
-snapserver Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、edge-tts)
+snapserver Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)
 snapclient Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流
 node Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）
 codegraph 程式碼索引給 agent 查(npm 裝,會一併裝 Node)

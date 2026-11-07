@@ -58,12 +58,11 @@ toolPackages:
     ffmpeg:
       - ffmpeg
     # 朗讀串流服務(#290)。ffmpeg 給朗讀指令 voice-out-speak 把 TTS 的 mp3 解成 PCM;
-    # pipx 給 run_onchange_after_install-snapserver 裝 TTS 的 edge-tts(PyPI 才有,apt 沒有)。
-    # 套件自帶的系統服務由同一支腳本停用,改用 voice-out 開關的 user service
+    # TTS 的 edge-tts 用 uv 跑(下面 miseTools 的 snapserver),不另裝。
+    # 套件自帶的系統服務由 run_onchange_after_install-snapserver 停用,改用 voice-out 開關的 user service
     snapserver:
       - snapserver
       - ffmpeg
-      - pipx
     # 收聽朗讀串流(#292)。套件自帶、開機自動啟動的系統服務由 run_onchange_after_install-snapclient 停用
     snapclient:
       - snapclient
@@ -232,6 +231,12 @@ miseTools:
   ffmpeg:
     tool: ffmpeg                    # conda:ffmpeg
     cmd: ffmpeg
+  # 朗讀指令 voice-out-speak 用 uv tool run 跑 TTS 的 edge-tts(PyPI 才有,apt 沒有),不另裝全域套件。
+  # uv 是 GitHub release 的單一執行檔,沒有 root 也裝得起來
+  snapserver:
+    tool: uv                        # aqua:astral-sh/uv
+    cmd: uv
+    always: true
   # Claude Code 讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)
   claude:
     tool: poppler                   # conda:poppler

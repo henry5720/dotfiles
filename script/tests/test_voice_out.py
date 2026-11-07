@@ -53,7 +53,8 @@ case "$*" in
   *stop*) rm -f {state};;
 esac
 exit 0""")
-        self.fake("loginctl", f"echo Linger={self.linger}")
+        # 跟真的 loginctl 一樣:show-user -p Linger --value 只印值(yes／no)
+        self.fake("loginctl", f'case "$*" in *--value*) echo {self.linger};; *) echo Linger={self.linger};; esac')
         self.fake("tailscale", f'[ -n "{self.tailnet_ip}" ] && echo {self.tailnet_ip} || exit 1')
         env = {"PATH": f"{self.bin}:/usr/bin:/bin", "HOME": str(self.home), "USER": "e2e"}
         return subprocess.run(["sh", str(VOICE_OUT), *args], env=env, capture_output=True, text=True)

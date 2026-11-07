@@ -7,7 +7,8 @@
 #
 # 包的是 user service voice-out.service(~/.config/systemd/user/,跑 snapserver,設定在
 # ~/.config/snapserver/snapserver.conf)。刻意不 enable:像 code-server 一樣想聽才開。
-# 朗讀指令用 `voice-out status >/dev/null` 判斷要不要寫 pipe:沒在跑時沒有讀者,寫 pipe 會一直卡。
+# 朗讀指令 voice-out-speak 不看這支:它直接用阻塞的 open 開 pipe、0.5 秒內沒等到 snapserver 來讀就當服務沒開
+# (snapserver 0.34 沒有寫入者時每 100 ms 開一次 pipe,見 voice-out-speak 的 open_pipe)。
 # 說明:dotfiles 的 docs/remote-access/voice-out.md。
 set -eu
 
@@ -38,7 +39,7 @@ check_ip() {
 
 # 登出後還要跑得靠 linger
 check_linger() {
-  if [ "$(loginctl show-user "${USER:-$(id -un)}" -p Linger --value 2>/dev/null | sed 's/^Linger=//')" != yes ]; then
+  if [ "$(loginctl show-user "${USER:-$(id -un)}" -p Linger --value 2>/dev/null)" != yes ]; then
     echo "注意:這個帳號沒開 linger,登出(ssh 全斷)後服務會跟著停。要常駐:sudo loginctl enable-linger \"\$USER\"" >&2
   fi
 }

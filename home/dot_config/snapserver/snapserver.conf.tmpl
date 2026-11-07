@@ -41,9 +41,12 @@ port = 1704
 # ===============================================================
 # 2. 輸入來源:朗讀指令寫入的 pipe
 # ===============================================================
-# 48000 Hz、16 bit、雙聲道的 PCM。mode=create:snapserver 自己建 pipe 並一直開著讀,
-# 寫的人不會卡住;服務沒在跑時沒有讀者,寫入會一直卡,所以朗讀指令先看 voice-out status。
-# 目錄 ~/.local/state/voice-out 由 user service 的 ExecStartPre 建。
+# 48000 Hz、16 bit、雙聲道的 PCM。mode=create:snapserver 自己建 pipe。
+# snapserver 0.34 沒有寫入者時不會一直開著讀:每 100 ms 開一次 pipe、讀到 EOF 就關。
+# 服務沒在跑時沒有讀者,阻塞的 open 會一直卡,所以朗讀指令 voice-out-speak 開 pipe 時加 0.5 秒逾時,
+# 等不到 snapserver 來讀就當服務沒開(見它的 open_pipe)。
+# 目錄 ~/.local/state/voice-out 由 user service 的 ExecStartPre 建;這個路徑另外寫死在
+# voice-out.service(ExecStartPre)與 voice-out-speak(FIFO),改位置三處一起改。
 [stream]
 bind_to_address = {{ $ip }}
 port = 1704

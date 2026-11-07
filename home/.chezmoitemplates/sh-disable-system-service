@@ -1,0 +1,40 @@
+{{- /* 停用並關掉 apt 套件自帶的系統服務(snapserver、snapclient 的 install 腳本共用)。
+       用法(放在腳本的 set -eu 之後;參數用 dict 傳,root 是整個樣板資料,has-root 要用):
+         {{ includeTemplate "sh-disable-system-service" (dict "root" . "service" "snapserver"
+              "done" "停用後印的下一步" "why" "沒有 root 時請管理員停用的原因") }}
+       有 root:
+         1. 指令沒裝起來(apt 失敗)就沒有服務可停,exit 0
+         2. 停用:有 systemctl 就用它(systemd 沒在跑也能 disable,改的是 unit 的 symlink);
+            沒有 systemctl(最小化容器)改用 postinst 用來 enable 的 deb-systemd-helper
+         3. 關掉:只有 systemd 在跑才有東西可關(容器的 PID 1 不是 systemd)
+       沒有 root:套件只能由管理員用 apt 裝(套件腳本已經記了略過);管理員裝過的話,系統服務要他停,
+         用 sh-skip 的 skip_root 記進略過彙整。
+       disable 之後 apt 升級不會再 enable(Debian 的 deb-systemd-helper 記得管理員停用過)。 */ -}}
+{{- $s := .service -}}
+{{- if includeTemplate "has-root" .root -}}
+{{ includeTemplate "sh-sudo" .root }}
+# 1. 沒裝起來就沒有服務可停
+if ! command -v {{ $s }} >/dev/null 2>&1; then
+  echo "{{ $s }} 沒裝起來,跳過停用系統服務"
+  exit 0
+fi
+
+# 2. 停用
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl disable {{ $s }}.service
+elif command -v deb-systemd-helper >/dev/null 2>&1; then
+  $SUDO deb-systemd-helper disable {{ $s }}.service
+fi
+
+# 3. 關掉
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl stop {{ $s }}.service
+fi
+echo "{{ $s }} 的系統服務已停用。{{ .done }}"
+{{- else -}}
+{{ includeTemplate "sh-skip" .root }}
+# 沒有 root:管理員裝過 {{ $s }} 的話,系統服務要他停
+if command -v {{ $s }} >/dev/null 2>&1; then
+  skip_root "停用 {{ $s }} 系統服務" "請有 root 的人跑 sudo systemctl disable --now {{ $s }}({{ .why }})"
+fi
+{{- end }}

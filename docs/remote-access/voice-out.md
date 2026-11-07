@@ -13,7 +13,7 @@ agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══�
 
 已配置主機的選裝工具選單勾 `snapserver`（之後要加見[改設定與更新](../after-install.md)），apply 時：
 
-- 用 apt 裝 snapserver、ffmpeg、pipx，再用 pipx 把 TTS 的 edge-tts 裝到 `~/.local/bin`。
+- 用 apt 裝 snapserver、ffmpeg，用 mise 裝 uv。TTS 的 edge-tts 不另外裝，`voice-out-speak` 每次用 `uv tool run` 跑它。
 - 停用並關掉套件自帶的系統服務（它監聽所有網卡、開機自動啟動）。
 - 部署 user service `voice-out.service`、設定 `~/.config/snapserver/snapserver.conf`、開關指令 `voice-out`、
   朗讀指令 `voice-out-speak`。
@@ -55,7 +55,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 | 服務開著 | 唸出來，唸完才結束（9 秒的語音寫 9 秒） |
 | 服務沒開（`voice-out off`） | 0.5 秒內結束，什麼都不寫 |
 | `last_assistant_message` 空的、沒有這欄、stdin 不是 JSON | 立刻結束，什麼都不寫 |
-| 同時來好幾則 | 語音各自先轉好，播放排隊一則一則來，不交錯 |
+| 同時來好幾則 | 語音各自先轉好，一次唸一則、不交錯；同時到的幾則誰先唸不一定 |
 | edge-tts 失敗（沒網路） | exit 1，錯誤印在 stderr；不會回 2（Stop hook exit 2 會擋住 agent 結束） |
 
 **唸什麼、不唸什麼。** 唸給人聽的結論：
@@ -67,6 +67,10 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 
 **多快聽到。** 從 agent 講完到聽到約 3 秒，大部分花在 edge-tts 產生語音（約 2.5 秒）。
 2026-11-07 實測：原型在 Android 平板上約 2.8 秒聽到；`voice-out-speak` 在 company-ec2 從觸發到 snapclient 輸出聲音約 2.4 秒。
+
+**第一次會多等一下。** 這台第一次唸時，uv 要先下載 edge-tts 與它的依賴（約 20 MB）到 uv 的快取（`~/.cache/uv`），
+之後都直接用快取、不連 PyPI。company-ec2 實測一則約 40 字的回覆：第一次 1.8 秒產生語音，之後 0.7～0.8 秒
+（uv 本身只佔約 0.2 秒）。edge-tts 本來就要連線，沒網路時兩種情況都是 exit 1。
 
 **hook 要不要等它。** 唸多久就跑多久，hook 不能同步等。Claude Code 的 hook 設 `"async": true`；
 不支援 async 的 agent 加 `--background`：讀完 stdin、確認服務開著就回來，剩下的在背景做，
