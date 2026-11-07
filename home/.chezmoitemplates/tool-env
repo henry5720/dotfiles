@@ -117,3 +117,30 @@ wakatime:
   - when: [windows]
     state: unsupported
     reason: 它是 Claude Code、Codex 的 plugin，這兩個在 Windows 裝不了，到 WSL 裝
+{{- /* snapserver(#290):apt 裝、voice-out 包 systemd user service、服務只綁 tailscale ip -4 的位址;
+       朗讀指令的 edge-tts 用 mise 裝的 uv 跑。 */}}
+snapserver:
+  - when: [windows]
+    state: unsupported
+    reason: snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機
+  - when: [darwin, android, proot]
+    state: unsupported
+    reason: voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機
+  - when: [non-debian]
+    state: unsupported
+    reason: snapserver 走 apt，只能裝在 Debian 系
+  - when: [wsl]
+    state: discouraged
+    reason: WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機
+{{- /* snapclient(#292):Debian 系 apt、原生 Termux pkg(snapcast-client)、macOS brew(snapcast)。
+       winget 沒有 Snapcast(2026-11 查 winget-pkgs 的 manifests,沒有 badaix、Snapcast),mise registry 也沒有。 */}}
+snapclient:
+  - when: [windows]
+    state: unsupported
+    reason: winget 沒有 snapclient，手動下載官方 release 的 snapclient_win64.zip，見 voice-out 主題文件
+  - when: [non-debian]
+    state: unsupported
+    reason: snapclient 走 apt，只能裝在 Debian 系
+  - when: [proot]
+    state: discouraged
+    reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app

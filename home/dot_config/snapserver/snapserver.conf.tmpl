@@ -1,0 +1,63 @@
+{{- $ip := includeTemplate "tailnet-ip" . | default "127.0.0.1" -}}
+# 這份由 chezmoi 從 home/dot_config/snapserver/snapserver.conf.tmpl 產生,要改設定改那份再 chezmoi apply。
+# 給選裝工具 snapserver(#290)的 user service 用:voice-out on／off 開關(~/.config/systemd/user/voice-out.service)。
+# 套件自帶的 /etc/snapserver.conf 與系統服務不用(系統服務已停用,見 run_onchange_after_install-snapserver)。
+# 說明:docs/remote-access/voice-out.md。
+
+# ===============================================================
+# 1. 監聽位址:三個 port 都只綁 tailnet IP
+# ===============================================================
+# 預設是 0.0.0.0(所有網卡),等於把 agent 的回覆開給整個網段,不要改回去。
+# IP 在 chezmoi apply 時用 tailscale ip -4 取得;取不到(tailscale 沒登入)時綁 127.0.0.1,
+# tailscale up 之後再 chezmoi apply 一次,voice-out status 會提醒。
+# 段名新舊版各寫一次:Ubuntu 24.04 的 snapserver 0.27 只認 [tcp]、[stream],
+# 0.30 之後改名 [tcp-control]、[tcp-streaming](舊名照收但印 deprecated)。兩邊都不認得的段會略過。
+# 現在綁的位址:{{ $ip }}
+
+# 網頁(Snapweb)與 JSON-RPC
+[http]
+enabled = true
+bind_to_address = {{ $ip }}
+port = 1780
+# 0.34 的套件才帶 snapweb;0.27 沒有這個目錄,網頁打不開,但 app 和 snapclient 照常能用
+doc_root = /usr/share/snapserver/snapweb
+
+# 控制(Snapcast app 調音量、換串流)
+[tcp]
+enabled = true
+bind_to_address = {{ $ip }}
+port = 1705
+
+[tcp-control]
+enabled = true
+bind_to_address = {{ $ip }}
+port = 1705
+
+# 串流(snapclient、app 收音訊)
+[tcp-streaming]
+bind_to_address = {{ $ip }}
+port = 1704
+
+# ===============================================================
+# 2. 輸入來源:朗讀指令寫入的 pipe
+# ===============================================================
+# 48000 Hz、16 bit、雙聲道的 PCM。mode=create:snapserver 自己建 pipe。
+# snapserver 0.34 沒有寫入者時不會一直開著讀:每 100 ms 開一次 pipe、讀到 EOF 就關。
+# 服務沒在跑時沒有讀者,阻塞的 open 會一直卡,所以朗讀指令 voice-out-speak 開 pipe 時加 0.5 秒逾時,
+# 等不到 snapserver 來讀就當服務沒開(見它的 open_pipe)。
+# 目錄 ~/.local/state/voice-out 由 user service 的 ExecStartPre 建;這個路徑另外寫死在
+# voice-out.service(ExecStartPre)與 voice-out-speak(FIFO),改位置三處一起改。
+[stream]
+bind_to_address = {{ $ip }}
+port = 1704
+source = pipe://{{ .chezmoi.homeDir }}/.local/state/voice-out/snapfifo?name=voice-out&sampleformat=48000:16:2&mode=create
+
+# ===============================================================
+# 3. 其他
+# ===============================================================
+[server]
+# 記住各 client 的音量、名稱
+datadir = {{ .chezmoi.homeDir }}/.local/state/voice-out
+
+[logging]
+filter = *:info

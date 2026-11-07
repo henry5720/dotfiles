@@ -68,7 +68,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [開給別人連](docs/remote-access/) | 把一個服務開給人或 agent 連：概念圖、tailnet 內走 ssh／`tailscale serve`、tailnet 外用 Funnel 或 quick tunnel；服務卡：[瀏覽器](docs/remote-access/browser.md)（agent 的 headless、讓 agent 控你的 Chrome）、[share-shell](docs/remote-access/share-shell.md)、[code-server](docs/remote-access/code-server.md) |
+| [開給別人連](docs/remote-access/) | 把一個服務開給人或 agent 連：概念圖、tailnet 內走 ssh／`tailscale serve`、tailnet 外用 Funnel 或 quick tunnel；服務卡：[瀏覽器](docs/remote-access/browser.md)（agent 的 headless、讓 agent 控你的 Chrome）、[share-shell](docs/remote-access/share-shell.md)、[code-server](docs/remote-access/code-server.md)、[voice-out](docs/remote-access/voice-out.md)（agent 的回覆唸到個人電腦） |
 
 **背景與決策**
 

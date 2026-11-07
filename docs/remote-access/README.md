@@ -6,6 +6,7 @@
 - [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、插件（裝在獨立或日常 profile，tailnet 外也接得上）
 - [網頁 shell：share-shell](share-shell.md)
 - [code-server](code-server.md)
+- [朗讀串流：voice-out](voice-out.md)：agent 的回覆唸到 tailnet 內的個人電腦
 
 ## 概念
 

@@ -1,0 +1,13 @@
+{{- if has "snapserver" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
+# 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages);
+# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(miseTools),edge-tts 不另裝。
+# 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
+# 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
+# 步驟在共用樣板 sh-disable-system-service。
+# apt 裝完時 postinst 會先把系統服務起來,到這支跑完之前那幾秒是開著的;雲端主機外面還有 security group 擋。
+set -eu
+{{ includeTemplate "sh-disable-system-service" (dict "root" . "service" "snapserver"
+     "done" "開關朗讀服務:voice-out on、voice-out off" "why" "它監聽所有網卡") }}
+{{ end -}}

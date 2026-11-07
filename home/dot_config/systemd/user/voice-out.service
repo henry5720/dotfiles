@@ -1,0 +1,23 @@
+# 朗讀串流服務(選裝工具 snapserver,#290)。由 chezmoi 從 home/dot_config/systemd/user/voice-out.service 部署。
+# 用 voice-out on／off／status 開關,不要 enable:預設不開機自動啟動,想聽才開。
+# 登出後還要跑:sudo loginctl enable-linger "$USER"。
+# 說明:dotfiles 的 docs/remote-access/voice-out.md。
+
+[Unit]
+Description=朗讀串流服務 snapserver(voice-out 開關)
+# 不寫 After=network-online.target:user manager 看不到系統的 network-online.target,寫了也不會等
+
+[Service]
+# 設定只綁 tailnet IP(~/.config/snapserver/snapserver.conf);tailscaled 還沒起來時 bind 失敗,
+# 靠下面的 Restart=on-failure 每 5 秒重試
+# pipe 與 datadir 放 ~/.local/state/voice-out。不用 StateDirectory=:舊版 systemd 的 user service
+# 把它放到 ~/.config 底下,位置跟版本走。
+# 這個目錄另外寫死在 snapserver.conf.tmpl(source、datadir)與 voice-out-speak(FIFO),改位置三處一起改
+ExecStartPre=/bin/mkdir -p %h/.local/state/voice-out
+ExecStart=/usr/bin/snapserver --config=%h/.config/snapserver/snapserver.conf
+Restart=on-failure
+RestartSec=5
+
+# 有 [Install] 才是 disabled(沒有的話是 static);只是讓 is-enabled 看得出沒開機自動啟動,不要 enable
+[Install]
+WantedBy=default.target

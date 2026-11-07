@@ -152,6 +152,18 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("zsh", decoded)
         self.assertNotIn("fzf", decoded)
 
+    def test_windows_skip_summary_points_snapclient_to_manual_zip(self):
+        # winget 沒有 snapclient(#292):勾了就略過,原因帶手動做法(官方 zip 寫在 voice-out 主題文件)
+        out = self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["snapclient"])
+        self.assertEqual(out, out.encode("ascii", "strict").decode("ascii"))
+        decoded = "\n".join(base64.b64decode(b).decode("utf-8")
+                            for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
+        self.assertIn("snapclient", decoded)
+        self.assertIn("winget 沒有 snapclient", decoded)
+        self.assertIn("snapclient_win64.zip", decoded)
+        self.assertNotIn("snapclient", self.render(SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl",
+                                                   ["snapclient"]))
+
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),

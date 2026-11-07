@@ -1,0 +1,7 @@
+{{- /* 這台的 tailnet IPv4(tailscale ip -4 的第一行);沒裝 tailscale、沒登入、tailscaled 沒在跑都是空字串。
+       用法:{{ $ip := includeTemplate "tailnet-ip" . }}
+       在 apply 時取:第一次 init --apply 時 tailscale 多半還沒 up,up 之後再 chezmoi apply 一次才拿得到
+       (chezmoi diff 會看到差異)。tailnet IP 綁在節點上,之後不會變。 */ -}}
+{{- if lookPath "tailscale" -}}
+{{-   output "sh" "-c" "tailscale ip -4 2>/dev/null | head -n 1 || :" | trim -}}
+{{- end -}}
