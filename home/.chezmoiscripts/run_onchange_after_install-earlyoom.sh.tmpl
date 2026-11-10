@@ -45,7 +45,7 @@ printf '# chezmoi 管理(.chezmoidata/earlyoom.yaml),改那份再 chezmoi apply\
 
 # 5. 生效:容器裡 systemd 沒在跑,設定留著、開機後生效
 if [ ! -d /run/systemd/system ]; then
-  echo "systemd 沒在跑,earlyoom 與保護系統服務的設定已寫入,開機後生效"
+  echo "systemd 沒在跑,earlyoom 的門檻、保留服務與常駐服務的保護設定已寫入,開機後生效"
   exit 0
 fi
 $SUDO systemctl daemon-reload
@@ -54,10 +54,10 @@ if command -v earlyoom >/dev/null 2>&1; then
   $SUDO systemctl restart earlyoom.service
   echo "earlyoom 已啟用。砍了誰:journalctl -u earlyoom"
 else
-  echo "earlyoom 沒裝起來(apt 失敗?),只套了保護系統服務的設定"
+  echo "earlyoom 沒裝起來(apt 失敗?),只套了保留服務與常駐服務的保護設定"
 fi
 {{- else -}}
 {{ includeTemplate "sh-skip" . }}
-skip_root "earlyoom 與保護系統服務" "請有 root 的人照 docs/install/earlyoom.md 寫入 /etc 的設定,再 sudo systemctl enable --now earlyoom"
+skip_root "啟用 earlyoom、保護保留服務與常駐服務" "請有 root 的人照 docs/install/earlyoom.md 寫入 /etc 的設定,再 sudo systemctl enable --now earlyoom"
 {{- end }}
 {{ end -}}

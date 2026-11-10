@@ -149,10 +149,10 @@ snapclient:
 earlyoom:
   - when: [windows, darwin]
     state: unsupported
-    reason: earlyoom 和保護系統服務都靠 Linux 的 systemd，只裝在 Linux
+    reason: earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux
   - when: [android, proot]
     state: unsupported
-    reason: 平板上沒有 systemd，保護不了系統服務
+    reason: 平板上沒有 systemd，保護不了保留服務與常駐服務
   - when: [wsl]
     state: unsupported
     reason: WSL 的記憶體上限由 Windows 的 .wslconfig 管，卡住時從 Windows 跑 wsl --shutdown

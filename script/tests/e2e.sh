@@ -323,7 +323,7 @@ declare -A TOOL_CHECK=(
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
-  # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻與保護系統服務的 drop-in(#298)。
+  # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻,與保護保留服務、常駐服務的 drop-in(#298)。
   # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(主題文件)
   [earlyoom]="command -v earlyoom && grep -q -- '--avoid' /etc/default/earlyoom && grep -qx 'MemoryMin=512M' /etc/systemd/system/system.slice.d/50-earlyoom.conf && grep -qx 'MemoryMin=infinity' /etc/systemd/system/ssh.service.d/50-earlyoom.conf"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)

@@ -7,7 +7,7 @@
 | 程序 | 包含 | 搶資源時 |
 |---|---|---|
 | 保留服務 | ssh、tailscale、ssm-agent、journald、dbus | 記憶體不被回收；CPU 拿 10 倍份量；earlyoom 不砍 |
-| 常駐服務 | 其他系統服務，含 docker container（例如 company agent） | 工作程序被回收完才輪到；CPU 拿 10 倍份量 |
+| 常駐服務 | 保留服務以外、一直開著的服務，含 docker container（例如 company agent） | 工作程序被回收完才輪到；CPU 拿 10 倍份量 |
 | 工作程序 | agent、tsc、vitest、VS Code server、codegraph | 最先被回收；快滿時 earlyoom 從最肥的砍 |
 
 ```text
@@ -18,7 +18,7 @@
 
 只在 Debian 系、有 systemd 的 Linux 裝得了；用途 full 預設勾。沒有 root 的機器 apply 時略過，記進略過彙整。
 
-## 為什麼是保護系統服務，不是限制 agent
+## 為什麼是保護保留服務與常駐服務，不是限制 agent
 
 平常工作程序想用多少就用多少，搶的時候才讓位。限制 agent（`MemoryMax`、`CPUQuota`）的話，資源空著時 agent 也用不到，
 而且 herdr server 要重啟才進得了限制的 slice。
@@ -65,6 +65,19 @@
 `/etc/default/earlyoom` 是套件的設定檔：哪天 earlyoom 套件升級也改了它，`apt upgrade` 會問要留哪一份，選留現在的，再 `chezmoi apply`。
 
 沒有 root 的機器要請管理員照上面寫好，再 `sudo systemctl daemon-reload && sudo systemctl enable --now earlyoom`。
+
+容器裡 systemd 沒在跑：設定照寫，不啟用，開機後才生效。
+
+取消勾選不會拿掉這些設定（選裝工具都不解除安裝）。要拿掉：
+
+```bash
+sudo rm /etc/systemd/system/*.d/50-earlyoom.conf
+sudo systemctl daemon-reload
+sudo systemctl disable --now earlyoom
+```
+
+保留服務的保底量是大家共用的：清單上某個服務漏記憶體長大時，會跟其他保留服務照用量比例分這 512M，ssh 分到的跟著變少。
+真的遇到再給那個 unit 另設 `MemoryMax`。
 
 ## 怎麼確認生效
 
