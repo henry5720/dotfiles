@@ -267,7 +267,7 @@ menu_choice() {
 # ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
-TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/earlyoom/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
@@ -323,6 +323,9 @@ declare -A TOOL_CHECK=(
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
+  # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻與保護系統服務的 drop-in(#298)。
+  # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(主題文件)
+  [earlyoom]="command -v earlyoom && grep -q -- '--avoid' /etc/default/earlyoom && grep -qx 'MemoryMin=512M' /etc/systemd/system/system.slice.d/50-earlyoom.conf && grep -qx 'MemoryMin=infinity' /etc/systemd/system/ssh.service.d/50-earlyoom.conf"
   # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
   [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
@@ -565,7 +568,7 @@ scenario_ubuntu() {
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"earlyoom\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -724,7 +727,9 @@ scenario_ubuntu() {
   # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾;snapserver 抓不到 tailnet IP(#290),同樣不建議
   local full_wsl=${full_filtered/\/tailscale\///}
   full_wsl=${full_wsl/\/snapserver\///}
-  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、snapserver、headless-chrome、playwright-cli)" \
+  # earlyoom(#298)要 systemd 與 cgroup,WSL 的記憶體由 .wslconfig 管,裝不了
+  full_wsl=${full_wsl/\/earlyoom\///}
+  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、snapserver、earlyoom、headless-chrome、playwright-cli)" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_wsl")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
@@ -860,7 +865,9 @@ scenario_ubuntu() {
   fedora_full=${fedora_full/\/snapserver\///}
   # snapclient 也走 apt(#292)
   fedora_full=${fedora_full/\/snapclient\///}
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver、snapclient" \
+  # earlyoom 也走 apt(#298)
+  fedora_full=${fedora_full/\/earlyoom\///}
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver、snapclient、earlyoom" \
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "$fedora_full")' /tmp/fedora.toml"
   label=$(menu_choice headless-chrome "$fedora")
   check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
@@ -903,7 +910,9 @@ scenario_ubuntu() {
   # snapserver 靠 systemd user service(#290),macOS 裝不了
   local mac_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
   mac_full=${mac_full/\/snapserver\///}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli、snapserver)" \
+  # earlyoom 靠 Linux 的 systemd(#298)
+  mac_full=${mac_full/\/earlyoom\///}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli、snapserver、earlyoom)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"

@@ -66,6 +66,10 @@ toolPackages:
     # 收聽朗讀串流(#292)。套件自帶、開機自動啟動的系統服務由 run_onchange_after_install-snapclient 停用
     snapclient:
       - snapclient
+    # 記憶體快滿先砍最肥的程序(#298)。門檻與保護系統服務的設定由 run_onchange_after_install-earlyoom 寫進 /etc
+    # (數字在 .chezmoidata/earlyoom.yaml)
+    earlyoom:
+      - earlyoom
     # headless Chrome 本體是 .deb(run_onchange_after_install-headless-chrome);
     # 沒這兩個字型,中文和 emoji 截圖全是方框
     headless-chrome:

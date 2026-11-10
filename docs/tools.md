@@ -10,7 +10,7 @@ shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
 入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node
-其他            ffmpeg  snapserver  snapclient  wakatime
+其他            ffmpeg  snapserver  snapclient  wakatime  earlyoom
 自寫指令        tools  ai-profile  share-shell  personal-chrome-attach
                 codegraph-setup-repo  voice-out  voice-out-speak
 ```
@@ -78,6 +78,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | snapserver | 朗讀串流服務：agent 的回覆唸到開著 Snapcast 的個人電腦 | `voice-out on`、`voice-out off` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md) |
 | snapclient | 在個人電腦收聽朗讀串流 | `snapclient --host <tailnet IP>` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md#桌機筆電termuxsnapclient) |
 | wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md) |
+| earlyoom | 記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU | 不用打指令；砍了誰：`journalctl -u earlyoom` | [earlyoom](https://github.com/rfjakob/earlyoom) | [earlyoom](install/earlyoom.md) |
 
 ## 自寫指令
 
