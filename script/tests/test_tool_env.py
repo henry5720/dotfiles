@@ -6,6 +6,7 @@
 真的 init --apply 一台裝不了的工具、看 exit code 與彙整由 e2e 的 ubuntu 目標驗。
 """
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -121,13 +122,14 @@ class ToolEnvTest(unittest.TestCase):
         expected = {
             "ubuntu": ({}, {}),
             "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
-                           "snapserver": "不建議"}),
+                           "snapserver": "不建議", "earlyoom": "裝不了"}),
             "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
-                               "snapserver": "裝不了", "snapclient": "不建議"}),
+                               "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了",
-                                "snapclient": "裝不了"}),
-            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了"}),
+                                "snapclient": "裝不了", "earlyoom": "裝不了"}),
+            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了",
+                          "earlyoom": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
             with self.subTest(env=name):
@@ -143,12 +145,14 @@ class ToolEnvTest(unittest.TestCase):
     # 預設組合扣掉不建議與裝不了的;沒改勾選照樣存用途
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
-        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale", "snapserver"}),
+        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale", "snapserver",
+                                                 "earlyoom"}),
                                    ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale", "snapserver",
-                                                     "snapclient"}),
+                                                     "snapclient", "earlyoom"}),
                                    ("arm", ARM, {"headless-chrome", "playwright-cli"}),
-                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver", "snapclient"}),
-                                   ("mac", MAC, {"headless-chrome", "playwright-cli", "snapserver"})):
+                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver", "snapclient",
+                                                       "earlyoom"}),
+                                   ("mac", MAC, {"headless-chrome", "playwright-cli", "snapserver", "earlyoom"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -364,7 +368,8 @@ exit 0
     def test_android_annotations(self):
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
-                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph", "snapserver"})
+                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
+                               "earlyoom"})
 
     def test_android_installs_pkg_tools(self):
         tools = ["fastfetch", "gh", "ffmpeg", "ttyd", "cloudflared", "zsh"]
@@ -569,6 +574,129 @@ exit 0
         self.assertIn("systemctl disable snapclient.service", calls)
         self.assertFalse([c for c in calls if "enable " in c and "disable" not in c])
 
+
+    # ===============================================================
+    # earlyoom(#298):保護保留服務與常駐服務,記憶體快滿先砍最肥的程序
+    # ===============================================================
+    def test_earlyoom_menu_states_and_presets(self):
+        # 只有 systemd 跑著、走 apt 的 Linux 裝得了;full 預設勾、minimal 不勾
+        for name, env, mark in (("ubuntu", {}, None), ("arm", ARM, None), ("wsl", WSL, "裝不了"),
+                                ("proot", PROOT, "裝不了"), ("fedora", FEDORA, "裝不了"), ("mac", MAC, "裝不了"),
+                                ("android", ANDROID, "裝不了"), ("windows", {"chezmoi": {"os": "windows"}}, "裝不了")):
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("earlyoom "))
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+        self.assertIn('"earlyoom"', self.init({}, "full").stdout)
+        self.assertNotIn('"earlyoom"', self.init({}, "minimal").stdout)
+
+    def test_earlyoom_package_is_apt(self):
+        pkgs = self.render({}, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["earlyoom"])
+        self.assertRegex(pkgs, r"(?<![\w-])earlyoom(?![\w-])")
+        self.assertNotRegex(self.render({}, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["vim"]),
+                            r"(?<![\w-])earlyoom(?![\w-])")
+
+    def run_earlyoom(self, data=None):
+        """跑渲染出來的 install-earlyoom:sudo、systemctl 是假的,寫 /etc 的改寫到 self.dir/root 底下。"""
+        script = f"{SCRIPTS}/run_onchange_after_install-earlyoom.sh.tmpl"
+        text = self.chezmoi({}, "execute-template", data={"tools": ["earlyoom"], **(data or {})},
+                            stdin=(self.source / script).read_text(encoding="utf-8")).stdout
+        self.assert_sh(text)
+        root = self.dir / "root"
+        (root / "etc/default").mkdir(parents=True, exist_ok=True)  # 真機一定有,套件自帶的 earlyoom 也寫這裡
+        bindir = self.dir / "bin"
+        bindir.mkdir(exist_ok=True)
+        log = self.dir / "calls.log"
+        # 假 sudo:記下指令;tee、mkdir 的絕對路徑改到 root 底下,其他照跑
+        (bindir / "sudo").write_text(f"""#!/bin/sh
+echo "sudo $*" >> {log}
+cmd=$1; shift
+case "$cmd" in
+  tee|mkdir|rm)
+    out=""
+    for a; do case "$a" in /*) out="$out {root}$a";; *) out="$out $a";; esac; done
+    exec "$cmd" $out;;
+esac
+exec "$cmd" "$@"
+""", encoding="utf-8")
+        (bindir / "systemctl").write_text(f'#!/bin/sh\necho "systemctl $*" >> {log}\n', encoding="utf-8")
+        (bindir / "earlyoom").write_text("#!/bin/sh\n", encoding="utf-8")
+        for f in ("sudo", "systemctl", "earlyoom"):
+            (bindir / f).chmod(0o755)
+        path = self.dir / "s.sh"
+        path.write_text(text, encoding="utf-8")
+        run = subprocess.run(["sh", str(path)], env={"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)},
+                             capture_output=True, text=True)
+        calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+        return run, root, calls
+
+    def test_earlyoom_script_empty_when_unticked_or_unsupported(self):
+        script = f"{SCRIPTS}/run_onchange_after_install-earlyoom.sh.tmpl"
+        self.assertEqual(self.render({}, script, ["vim"]).strip(), "")
+        for name, env in (("wsl", WSL), ("fedora", FEDORA), ("mac", MAC), ("android", ANDROID)):
+            with self.subTest(env=name):
+                self.assertEqual(self.render(env, script, ["earlyoom"]).strip(), "")
+
+    def test_earlyoom_protects_reserved_and_resident_services(self):
+        run, root, _ = self.run_earlyoom()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        etc = root / "etc/systemd/system"
+        # 常駐服務:system.slice 整層;保留服務的保底量也要掛在 system.slice 才拿得到
+        slice_conf = (etc / "system.slice.d/50-earlyoom.conf").read_text(encoding="utf-8").splitlines()
+        for line in ("[Slice]", "MemoryMin=512M", "MemoryLow=15%", "CPUWeight=1000"):
+            self.assertIn(line, slice_conf)
+        # 保留服務:每個 unit 各一份 drop-in;tailscaled 用前綴 drop-in,tailscaled-preview 也套到
+        for unit in ("ssh.service", "tailscaled.service", "tailscaled-.service",
+                     "snap.amazon-ssm-agent.amazon-ssm-agent.service", "systemd-journald.service", "dbus.service"):
+            with self.subTest(unit=unit):
+                conf = (etc / f"{unit}.d/50-earlyoom.conf").read_text(encoding="utf-8").splitlines()
+                for line in ("[Service]", "MemoryMin=infinity", "CPUWeight=1000"):
+                    self.assertIn(line, conf)
+
+    def test_earlyoom_config_thresholds_and_avoid_list(self):
+        run, root, _ = self.run_earlyoom()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        text = (root / "etc/default/earlyoom").read_text(encoding="utf-8")
+        line = next(l for l in text.splitlines() if l.startswith("EARLYOOM_ARGS="))
+        # systemd 的 $EARLYOOM_ARGS 照空白切、不去引號:值裡不能有引號
+        self.assertNotIn("'", line)
+        args = line.split("=", 1)[1].strip('"').split()
+        self.assertEqual(args[args.index("-m") + 1], "5")
+        self.assertEqual(args[args.index("-s") + 1], "10")
+        avoid = re.compile(args[args.index("--avoid") + 1])
+        # /proc/<pid>/comm 截到 15 字元(實測 ssm-agent 是 amazon-ssm-agen、ssm-agent-worke)
+        for comm in ("sshd", "sshd-session", "tailscaled", "amazon-ssm-agen", "ssm-agent-worke", "systemd",
+                     "systemd-journal", "dbus-daemon", "dockerd", "containerd", "herdr"):
+            self.assertTrue(avoid.search(comm), comm)
+        for comm in ("node", "MainThread", "2.1.322", "codex", "tsc", "mysqld"):
+            self.assertFalse(avoid.search(comm), comm)
+
+    def test_earlyoom_applies_without_restarting_services(self):
+        run, _, calls = self.run_earlyoom()
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("systemctl daemon-reload", calls)
+        self.assertIn("systemctl enable earlyoom.service", calls)
+        self.assertIn("systemctl restart earlyoom.service", calls)
+        restarted = [c for c in calls if re.search(r"\b(restart|stop|reload-or-restart|try-restart)\b", c)
+                     and "earlyoom" not in c]
+        self.assertEqual(restarted, [])
+
+    def test_earlyoom_numbers_come_from_chezmoidata(self):
+        # 改 .chezmoidata 的 yaml,渲染出來的腳本跟著變(run_onchange 下次 apply 重跑)
+        data = {"earlyoom": {"reservedUnits": ["ssh.service"], "reservedMemoryMin": "256M", "cpuWeight": 500,
+                             "residentMemoryLow": "20%", "args": "-m 3 -s 5 --avoid ^(sshd)$"}}
+        run, root, _ = self.run_earlyoom(data=data)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        etc = root / "etc/systemd/system"
+        slice_conf = (etc / "system.slice.d/50-earlyoom.conf").read_text(encoding="utf-8")
+        self.assertIn("MemoryMin=256M", slice_conf)
+        self.assertIn("MemoryLow=20%", slice_conf)
+        self.assertIn("CPUWeight=500", (etc / "ssh.service.d/50-earlyoom.conf").read_text(encoding="utf-8"))
+        self.assertFalse((etc / "dbus.service.d").exists())
+        self.assertIn("-m 3 -s 5", (root / "etc/default/earlyoom").read_text(encoding="utf-8"))
 
     # ===============================================================
     # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 的 edge-tts 用 uv 跑(uv 由 mise 裝),不另裝全域套件

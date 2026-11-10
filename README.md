@@ -48,6 +48,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [用途與憑證](docs/install/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 | [沒有 root 的機器](docs/install/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連 company-ec2 的 key |
 | [mise](docs/install/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
+| [earlyoom](docs/install/earlyoom.md) | agent 吃滿記憶體、ssh 連不上：保護哪些服務、數字怎麼來、怎麼確認生效、砍了誰去哪查 |
 | [終端機字型](docs/install/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [Windows 主機](docs/install/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
 | [WSL 網路](docs/install/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |

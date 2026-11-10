@@ -144,3 +144,18 @@ snapclient:
   - when: [proot]
     state: discouraged
     reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app
+{{- /* earlyoom(#298):apt 裝 earlyoom;保護保留服務與常駐服務是 /etc 底下的 systemd drop-in
+       (數字在 .chezmoidata/earlyoom.yaml),要有在跑的 systemd。 */}}
+earlyoom:
+  - when: [windows, darwin]
+    state: unsupported
+    reason: earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux
+  - when: [android, proot]
+    state: unsupported
+    reason: 平板上沒有 systemd，保護不了保留服務與常駐服務
+  - when: [wsl]
+    state: unsupported
+    reason: WSL 的記憶體上限由 Windows 的 .wslconfig 管，卡住時從 Windows 跑 wsl --shutdown
+  - when: [non-debian]
+    state: unsupported
+    reason: earlyoom 走 apt，只能裝在 Debian 系

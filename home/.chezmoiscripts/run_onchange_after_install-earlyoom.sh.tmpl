@@ -1,0 +1,63 @@
+{{- if has "earlyoom" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- $e := .earlyoom -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 這支把 .chezmoidata/earlyoom.yaml 的數字寫進 /etc;數字一改,渲染結果跟著變,下次 apply 重跑。
+# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/install/earlyoom.md:
+#   保留服務  各 unit 的 drop-in:MemoryMin=infinity、CPUWeight;earlyoom --avoid
+#   常駐服務  system.slice 的 drop-in:MemoryLow、CPUWeight,另設 MemoryMin 讓保留服務拿得到保底量
+#   工作程序  不設限
+# 只做 daemon-reload:cgroup 的設定在 reload 後套到跑著的 unit,不重啟 ssh、tailscaled、docker、herdr。
+set -eu
+{{ if includeTemplate "has-root" . -}}
+{{ includeTemplate "sh-sudo" . }}
+dir=/etc/systemd/system
+name=50-earlyoom.conf
+units='{{ join " " $e.reservedUnits }}'
+
+# 1. 從清單拿掉的 unit:收掉它的 drop-in
+for f in "$dir"/*.d/"$name"; do
+  [ -e "$f" ] || continue
+  unit=$(basename "$(dirname "$f")" .d)
+  case " system.slice $units " in
+    *" $unit "*) ;;
+    *) $SUDO rm -f "$f"; echo "移除 $unit 的 earlyoom drop-in(已不在保留服務清單)";;
+  esac
+done
+
+# 2. 常駐服務:system.slice 整層;保留服務的保底量也掛在這裡(cgroup 子層的保護不超過上層)
+$SUDO mkdir -p "$dir/system.slice.d"
+printf '[Slice]\nMemoryMin=%s\nMemoryLow=%s\nCPUWeight=%s\n' \
+  {{ $e.reservedMemoryMin | squote }} {{ $e.residentMemoryLow | squote }} {{ $e.cpuWeight | toString | squote }} \
+  | $SUDO tee "$dir/system.slice.d/$name" >/dev/null
+
+# 3. 保留服務:每個 unit 各一份 drop-in。這台沒有的 unit 放了也不生效
+for unit in $units; do
+  $SUDO mkdir -p "$dir/$unit.d"
+  printf '[Service]\nMemoryMin=infinity\nCPUWeight=%s\n' {{ $e.cpuWeight | toString | squote }} \
+    | $SUDO tee "$dir/$unit.d/$name" >/dev/null
+done
+
+# 4. earlyoom 的門檻與避開清單(套件的 earlyoom.service 用 EnvironmentFile 讀它)
+printf '# chezmoi 管理(.chezmoidata/earlyoom.yaml),改那份再 chezmoi apply\nEARLYOOM_ARGS="%s"\n' \
+  {{ $e.args | squote }} | $SUDO tee /etc/default/earlyoom >/dev/null
+
+# 5. 生效:容器裡 systemd 沒在跑,設定留著、開機後生效
+if [ ! -d /run/systemd/system ]; then
+  echo "systemd 沒在跑,earlyoom 的門檻、保留服務與常駐服務的保護設定已寫入,開機後生效"
+  exit 0
+fi
+$SUDO systemctl daemon-reload
+if command -v earlyoom >/dev/null 2>&1; then
+  $SUDO systemctl enable earlyoom.service
+  $SUDO systemctl restart earlyoom.service
+  echo "earlyoom 已啟用。砍了誰:journalctl -u earlyoom"
+else
+  echo "earlyoom 沒裝起來(apt 失敗?),只套了保留服務與常駐服務的保護設定"
+fi
+{{- else -}}
+{{ includeTemplate "sh-skip" . }}
+skip_root "啟用 earlyoom、保護保留服務與常駐服務" "請有 root 的人照 docs/install/earlyoom.md 寫入 /etc 的設定,再 sudo systemctl enable --now earlyoom"
+{{- end }}
+{{ end -}}

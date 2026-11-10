@@ -1,0 +1,27 @@
+# 選裝工具 earlyoom(#298)的數字,run_onchange_after_install-earlyoom 寫進 /etc。
+# 改了這份,下次 chezmoi apply 重跑那支腳本、套上新值。為什麼這樣設見 docs/install/earlyoom.md。
+# 名詞(保留服務、常駐服務、工作程序)見 GLOSSARY「裝機」段。
+earlyoom:
+  # 保留服務:每個 unit 各寫一份 drop-in(MemoryMin=infinity、CPUWeight),記憶體不被回收。
+  # 這台沒有的 unit 放了 drop-in 也不生效,所以每台共用一份清單。
+  # 「tailscaled-.service」是前綴 drop-in,套到 tailscaled-preview.service 這類 tailscaled-* 的 unit。
+  reservedUnits:
+    - ssh.service
+    - tailscaled.service
+    - tailscaled-.service
+    - snap.amazon-ssm-agent.amazon-ssm-agent.service
+    - systemd-journald.service
+    - dbus.service
+  # 保留服務合計的記憶體保底量,掛在 system.slice 的 MemoryMin(cgroup 子層的保護不超過上層)。
+  # 固定量:保留服務的用量不隨機器變大(實測合計約 220M,抓兩倍)。
+  reservedMemoryMin: 512M
+  # 常駐服務:system.slice 整層(含 docker container)的 MemoryLow。
+  # 百分比:container 的用量跟著機器變大。工作程序(user.slice)被回收完才輪到這塊。
+  residentMemoryLow: 15%
+  # 保留服務與 system.slice 的 CPUWeight(預設 100):搶 CPU 時拿到的份量是工作程序的 10 倍;不搶時照用滿。
+  cpuWeight: 1000
+  # /etc/default/earlyoom 的 EARLYOOM_ARGS:可用記憶體 <5% 且 swap <10% 時砍 oom_score 最高的程序。
+  # --avoid 比對 /proc/<pid>/comm(截到 15 字元,所以是 amazon-ssm-agen、ssm-agent-worke);
+  # systemd 照空白切這個值、不處理引號,所以 regex 裡不能有空白和引號。
+  # -r 3600 是套件預設:每小時記一次記憶體狀況到 journal。
+  args: -r 3600 -m 5 -s 10 --avoid ^(sshd.*|tailscaled|amazon-ssm-agen|ssm-agent-worke|systemd.*|dbus-daemon|dockerd|containerd|herdr)$
