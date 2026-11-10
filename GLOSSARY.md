@@ -182,6 +182,20 @@ _Avoid_: 用途（兩者是分開的）、機器類型；「不支援」「不�
 原生 Windows，由 Windows 原生 chezmoi 管；可能是 WSL 的外層，也可能沒有 WSL、本身就是開發機。跟 Linux 一樣有用途與選單，CLI 用 mise、app 用 winget 裝，安裝腳本只有 `.ps1`。有 WSL 時跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。
 _Avoid_: Windows 側、host
 
+已配置主機上的程序分三種，記憶體、CPU 被吃滿時下場不同：
+
+**保留服務**:
+讓入口能用的系統服務：ssh、tailscale、ssm-agent，以及它們依賴的 journald、dbus。資源被吃滿時也要保住，人才連得進來處理；記憶體有保底量，不會被砍。
+_Avoid_: 救命線、入口服務、保底服務、關鍵服務、白名單服務、hostcritical、最低配置
+
+**常駐服務**:
+保留服務以外、一直開著的系統服務，包括 docker container（例如 company agent）。別人或別的程式在用，搶資源時排在工作程序之後才被擠。
+_Avoid_: 系統服務（保留服務也是）、服務層、背景服務
+
+**工作程序**:
+人和 agent 做事時開的程序：agent 本身、tsc、vitest、VS Code server、codegraph。平常用多少都行；資源不夠時最先被擠，快滿時從最肥的砍。
+_Avoid_: agent（VS Code server、codegraph 不是 agent）、使用者程序、workload
+
 ## 文件
 
 **Runbook**:
