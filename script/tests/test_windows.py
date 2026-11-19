@@ -63,11 +63,12 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
-# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),
+# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
 # 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
-                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "wakatime"}
+                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
+                "wakatime"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -246,6 +247,16 @@ class WindowsDeployTest(unittest.TestCase):
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["opencode"]})
         self.assertNotIn("opencode", linux)
+
+    def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
+        # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),
+        # 所以不連帶列 Node LTS;shim 是 codegraph.exe,MCP 設定的 command: codegraph 找得到。
+        # Linux 照舊 npm-install-codegraph(nvm 的 npm),不進 mise 清單
+        self.assertEqual(self.mise_list(["codegraph"]), {"zoxide", "codegraph"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["codegraph"]})
+        self.assertNotIn("codegraph", linux)
 
     def test_windows_wakatime_brings_node_lts_for_plugin_hooks(self):
         # #324:Claude Code、Codex 的 WakaTime plugin 用 PATH 上的 node 跑 hook,Windows 的 Node 由 mise 的 LTS 提供;

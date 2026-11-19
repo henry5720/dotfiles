@@ -51,6 +51,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [earlyoom](docs/install/earlyoom.md) | agent 吃滿記憶體、ssh 連不上：保護哪些服務、數字怎麼來、怎麼確認生效、砍了誰去哪查 |
 | [終端機字型](docs/install/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [Windows 主機](docs/install/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
+| [Windows 上的 skill](docs/install/windows-skills.md) | agent-config 的 skill 哪些在 Windows 不能用、卡在哪 |
 | [WSL 網路](docs/install/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Hyper-V](docs/install/hyper-v.md) | 在 Windows 上開一台 Windows VM：建 VM、不登入微軟帳號、NAT 與橋接、主機傳檔進 VM |
 | [Herdr notifications](docs/ai-agent/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
