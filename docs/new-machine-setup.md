@@ -117,8 +117,8 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
 3. 在原生 Termux 跑第 2 步 Termux 那行。要用手機儲存空間時另外跑 `termux-setup-storage`（會跳 Android 權限對話框）。
 4. 裝 [Tailscale 的 Android app](https://tailscale.com/download/android) 並登入：Termux 裡裝不了 tailscale
    （選單上標裝不了），整台平板由這個 app 上 tailnet。
-5. 要讓別台 ssh 進來：放好 SSH key（第 2.2 節）後在 Termux 跑 `sshd`
-   （聽 8022 port）。sshd 不會自己開機啟動，Termux 被關掉後要再跑一次。
+5. 要讓別台 ssh 進來：放好 SSH key（第 2.2 節）後開 sshd，
+   見[開 sshd〈Termux〉](remote-access/sshd.md#termux)。
 6. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
 7. 要 proot Ubuntu（開發環境放這裡）：
