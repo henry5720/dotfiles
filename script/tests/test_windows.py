@@ -46,9 +46,9 @@ USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 s
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
-# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI,加 winget 裝的 tailscale
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale"}
 
 
 def parse_jsonc(text):
@@ -73,7 +73,12 @@ class WindowsDeployTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def chezmoi(self, os_name, *args, data=None):
-        override = {"chezmoi": {"os": os_name, "homeDir": str(self.home)}} | (data or {})
+        info = {"os": os_name, "homeDir": str(self.home)}
+        if os_name == "windows":
+            # 真的 Windows 沒有 kernel 欄位。在 WSL 跑測試時它帶著 microsoft,is-wsl 會把這台也算成 wsl,
+            # tailscale 變成「不建議」而掉出預設組合
+            info["kernel"] = {"osrelease": ""}
+        override = {"chezmoi": info} | (data or {})
         return subprocess.run([
             "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(self.cfg),
             "--destination", str(self.home), "--override-data", json.dumps(override), *args,
@@ -140,6 +145,14 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_mise_skips_unsupported_and_winget_tools(self):
         # zoxide 不看勾選;tailscale 走 winget;claude 裝不了(它的 poppler 也不裝)
         self.assertEqual(self.mise_list(["tailscale", "claude", "btop", "gh"]), {"zoxide", "gh"})
+
+    def test_windows_herdr_installs_with_mise(self):
+        # herdr 有 Windows 版,mise 的 registry 有它(#309);Linux 走官方 installer,不進 mise 清單
+        self.assertEqual(self.mise_list(["herdr"]), {"zoxide", "herdr"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["herdr"]})
+        self.assertNotIn("herdr", linux)
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
