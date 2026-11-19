@@ -156,6 +156,11 @@ toolPackages:
     # 官方 zip 只附 vc_redist.x64.exe 不附 DLL,由 winget 裝(machine scope,會跳 UAC)
     snapclient:
       - Microsoft.VCRedist.2015+.x64
+    # Windows 的 Chrome 本身就能 --headless,playwright-cli 預設的 chrome channel 也找它(#327)。
+    # 用 Google 一般 installer 的 Google.Chrome.EXE、不用企業版 MSI 的 Google.Chrome:從官網裝的 Chrome
+    # 在 winget list 對到的是 .EXE(2026-11-19 lianghua 實查),用另一個 id 會在已經有 Chrome 的機器再裝一份
+    headless-chrome:
+      - Google.Chrome.EXE
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。

@@ -10,7 +10,7 @@
 
 | Chrome | 在哪一台 | 什麼時候用 | agent 怎麼接 | 人怎麼看 | 分頁 |
 |---|---|---|---|---|---|
-| [headless](#headlessagent-自己的瀏覽器) | 已配置主機 | 預設：agent 自己操作、驗收、查原因 | `playwright-cli open`；查原因時開在 9222 給 chrome-devtools-mcp | `playwright-cli show`（9377） | 多個 |
+| [headless](#headlessagent-自己的瀏覽器) | 已配置主機（agent 跑在 Windows 主機時就是那台） | 預設：agent 自己操作、驗收、查原因 | `playwright-cli open`；查原因時開在 9222 給 chrome-devtools-mcp | `playwright-cli show`（9377） | 多個 |
 | [獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome) | 個人電腦（任一台都行） | 你坐在前面，要 agent 在你看得到的 Chrome 做事 | CDP 9222：`playwright-cli attach --cdp`、chrome-devtools-mcp | 就是你眼前的視窗 | 多個 |
 | [插件](#插件獨立-profile日常-profile-都能裝) | 個人電腦（獨立 profile 或日常 profile） | 一定要日常 profile 裡的東西（passkey、硬體金鑰、裝置 SSO），或你不在 tailnet | 插件 relay 9555：`personal-chrome-attach`（tailnet 外加 `--tunnel`） | 就是你眼前的視窗 | 多個（收在一個分頁群組） |
 
@@ -63,6 +63,11 @@
 要讓 tailnet 外的人看你的瀏覽器畫面，用會議軟體分享螢幕。
 
 ## headless：agent 自己的瀏覽器
+
+agent 跑在 Windows 主機上時也一樣：勾 `headless-chrome`、`playwright-cli`（[Windows 主機](../install/windows.md#裝了什麼怎麼用)），
+`playwright-cli open` 用的是那台本來就有的 `chrome.exe`、開在臨時的資料夾，不碰日常 profile，也不佔 9222。
+查原因要 9222 時，在那台照[獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome)開 Chrome，不用 ssh 轉發，chrome-devtools-mcp 直接接本機的 9222。
+下面的 bash 指令是 Linux 的；`playwright-cli` 的指令在 PowerShell 一樣打。
 
 **操作、驗收**（不佔 9222）：
 

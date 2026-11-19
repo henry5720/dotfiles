@@ -8,6 +8,9 @@
        snapclient 勾了也列(#326):Linux 走 apt。mise registry 沒有 Snapcast,用 github backend 點名官方 release 的
        snapclient_win64.zip;壓縮檔根目錄還有 vc_redist.x64.exe,filter_bins 只讓 snapclient.exe 上 PATH
        (https://mise.jdx.dev/dev-tools/backends/github.html#filter-bins)。它要的 VC++ runtime 見 toolPackages.windows。
+       playwright-cli 勾了列 npm backend 的 @playwright/cli(#327):官方裝法是 npm 全域套件,Windows 沒有 nvm;
+       Linux 照舊 npm-install-playwright-cli。要 Node 的工具(needs-node)勾了,沒勾 node 也列 LTS:
+       mise 會先裝 node 再裝 npm backend 的工具(https://mise.jdx.dev/dev-tools/backends/npm.html)。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
        - 其他:apt 用不了(.chezmoitemplates/use-mise)而且系統找不到它的指令才列。
@@ -24,7 +27,7 @@
 {{ $m.tool | quote }} = "latest"
 {{-   end -}}
 {{- end -}}
-{{- if has "node" $installing }}
+{{- if includeTemplate "needs-node" . }}
 "node" = "lts"
 {{- end -}}
 {{- if has "herdr" $installing }}
@@ -32,6 +35,9 @@
 {{- end -}}
 {{- if has "snapclient" $installing }}
 "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
+{{- end -}}
+{{- if has "playwright-cli" $installing }}
+"npm:@playwright/cli" = "latest"
 {{- end -}}
 {{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
