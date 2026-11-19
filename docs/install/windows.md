@@ -55,13 +55,13 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | gh、cloudflared、ttyd、ffmpeg | mise | 完整或自己勾 | |
 | node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 用 nvm 裝，Windows 改用 mise |
 | herdr | mise | 完整或自己勾 | 終端機多工，不搭 coding agent 也能用：`herdr` 開、`ctrl+b q` 離開、再打 `herdr` 接回去 |
+| snapclient | mise（官方 release 的 zip）＋ winget（VC++ runtime） | 完整或自己勾 | 收聽朗讀串流：`snapclient --host <tailnet IP>`；VC++ runtime 會跳 UAC。見 [voice-out](../remote-access/voice-out.md#windows) |
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
 
 zsh、btop、code-server、coding agent（claude、codex、opencode）、codegraph、wakatime、headless-chrome、
-playwright-cli、agent-config、snapserver、snapclient 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+playwright-cli、agent-config、snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
-snapclient 例外：winget 沒有，但官方有 Windows 版，手動下載（見 [voice-out](../remote-access/voice-out.md#windows手動下載)）。
 
 要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
 移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`。

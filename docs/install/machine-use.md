@@ -46,9 +46,9 @@ WSL 的 `snapserver`（抓不到自己的 tailnet IP）；proot Ubuntu 的 `snap
 還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`code-server`、`claude`、`codex`、`opencode`、`herdr`、
 `agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
 `snapserver` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、非 Debian 系都裝不了。
-`snapclient` 在 Windows（winget 沒有，手動下載）、非 Debian 系裝不了。
+`snapclient` 在非 Debian 系 Linux 裝不了（Windows 由 mise 裝官方 release 的 zip）。
 `earlyoom` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、WSL（記憶體由 `.wslconfig` 管）、非 Debian 系都裝不了。
-Windows 主機只有 mise 裝得到的 CLI（`btop` 除外，`node` 裝 LTS）和 `tailscale` 可裝，其餘標裝不了、到 WSL 裝（見[Windows 主機](windows.md#裝了什麼怎麼用)）。
+Windows 主機只有 mise 裝得到的 CLI（`btop` 除外，`node` 裝 LTS，`snapclient` 裝官方 release 的 zip）和 `tailscale` 可裝，其餘標裝不了、到 WSL 裝（見[Windows 主機](windows.md#裝了什麼怎麼用)）。
 macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
 [`home/.chezmoitemplates/tool-env`](../../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
 

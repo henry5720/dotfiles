@@ -5,6 +5,9 @@
        (沒有 apt,不看 always;這台裝不了的不算)。node 勾了列 LTS(Linux 用 nvm 裝,不在 miseTools)。
        herdr 勾了也列(#309):Linux、macOS 走官方 installer(install-herdr),放進 miseTools 的話
        沒有 apt 的 Linux 會兩邊各裝一份,所以只寫在 Windows 這段。
+       snapclient 勾了也列(#326):Linux 走 apt。mise registry 沒有 Snapcast,用 github backend 點名官方 release 的
+       snapclient_win64.zip;壓縮檔根目錄還有 vc_redist.x64.exe,filter_bins 只讓 snapclient.exe 上 PATH
+       (https://mise.jdx.dev/dev-tools/backends/github.html#filter-bins)。它要的 VC++ runtime 見 toolPackages.windows。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
        - 其他:apt 用不了(.chezmoitemplates/use-mise)而且系統找不到它的指令才列。
@@ -26,6 +29,9 @@
 {{- end -}}
 {{- if has "herdr" $installing }}
 "herdr" = "latest"
+{{- end -}}
+{{- if has "snapclient" $installing }}
+"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
 {{- end -}}
 {{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}

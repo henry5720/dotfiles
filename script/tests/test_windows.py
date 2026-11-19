@@ -46,9 +46,10 @@ USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 s
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
-# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326 見 mise-tools),
+# 加 winget 裝的 tailscale
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "snapclient", "tailscale"}
 
 
 def parse_jsonc(text):
@@ -187,17 +188,21 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("zsh", decoded)
         self.assertNotIn("fzf", decoded)
 
-    def test_windows_skip_summary_points_snapclient_to_manual_zip(self):
-        # winget 沒有 snapclient(#292):勾了就略過,原因帶手動做法(官方 zip 寫在 voice-out 主題文件)
-        out = self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["snapclient"])
-        self.assertEqual(out, out.encode("ascii", "strict").decode("ascii"))
-        decoded = "\n".join(base64.b64decode(b).decode("utf-8")
-                            for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
-        self.assertIn("snapclient", decoded)
-        self.assertIn("winget 沒有 snapclient", decoded)
-        self.assertIn("snapclient_win64.zip", decoded)
-        self.assertNotIn("snapclient", self.render(SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl",
-                                                   ["snapclient"]))
+    def test_windows_snapclient_installs_official_zip_with_mise_and_vcredist(self):
+        # 官方 release 的 snapclient_win64.zip(#326):mise github backend 點名這個 asset,只把 snapclient.exe
+        # 放上 PATH;exe 要 MSVC runtime、壓縮檔沒附那幾個 DLL,VC++ redistributable 由 winget 裝。勾了不再算略過
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["snapclient"])
+        self.assertIn('"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", '
+                      'filter_bins = "snapclient.exe" }', out)
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Microsoft.VCRedist.2015+.x64'", self.render(winget, ["snapclient"]))
+        self.assertNotIn("VCRedist", self.render(winget, []))
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["snapclient"]).strip(), "")
+        # Linux 照舊 apt,不進 mise 清單
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["snapclient"]})
+        self.assertNotIn("snapcast", linux)
 
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁

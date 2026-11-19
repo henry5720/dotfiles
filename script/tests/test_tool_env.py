@@ -513,7 +513,7 @@ exit 0
     # snapclient(#292):個人電腦用 CLI 收聽朗讀串流
     # ===============================================================
     def test_snapclient_menu_states_per_environment(self):
-        # apt、Termux 的 pkg、brew 都有;winget 沒有,非 Debian 系沒有 apt;proot 沒有音效裝置
+        # apt、Termux 的 pkg、brew 都有;Windows 由 mise 裝官方 zip(#326);非 Debian 系沒有 apt;proot 沒有音效裝置
         expected = {
             "ubuntu": ({}, None),
             "arm": (ARM, None),
@@ -522,7 +522,7 @@ exit 0
             "android": (ANDROID, None),
             "proot": (PROOT, "不建議"),
             "fedora": (FEDORA, "裝不了"),
-            "windows": ({"chezmoi": {"os": "windows"}}, "裝不了"),
+            "windows": ({"chezmoi": {"os": "windows"}}, None),
         }
         for name, (env, mark) in expected.items():
             with self.subTest(env=name):
@@ -532,9 +532,6 @@ exit 0
                     self.assertNotIn("（裝不了：", line)
                 else:
                     self.assertIn(f"（{mark}：", line)
-        windows = next(l for l in self.labels({"chezmoi": {"os": "windows"}}) if l.startswith("snapclient "))
-        self.assertIn("winget 沒有", windows)
-        self.assertIn("snapclient_win64.zip", windows)
 
     def test_snapclient_package_per_platform(self):
         # apt 的 snapclient、Termux 的 snapcast-client(主 repo 的 subpackage,靠 pulseaudio)、brew 的 snapcast
