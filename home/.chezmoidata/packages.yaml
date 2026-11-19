@@ -170,7 +170,7 @@ toolPackages:
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
 # 判斷在 .chezmoitemplates/needs-node。
 #   node:選單上的 Node LTS(Linux、macOS 用 nvm;Termux 用 pkg 的 nodejs-lts)
-#   codegraph、playwright-cli:npm 全域套件
+#   codegraph、playwright-cli:npm 全域套件(Windows 的 codegraph 是自帶 Node 的 release bundle,不算,見 needs-node)
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
 nodeTools:

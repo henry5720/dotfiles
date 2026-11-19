@@ -68,11 +68,12 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
 | playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
 | opencode | mise（npm backend 的 `opencode-ai`，會一併列 Node LTS） | 完整或自己勾 | OpenCode 沒有 Windows 的 `install.ps1`，官方文件列了 npm 與 mise；`opencode-ai` 是 OpenCode 1，跟 Linux 那份同一個大版本。更新跑 `mise upgrade`（`opencode upgrade` 認不出 mise 裝的）。設定見上面的部署表；commit 指引、MCP 要勾 agent-config |
+| codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見下面〈codegraph〉 |
 | agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 | codex | 官方 [`install.ps1`](https://learn.chatgpt.com/docs/codex/cli)（Windows 分頁） | 完整或自己勾 | 裝到 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`（本體在 `%USERPROFILE%\.codex\packages\standalone`），installer 自己把它加進使用者 PATH；更新打 `codex update`，開 `codex` 時有新版也會問要不要更新（兩者都是重跑官方 install.ps1）；第一次打 `codex` 照瀏覽器登入。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 
-zsh、btop、code-server、codegraph、wakatime、
+zsh、btop、code-server、wakatime、
 snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
@@ -90,6 +91,20 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemp
 官方那份在使用者 PATH，打 `codex` 會先找到 mise 那份，而它不會自己更新、`codex update` 也認不出安裝方式。
 `mise ls` 找出那一項的名字（例如 `codex`、`npm:@openai/codex`），`mise unuse -g <那一項>` 從設定拿掉並移除，
 再開新的 shell 確認 `(Get-Command codex).Source` 是 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`。
+
+### codegraph
+
+官方的 Windows 裝法是 `install.ps1` 或 npm，加上 mise 三種裝的都是同一個 release bundle。這裡用 mise（#323）：
+mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定（`command: codegraph`）不經 shell 也找得到；
+`install.ps1` 只在 PATH 放 `codegraph.cmd`。
+
+**Windows 上不要跑 `codegraph install -t claude`。** 它在 `~/.claude/settings.json` 加的 `UserPromptSubmit` hook
+在 Windows 寫成 `codegraph.cmd prompt-hook`（Claude Code 用 Git Bash 跑 hook，Git Bash 不補 `.cmd`，上游 #1466），
+mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
+少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
+
+同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
+Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
 
 ### agent-config（skillshare）
 

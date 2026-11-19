@@ -66,7 +66,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
-| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md) |
+| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#codegraph) |
 | headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
 | playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
 | node | nvm＋Node LTS，給要 Node 的工具 | `node -v` | [nvm](https://github.com/nvm-sh/nvm) | |
