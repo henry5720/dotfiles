@@ -49,6 +49,11 @@
 !AppData/Roaming/skillshare
 !AppData/Roaming/skillshare/config.yaml
 {{ end }}
+{{ if has "wakatime" (splitList " " (includeTemplate "tools-to-install" .)) }}
+# WakaTime 的 API key(#324):兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,跟 Linux 同一份;
+# 沒填 key 時樣板渲染成空的,chezmoi 不部署
+!.wakatime.cfg
+{{ end }}
 # 安裝腳本:winget 裝 app、mise 裝 CLI、最後列出略過的(.chezmoiscripts/*.ps1,只有 Windows 有)
 !.chezmoiscripts
 !.chezmoiscripts/*.ps1

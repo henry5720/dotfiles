@@ -56,7 +56,8 @@ tailscale:
        Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
        app 用 winget(toolPackages.windows),node、herdr、snapclient、playwright-cli 也由 mise 裝(mise-tools);
        claude、codex 走官方 install.ps1(run_onchange_after_install-claude.ps1 #316、-codex.ps1 #317);opencode 沒有 install.ps1,走 mise(#318);
-       agent-config 的 skillshare 也走官方 install.ps1(run_onchange_after_install-agent-config.ps1,#321)。
+       agent-config 的 skillshare 也走官方 install.ps1(run_onchange_after_install-agent-config.ps1,#321);
+       wakatime 放 wakatime-cli 到官方位置、為有勾的 agent 裝 plugin(run_onchange_after_install-wakatime.ps1,#324)。
        其他工具這裡只有 sh 安裝腳本、沒在 Windows 驗過,Windows 標裝不了,到 WSL 裝。 */}}
 zsh:
   - when: [windows]
@@ -109,10 +110,6 @@ codegraph:
   - when: [android]
     state: unsupported
     reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
-wakatime:
-  - when: [windows]
-    state: unsupported
-    reason: 它是 Claude Code、Codex 的 plugin，Windows 的裝法還沒做（#324），到 WSL 裝
 {{- /* snapserver(#290):apt 裝、voice-out 包 systemd user service、服務只綁 tailscale ip -4 的位址;
        朗讀指令的 edge-tts 用 mise 裝的 uv 跑。 */}}
 snapserver:

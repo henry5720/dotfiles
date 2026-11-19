@@ -78,7 +78,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 | ffmpeg | 影音轉檔、抽音軌與影格 | `ffmpeg -i 輸入.mov 輸出.mp4` | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | |
 | snapserver | 朗讀串流服務：agent 的回覆唸到開著 Snapcast 的個人電腦 | `voice-out on`、`voice-out off` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md) |
 | snapclient | 在個人電腦（Linux、macOS、Windows、Termux）收聽朗讀串流 | `snapclient --host <tailnet IP>` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md#桌機筆電termuxsnapclient) |
-| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md) |
+| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
 | earlyoom | 記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU | 不用打指令；砍了誰：`journalctl -u earlyoom` | [earlyoom](https://github.com/rfjakob/earlyoom) | [earlyoom](install/earlyoom.md) |
 
 ## 自寫指令

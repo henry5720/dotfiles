@@ -19,6 +19,7 @@ git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `ho
 | `home/Documents/WindowsPowerShell/Profile.ps1.tmpl` | `Documents\WindowsPowerShell\Profile.ps1` | Windows PowerShell 5.1 的 all-hosts profile |
 | `home/dot_config/opencode/modify_private_opencode.json.tmpl`、`oh-my-opencode-slim.json` | `%USERPROFILE%\.config\opencode\` | 勾了 opencode 才部署，跟 Linux 同一份設定（provider、model、plugin、oh-my-opencode-slim 的 preset）；`opencode.json` 的 `mcp` 照現有檔案留著。`routes\personal` 不部署（`opencode-personal` 只有 Linux） |
 | `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
+| `home/private_dot_wakatime.cfg.tmpl`（勾了 wakatime、填了 API key 才部署） | `%USERPROFILE%\.wakatime.cfg` | WakaTime 的 API key，跟 Linux 同一份；兩個 plugin 都讀這裡 |
 | `home/AppData/Roaming/skillshare/modify_config.yaml`（勾了 agent-config 才部署） | `%AppData%\skillshare\config.yaml` | skillshare 的設定：只釘 `targets`、`extras` 兩段（照勾的 client 產生，跟 Linux 同一份樣板，路徑換成 Windows 的），其餘照 skillshare 寫的保留 |
 
 apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不會到 Windows）：
@@ -30,6 +31,7 @@ after   install-agent-config.ps1       勾了 agent-config 才跑：官方 insta
 after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
 after   install-codex.ps1              勾了 codex 才跑：下載官方 install.ps1 再執行（已經有 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   install-wakatime.ps1           勾了 wakatime 才跑：wakatime-cli 放到 .wakatime\（已經有就跳過），再為勾了的 claude、codex 裝 WakaTime plugin（已裝就跳過）
 after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
 ```
@@ -71,8 +73,9 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 | codex | 官方 [`install.ps1`](https://learn.chatgpt.com/docs/codex/cli)（Windows 分頁） | 完整或自己勾 | 裝到 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`（本體在 `%USERPROFILE%\.codex\packages\standalone`），installer 自己把它加進使用者 PATH；更新打 `codex update`，開 `codex` 時有新版也會問要不要更新（兩者都是重跑官方 install.ps1）；第一次打 `codex` 照瀏覽器登入。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
+| wakatime | 官方 release 的 zip 放到 `%USERPROFILE%\.wakatime\`（不走 mise）＋ 勾了的 agent 用官方的兩行指令裝 plugin（會一併列 Node LTS） | 完整或自己勾 | 跟 Linux 一樣，見 [WakaTime](../ai-agent/wakatime.md)。plugin 只認 `.wakatime\wakatime-cli-windows-<arch>.exe`，之後由 plugin 自己更新；`wakatime-cli.exe` 是複製一份（Linux 是 symlink）。plugin 的 hook 用 PATH 上的 `node`（mise 的 shims，PowerShell profile 加進 PATH），從不讀 profile 的地方開 agent 可能找不到 node、送不出紀錄 |
 
-zsh、btop、code-server、codegraph、wakatime、
+zsh、btop、code-server、codegraph、
 snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。

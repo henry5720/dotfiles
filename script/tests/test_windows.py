@@ -42,10 +42,14 @@ WINDOWS_SCRIPTS = {
     # agent-config(#321):官方 install.ps1 裝 skillshare、init;config 釘的兩段變了就 sync
     ".chezmoiscripts/install-agent-config.ps1",
     ".chezmoiscripts/sync-skillshare.ps1",
+    # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
+    ".chezmoiscripts/install-wakatime.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
 # skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
 SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
+# WakaTime 的 API key(#324),兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,勾了 wakatime 才部署
+WAKATIME_CFG = ".wakatime.cfg"
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 SCRIPTS = ROOT / "home/.chezmoiscripts"
@@ -59,10 +63,11 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
-# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318)
+# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),
+# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
-                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config"}
+                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "wakatime"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -117,9 +122,11 @@ class WindowsDeployTest(unittest.TestCase):
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
         opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
-        for tools, extra in (([], set()), (WINDOWS_LEAN, set()), (sorted(WINDOWS_FULL), opencode | skillshare),
+        wakatime = {WAKATIME_CFG}
+        for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
+                             (sorted(WINDOWS_FULL), opencode | skillshare | wakatime),
                              (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
-                             (["agent-config"], skillshare)):
+                             (["agent-config"], skillshare), (["wakatime"], wakatime)):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
 
@@ -240,6 +247,12 @@ class WindowsDeployTest(unittest.TestCase):
                              data={"tools": ["opencode"]})
         self.assertNotIn("opencode", linux)
 
+    def test_windows_wakatime_brings_node_lts_for_plugin_hooks(self):
+        # #324:Claude Code、Codex 的 WakaTime plugin 用 PATH 上的 node 跑 hook,Windows 的 Node 由 mise 的 LTS 提供;
+        # wakatime-cli 不進 mise:plugin 只認 ~/.wakatime 底下官方位置那支
+        self.assertEqual(self.mise_list(["wakatime"]), {"zoxide", "node"})
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["wakatime"]).strip(), "")
+
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["node"])
@@ -337,6 +350,64 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertLess(out.index("$env:CODEX_NON_INTERACTIVE = '1'"), out.index("& $installer"))
 
     # ===============================================================
+    # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
+    # ===============================================================
+    WAKATIME_SCRIPT = SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl"
+
+    def test_windows_wakatime_script_empty_when_not_ticked(self):
+        for tools in ([], WINDOWS_LEAN, ["claude", "codex"]):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.render(self.WAKATIME_SCRIPT, tools).strip(), "")
+
+    def test_windows_wakatime_cli_goes_to_official_location(self):
+        # 兩個 plugin 找 %USERPROFILE%\.wakatime\wakatime-cli-windows-<arch>.exe(官方 release 的 zip 裡就是這個檔名);
+        # 已經有就跳過,在下載之前
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime"])
+        self.assertIn("$dir = Join-Path $HOME '.wakatime'", out)
+        self.assertIn("'wakatime-cli-windows-amd64.exe'", out)
+        url = "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-windows-amd64.zip"
+        download = out.index(url)
+        self.assertLess(out.index("Test-Path $bin"), download)
+        self.assertIn("-OutFile", out[download:])
+        self.assertLess(download, out.index("Expand-Archive"))
+        # codex 的 plugin 在 Windows 把 wakatime-cli.exe 做成複製(Linux 是 symlink)
+        self.assertIn("Join-Path $dir 'wakatime-cli.exe'", out)
+
+    def test_windows_wakatime_plugins_only_for_ticked_agents(self):
+        claude = "plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git"
+        codex = "plugin marketplace add wakatime/codex-cli-wakatime"
+        for tools, want in ((["wakatime"], set()), (["wakatime", "claude"], {claude}),
+                            (["wakatime", "codex"], {codex}), (["wakatime", "claude", "codex"], {claude, codex})):
+            with self.subTest(tools=tools):
+                out = self.render(self.WAKATIME_SCRIPT, tools)
+                self.assertEqual({c for c in (claude, codex) if c in out}, want)
+
+    def test_windows_wakatime_plugins_skip_when_installed(self):
+        # 已裝就跳過(重跑也只印 already,但會連 GitHub);判斷照 plugin list --json 的欄位,同 Linux
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime", "claude", "codex"])
+        for listing, plugin_id, install in (
+                ("Get-PluginList $claude", "'claude-code-wakatime@wakatime'",
+                 "& $claude plugin install claude-code-wakatime@wakatime"),
+                ("(Get-PluginList $codex).installed", "'codex-cli-wakatime@wakatime'",
+                 "& $codex plugin add codex-cli-wakatime@wakatime")):
+            with self.subTest(plugin=plugin_id):
+                self.assertLess(out.index(listing), out.index(plugin_id))
+                self.assertLess(out.index(plugin_id), out.index(install))
+        # 找不到 agent 時找官方 installer 裝的位置(chezmoi 跑腳本的 PATH 不一定有)
+        self.assertIn(r"Join-Path $HOME '.local\bin\claude.exe'", out)
+        self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'", out)
+
+    def test_windows_wakatime_cfg_only_with_api_key(self):
+        # 沒填 API key(或沒問過)時渲染成空的,chezmoi 不部署,apply 不失敗
+        target = str(self.home / WAKATIME_CFG)
+        self.assertEqual(self.chezmoi("windows", "cat", target, data={"tools": ["wakatime"]}).strip(), "")
+        self.assertEqual(self.chezmoi("windows", "cat", target,
+                                      data={"tools": ["wakatime"], "wakatimeApiKey": ""}).strip(), "")
+        self.assertIn("api_key = waka_fixture",
+                      self.chezmoi("windows", "cat", target,
+                                   data={"tools": ["wakatime"], "wakatimeApiKey": "waka_fixture"}))
+
+    # ===============================================================
     # agent-config:官方 install.ps1 裝 skillshare,init 後 sync(#321)
     # ===============================================================
     AGENT_SCRIPTS = (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl",
@@ -395,6 +466,7 @@ class WindowsDeployTest(unittest.TestCase):
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
                             (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
                             (SCRIPTS / "run_onchange_after_install-codex.ps1.tmpl", ["codex"]),
+                            (SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl", ["wakatime", "claude", "codex"]),
                                                         (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
                             (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
