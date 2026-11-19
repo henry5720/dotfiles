@@ -33,6 +33,8 @@ WINDOWS_TARGETS = {
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
     ".chezmoiscripts/install-mise.ps1",
+    # 官方 install.ps1 裝的 coding agent(#316);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
+    ".chezmoiscripts/install-claude.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
@@ -46,9 +48,10 @@ USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 s
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
-# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale,
+# 加官方 install.ps1 裝的 coding agent(claude #316)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale", "claude"}
 
 
 def parse_jsonc(text):
@@ -91,7 +94,8 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 勾什麼都一樣:裝不了的(zsh、claude)也不會放行 sh 腳本或設定目錄
+        # 勾什麼都一樣:裝不了的(zsh、agent-config)也不會放行 sh 腳本或設定目錄;
+        # claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本
         files = WINDOWS_TARGETS | parents(WINDOWS_TARGETS)
         for tools in ([], WINDOWS_LEAN, sorted(WINDOWS_FULL), ["zsh", "claude", "agent-config", "tailscale"]):
             with self.subTest(tools=tools):
@@ -143,8 +147,13 @@ class WindowsDeployTest(unittest.TestCase):
                          {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "zoxide"})
 
     def test_windows_mise_skips_unsupported_and_winget_tools(self):
-        # zoxide 不看勾選;tailscale 走 winget;claude 裝不了(它的 poppler 也不裝)
-        self.assertEqual(self.mise_list(["tailscale", "claude", "btop", "gh"]), {"zoxide", "gh"})
+        # zoxide 不看勾選;tailscale 走 winget;btop 裝不了
+        self.assertEqual(self.mise_list(["tailscale", "btop", "gh"]), {"zoxide", "gh"})
+
+    def test_windows_claude_brings_poppler_for_pdf_pages(self):
+        # Claude Code 照頁數讀 PDF 要 pdftoppm,官方要 Windows 自己裝一份 poppler(#316):
+        # 勾 claude 就由 mise 裝 conda 的 poppler;claude 本體走官方 install.ps1,不進 mise
+        self.assertEqual(self.mise_list(["claude"]), {"zoxide", "poppler"})
 
     def test_windows_herdr_installs_with_mise(self):
         # herdr 有 Windows 版,mise 的 registry 有它(#309);Linux 走官方 installer,不進 mise 清單
@@ -177,12 +186,12 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_skip_summary_lists_unsupported_ticked_tools(self):
         script = SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl"
         self.assertEqual(self.render(script, WINDOWS_LEAN).strip(), "")
-        out = self.render(script, ["claude", "zsh", "fzf"])
+        out = self.render(script, ["codex", "zsh", "fzf"])
         # 中文訊息用 base64 放進腳本(渲染結果只能有 ASCII,見下一個測試)
         decoded = "\n".join(base64.b64decode(b).decode("utf-8")
                             for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
         self.assertIn("== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):", decoded)
-        self.assertIn("claude", decoded)
+        self.assertIn("codex", decoded)
         self.assertIn("安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝", decoded)
         self.assertIn("zsh", decoded)
         self.assertNotIn("fzf", decoded)
@@ -199,11 +208,37 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertNotIn("snapclient", self.render(SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl",
                                                    ["snapclient"]))
 
+    # ===============================================================
+    # coding agent:官方 install.ps1(#316 claude;codex、opencode 照抄這組)
+    # ===============================================================
+    def test_windows_claude_script_empty_when_not_ticked(self):
+        script = SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl"
+        for tools in ([], WINDOWS_LEAN, ["codex"]):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.render(script, tools).strip(), "")
+
+    def test_windows_claude_script_downloads_official_installer_then_runs_it(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"])
+        # 先下載成檔案再跑:接 pipe(irm | iex)的話下載失敗看不出來
+        self.assertNotIn("| iex", out)
+        self.assertNotIn("Invoke-Expression", out)
+        download = out.index("https://claude.ai/install.ps1")
+        self.assertIn("-OutFile", out[download:])
+        self.assertLess(download, out.index("& $installer"))
+
+    def test_windows_claude_script_skips_when_native_install_exists(self):
+        # 只認官方裝的位置:mise、winget 那份(PATH 上的 claude)不算,不然會被它擋住而不裝官方版
+        out = self.render(SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"])
+        self.assertIn(r"Test-Path (Join-Path $HOME '.local\bin\claude.exe')", out)
+        self.assertLess(out.index("Test-Path"), out.index("https://claude.ai/install.ps1"))
+        self.assertNotIn("Get-Command claude", out)
+
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
-                            (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["claude", "zsh"]),
+                            (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
+                            (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["codex", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):
                 out = self.render(path, tools)
@@ -273,7 +308,7 @@ class WindowsDeployTest(unittest.TestCase):
         menu = {l.split(" ")[0] for l in labels}
         marked = {l.split(" ")[0] for l in labels if "（裝不了：" in l}
         self.assertEqual(menu - marked, WINDOWS_FULL)
-        self.assertTrue({"zsh", "btop", "headless-chrome", "claude"} <= marked)
+        self.assertTrue({"zsh", "btop", "headless-chrome", "codex"} <= marked)
 
     def test_windows_runs_ps1_scripts_with_powershell_bypassing_policy(self):
         # 第一次 init 時 pwsh 可能還沒裝、執行原則可能是 Restricted:固定用 5.1,只對這個 process 繞過執行原則

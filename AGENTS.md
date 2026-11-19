@@ -108,6 +108,12 @@ config 樣板的 windows 分支)時:
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
 | 7 | 改到 config 樣板、`tool-env`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 |
 | 8 | 改到 `.ps1` 腳本、`packages.yaml`、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 |
+| 9 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 |
+| 10 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 |
+| 11 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 |
+| 12 | 改到 agent-config | `skillshare status`;在 agent 裡打 `/` 與看 MCP 清單 | targets 已同步、指令檔到位;看得到 skill 與 MCP |
+
+互動登入、實際開一個 agent session 要人做,agent 不代做。
 
 在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
 `chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
@@ -146,6 +152,10 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 - 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)
   或 context7)有沒有現成做法,有就照官方做;偏離官方時,在那個檔案的註解或 issue 寫下理由。
   這個 repo 曾經自己寫一支安裝腳本重做官方一行指令就有的事(#168)
+- 改某個工具的裝法(新增、換裝法、標或拿掉「裝不了」)之前,也查那個工具自己的官方安裝文件:
+  每個 OS 怎麼裝、裝到哪、怎麼更新。裝法照 [ADR 0005](docs/adr/0005-install-method-by-tool-kind.md) 分;
+  結論附出處 URL 寫進 issue,原因是「還沒做」的「裝不了」要附 issue 編號。herdr 在 Windows 標了「沒有 Windows 版」,
+  沒人回頭查,其實早就有(#309)
 - `docs/superpowers/` 是歷史紀錄(當初的 spec / plan),**不是現況**,別當根據
 
 ## 註解樣式
