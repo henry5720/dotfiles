@@ -29,6 +29,9 @@ WINDOWS_TARGETS = {
     # PowerShell 版的 tools
     ".local/bin/tools.ps1",
 }
+# 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
+# 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
+OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
@@ -36,8 +39,13 @@ WINDOWS_SCRIPTS = {
     # 官方 install.ps1 裝的 coding agent(claude #316、codex #317);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
     ".chezmoiscripts/install-claude.ps1",
     ".chezmoiscripts/install-codex.ps1",
+    # agent-config(#321):官方 install.ps1 裝 skillshare、init;config 釘的兩段變了就 sync
+    ".chezmoiscripts/install-agent-config.ps1",
+    ".chezmoiscripts/sync-skillshare.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
+# skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
+SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 SCRIPTS = ROOT / "home/.chezmoiscripts"
@@ -51,9 +59,10 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
+# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
-                "headless-chrome", "playwright-cli", "claude", "codex"}
+                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -102,12 +111,17 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 勾什麼都一樣:裝不了的(zsh、agent-config)也不會放行 sh 腳本或設定目錄;
-        # claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本
-        files = WINDOWS_TARGETS | parents(WINDOWS_TARGETS)
-        for tools in ([], WINDOWS_LEAN, sorted(WINDOWS_FULL), ["zsh", "claude", "agent-config", "tailscale"]):
+        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
+        # opencode、agent-config 勾了才放它們的設定;Linux 那份 ~/.config/skillshare 永遠不放
+        # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
+        base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
+        opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
+        skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
+        for tools, extra in (([], set()), (WINDOWS_LEAN, set()), (sorted(WINDOWS_FULL), opencode | skillshare),
+                             (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
+                             (["agent-config"], skillshare)):
             with self.subTest(tools=tools):
-                self.assertEqual(self.managed("windows", tools), files | WINDOWS_SCRIPTS)
+                self.assertEqual(self.managed("windows", tools), base | extra)
 
     def test_linux_and_termux_skip_windows_only_targets(self):
         for os_name in ("linux", "android"):
@@ -116,6 +130,30 @@ class WindowsDeployTest(unittest.TestCase):
                     leaked = {t for t in self.managed(os_name, tools)
                               if PurePosixPath(t).parts[0] in WINDOWS_ONLY or t.endswith(".ps1")}
                     self.assertEqual(leaked, set())
+
+    def render_opencode_json(self, existing):
+        """Windows 上 chezmoi 算出的 ~/.config/opencode/opencode.json(existing = None 是檔案不存在)。"""
+        target = self.home / ".config/opencode/opencode.json"
+        if existing is not None:
+            target.parent.mkdir(parents=True)
+            target.write_text(existing, encoding="utf-8")
+        return json.loads(self.chezmoi("windows", "cat", str(target),
+                                       data={"tools": ["opencode"], "codexLbApiKey": "fixture"}))
+
+    def test_windows_opencode_json_is_repo_version_and_keeps_mcp(self):
+        # Linux 那份是 sh + jq 的 modify_ 腳本,Windows 跑不了;Windows 渲染成 modify-template(同 Terminal 的 settings.json):
+        # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
+        fresh = self.render_opencode_json(None)
+        self.assertEqual(fresh["mcp"], {})
+        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim"])
+        self.assertEqual(fresh["provider"]["codex-lb-gcp"]["options"]["apiKey"], "fixture")
+        self.assertEqual(fresh["model"], "codex-lb-gcp/gpt-6.1-sol")
+        self.assertEqual(fresh["small_model"], "codex-lb-gcp/gpt-6-luna")
+        existing = json.dumps({"mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}},
+                               "model": "someone/else", "theme": "x"})
+        kept = self.render_opencode_json(existing)
+        self.assertEqual(kept["mcp"], {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}})
+        self.assertEqual(kept, fresh | {"mcp": kept["mcp"]})
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -191,6 +229,17 @@ class WindowsDeployTest(unittest.TestCase):
                              data={"tools": ["playwright-cli"]})
         self.assertNotIn("playwright", linux)
 
+    def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
+        # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
+        # 點名 opencode-ai:這個套件只有 OpenCode 1,跟 Linux 的 opencode.ai/install 同一個大版本;
+        # registry 的短名 opencode 已經指到 OpenCode 2(@opencode/cli)。它要 Node,沒勾 node 也列 LTS。
+        # Linux 照舊官方 installer,不進 mise 清單
+        self.assertEqual(self.mise_list(["opencode"]), {"zoxide", "npm:opencode-ai", "node"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["opencode"]})
+        self.assertNotIn("opencode", linux)
+
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["node"])
@@ -250,7 +299,7 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertNotIn("snapcast", linux)
 
     # ===============================================================
-    # coding agent:官方 install.ps1(#316 claude、#317 codex;opencode 加進 OFFICIAL_INSTALLERS)
+    # coding agent:官方 install.ps1(#316 claude、#317 codex)
     # ===============================================================
     def agent_script(self, tool):
         return SCRIPTS / f"run_onchange_after_install-{tool}.ps1.tmpl"
@@ -287,12 +336,67 @@ class WindowsDeployTest(unittest.TestCase):
         out = self.render(self.agent_script("codex"), ["codex"])
         self.assertLess(out.index("$env:CODEX_NON_INTERACTIVE = '1'"), out.index("& $installer"))
 
+    # ===============================================================
+    # agent-config:官方 install.ps1 裝 skillshare,init 後 sync(#321)
+    # ===============================================================
+    AGENT_SCRIPTS = (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl",
+                     SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl")
+
+    def test_windows_agent_config_scripts_empty_when_not_ticked(self):
+        for script in self.AGENT_SCRIPTS:
+            for tools in ([], WINDOWS_LEAN, ["claude"]):
+                with self.subTest(script=script.name, tools=tools):
+                    self.assertEqual(self.render(script, tools).strip(), "")
+
+    def test_windows_agent_config_skips_initialized_then_installs_official_then_inits(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        # 已經 init 過(%AppData%\skillshare\.git)就跳過,在下載之前
+        skip = out.index("Join-Path $dir '.git'")
+        self.assertIn("$dir = Join-Path $env:APPDATA 'skillshare'", out)
+        url = "https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1"
+        download = out.index(url)
+        self.assertLess(skip, download)
+        # 先下載成檔案再跑,不接 pipe
+        self.assertIn("-OutFile", out[download:])
+        self.assertNotIn("| iex", out)
+        self.assertNotIn("Invoke-Expression", out)
+        run = out.index("& $installer")
+        self.assertLess(download, run)
+        # 官方 installer 裝的位置
+        self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'", out)
+        # remote 走 HTTPS,init 不照 --targets 加,最後 sync --all(含 MCP 與指令檔)
+        self.assertIn("'https://github.com/henry5720/agent-config.git'", out)
+        steps = [out.index(s) for s in ("Invoke-Skillshare init --git-root root --remote $remote --no-copy "
+                                        "--no-skill --no-targets\n", "Invoke-Skillshare install -g\n",
+                                        "Invoke-Skillshare sync --all\n")]
+        self.assertEqual(steps, sorted(steps))
+        self.assertLess(run, steps[0])
+
+    def test_windows_agent_config_brings_git_for_skillshare_init(self):
+        # skillshare init --remote 要系統的 git;Windows 基底沒有,勾 agent-config 由 winget 裝(已經有就跳過)
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Git.Git'", self.render(winget, ["agent-config"]))
+        self.assertNotIn("Git.Git", self.render(winget, []))
+        # 剛裝的 git 不在 apply 這個 process 的 PATH:install-agent-config 先接上登錄檔的 PATH 再找 git
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"), out.index("Get-Command git"))
+
+    def test_windows_skillshare_sync_reruns_when_checked_clients_change(self):
+        # run_onchange_:釘的 targets、extras 照勾的 client 產生,勾選變了腳本內容就變,chezmoi 才重跑 sync --all
+        script = SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl"
+        only_claude = self.render(script, ["agent-config", "claude"])
+        self.assertIn("& $ss sync --all", only_claude)
+        self.assertNotEqual(only_claude, self.render(script, ["agent-config", "claude", "codex"]))
+        self.assertEqual(only_claude, self.render(script, ["agent-config", "claude", "fzf"]))
+
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
                             (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
                             (SCRIPTS / "run_onchange_after_install-codex.ps1.tmpl", ["codex"]),
+                                                        (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
+                            (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):

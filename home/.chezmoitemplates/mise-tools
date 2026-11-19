@@ -9,7 +9,12 @@
        snapclient_win64.zip;壓縮檔根目錄還有 vc_redist.x64.exe,filter_bins 只讓 snapclient.exe 上 PATH
        (https://mise.jdx.dev/dev-tools/backends/github.html#filter-bins)。它要的 VC++ runtime 見 toolPackages.windows。
        playwright-cli 勾了列 npm backend 的 @playwright/cli(#327):官方裝法是 npm 全域套件,Windows 沒有 nvm;
-       Linux 照舊 npm-install-playwright-cli。要 Node 的工具(needs-node)勾了,沒勾 node 也列 LTS:
+       Linux 照舊 npm-install-playwright-cli。
+       opencode 勾了列 npm backend 的 opencode-ai(#318):OpenCode 沒有 Windows 的 install.ps1(官方 curl installer
+       在 Windows 要 Git Bash),官方 OpenCode 1 文件列了 npm 與 mise。opencode-ai 只有 OpenCode 1,跟 Linux 的
+       opencode.ai/install 同一個大版本(設定檔通用);mise registry 的短名 opencode 已經指到 OpenCode 2 的 @opencode/cli。
+       Linux、macOS 照舊官方 installer(install-opencode)。
+       要 Node 的工具(needs-node)勾了,沒勾 node 也列 LTS:
        mise 會先裝 node 再裝 npm backend 的工具(https://mise.jdx.dev/dev-tools/backends/npm.html)。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
@@ -38,6 +43,9 @@
 {{- end -}}
 {{- if has "playwright-cli" $installing }}
 "npm:@playwright/cli" = "latest"
+{{- end -}}
+{{- if has "opencode" $installing }}
+"npm:opencode-ai" = "latest"
 {{- end -}}
 {{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}

@@ -40,6 +40,14 @@
 
 `script/tests/test_skillshare_extras.py` 驗 `modify_` 在各種勾法下的輸出、哪些設定目錄被排除，以及 skillshare sync 後只連出有勾的路徑。
 
+### Windows 主機（#321）
+
+同一套做法。skillshare 在 Windows 讀 `%AppData%\skillshare\config.yaml`，由 `home/AppData/Roaming/skillshare/modify_config.yaml`
+（modify-template，Windows 沒有 sh）釘同樣兩段；`skillshare-pinned` 照 OS 產生路徑：來源換成 `%AppData%\skillshare` 底下、
+整串用反斜線（skillshare 在 Windows 存檔就是這樣，釘成斜線會一直出 diff）。sh 版與 Go template 版的行為由
+`test_skillshare_extras.py` 拿同一批輸入比對。沒開 Developer Mode 時 skillshare 把指令檔改成複製，設定不用改；
+代價是 agent-config 的內容改了要 `skillshare sync --all` 才會更新。
+
 ## 為什麼 0002 的理由不再成立
 
 0002 不選 extras 有兩點：
