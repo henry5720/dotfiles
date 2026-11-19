@@ -17,6 +17,7 @@ git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `ho
 | `home/dot_local/bin/tools.ps1.tmpl` | `%USERPROFILE%\.local\bin\tools.ps1` | `tools` 指令：重選用途與選裝工具，勾完直接裝 |
 | `home/Documents/PowerShell/Profile.ps1.tmpl` | `Documents\PowerShell\Profile.ps1` | pwsh 7 的 all-hosts profile |
 | `home/Documents/WindowsPowerShell/Profile.ps1.tmpl` | `Documents\WindowsPowerShell\Profile.ps1` | Windows PowerShell 5.1 的 all-hosts profile |
+| `home/dot_config/opencode/modify_private_opencode.json.tmpl`、`oh-my-opencode-slim.json` | `%USERPROFILE%\.config\opencode\` | 勾了 opencode 才部署，跟 Linux 同一份設定（provider、model、plugin、oh-my-opencode-slim 的 preset）；`opencode.json` 的 `mcp` 照現有檔案留著。`routes\personal` 不部署（`opencode-personal` 只有 Linux） |
 | `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
 
 apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不會到 Windows）：
@@ -62,9 +63,10 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
 | headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
 | playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
+| opencode | mise（npm backend 的 `opencode-ai`，會一併列 Node LTS） | 完整或自己勾 | OpenCode 沒有 Windows 的 `install.ps1`，官方文件列了 npm 與 mise；`opencode-ai` 是 OpenCode 1，跟 Linux 那份同一個大版本。更新跑 `mise upgrade`（`opencode upgrade` 認不出 mise 裝的）。設定見上面的部署表；commit 指引、MCP 要 agent-config，Windows 還裝不了 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 
-zsh、btop、code-server、codex、opencode、codegraph、wakatime、
+zsh、btop、code-server、codex、codegraph、wakatime、
 agent-config、snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。

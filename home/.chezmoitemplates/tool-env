@@ -55,7 +55,7 @@ tailscale:
        coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
        Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
        app 用 winget(toolPackages.windows),node、herdr、snapclient、playwright-cli 也由 mise 裝(mise-tools);
-       claude 走官方 install.ps1(run_onchange_after_install-claude.ps1,#316)。
+       claude 走官方 install.ps1(run_onchange_after_install-claude.ps1,#316);opencode 沒有 install.ps1,走 mise(#318)。
        其他工具這裡只有 sh 安裝腳本、沒在 Windows 驗過,Windows 標裝不了,到 WSL 裝。 */}}
 zsh:
   - when: [windows]
@@ -93,9 +93,6 @@ codex:
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 opencode:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
