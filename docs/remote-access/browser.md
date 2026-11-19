@@ -163,7 +163,7 @@ playwright-cli -s=<session> tab-list
     9222 就是不通。先 `curl 127.0.0.1:9222/json/version`（Windows：`curl.exe`）看是不是已經在了；不是就把那個視窗關掉重開。
   - ssh 印 `remote port forwarding failed`：已配置主機的 9222 被佔著（另一台電腦還開著，或 headless 在跑）。
   - 從 ssh session 啟動的 Chrome，session 一結束就被 Windows 一起收掉：Chrome 要從桌面的終端機開。
-  - Windows 要有連到已配置主機的 ssh Host：chezmoi 不部署 ssh config 到 Windows，自己在 `~\.ssh\config` 加，先 `ssh <host> hostname` 確認。
+  - Windows 要有連到已配置主機的 ssh Host：chezmoi 會部署 `~\.ssh\config`，key 要自己放到 `~\.ssh`，先 `ssh <host> hostname` 確認。
 
 ## 插件：獨立 profile、日常 profile 都能裝
 

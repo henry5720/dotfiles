@@ -17,6 +17,9 @@
 */*/*/*/*
 */*/*/*/*/*
 !.wslconfig
+# ssh config:跟 Linux 同一份(#307)。key 不歸 chezmoi 管,自己放到 ~\.ssh
+!.ssh
+!.ssh/config
 !.config
 !.config/starship.toml
 # PowerShell profile:pwsh 7 與 5.1 各一份,內容都是 .chezmoitemplates/powershell-profile.ps1

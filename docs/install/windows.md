@@ -11,6 +11,7 @@ git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `ho
 | repo 裡的檔案 | 部署到 | 用途 |
 |---|---|---|
 | `home/dot_wslconfig` | `%USERPROFILE%\.wslconfig` | WSL2 的記憶體、CPU、網路模式 |
+| `home/private_dot_ssh/private_config.tmpl` | `%USERPROFILE%\.ssh\config` | ssh 的 Host，跟 Linux 共用；key 自己放到 `%USERPROFILE%\.ssh` |
 | `home/dot_config/starship.toml` | `%USERPROFILE%\.config\starship.toml` | starship 提示列，跟 Linux 共用 |
 | `home/dot_config/mise/conf.d/dotfiles.toml.tmpl` | `%USERPROFILE%\.config\mise\conf.d\dotfiles.toml` | 交給 mise 裝的 CLI 清單（zoxide 加上勾了的） |
 | `home/dot_local/bin/tools.ps1.tmpl` | `%USERPROFILE%\.local\bin\tools.ps1` | `tools` 指令：重選用途與選裝工具，勾完直接裝 |
