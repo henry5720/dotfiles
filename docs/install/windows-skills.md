@@ -10,7 +10,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 - agent 是 Windows 上的 Claude Code。agent-config 會一併裝 Git for Windows，Claude Code 有它時 Bash tool 走 Git Bash
   （[官方文件](https://code.claude.com/docs/en/setup#install-on-native-windows)），所以 `bash` 腳本、`grep`、`find`、`~` 路徑都還能用；
   Git Bash 沒有的是 `python3`、`jq`、`uv`、`ss`、`/proc` 裡的行程資訊、`sudo`
-- Codex 在 Windows 還裝不了（#314），只給 Codex 的 skill 算不可用；OpenCode 沒有另外看
+- Codex、OpenCode 跑指令的 shell 不一定是 Git Bash，上面的前提對它們不一定成立，沒有另外逐支看
 
 ## 不可用
 
@@ -18,7 +18,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 |---|---|---|
 | slack-list | 腳本檔頭 `import fcntl`，Windows 的 Python 沒有這個模組，連唯讀指令都跑不了；而且要 `python3` | [#94](https://github.com/henry5720/agent-config/issues/94) |
 | expose-port | 兩支腳本是 python3，用 `pgrep`、`sudo`、`SIGHUP`（Windows 沒有）。開公網網址改到 WSL 或 Linux 那台做 | [#95](https://github.com/henry5720/agent-config/issues/95) |
-| company-imagegen-fallback | 只給 Codex；wrapper 是 zsh 腳本，讀 `~/.codex/config.toml` | 不開：Codex 能在 Windows 裝之後再看 |
+| company-imagegen-fallback | 只給 Codex；叫的 `~/.local/bin/imagegen-fallback` 是 zsh 腳本，Windows 不部署 | 不開：只在 Codex 內建 `image_gen` 不能用時才用到 |
 
 ## 部分可用
 
