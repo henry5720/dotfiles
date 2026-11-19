@@ -19,9 +19,9 @@
 Windows 主機也出用途與選單、也跑安裝腳本（#275）：CLI 用 mise（跟 Linux 共用 `miseTools`）、app 用 winget，
 腳本寫成 `.ps1`，`.chezmoiignore` 的 Windows 段只放行 `.chezmoiscripts/*.ps1`，sh 腳本照舊不會到 Windows。
 Windows 上 mise 裝得了的都可裝（`node` 也由 mise 裝 LTS，Linux 那邊是 nvm；herdr 也是，#309；playwright-cli 走 mise 的 npm backend、headless-chrome 用 winget 裝 Chrome，#327），
-claude 與 agent-config 的 skillshare 走官方 `install.ps1`（#316、#321），opencode 走 mise 的 npm backend（#318），codegraph 走 mise 的 aqua backend（#323），其他沒有 Windows 裝法的標裝不了：
+claude、codex 與 agent-config 的 skillshare 走官方 `install.ps1`（#316、#317、#321），opencode 走 mise 的 npm backend（#318），codegraph 走 mise 的 aqua backend（#323），其他沒有 Windows 裝法的標裝不了：
 工具本身沒有 Windows 版（code-server、mise 的 btop），或這個 repo 給它的安裝腳本只有 sh 版、沒在 Windows 驗過
-（codex；wakatime 是 claude、codex 的 plugin，Windows 的裝法在 #324）。zsh 則是 Windows 的 shell 換成 PowerShell。
+（wakatime 是 claude、codex 的 plugin，Windows 的裝法在 #324）。zsh 則是 Windows 的 shell 換成 PowerShell。
 Windows 的略過彙整是一支 `zz-env-skipped.ps1`。
 「只有 sh 版、沒在 Windows 驗過」那一批之後照 [ADR 0005](0005-install-method-by-tool-kind.md) 補上 Windows 的裝法。
 

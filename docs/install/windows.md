@@ -28,6 +28,7 @@ before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Termin
 （部署上面的檔案）
 after   install-agent-config.ps1       勾了 agent-config 才跑：官方 install.ps1 裝 skillshare，從 agent-config init、sync（已經有 %AppData%\skillshare\.git 就跳過）
 after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
+after   install-codex.ps1              勾了 codex 才跑：下載官方 install.ps1 再執行（已經有 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
 after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
@@ -70,18 +71,26 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見下面〈codegraph〉 |
 | agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
+| codex | 官方 [`install.ps1`](https://learn.chatgpt.com/docs/codex/cli)（Windows 分頁） | 完整或自己勾 | 裝到 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`（本體在 `%USERPROFILE%\.codex\packages\standalone`），installer 自己把它加進使用者 PATH；更新打 `codex update`，開 `codex` 時有新版也會問要不要更新（兩者都是重跑官方 install.ps1）；第一次打 `codex` 照瀏覽器登入。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 
-zsh、btop、code-server、codex、wakatime、
+zsh、btop、code-server、wakatime、
 snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
 
 要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
 移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`；官方 installer 裝的照它官方文件的 Uninstall 段
-（claude 是[這裡](https://code.claude.com/docs/en/setup#uninstall-claude-code)）。
+（claude 是[這裡](https://code.claude.com/docs/en/setup#uninstall-claude-code)）；codex 的官方文件沒寫 Windows 怎麼移除，
+照 installer 放的位置刪 `%LOCALAPPDATA%\Programs\OpenAI\Codex`、`%USERPROFILE%\.codex\packages\standalone`，再從使用者 PATH 拿掉
+`%LOCALAPPDATA%\Programs\OpenAI\Codex\bin`。
 以前用 mise 或 winget 試裝過 claude 的，裝好官方那份後把舊的移掉（`mise uninstall claude` 並從 mise 設定拿掉、
 `winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 讓 `.local\bin` 排在 mise 的 shims 前面，打 `claude` 會先找到官方那份，
 但 CMD 這類不讀 profile 的地方可能找到舊的，而且舊的不會自己更新。
+
+以前用 mise 試裝過 codex 的（例如 henry-laptop 的 0.170.0），一定要移掉：profile 把 mise 的 shims 排在 PATH 最前面，
+官方那份在使用者 PATH，打 `codex` 會先找到 mise 那份，而它不會自己更新、`codex update` 也認不出安裝方式。
+`mise ls` 找出那一項的名字（例如 `codex`、`npm:@openai/codex`），`mise unuse -g <那一項>` 從設定拿掉並移除，
+再開新的 shell 確認 `(Get-Command codex).Source` 是 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`。
 
 ### codegraph
 
@@ -114,7 +123,7 @@ skills 同步到勾了的 client、MCP 寫進各 client、指令檔（`CLAUDE.md
 （Linux 也是這兩步，只是連結看不出差別）。之後開了 Developer Mode，再 `sync --all` 一次就換成連結。
 
 多勾一個 client 後 apply，`sync-skillshare.ps1` 會重新 sync，新的 client 拿到 skills 與指令檔。
-`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了在 #322 盤點。
+`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了、卡在哪，見[Windows 上的 skill](windows-skills.md)。
 
 ### PowerShell
 
