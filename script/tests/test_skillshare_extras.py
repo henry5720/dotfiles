@@ -6,6 +6,7 @@
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "home/dot_config/skillshare/modify_config.yaml.tmpl"
+# Windows 版(#321):skillshare 讀 %AppData%\skillshare\config.yaml,同一個行為的 modify-template
+WINDOWS_CONFIG = "AppData/Roaming/skillshare/config.yaml"
 AGENTS_MD = ".config/skillshare/instructions/agents-md/AGENTS.md"
 AGENT_COMMIT = ".config/skillshare/instructions/agent-commit/instructions.md"
 OPENCODE_COMMIT = ".config/skillshare/instructions/opencode-commit/commit-instructions.md"
@@ -171,6 +174,54 @@ class SkillshareConfigTest(unittest.TestCase):
         out = self.run_script(["claude", "agent-config"], existing)
         self.assertTrue(out.startswith(existing + "\ntargets:\n" + CLAUDE_TARGET + "\nextras:\n"))
         self.assertEqual(self.run_script(["claude", "agent-config"], out), out)
+
+    # ===============================================================
+    # Windows:同一套行為,路徑換成 Windows 的(#321)
+    # ===============================================================
+    def run_windows(self, tools, existing=None):
+        """把 existing(None = 檔案不存在)放到 Windows 的位置,回傳 chezmoi 算出的新內容。"""
+        target = self.home / WINDOWS_CONFIG
+        target.unlink(missing_ok=True)
+        if existing is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(existing, encoding="utf-8")
+        override = {"chezmoi": {"os": "windows", "homeDir": str(self.home), "kernel": {"osrelease": ""}},
+                    "tools": tools}
+        return subprocess.check_output([
+            "chezmoi", "--source", str(ROOT), "--config", str(self.cfg), "--destination", str(self.home),
+            "--override-data", json.dumps(override), "cat", str(target),
+        ]).decode()
+
+    @staticmethod
+    def windowsify(text):
+        """Linux 的路徑換成 skillshare 在 Windows 存檔的樣子:設定目錄在 %AppData%,~ 開頭的路徑用反斜線。"""
+        text = text.replace("~/.config/skillshare", "~/AppData/Roaming/skillshare")
+        return re.sub(r"~/\S*", lambda m: m.group(0).replace("/", "\\"), text)
+
+    def test_windows_paths_use_appdata_and_backslashes(self):
+        out = self.run_windows(ALL)
+        self.assertIn("      path: ~\\.claude\\skills\n", out)
+        self.assertIn("    source: ~\\AppData\\Roaming\\skillshare\\instructions\\agents-md\n", out)
+        self.assertIn("  skills: ~\\AppData\\Roaming\\skillshare\\skills\n", out)
+        self.assertNotIn("/", out)
+        self.assertNotIn(".config\\skillshare", out)
+
+    def test_windows_matches_linux_for_same_input(self):
+        # Windows 沒有 sh,另寫一份 Go template;同一批輸入,輸出要跟 Linux 那份只差路徑
+        cases = [
+            (ALL, None), (ALL, SAVED_BY_SKILLSHARE), (["claude", "agent-config"], SAVED_BY_SKILLSHARE),
+            (["opencode", "agent-config"], None), (["agent-config"], SAVED_BY_SKILLSHARE),
+            # 整段拿掉的 extras 後面多幾行空白:沿用它前面的空行
+            (["agent-config"], SAVED_BY_SKILLSHARE.replace("\n\npreserve_tilde", "\n\n\n\npreserve_tilde")),
+            (["claude", "agent-config"], "git_root: root\n\npreserve_tilde_on_save: true\n"),
+            (ALL, SAVED_BY_SKILLSHARE.replace("\nextras:", "\n\n\n# 手寫的註解\nextras:") + "\n\n"),
+        ]
+        for tools, existing in cases:
+            with self.subTest(tools=tools, existing=(existing or "")[:40]):
+                linux = self.run_script(tools, existing or "")
+                win = self.run_windows(tools, None if existing is None else self.windowsify(existing))
+                self.assertEqual(win, self.windowsify(linux))
+                self.assertEqual(self.run_windows(tools, win), win)
 
     # ===============================================================
     # 沒勾的 client 不部署設定目錄

@@ -1,0 +1,69 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+skillshare 的全域設定,Windows 版(#321)。Linux、macOS 那份是 dot_config/skillshare/modify_config.yaml.tmpl(sh + awk),
+說明以那份為準;這份是同一個行為的 Go template 版,因為 Windows 沒有 sh(先例:Windows Terminal 的 settings.json)。
+script/tests/test_skillshare_extras.py 拿同一批輸入比對兩份的輸出,改了其中一份,另一份要跟著改。
+
+位置:skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(它的 BaseDir;這裡假設 %AppData% 是家目錄底下的
+AppData\Roaming)。Windows 不能部署 ~/.config/skillshare:有那個目錄時 skillshare 會把它整個搬到 %AppData%。
+沒勾 agent-config 不部署(.chezmoiignore 的 Windows 段)。
+
+1. 吃現有內容(去掉結尾的換行,同 sh 的 $(cat));空的(新機器)從 init 前的基底開始,路徑是 Windows 的設定目錄
+2. 釘的 targets、extras(.chezmoitemplates/skillshare-pinned,照勾的 client 與 OS 產生)拆成「頂層 key → 整段」
+3. 逐行掃現有內容:頂層 key 是 targets、extras 的那段原地換成釘的那份;釘的那份沒有這段就整段拿掉,
+   沿用它前面的空行。段落之間的空行先暫存,遇到下一個 key 才輸出。其餘原樣輸出
+4. 現有內容沒有的段落接在最後,前面空一行
+*/ -}}
+{{- $owned := list "targets" "extras" -}}
+{{- $existing := regexReplaceAll "\n+$" .chezmoi.stdin "" -}}
+{{- if not $existing -}}
+{{-   $existing = "git_root: root\npreserve_tilde_on_save: true\nsources:\n  skills: ~\\AppData\\Roaming\\skillshare\\skills\n  mcp: ~\\AppData\\Roaming\\skillshare\\mcp.yaml" -}}
+{{- end -}}
+{{- $order := list -}}
+{{- $body := dict -}}
+{{- $key := "" -}}
+{{- range $line := splitList "\n" (includeTemplate "skillshare-pinned" .) -}}
+{{-   if regexMatch "^[^ \t#-]" $line -}}
+{{-     $key = regexReplaceAll ":.*" $line "" -}}
+{{-     $order = append $order $key -}}
+{{-   end -}}
+{{-   if ne $line "" }}{{ $_ := set $body $key (printf "%s%s\n" (get $body $key) $line) }}{{ end -}}
+{{- end -}}
+{{- $out := "" -}}
+{{- $blank := "" -}}
+{{- $kept := "" -}}
+{{- $skip := false -}}
+{{- $dropped := false -}}
+{{- $done := dict -}}
+{{- range $line := splitList "\n" $existing -}}
+{{-   if regexMatch "^[[:space:]]*$" $line -}}
+{{-     $blank = printf "%s%s\n" $blank $line -}}
+{{-   else if regexMatch "^[^ \t#-]" $line -}}
+{{-     if $dropped }}{{ $blank = $kept }}{{ $dropped = false }}{{ end -}}
+{{-     $skip = false -}}
+{{-     $k := regexReplaceAll ":.*" $line "" -}}
+{{-     if has $k $owned -}}
+{{-       $skip = true -}}
+{{-       $_ := set $done $k true -}}
+{{-       if hasKey $body $k -}}
+{{-         $out = printf "%s%s%s" $out $blank (get $body $k) -}}
+{{-       else -}}
+{{-         $dropped = true -}}
+{{-         $kept = $blank -}}
+{{-       end -}}
+{{-     else -}}
+{{-       $out = printf "%s%s%s\n" $out $blank $line -}}
+{{-     end -}}
+{{-     $blank = "" -}}
+{{-   else if $skip -}}
+{{-     $blank = "" -}}
+{{-   else -}}
+{{-     $out = printf "%s%s%s\n" $out $blank $line -}}
+{{-     $blank = "" -}}
+{{-   end -}}
+{{- end -}}
+{{- if not $dropped }}{{ $out = printf "%s%s" $out $blank }}{{ end -}}
+{{- range $k := $order -}}
+{{-   if not (hasKey $done $k) }}{{ $out = printf "%s\n%s" $out (get $body $k) }}{{ end -}}
+{{- end -}}
+{{- $out -}}

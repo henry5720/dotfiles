@@ -35,8 +35,13 @@ WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-mise.ps1",
     # 官方 install.ps1 裝的 coding agent(#316);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
     ".chezmoiscripts/install-claude.ps1",
+    # agent-config(#321):官方 install.ps1 裝 skillshare、init;config 釘的兩段變了就 sync
+    ".chezmoiscripts/install-agent-config.ps1",
+    ".chezmoiscripts/sync-skillshare.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
+# skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
+SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 SCRIPTS = ROOT / "home/.chezmoiscripts"
@@ -50,9 +55,10 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316)
+# 與 skillshare(agent-config #321)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
-                "headless-chrome", "playwright-cli", "claude"}
+                "headless-chrome", "playwright-cli", "claude", "agent-config"}
 
 
 def parse_jsonc(text):
@@ -95,12 +101,15 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 勾什麼都一樣:裝不了的(zsh、agent-config)也不會放行 sh 腳本或設定目錄;
-        # claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本
-        files = WINDOWS_TARGETS | parents(WINDOWS_TARGETS)
-        for tools in ([], WINDOWS_LEAN, sorted(WINDOWS_FULL), ["zsh", "claude", "agent-config", "tailscale"]):
+        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
+        # agent-config 多一個 skillshare 的 config.yaml,沒勾就不放;Linux 那份 ~/.config/skillshare 永遠不放
+        # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
+        base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
+        skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
+        for tools, extra in (([], set()), (WINDOWS_LEAN, set()), (sorted(WINDOWS_FULL), skillshare),
+                             (["zsh", "claude", "tailscale"], set()), (["agent-config"], skillshare)):
             with self.subTest(tools=tools):
-                self.assertEqual(self.managed("windows", tools), files | WINDOWS_SCRIPTS)
+                self.assertEqual(self.managed("windows", tools), base | extra)
 
     def test_linux_and_termux_skip_windows_only_targets(self):
         for os_name in ("linux", "android"):
@@ -263,11 +272,66 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertLess(out.index("Test-Path"), out.index("https://claude.ai/install.ps1"))
         self.assertNotIn("Get-Command claude", out)
 
+    # ===============================================================
+    # agent-config:官方 install.ps1 裝 skillshare,init 後 sync(#321)
+    # ===============================================================
+    AGENT_SCRIPTS = (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl",
+                     SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl")
+
+    def test_windows_agent_config_scripts_empty_when_not_ticked(self):
+        for script in self.AGENT_SCRIPTS:
+            for tools in ([], WINDOWS_LEAN, ["claude"]):
+                with self.subTest(script=script.name, tools=tools):
+                    self.assertEqual(self.render(script, tools).strip(), "")
+
+    def test_windows_agent_config_skips_initialized_then_installs_official_then_inits(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        # 已經 init 過(%AppData%\skillshare\.git)就跳過,在下載之前
+        skip = out.index("Join-Path $dir '.git'")
+        self.assertIn("$dir = Join-Path $env:APPDATA 'skillshare'", out)
+        url = "https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1"
+        download = out.index(url)
+        self.assertLess(skip, download)
+        # 先下載成檔案再跑,不接 pipe
+        self.assertIn("-OutFile", out[download:])
+        self.assertNotIn("| iex", out)
+        self.assertNotIn("Invoke-Expression", out)
+        run = out.index("& $installer")
+        self.assertLess(download, run)
+        # 官方 installer 裝的位置
+        self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'", out)
+        # remote 走 HTTPS,init 不照 --targets 加,最後 sync --all(含 MCP 與指令檔)
+        self.assertIn("'https://github.com/henry5720/agent-config.git'", out)
+        steps = [out.index(s) for s in ("Invoke-Skillshare init --git-root root --remote $remote --no-copy "
+                                        "--no-skill --no-targets\n", "Invoke-Skillshare install -g\n",
+                                        "Invoke-Skillshare sync --all\n")]
+        self.assertEqual(steps, sorted(steps))
+        self.assertLess(run, steps[0])
+
+    def test_windows_agent_config_brings_git_for_skillshare_init(self):
+        # skillshare init --remote 要系統的 git;Windows 基底沒有,勾 agent-config 由 winget 裝(已經有就跳過)
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Git.Git'", self.render(winget, ["agent-config"]))
+        self.assertNotIn("Git.Git", self.render(winget, []))
+        # 剛裝的 git 不在 apply 這個 process 的 PATH:install-agent-config 先接上登錄檔的 PATH 再找 git
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"), out.index("Get-Command git"))
+
+    def test_windows_skillshare_sync_reruns_when_checked_clients_change(self):
+        # run_onchange_:釘的 targets、extras 照勾的 client 產生,勾選變了腳本內容就變,chezmoi 才重跑 sync --all
+        script = SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl"
+        only_claude = self.render(script, ["agent-config", "claude"])
+        self.assertIn("& $ss sync --all", only_claude)
+        self.assertNotEqual(only_claude, self.render(script, ["agent-config", "claude", "codex"]))
+        self.assertEqual(only_claude, self.render(script, ["agent-config", "claude", "fzf"]))
+
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
                             (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
+                            (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
+                            (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["codex", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):

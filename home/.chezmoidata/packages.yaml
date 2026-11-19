@@ -161,6 +161,10 @@ toolPackages:
     # 在 winget list 對到的是 .EXE(2026-11-19 lianghua 實查),用另一個 id 會在已經有 Chrome 的機器再裝一份
     headless-chrome:
       - Google.Chrome.EXE
+    # skillshare init 從 agent-config 的 remote clone 要系統的 git(#321);Windows 基底沒裝 git。
+    # 已經裝過 Git for Windows 的機器 winget list 對得到,跳過;installer 預設 machine scope,會跳 UAC
+    agent-config:
+      - Git.Git
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。

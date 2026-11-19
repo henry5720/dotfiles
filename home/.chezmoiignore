@@ -35,6 +35,13 @@
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json
+{{ if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) }}
+# skillshare 的 config.yaml(#321):Windows 讀 %AppData%\skillshare,勾了 agent-config 才放。
+# Linux 那份 .config/skillshare 不放行:Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%
+!AppData/Roaming
+!AppData/Roaming/skillshare
+!AppData/Roaming/skillshare/config.yaml
+{{ end }}
 # 安裝腳本:winget 裝 app、mise 裝 CLI、最後列出略過的(.chezmoiscripts/*.ps1,只有 Windows 有)
 !.chezmoiscripts
 !.chezmoiscripts/*.ps1

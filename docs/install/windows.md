@@ -18,14 +18,17 @@ git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `ho
 | `home/Documents/PowerShell/Profile.ps1.tmpl` | `Documents\PowerShell\Profile.ps1` | pwsh 7 的 all-hosts profile |
 | `home/Documents/WindowsPowerShell/Profile.ps1.tmpl` | `Documents\WindowsPowerShell\Profile.ps1` | Windows PowerShell 5.1 的 all-hosts profile |
 | `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
+| `home/AppData/Roaming/skillshare/modify_config.yaml`（勾了 agent-config 才部署） | `%AppData%\skillshare\config.yaml` | skillshare 的設定：只釘 `targets`、`extras` 兩段（照勾的 client 產生，跟 Linux 同一份樣板，路徑換成 Windows 的），其餘照 skillshare 寫的保留 |
 
 apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不會到 Windows）：
 
 ```text
 before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
 （部署上面的檔案）
+after   install-agent-config.ps1       勾了 agent-config 才跑：官方 install.ps1 裝 skillshare，從 agent-config init、sync（已經有 %AppData%\skillshare\.git 就跳過）
 after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
 ```
 
@@ -62,10 +65,11 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
 | headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
 | playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
+| agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 
 zsh、btop、code-server、codex、opencode、codegraph、wakatime、
-agent-config、snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
 
@@ -75,6 +79,27 @@ agent-config、snapserver 在 Windows 標裝不了（原因寫在選單上，`ho
 以前用 mise 或 winget 試裝過 claude 的，裝好官方那份後把舊的移掉（`mise uninstall claude` 並從 mise 設定拿掉、
 `winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 讓 `.local\bin` 排在 mise 的 shims 前面，打 `claude` 會先找到官方那份，
 但 CMD 這類不讀 profile 的地方可能找到舊的，而且舊的不會自己更新。
+
+### agent-config（skillshare）
+
+做的事跟 Linux 一樣（[ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md)）：skillshare 把 agent-config 的
+skills 同步到勾了的 client、MCP 寫進各 client、指令檔（`CLAUDE.md`、`AGENTS.md`、commit 指引）放到各 client 讀的位置。
+跟 Linux 不同的地方：
+
+| | Linux | Windows |
+|---|---|---|
+| skillshare 本體 | `~/.local/bin/skillshare` | `%LOCALAPPDATA%\Programs\skillshare\skillshare.exe`（installer 加進使用者 PATH，新開的 shell 才找得到） |
+| 設定與 agent-config 的 clone | `~/.config/skillshare` | `%AppData%\skillshare`（skillshare 在 Windows 的位置；Windows 上不要放 `~\.config\skillshare`，skillshare 會把它整個搬過去） |
+| skills | 連結 | 目錄用 junction，不用 Developer Mode |
+| 指令檔 | 連結 | 有開 Developer Mode 是連結；沒開時 skillshare 自動改成複製，`skillshare status` 顯示 `copy` |
+
+指令檔是複製的時候，agent-config 的內容改了不會馬上到：`skillshare pull` 之後一定要 `skillshare sync --all`
+（Linux 也是這兩步，只是連結看不出差別）。之後開了 Developer Mode，再 `sync --all` 一次就換成連結。
+
+多勾一個 client 後 apply，`sync-skillshare.ps1` 會重新 sync，新的 client 拿到 skills 與指令檔。
+`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了在 #322 盤點。
+
+### PowerShell
 
 PowerShell 內建的 PSReadLine 給的，不用設：
 
