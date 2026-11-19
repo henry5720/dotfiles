@@ -18,6 +18,8 @@ CONFIG_TEMPLATE = ROOT / "home/.chezmoi.toml.tmpl"
 # Windows 只部署這些 target;多一個、少一個都算錯。跟 home/.chezmoiignore 的 Windows 白名單對應
 WINDOWS_TARGETS = {
     ".wslconfig",
+    # 跟 Linux 同一份 ssh config(#307)
+    ".ssh/config",
     ".config/starship.toml",
     "Documents/PowerShell/Profile.ps1",
     "Documents/WindowsPowerShell/Profile.ps1",
@@ -98,13 +100,33 @@ class WindowsDeployTest(unittest.TestCase):
                               if PurePosixPath(t).parts[0] in WINDOWS_ONLY or t.endswith(".ps1")}
                     self.assertEqual(leaked, set())
 
-    # ===============================================================
-    # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的
-    # ===============================================================
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
         return self.chezmoi("windows", "execute-template", (ROOT / path).read_text(encoding="utf-8"),
                             data={"tools": tools})
+
+    # ===============================================================
+    # ssh config:跟 Linux 同一份
+    # ===============================================================
+    def test_windows_ssh_config_has_no_userspace_proxycommand(self):
+        # userspace tailscale 只有沒 root 的 Linux 才有;Windows 走系統的 Tailscale,勾了 tailscale 也不加
+        for tools in ([], ["tailscale"]):
+            with self.subTest(tools=tools):
+                out = self.render("home/private_dot_ssh/private_config.tmpl", tools)
+                self.assertIn("Host company-ec2\n", out)
+                self.assertNotIn("ProxyCommand", out)
+
+    def test_cross_tailnet_hosts_use_full_magicdns_name(self):
+        # 短名只有同一個 tailnet 解析得到;公司 tailnet 的機器分享到個人 tailnet 後要完整名稱(#307)
+        out = self.render("home/private_dot_ssh/private_config.tmpl", [])
+        hostnames = dict(re.findall(r"^Host (\S+)\n    HostName (\S+)$", out, re.M))
+        for host, device in (("lianghua", "lianghua"), ("pos2-dev", "pos2-dev"), ("company-ec2", "aws-ec2-henry")):
+            with self.subTest(host=host):
+                self.assertEqual(hostnames[host], f"{device}.tail29dcee.ts.net")
+
+    # ===============================================================
+    # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的
+    # ===============================================================
 
     def mise_list(self, tools):
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", tools)

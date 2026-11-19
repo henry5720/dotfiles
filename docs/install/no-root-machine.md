@@ -92,7 +92,7 @@ chezmoi 整段跳過、直接用系統那份，有沒有 root 都一樣、不會
 沒勾 zsh 就每次用之前照第 1 步起。要開機就起，用 systemd user service（要 `loginctl enable-linger`，通常要管理員）或 crontab 的 `@reboot`。
 
 `~/.ssh/config` 走 tailnet 的 Host（`company-ec2`、`lianghua` 這些）會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`，
-登入之後 `ssh company-ec2` 就經 tailnet 連過去，裝置名也由 tailscaled 解析。走公網的 Host（`company-ec2-public`、`github.com`）不變。
+登入之後 `ssh company-ec2` 就經 tailnet 連過去，`HostName` 的 MagicDNS 名稱也由 tailscaled 解析。走公網的 Host（`company-ec2-public`、`github.com`）不變。
 
 ## 3. 例子：連已配置主機的專用 key（一次性）
 
