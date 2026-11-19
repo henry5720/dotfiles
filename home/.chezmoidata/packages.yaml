@@ -257,7 +257,8 @@ miseTools:
     tool: uv                        # aqua:astral-sh/uv
     cmd: uv
     always: true
-  # Claude Code 讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)
+  # Claude Code 照頁數讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)。Windows 也用這項(#316):
+  # 官方要 Windows 自己裝一份 poppler,conda-forge 有 win-64 的 build;claude 本體走官方 install.ps1,不在這裡
   claude:
     tool: poppler                   # conda:poppler
     cmd: pdftoppm

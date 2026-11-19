@@ -55,7 +55,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
 | herdr | terminal 多工，同時開多個 agent | `herdr --session <名字>` | [herdr](https://github.com/herdrdev/herdr) | [操作已配置主機〈herdr〉](configured-host.md#herdr) |
-| claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent) |
+| claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
 | codex | Codex CLI | `codex` | [Codex CLI](https://developers.openai.com/codex/cli) | |
 | opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](ai-agent/opencode.md) |
 | agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent/ai-agent-setup.md) |

@@ -24,6 +24,7 @@ apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不
 ```text
 before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
 （部署上面的檔案）
+after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
 ```
@@ -42,7 +43,8 @@ Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經�
 
 ## 裝了什麼、怎麼用
 
-CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝：
+CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝，
+官方有會自己更新的 installer 的（coding agent）走官方 installer（[ADR 0005](../adr/0005-install-method-by-tool-kind.md)）：
 
 | 工具 | 怎麼裝 | 什麼時候裝 | 常用 |
 |---|---|---|---|
@@ -60,14 +62,19 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
 | headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
 | playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
+| claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 
-zsh、btop、code-server、coding agent（claude、codex、opencode）、codegraph、wakatime、
+zsh、btop、code-server、codex、opencode、codegraph、wakatime、
 agent-config、snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
 
 要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
-移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`。
+移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`；官方 installer 裝的照它官方文件的 Uninstall 段
+（claude 是[這裡](https://code.claude.com/docs/en/setup#uninstall-claude-code)）。
+以前用 mise 或 winget 試裝過 claude 的，裝好官方那份後把舊的移掉（`mise uninstall claude` 並從 mise 設定拿掉、
+`winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 讓 `.local\bin` 排在 mise 的 shims 前面，打 `claude` 會先找到官方那份，
+但 CMD 這類不讀 profile 的地方可能找到舊的，而且舊的不會自己更新。
 
 PowerShell 內建的 PSReadLine 給的，不用設：
 
