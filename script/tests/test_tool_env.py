@@ -713,6 +713,20 @@ exec "$cmd" "$@"
         self.assertIn('"bottom"', self.init({}, "full").stdout)
         self.assertNotIn('"bottom"', self.init({}, "minimal").stdout)
 
+    # ===============================================================
+    # opencode(#318):Linux、macOS 官方 installer,Windows 走 mise 的 npm backend,原生 Termux 裝不了
+    # ===============================================================
+    def test_opencode_menu_states_per_environment(self):
+        for name, env, mark in (("ubuntu", {}, None), ("mac", MAC, None), ("android", ANDROID, "裝不了"),
+                                ("windows", {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}}, None)):
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("opencode "))
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+
     def test_bottom_installs_with_mise_on_linux_and_brew_on_mac(self):
         # GitHub release 的單一執行檔:有沒有 root、是不是 Debian 系都由 mise 裝
         mise = '{{ includeTemplate "mise-tools" . }}'

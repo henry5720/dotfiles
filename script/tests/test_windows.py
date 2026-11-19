@@ -29,6 +29,9 @@ WINDOWS_TARGETS = {
     # PowerShell 版的 tools
     ".local/bin/tools.ps1",
 }
+# 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
+# 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
+OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
@@ -55,10 +58,10 @@ TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316)
-# 與 skillshare(agent-config #321)
+# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
-                "headless-chrome", "playwright-cli", "claude", "agent-config"}
+                "headless-chrome", "playwright-cli", "claude", "opencode", "agent-config"}
 
 
 def parse_jsonc(text):
@@ -102,12 +105,14 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
         # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
-        # agent-config 多一個 skillshare 的 config.yaml,沒勾就不放;Linux 那份 ~/.config/skillshare 永遠不放
+        # opencode、agent-config 勾了才放它們的設定;Linux 那份 ~/.config/skillshare 永遠不放
         # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
+        opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
-        for tools, extra in (([], set()), (WINDOWS_LEAN, set()), (sorted(WINDOWS_FULL), skillshare),
-                             (["zsh", "claude", "tailscale"], set()), (["agent-config"], skillshare)):
+        for tools, extra in (([], set()), (WINDOWS_LEAN, set()), (sorted(WINDOWS_FULL), opencode | skillshare),
+                             (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
+                             (["agent-config"], skillshare)):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
 
@@ -118,6 +123,30 @@ class WindowsDeployTest(unittest.TestCase):
                     leaked = {t for t in self.managed(os_name, tools)
                               if PurePosixPath(t).parts[0] in WINDOWS_ONLY or t.endswith(".ps1")}
                     self.assertEqual(leaked, set())
+
+    def render_opencode_json(self, existing):
+        """Windows 上 chezmoi 算出的 ~/.config/opencode/opencode.json(existing = None 是檔案不存在)。"""
+        target = self.home / ".config/opencode/opencode.json"
+        if existing is not None:
+            target.parent.mkdir(parents=True)
+            target.write_text(existing, encoding="utf-8")
+        return json.loads(self.chezmoi("windows", "cat", str(target),
+                                       data={"tools": ["opencode"], "codexLbApiKey": "fixture"}))
+
+    def test_windows_opencode_json_is_repo_version_and_keeps_mcp(self):
+        # Linux 那份是 sh + jq 的 modify_ 腳本,Windows 跑不了;Windows 渲染成 modify-template(同 Terminal 的 settings.json):
+        # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
+        fresh = self.render_opencode_json(None)
+        self.assertEqual(fresh["mcp"], {})
+        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim"])
+        self.assertEqual(fresh["provider"]["codex-lb-gcp"]["options"]["apiKey"], "fixture")
+        self.assertEqual(fresh["model"], "codex-lb-gcp/gpt-6.1-sol")
+        self.assertEqual(fresh["small_model"], "codex-lb-gcp/gpt-6-luna")
+        existing = json.dumps({"mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}},
+                               "model": "someone/else", "theme": "x"})
+        kept = self.render_opencode_json(existing)
+        self.assertEqual(kept["mcp"], {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}})
+        self.assertEqual(kept, fresh | {"mcp": kept["mcp"]})
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -188,6 +217,17 @@ class WindowsDeployTest(unittest.TestCase):
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["playwright-cli"]})
         self.assertNotIn("playwright", linux)
+
+    def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
+        # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
+        # 點名 opencode-ai:這個套件只有 OpenCode 1,跟 Linux 的 opencode.ai/install 同一個大版本;
+        # registry 的短名 opencode 已經指到 OpenCode 2(@opencode/cli)。它要 Node,沒勾 node 也列 LTS。
+        # Linux 照舊官方 installer,不進 mise 清單
+        self.assertEqual(self.mise_list(["opencode"]), {"zoxide", "npm:opencode-ai", "node"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["opencode"]})
+        self.assertNotIn("opencode", linux)
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過

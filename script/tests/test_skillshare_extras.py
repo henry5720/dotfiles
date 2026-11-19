@@ -206,6 +206,12 @@ class SkillshareConfigTest(unittest.TestCase):
         self.assertNotIn("/", out)
         self.assertNotIn(".config\\skillshare", out)
 
+    def test_windows_opencode_skips_personal_route(self):
+        # routes/personal 給只有 Linux 的 opencode-personal 用,Windows 不部署它(#318),指令檔也不連過去
+        self.assertEqual(self.extras_paths(self.run_windows(["opencode", "agent-config"])), [
+            "~\\.config\\opencode", "~\\.config\\agent-commit", "~\\.config\\opencode",
+        ])
+
     def test_windows_matches_linux_for_same_input(self):
         # Windows 沒有 sh,另寫一份 Go template;同一批輸入,輸出要跟 Linux 那份只差路徑
         cases = [
@@ -220,7 +226,9 @@ class SkillshareConfigTest(unittest.TestCase):
             with self.subTest(tools=tools, existing=(existing or "")[:40]):
                 linux = self.run_script(tools, existing or "")
                 win = self.run_windows(tools, None if existing is None else self.windowsify(existing))
-                self.assertEqual(win, self.windowsify(linux))
+                # Windows 只少 opencode 的 routes/personal 那個目標(見上一個測試)
+                route = "      - path: ~\\.config\\opencode\\routes\\personal\n"
+                self.assertEqual(win, self.windowsify(linux).replace(route, ""))
                 self.assertEqual(self.run_windows(tools, win), win)
 
     # ===============================================================

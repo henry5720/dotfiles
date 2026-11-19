@@ -22,6 +22,13 @@
 !.ssh/config
 !.config
 !.config/starship.toml
+{{ if has "opencode" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+# OpenCode 的設定(#318),勾了才部署。opencode.json 在 Windows 渲染成 modify-template(Linux 那份是 sh + jq)。
+# routes/personal 不放:給 opencode-personal(ai-profile,只有 Linux)用,裡面還有 symlink。
+!.config/opencode
+!.config/opencode/opencode.json
+!.config/opencode/oh-my-opencode-slim.json
+{{ end -}}
 # PowerShell profile:pwsh 7 與 5.1 各一份,內容都是 .chezmoitemplates/powershell-profile.ps1
 !Documents
 !Documents/PowerShell

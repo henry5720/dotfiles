@@ -17,7 +17,8 @@
          Windows 是 %AppData%\skillshare(skillshare 的 BaseDir;這裡假設 %AppData% 在家目錄底下的預設位置)
        - Windows 整串換成反斜線:skillshare 的 preserve_tilde_on_save 存檔時用 OS 的分隔符折回 ~,
          存成 ~\.claude\skills;釘成斜線的話它存一次就出 diff。~ 開頭的路徑兩種寫法它都展開得了
-       - 目標(各 client 讀的位置)在 Windows 也是家目錄底下同樣的相對路徑 */ -}}
+       - 目標(各 client 讀的位置)在 Windows 也是家目錄底下同樣的相對路徑;opencode 的 routes/personal
+         給只有 Linux 的 opencode-personal 用,Windows 不部署那個目錄(#318),也不連 */ -}}
 {{- $p := dict
       "dir"            "~/.config/skillshare"
       "claudeSkills"   "~/.claude/skills"
@@ -69,7 +70,9 @@ extras:
 {{- end }}
 {{- if $opencode }}
       - path: {{ $p.opencode }}
+{{- if ne .chezmoi.os "windows" }}
       - path: {{ $p.opencodeRoute }}
+{{- end }}
 {{- end }}
   - name: agent-commit
     source: {{ $p.instructions }}agent-commit
