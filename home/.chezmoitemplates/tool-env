@@ -60,10 +60,16 @@ zsh:
 btop:
   - when: [windows]
     state: unsupported
-    reason: mise 的 btop 只有 Linux 版
+    reason: btop 的 release 只有 Linux 版，改勾 bottom
   - when: [android]
     state: unsupported
     reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
+{{- /* bottom(#325):Linux、Windows 用 mise(aqua:ClementTsang/bottom)、macOS 用 brew 的 bottom formula。
+       termux-packages 沒有(打包請求 termux/termux-packages#8565 還開著),Termux 一律走 pkg,不另用 release 執行檔。 */}}
+bottom:
+  - when: [android]
+    state: unsupported
+    reason: termux-packages 沒有 bottom，到 proot Ubuntu 裝
 code-server:
   - when: [windows]
     state: unsupported
