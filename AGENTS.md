@@ -79,6 +79,10 @@ bash script/tests/e2e.sh termux                # 同上,termux/termux-docker:x86
 bash script/tests/e2e.sh noroot                # 同上,ubuntu:24.04 一般使用者、沒有 sudo
 ```
 
+macOS 沒有容器,改由 GitHub Actions 的 `.github/workflows/macos.yml` 在 macOS runner 上照 Runbook 那行
+`init --apply`(精簡、完整各一次)再 `chezmoi verify`。改到 `home/` 的 PR 會自動跑,用 `gh pr checks` 看結果;
+沒有 Homebrew、`/Applications` 已經有同名 app 這兩種情況 runner 測不到,要真機。
+
 容器 e2e 是改 `home/` 的 `run_` 腳本、套件清單、選單、externals、README 的安裝指令時唯一能從零驗證的
 方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改)加上 `AGENT_CONFIG_DIR` 指定的 agent-config checkout
