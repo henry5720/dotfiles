@@ -1,8 +1,8 @@
 {{- $pub := joinPath .chezmoi.homeDir ".ssh/henry5720.pub" -}}
 {{- if and (eq .chezmoi.os "android") (stat $pub) -}}
 #!{{ lookPath "sh" }}
-# 原生 Termux:把 ~/.ssh/henry5720.pub 加進 ~/.ssh/authorized_keys,ssh config 的 phone／pad
-# 才連得進來。非 android、或還沒放 key(步驟見 docs/new-machine-setup.md),渲染成空的,chezmoi 不跑。
+# 原生 Termux:把 ~/.ssh/henry5720.pub 加進 ~/.ssh/authorized_keys,別台才
+# ssh 得進來。非 android、或還沒放 key(步驟見 docs/new-machine-setup.md),渲染成空的,chezmoi 不跑。
 # key 比 init 晚放也沒關係:放好之後下一次 chezmoi apply 這支就有內容、會跑。
 # 公鑰的雜湊寫在下面:換了 key 就重跑一次(chezmoi 官方 run_onchange_ 的作法)。
 # 只加不刪,所以要能重跑:已經有這把 key 就跳過。

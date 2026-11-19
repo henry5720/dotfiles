@@ -1396,9 +1396,9 @@ noroot_tailscale_checks() {
     "s=\$(sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log) && grep -q 'tailscaled.sock up' <<<\"\$s\" && grep -q 'enable-linger' <<<\"\$s\" && grep -q 'nc %h %p' <<<\"\$s\" && ! grep -qE 'pkgs.tailscale.com|--tun=userspace-networking' <<<\"\$s\""
   check "userspace tailscale 裝到 ~/.local/bin、tailscale version 能跑、建好 ~/.local/state/tailscale" \
     "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
-  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:只有 company-ec2(含帶轉發的別名)帶 ProxyCommand
-  check "ssh config:company-ec2 經 userspace tailscale 的 ProxyCommand" \
-    "ssh -G company-ec2 | grep -E \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \""
+  # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:走 tailnet 的 Host 都帶 ProxyCommand(#301)
+  check "ssh config:tailnet 主機都經 userspace tailscale 的 ProxyCommand" \
+    "for h in henry-laptop lianghua pos2-dev company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
   step "放時間標記(之後看 tailscale 有沒有重新下載)" "touch ~/.e2e-marker-ts"

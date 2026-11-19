@@ -7,7 +7,7 @@
 一行裝好（chezmoi 自動處理不用 root 的部分，要 root 的記進略過彙整）
   └─ 有勾 tailscale、要當 ssh client 連 tailnet 的機器才繼續：
        ├─ 登入 tailscale（打開網址核准）
-       └─ 例子：在 company-ec2 加這台的專用 key
+       └─ 例子：在已配置主機加這台的專用 key
 字型（可選）：圖示變方塊才需要
 ```
 
@@ -91,10 +91,12 @@ chezmoi 整段跳過、直接用系統那份，有沒有 root 都一樣、不會
 登入狀態在 `~/.local/state/tailscale`，不用重新登入。勾了 zsh 的話之後每次開 zsh 都會檢查、沒在跑就起來；
 沒勾 zsh 就每次用之前照第 1 步起。要開機就起，用 systemd user service（要 `loginctl enable-linger`，通常要管理員）或 crontab 的 `@reboot`。
 
-`~/.ssh/config` 的 `company-ec2` 會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`，
-登入之後 `ssh company-ec2` 就經 tailnet 連過去。其他 Host 不變。
+`~/.ssh/config` 走 tailnet 的 Host（`company-ec2`、`lianghua` 這些）會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`，
+登入之後 `ssh company-ec2` 就經 tailnet 連過去，裝置名也由 tailscaled 解析。走公網的 Host（`company-ec2-public`、`github.com`）不變。
 
-## 3. 例子：連 company-ec2 的專用 key（一次性）
+## 3. 例子：連已配置主機的專用 key（一次性）
+
+以 company-ec2 為例。
 
 company-ec2 關了密碼登入，也沒開 Tailscale SSH，這台要一把 key。不要把 `henry5720` 或 AWS 發的 pem
 複製過來：產一把這台專用的，外洩或不用了只要在 company-ec2 刪一行。
