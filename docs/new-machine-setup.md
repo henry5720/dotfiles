@@ -70,7 +70,7 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 ### Windows 主機
 
 Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`；沒有 WSL、Windows 本身就是開發機也照這節。
-這節一路做到裝好，不用再看第 2 步。
+這節一路做到裝好，不用再看第 2 步。要在一台 Windows 上另開一台 Windows VM 來裝，先照 [Hyper-V](install/hyper-v.md) 把 VM 開好，再到 VM 裡照這節。
 
 1. 在 PowerShell 用 winget 裝 chezmoi：
 
