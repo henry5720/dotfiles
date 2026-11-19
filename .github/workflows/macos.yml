@@ -40,7 +40,10 @@ jobs:
       USE_PROMPT: 用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）
       TOOLS_PROMPT: 選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）
     steps:
-      - uses: actions/checkout@v4
+      # persist-credentials: false:source 整個複製到家目錄,不要把 token 帶進 .git/config
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       # 1. 放好 source。測的是這個 PR 的內容(checkout 下來的 merge commit),所以先把它放到
       #    ~/.local/share/chezmoi,再照抄 Runbook 那行:source 已經在,chezmoi init 就不 clone,直接用它。
@@ -91,7 +94,12 @@ jobs:
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
 
+      # 5. 檔案全部跟 source 一致。腳本另外看:略過彙整(run_after_zz-root-skipped-summary)是 run_after_,
+      #    有略過的機器每次 apply 都跑、diff 永遠看得到它(設計如此,見那支開頭),完整那組一定有;
+      #    除了它,不能有還沒跑過的腳本(run_onchange_／run_once_ 失敗或沒跑會留在這裡)。
       - name: chezmoi verify
         run: |
           cat ~/.config/chezmoi/chezmoi.toml
-          chezmoi verify || { chezmoi diff; exit 1; }
+          chezmoi verify --exclude scripts || { chezmoi diff --exclude scripts; exit 1; }
+          pending=$(chezmoi status --include scripts | grep -v 'zz-root-skipped-summary' || true)
+          [ -z "$pending" ] || { echo "還有腳本待跑:"; echo "$pending"; exit 1; }
