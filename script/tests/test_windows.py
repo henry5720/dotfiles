@@ -49,7 +49,7 @@ WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326 見 mise-tools),
 # 加 winget 裝的 tailscale
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "snapclient", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale"}
 
 
 def parse_jsonc(text):
@@ -154,6 +154,13 @@ class WindowsDeployTest(unittest.TestCase):
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["herdr"]})
         self.assertNotIn("herdr", linux)
+
+    def test_windows_bottom_installs_with_mise_and_btop_points_to_it(self):
+        # bottom 的 release 有 Windows 版(#325);btop 只有 Linux 版,選單上叫人改勾 bottom
+        self.assertEqual(self.mise_list(["bottom", "btop"]), {"zoxide", "bottom"})
+        btop = next(l for l in self.labels() if l.startswith("btop "))
+        self.assertIn("（裝不了：", btop)
+        self.assertIn("改勾 bottom", btop)
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過

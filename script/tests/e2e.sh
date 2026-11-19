@@ -267,7 +267,7 @@ menu_choice() {
 # ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
-TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/earlyoom/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
+TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/bottom/earlyoom/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
@@ -302,6 +302,7 @@ declare -A TOOL_CHECK=(
   [vim]="command -v vim"
   [fastfetch]="[ -x ~/.local/share/mise/shims/fastfetch ] || command -v fastfetch"
   [btop]="[ -x ~/.local/share/mise/shims/btop ] || command -v btop"
+  [bottom]="[ -x ~/.local/share/mise/shims/btm ] || command -v btm"
   # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
   [gh]="command -v gh && [ -f /etc/apt/preferences.d/github-cli ] && apt-cache policy gh | grep -A1 '^ \*\*\*' | grep -q cli.github.com"
   # nvm＋Node LTS;沒勾 node 時也會跟著 codegraph、playwright-cli 自動裝
@@ -374,7 +375,7 @@ TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | paste -sd/)
 TERMUX_TOML=$LEAN_TOML
 
 # 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
-CLI_TOOLS=(eza fzf bat rg starship btop fastfetch)
+CLI_TOOLS=(eza fzf bat rg starship btop btm fastfetch)
 SHIMS='~/.local/share/mise/shims'
 
 check_cli_tools() {
@@ -516,7 +517,7 @@ scenario_ubuntu() {
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
   # uv 是 snapserver 帶的(照 miseTools 的工具名排序,在 starship 前面)
   check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
-    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
     "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd
@@ -568,7 +569,7 @@ scenario_ubuntu() {
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"earlyoom\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
+  check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"bottom\", \"earlyoom\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
   check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
@@ -1432,7 +1433,7 @@ noroot_full_checks() {
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
-  for t in btop gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared; do check_mise "$t"; done
+  for t in btop btm gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared; do check_mise "$t"; done
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim

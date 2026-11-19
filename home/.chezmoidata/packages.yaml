@@ -76,7 +76,7 @@ toolPackages:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
   # 原生 Termux:termux-packages 主 repo 有的都走 pkg(Linux 上 eza、fzf 這些由 mise 裝,見下面 miseTools)。
-  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、tailscale、code-server、coding agent…)
+  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、bottom、tailscale、code-server、coding agent…)
   # 在 .chezmoitemplates/tool-env 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
   termux:
     zsh:
@@ -126,6 +126,8 @@ toolPackages:
       - fastfetch
     btop:
       - btop
+    bottom:
+      - bottom
     gh:
       - gh
     code-server:
@@ -218,6 +220,11 @@ miseTools:
   btop:
     tool: btop                      # aqua:aristocratos/btop
     cmd: btop
+    always: true
+  # 跨 OS 的資源監控(#325):release 有 Windows 版,Windows 主機也由 mise 裝;指令叫 btm
+  bottom:
+    tool: bottom                    # aqua:ClementTsang/bottom
+    cmd: btm
     always: true
   # Ubuntu 24.04 的套件庫沒有 fastfetch
   fastfetch:
