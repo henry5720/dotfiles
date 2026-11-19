@@ -9,60 +9,30 @@ Host github.com
 # ===============================================================
 # 2. Tailscale 節點 (Tailscale devices)
 # ===============================================================
+# HostName 寫裝置名不寫 IP:換 tailnet 時 IP 會變。新增主機也要加進第 6 節。
+# henry-laptop 在個人 tailnet,公司那邊連不到,要用時由 laptop 開 ssh -R。
 # Windows 端要跑 OpenSSH server,admin 金鑰必須放在
 #   C:\ProgramData\ssh\administrators_authorized_keys
 Host henry-laptop
-    HostName 100.97.54.0
-    User henry
-    IdentityFile ~/.ssh/henry5720
-
-Host henry-desktop
-    HostName 100.119.136.27
+    HostName henry-laptop
     User henry
     IdentityFile ~/.ssh/henry5720
 
 # 量華的 Windows(DESKTOP-4P510DU),本機帳號 user
 Host lianghua
-    HostName 100.99.158.100
+    HostName lianghua
     User user
     IdentityFile ~/.ssh/henry5720
 
-Host nettop
-    HostName 100.111.46.87
-    User henry
+Host pos2-dev
+    HostName pos2-dev
+    User user
     IdentityFile ~/.ssh/henry5720
 
 # ===============================================================
-# 3. Android (只有 Termux sshd)
+# 3. Oracle VPS — tenancy A (我的)
 # ===============================================================
-# 原生 Android 沒有 sshd,需要 Termux + openssh 且 sshd 有在跑。
-# Termux 聽 8022(非 root 綁不了 22);User 是 Termux 配給的 u0_aXXX。
-Host pad
-    HostName 100.102.9.79
-    User u0_a301
-    Port 8022
-    IdentityFile ~/.ssh/henry5720
-
-# LocalForward 左邊在「本機」開 port,右邊的 localhost 在「phone 上」解析,
-# 也就是把 phone 的服務搬到本機 http://localhost:<port>。
-# server 必須綁 127.0.0.1 才連得到。
-# 連線中要臨時加 port:換行後按 ~C ,輸入  -L 5173:localhost:5173
-Host phone
-    HostName 100.94.24.13
-    User u0_a358
-    Port 8022
-    IdentityFile ~/.ssh/henry5720
-    LocalForward 8080 localhost:8080
-    LocalForward 3000 localhost:3000
-    LocalForward 3001 localhost:3001
-    LocalForward 3002 localhost:3002
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
-
-# ===============================================================
-# 4. Oracle VPS — tenancy A (我的)
-# ===============================================================
-# 這節和第 5 節是兩個不同的 Oracle 帳號(tenancy),各自有一份獨立的 Always Free
+# 這節和第 4 節是兩個不同的 Oracle 帳號(tenancy),各自有一份獨立的 Always Free
 # 額度,分開算。Host 名不一定等於 OCI Console 上的 display name,每台在自己那段
 # 註解標出 Console 上叫什麼,免得再搞混。
 # 判斷某台屬於哪個帳號,登進去跑:
@@ -81,7 +51,7 @@ Host henry-a1
     IdentityFile ~/.ssh/henry5720
 
 # ===============================================================
-# 5. Oracle VPS — tenancy B (別人的,不要動)
+# 4. Oracle VPS — tenancy B (別人的,不要動)
 # ===============================================================
 # 兩台 A1 各 1 OCPU / 6 GB,把 B 的 A1 額度佔滿了(2/2 OCPU、12/12 GB)。
 
@@ -104,21 +74,16 @@ Host openab
 # 2026-07-20 前的舊 hermes micro(instance-20260709-1122),不是我的,別終止它。
 
 # ===============================================================
-# 6. 公司 AWS EC2
+# 5. 公司 AWS EC2
 # ===============================================================
 # 走 tailnet。不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話先連的搶到、其他默默失敗
 # (以前 9222 轉發就是這樣)。要轉發就在要用時另打一條 ssh -N -o ExitOnForwardFailure=yes -L/-R …,
 # 指令見 docs/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
 Host company-ec2
-    HostName 100.98.146.109
+    HostName aws-ec2-henry
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
     IdentitiesOnly yes
-{{- if includeTemplate "tailscale-userspace" . }}
-    # 這台的 tailscale 走 userspace(沒有 root,見 .chezmoitemplates/tailscale-userspace),
-    # 沒有 tailnet 的網卡,連線經 tailscaled 轉過去。tailscaled 怎麼啟動見 apply 的略過彙整
-    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
-{{- end }}
 
 # 備用:EC2 的 tailscale 掛掉時走公網 IP。
 Host company-ec2-public
@@ -126,3 +91,12 @@ Host company-ec2-public
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
     IdentitiesOnly yes
+{{- if includeTemplate "tailscale-userspace" . }}
+
+# ===============================================================
+# 6. 沒有 root:tailnet 主機經 userspace tailscale
+# ===============================================================
+# userspace tailscale 沒有網卡,連線和解析都經 tailscaled(見 .chezmoitemplates/tailscale-userspace)。
+Host henry-laptop lianghua pos2-dev company-ec2
+    ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
+{{- end }}

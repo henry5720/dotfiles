@@ -73,15 +73,15 @@ agent 跑在另一台時，它的 `localhost` 不是你的；用哪一條只看�
 | `-R` | 遠端轉發：**那台**的 port 接回你這台。用來讓那台借你這台的網路或 Chrome。 |
 
 ```
-ssh -N -L 127.0.0.1:9377:127.0.0.1:9377 company-ec2
+ssh -N -L 127.0.0.1:9377:127.0.0.1:9377 <host>
           └─ 你這台聽哪裡 ─┘└─ 到了那台後連哪裡 ─┘
 
-   個人電腦                               company-ec2
+   個人電腦                               已配置主機
    瀏覽器 → 127.0.0.1:9377 ══ssh══▶ 127.0.0.1:9377（agent 的畫面）
 
-ssh -N -R 127.0.0.1:1080 company-ec2    （只寫一個 port、不寫目的地 = 反向 SOCKS proxy）
+ssh -N -R 127.0.0.1:1080 <host>    （只寫一個 port、不寫目的地 = 反向 SOCKS proxy）
 
-   個人電腦                               company-ec2
+   個人電腦                               已配置主機
    你的網路 → 網站 ◀══ssh══ 127.0.0.1:1080 ← headless 瀏覽器帶 proxy
 ```
 
@@ -89,15 +89,15 @@ ssh -N -R 127.0.0.1:1080 company-ec2    （只寫一個 port、不寫目的地 =
 - **一個 port 同時只能一條**：同一個 port 在兩個視窗（或兩台電腦）各開一條，第二條會失敗。
   加 `-o ExitOnForwardFailure=yes` 時搶不到就直接結束、印出錯誤，不會默默連上卻沒有轉發。
 - **ssh config 的 Host 不寫轉發**：每條連線都帶的話，你開第二個視窗就搶不到 port。
-  要轉發時另打一條帶 `-L`／`-R` 的 ssh，用完就關。例外是 `ssh phone`（Termux 的 code-server，見 [code-server](code-server.md)）。
+  要轉發時另打一條帶 `-L`／`-R` 的 ssh，用完就關。
 - Windows 內建的 OpenSSH 用法一樣，指令照打。
 
-要轉發時打的完整指令（`company-ec2` 換成你要連的 Host）：
+要轉發時打的完整指令（`<host>` 換成 ssh config 裡已配置主機的 Host，例如 `company-ec2`）：
 
 ```bash
-ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:<port>:127.0.0.1:<port> company-ec2   # 把那台的 port 拉到你這台
-ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:<port>:127.0.0.1:<port> company-ec2   # 把你這台的 port 借給那台
-ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 company-ec2                      # 反向 SOCKS：那台借你的網路
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:<port>:127.0.0.1:<port> <host>   # 把那台的 port 拉到你這台
+ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:<port>:127.0.0.1:<port> <host>   # 把你這台的 port 借給那台
+ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 <host>                      # 反向 SOCKS：那台借你的網路
 ```
 
 怎麼確認通了：ssh 停住不動、沒有印錯誤；在要連的那一端 `curl -sI http://127.0.0.1:<port>` 有回應。

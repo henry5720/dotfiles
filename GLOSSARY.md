@@ -74,7 +74,7 @@ _Avoid_: bot、workspace agent
 
 ## GUI 控制
 
-local、remote 從操作者看：當下在操作 GUI 的那一方，agent 或人都算。同一個 GUI，agent 在 company-ec2 操作時是 remote，人坐到那台接手時對人是 local。
+local、remote 從操作者看：當下在操作 GUI 的那一方，agent 或人都算。同一個 GUI，agent 在已配置主機上操作時是 remote，人坐到那台接手時對人是 local。
 
 **操作者**:
 當下在用某個服務的那一方，agent 或人。人要畫面，agent 要協定（CDP、MCP、ssh）。

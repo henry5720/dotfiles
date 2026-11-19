@@ -17,7 +17,7 @@ share-shell herdr session attach default      # 最後面接什麼，網頁就�
 ```
 
 ```
-  https://company-ec2.tail9b4b9b.ts.net:10000
+  https://aws-ec2-henry.tail29dcee.ts.net:10000
   帳號 guest  密碼 <每次隨機>
   (Ctrl+C 關閉，關了就失效)
 ```

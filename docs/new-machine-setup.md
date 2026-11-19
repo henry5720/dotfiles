@@ -117,7 +117,7 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
 3. 在原生 Termux 跑第 2 步 Termux 那行。要用手機儲存空間時另外跑 `termux-setup-storage`（會跳 Android 權限對話框）。
 4. 裝 [Tailscale 的 Android app](https://tailscale.com/download/android) 並登入：Termux 裡裝不了 tailscale
    （選單上標裝不了），整台平板由這個 app 上 tailnet。
-5. 要讓別台用 ssh config 的 `pad`／`phone` 連進來：放好 SSH key（第 2.2 節）後在 Termux 跑 `sshd`
+5. 要讓別台 ssh 進來：放好 SSH key（第 2.2 節）後在 Termux 跑 `sshd`
    （聽 8022 port）。sshd 不會自己開機啟動，Termux 被關掉後要再跑一次。
 6. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
@@ -162,8 +162,7 @@ ssh-keygen -y -f ~/.ssh/henry5720 > ~/.ssh/henry5720.pub   # 能產生就代表 
 放好後跑一次 `chezmoi apply`（還沒裝 chezmoi 就等 2.3 一起做）：
 
 - `~/.ssh/config` 由 chezmoi 部署，GitHub 與各主機開始用這把 key。
-- **原生 Termux**：公鑰會被加進 `~/.ssh/authorized_keys`（已經有就跳過），ssh config 的
-  `phone`／`pad` 才連得進來。
+- **原生 Termux**：公鑰會被加進 `~/.ssh/authorized_keys`（已經有就跳過），別台才 ssh 得進來。
 - 這把 key 要在 GitHub 的 [SSH keys](https://github.com/settings/keys) 裡，`ssh -T git@github.com`
   會回 `successfully authenticated` 就對了。
 
@@ -227,7 +226,7 @@ herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的�
 
 ### 沒有 root 的機器
 
-不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連 company-ec2 的專用 key、字型，見[沒有 root 的機器](install/no-root-machine.md)。
+不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連已配置主機的專用 key、字型，見[沒有 root 的機器](install/no-root-machine.md)。
 
 ### 2.4 裝完之後
 

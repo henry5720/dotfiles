@@ -54,7 +54,7 @@ keep="沒勾 zsh,不會自己起來,每次要用先照上面啟動"
 {{- end }}
 login_hint="登入:$start,再跑 tailscale --socket=$sock up,打開印出的網址核准
     常駐:$keep;要開機就起,用 systemd user service(要 loginctl enable-linger,通常要管理員)或 crontab 的 @reboot
-    ssh 連 tailnet 的機器:~/.ssh/config 的 company-ec2 已經帶 ProxyCommand(tailscale --socket=$sock nc %h %p)"
+    ssh 連 tailnet 的機器:~/.ssh/config 走 tailnet 的 Host 已經帶 ProxyCommand(tailscale --socket=$sock nc %h %p)"
 
 # 2.1 已經裝過就不重新下載(腳本內容改了、run_onchange 重跑時)。還沒登入才再提醒一次
 #     (tailscaled 沒在跑時 status 也失敗,會多提醒一次,不影響結果)

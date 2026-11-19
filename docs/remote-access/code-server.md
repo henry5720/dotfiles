@@ -91,8 +91,13 @@ proot-distro login ubuntu --user henry
 code-server --bind-addr 127.0.0.1:8080
 ```
 
-發起端用 `Host phone` 連進 phone 的 Termux，8080 就轉到發起端，瀏覽器開 `http://localhost:8080`。
-`Host phone` 已經帶好這條轉發，指令與 `LocalForward` 怎麼讀見 [remote-access 的別名表](README.md#ssh-轉發怎麼讀)。
+發起端另打一條 ssh 連進 phone 的 Termux（sshd 聽 8022），把 8080 轉過來，瀏覽器開 `http://localhost:8080`：
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -p 8022 -L 127.0.0.1:8080:127.0.0.1:8080 <Termux 使用者>@<phone 的裝置名>
+```
+
+`-L` 怎麼讀見 [ssh 轉發怎麼讀](README.md#ssh-轉發怎麼讀)。
 
 ---
 
@@ -245,7 +250,7 @@ sudo loginctl enable-linger "$USER"   # 沒開終端機時也讓它活著
 
 ## 一句話結論
 
-- **phone** → A（[`Host phone`](README.md#ssh-轉發怎麼讀)，config 已備好）
+- **phone** → A（[ssh -L](README.md#ssh-轉發怎麼讀)，指令見上）
 - **henry-desktop** → B（[tailscale serve](README.md#tailscale-serve)，設一次就好）
 - **henry-laptop** → B（同上,serve 設在 **Windows** 那個節點;WSL 裡打那個網址會 timeout 是正常的）
 
