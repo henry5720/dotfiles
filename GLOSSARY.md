@@ -178,6 +178,10 @@ _Avoid_: preset、套餐
 機器本身的條件：哪種 OS、有沒有 root、是不是 WSL、什麼架構。靠偵測、不問；決定怎麼裝（apt、brew、mise、裝到家目錄），以及每個選裝工具在這台是可裝、不建議還是裝不了。選單每台都列全部工具，不建議、裝不了的標原因、預設不勾；不建議的勾了照裝，裝不了的勾了就略過，apply 最後列出原因。狀態與原因寫在 `home/.chezmoitemplates/tool-env`。跟用途分開。
 _Avoid_: 用途（兩者是分開的）、機器類型；「不支援」「不列」（現在是列出來、標裝不了）
 
+**裝法**:
+一個選裝工具在一個環境用哪個管道裝：官方 installer、mise、系統的套件管理員（apt、pkg、brew、winget）、npm。看工具的種類，不看 OS：廠商有自己的 installer 而且會自己更新的用官方 installer，單一執行檔的 CLI 用 mise，要動系統的（服務、GUI app、函式庫多的）用套件管理員；例外是 Termux 一律 pkg、macOS 一律 brew。一個工具在某個環境沒有裝法，在那裡就是裝不了。
+_Avoid_: 安裝方式、管道、路徑
+
 **Windows 主機**:
 原生 Windows，由 Windows 原生 chezmoi 管；可能是 WSL 的外層，也可能沒有 WSL、本身就是開發機。跟 Linux 一樣有用途與選單，CLI 用 mise、app 用 winget 裝，安裝腳本只有 `.ps1`。有 WSL 時跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。
 _Avoid_: Windows 側、host
