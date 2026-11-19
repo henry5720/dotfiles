@@ -7,6 +7,7 @@
 - [網頁 shell：share-shell](share-shell.md)
 - [code-server](code-server.md)
 - [朗讀串流：voice-out](voice-out.md)：agent 的回覆唸到 tailnet 內的個人電腦
+- [開 sshd](sshd.md)：讓別台 ssh 進這台，各平台怎麼暫時開、常駐、公鑰放哪
 
 ## 概念
 
@@ -59,6 +60,8 @@ agent 跑在另一台時，它的 `localhost` 不是你的；用哪一條只看�
 | `tailscale serve --https=443 <port>` | 給 tailnet 內的裝置一個帶真憑證的 `https://<機器>.<tailnet>.ts.net` | code-server 長駐、手機開 |
 
 各服務用哪一種、要注意什麼，看它的服務卡（[瀏覽器](browser.md)、[code-server](code-server.md)）。
+
+`ssh -R` 只是把個人電腦的 port 借給已配置主機，個人電腦不用開 sshd。要從已配置主機 ssh 回個人電腦操作它（下指令、讀檔），個人電腦要先開 sshd，見[開 sshd](sshd.md)。
 
 `tailscale serve` 只開給 tailnet，跟 Funnel 不同，可以用 `--bg` 長駐（code-server 就是這樣）。
 
