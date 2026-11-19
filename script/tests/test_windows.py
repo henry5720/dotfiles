@@ -46,9 +46,11 @@ USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 s
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
-# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr、playwright-cli 見 mise-tools,#309、#327),
+# 加 winget 裝的 tailscale、headless-chrome(#327)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale",
+                "headless-chrome", "playwright-cli"}
 
 
 def parse_jsonc(text):
@@ -154,6 +156,15 @@ class WindowsDeployTest(unittest.TestCase):
                              data={"tools": ["herdr"]})
         self.assertNotIn("herdr", linux)
 
+    def test_windows_playwright_cli_installs_with_mise_npm_and_node(self):
+        # #327:官方裝法是 npm 全域套件,Windows 走 mise 的 npm backend;它要 Node,沒勾 node 也列 LTS。
+        # Linux 照舊 npm-install-playwright-cli(nvm 的 npm),不進 mise 清單
+        self.assertEqual(self.mise_list(["playwright-cli"]), {"zoxide", "npm:@playwright/cli", "node"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["playwright-cli"]})
+        self.assertNotIn("playwright", linux)
+
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["node"])
@@ -167,6 +178,15 @@ class WindowsDeployTest(unittest.TestCase):
             self.assertIn(f"'{app}'", base)
         self.assertNotIn("Tailscale.Tailscale", base)
         self.assertIn("'Tailscale.Tailscale'", self.render(script, ["tailscale"]))
+
+    def test_windows_headless_chrome_is_googles_regular_installer(self):
+        # #327:Windows 的 headless-chrome 就是 Chrome 本身(--headless)。用一般 installer 的 Google.Chrome.EXE:
+        # 從官網裝的 Chrome 在 winget list 對到它,不是企業版 MSI 的 Google.Chrome(lianghua 實查),已經有就跳過
+        script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertNotIn("Google.Chrome", self.render(script, []))
+        out = self.render(script, ["headless-chrome"])
+        self.assertIn("'Google.Chrome.EXE'", out)
+        self.assertNotIn("'Google.Chrome'", out)
 
     def test_windows_mise_script_runs_mise_install(self):
         out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", WINDOWS_LEAN)
@@ -273,7 +293,7 @@ class WindowsDeployTest(unittest.TestCase):
         menu = {l.split(" ")[0] for l in labels}
         marked = {l.split(" ")[0] for l in labels if "（裝不了：" in l}
         self.assertEqual(menu - marked, WINDOWS_FULL)
-        self.assertTrue({"zsh", "btop", "headless-chrome", "claude"} <= marked)
+        self.assertTrue({"zsh", "btop", "claude"} <= marked)
 
     def test_windows_runs_ps1_scripts_with_powershell_bypassing_policy(self):
         # 第一次 init 時 pwsh 可能還沒裝、執行原則可能是 Restricted:固定用 5.1,只對這個 process 繞過執行原則

@@ -36,4 +36,6 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
   已經用官方 installer 裝過 herdr 的 Windows 再勾 herdr 會有兩份。
 - **這張分類表沒有官方出處。** chezmoi 官方只示範到「每個 OS 一份套件清單、一支 `run_onchange_` 腳本照清單跑」；
   mise 官方只說 registry 優先用預先編好的執行檔。照種類分是把這兩者和 #231、#233 合起來的說法。
-- **Windows 上的 playwright-cli、headless-chrome、code-server、zsh 仍然裝不了。** 「完整支援」指 coding agent 本體、設定、skill、MCP、codegraph、wakatime。
+- **Windows 上的 code-server、zsh 仍然裝不了。** 「完整支援」指 coding agent 本體、設定、skill、MCP、codegraph、wakatime。
+  playwright-cli、headless-chrome 後來補上（#327）：Chrome 是 GUI app 走 winget（`Google.Chrome.EXE`），playwright-cli 是 npm 套件，
+  Windows 沒有 nvm、Node 已經由 mise 裝，就跟著走 mise 的 npm backend。

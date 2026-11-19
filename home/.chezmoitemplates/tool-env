@@ -18,8 +18,11 @@
        原因不能用半形 /(e2e 的 --promptMultichoice 拿它分隔選項)、不能有 '(略過的腳本用單引號包它),
        用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
        這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
+{{- /* headless-chrome、playwright-cli 在 Windows 主機可裝(#327):Chrome 本身就能 --headless,
+       headless-chrome 在 Windows 是用 winget 確保有 Chrome(toolPackages.windows,已經有就跳過);
+       playwright-cli 走 mise 的 npm backend(mise-tools)。 */}}
 headless-chrome:
-  - when: [darwin, windows]
+  - when: [darwin]
     state: unsupported
     reason: 這裡裝的是 Google 給 Linux 的 .deb
   - when: [android]
@@ -35,7 +38,7 @@ headless-chrome:
     state: unsupported
     reason: .deb 只能裝在 Debian 系
 playwright-cli:
-  - when: [darwin, android, windows, wsl, non-amd64, non-debian]
+  - when: [darwin, android, wsl, non-amd64, non-debian]
     state: unsupported
     reason: 它用 headless-chrome，這台裝不了 headless-chrome
 tailscale:

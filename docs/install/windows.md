@@ -56,9 +56,11 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 用 nvm 裝，Windows 改用 mise |
 | herdr | mise | 完整或自己勾 | 終端機多工，不搭 coding agent 也能用：`herdr` 開、`ctrl+b q` 離開、再打 `herdr` 接回去 |
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
+| headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
+| playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
 
-zsh、btop、code-server、coding agent（claude、codex、opencode）、codegraph、wakatime、headless-chrome、
-playwright-cli、agent-config、snapserver、snapclient 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+zsh、btop、code-server、coding agent（claude、codex、opencode）、codegraph、wakatime、
+agent-config、snapserver、snapclient 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
 這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
 勾了也不會中斷 apply，最後列出略過了哪些。
 snapclient 例外：winget 沒有，但官方有 Windows 版，手動下載（見 [voice-out](../remote-access/voice-out.md#windows手動下載)）。

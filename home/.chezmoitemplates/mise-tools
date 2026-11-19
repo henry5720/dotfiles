@@ -5,6 +5,9 @@
        (沒有 apt,不看 always;這台裝不了的不算)。node 勾了列 LTS(Linux 用 nvm 裝,不在 miseTools)。
        herdr 勾了也列(#309):Linux、macOS 走官方 installer(install-herdr),放進 miseTools 的話
        沒有 apt 的 Linux 會兩邊各裝一份,所以只寫在 Windows 這段。
+       playwright-cli 勾了列 npm backend 的 @playwright/cli(#327):官方裝法是 npm 全域套件,Windows 沒有 nvm;
+       Linux 照舊 npm-install-playwright-cli。要 Node 的工具(needs-node)勾了,沒勾 node 也列 LTS:
+       mise 會先裝 node 再裝 npm backend 的工具(https://mise.jdx.dev/dev-tools/backends/npm.html)。
        有勾(這台裝不了的不算,見 tools-to-install)、在 .chezmoidata/packages.yaml 的 miseTools 裡,再看那一項:
        - always:一律列(單一執行檔,不分有沒有 root、不看系統有沒有同名指令)。
        - 其他:apt 用不了(.chezmoitemplates/use-mise)而且系統找不到它的指令才列。
@@ -21,11 +24,14 @@
 {{ $m.tool | quote }} = "latest"
 {{-   end -}}
 {{- end -}}
-{{- if has "node" $installing }}
+{{- if includeTemplate "needs-node" . }}
 "node" = "lts"
 {{- end -}}
 {{- if has "herdr" $installing }}
 "herdr" = "latest"
+{{- end -}}
+{{- if has "playwright-cli" $installing }}
+"npm:@playwright/cli" = "latest"
 {{- end -}}
 {{- else if eq .chezmoi.os "linux" -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
