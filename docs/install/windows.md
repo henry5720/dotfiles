@@ -99,7 +99,7 @@ skills 同步到勾了的 client、MCP 寫進各 client、指令檔（`CLAUDE.md
 （Linux 也是這兩步，只是連結看不出差別）。之後開了 Developer Mode，再 `sync --all` 一次就換成連結。
 
 多勾一個 client 後 apply，`sync-skillshare.ps1` 會重新 sync，新的 client 拿到 skills 與指令檔。
-`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了在 #322 盤點。
+`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了、卡在哪，見[Windows 上的 skill](windows-skills.md)。
 
 ### PowerShell
 
