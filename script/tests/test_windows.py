@@ -463,6 +463,17 @@ class WindowsDeployTest(unittest.TestCase):
         out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
         self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"), out.index("Get-Command git"))
 
+    def test_windows_wakatime_brings_git_for_plugin_marketplace(self):
+        # claude plugin marketplace add <git URL> 要系統的 git:勾 wakatime 也由 winget 裝 Git.Git;
+        # 跟 agent-config 一起勾只裝一次
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertEqual(self.render(winget, ["claude", "wakatime"]).count("'Git.Git'"), 1)
+        self.assertEqual(self.render(winget, ["agent-config", "claude", "wakatime"]).count("'Git.Git'"), 1)
+        # 剛裝的 git 不在 apply 這個 process 的 PATH:先接上登錄檔的 PATH 再叫 claude 加 marketplace
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime", "claude"])
+        self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"),
+                        out.index("& $claude plugin marketplace add"))
+
     def test_windows_skillshare_sync_reruns_when_checked_clients_change(self):
         # run_onchange_:釘的 targets、extras 照勾的 client 產生,勾選變了腳本內容就變,chezmoi 才重跑 sync --all
         script = SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl"

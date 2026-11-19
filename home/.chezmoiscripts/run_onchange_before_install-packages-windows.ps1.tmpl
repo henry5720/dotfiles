@@ -17,6 +17,8 @@
 {{- range $tool, $p := .toolPackages.windows -}}
 {{-   if has $tool $installing }}{{ $ids = concat $ids $p }}{{ end -}}
 {{- end -}}
+{{- /* 幾個工具共用同一個 app(agent-config、wakatime 都要 Git.Git)時只列一次 */ -}}
+{{- $ids = uniq $ids -}}
 {{ includeTemplate "ps1-text" . }}
 $ids = @(
 {{- range $i, $id := $ids }}{{ if $i }},{{ end }}

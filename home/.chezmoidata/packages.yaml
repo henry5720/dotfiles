@@ -165,6 +165,10 @@ toolPackages:
     # 已經裝過 Git for Windows 的機器 winget list 對得到,跳過;installer 預設 machine scope,會跳 UAC
     agent-config:
       - Git.Git
+    # claude plugin marketplace add 從 git URL clone WakaTime 的 marketplace,也要系統的 git(#324)。
+    # 跟 agent-config 一起勾時套件腳本去掉重複的 id,只裝一次
+    wakatime:
+      - Git.Git
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
