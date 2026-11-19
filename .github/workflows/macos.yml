@@ -1,0 +1,105 @@
+# macOS:在 GitHub Actions 的 macOS runner 上照 Runbook 的 macOS 那行(brew install chezmoi && chezmoi init --apply henry5720)
+# 從零裝一次,再 chezmoi verify。容器 e2e(script/tests/e2e.sh)跑不了 macOS,這個 workflow 補上(#302)。
+# 精簡、完整各跑一次:
+#   minimal  照 Runbook「免回答安裝那一行」:--promptDefaults + 用途 m + git email,其他用預設
+#   full     用途 f,選單勾 tool-menu 上全部(含 macOS 標「裝不了」的),秘密給假值;
+#            裝不了的要被略過、apply 照樣跑完,最後的略過彙整要列出它們
+# 不互動參數跟 e2e 同一套:--promptString／--promptChoice／--promptMultichoice 的 key 是提示文字,
+# 選單文字用 runner 上的 chezmoi 渲染 .chezmoitemplates/tool-menu-labels(跟 e2e 的 menu_labels 一樣)。
+#
+# 測不到、留給真機(#219):沒有 Homebrew 的機器(runner 預裝 Homebrew)、/Applications 已經有同名 app 時 cask 略過。
+name: macOS
+
+on:
+  pull_request:
+    paths:
+      - 'home/**'
+      - '.github/workflows/macos.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'home/**'
+      - '.github/workflows/macos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  init-apply:
+    name: init --apply (${{ matrix.use }})
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        use: [minimal, full]
+    env:
+      # mise、chezmoi 的 gitHub* 函式打 GitHub API,未登入每小時 60 次
+      GITHUB_TOKEN: ${{ github.token }}
+      USE_PROMPT: 用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）
+      TOOLS_PROMPT: 選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）
+    steps:
+      # persist-credentials: false:source 整個複製到家目錄,不要把 token 帶進 .git/config
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # 1. 放好 source。測的是這個 PR 的內容(checkout 下來的 merge commit),所以先把它放到
+      #    ~/.local/share/chezmoi,再照抄 Runbook 那行:source 已經在,chezmoi init 就不 clone,直接用它。
+      #    跟 e2e 同一招。不用 --branch:那會從 GitHub clone 分支 tip,fork 來的 PR 沒有那個分支,
+      #    也測不到合併後的結果;不用 --source:Runbook 那行沒有它,裝完 source 會留在 workspace 而不是預設位置。
+      - name: 放好 source
+        run: |
+          mkdir -p ~/.local/share
+          cp -R "$GITHUB_WORKSPACE" ~/.local/share/chezmoi
+
+      # 2. Runbook macOS 那行的前半:brew install chezmoi
+      - name: brew install chezmoi
+        run: brew install chezmoi
+
+      # 3. Runbook macOS 那行的後半,加上不互動參數
+      - name: chezmoi init --apply
+        run: |
+          set -o pipefail
+          cd ~
+          flags=(--no-tty --promptString 'git user.email=ci@example.com')
+          if [ "${{ matrix.use }}" = minimal ]; then
+            flags+=(--promptDefaults --promptChoice "$USE_PROMPT=m")
+          else
+            # 選單上的每一行(含裝不了的原因標註),用 / 接起來給 --promptMultichoice。
+            # --config 指向不存在的檔:渲染時不讀任何 chezmoi 設定
+            labels=$(chezmoi --source ~/.local/share/chezmoi --config "$RUNNER_TEMP/none.toml" --no-tty \
+              execute-template '{{ includeTemplate "tool-menu-labels" . }}' | paste -sd/ -)
+            printf '%s\n' "$labels" | tr / '\n'
+            flags+=(
+              --promptString 'code-server 密碼=ci'
+              --promptString 'codex-lb API key=ci'
+              --promptString 'Context7 API key（可留空）='
+              --promptString 'WakaTime API key（可留空）='
+              --promptString 'git user.name=ci'
+              --promptChoice "$USE_PROMPT=f"
+              --promptMultichoice "$TOOLS_PROMPT=$labels"
+            )
+          fi
+          chezmoi init --apply "${flags[@]}" henry5720 </dev/null 2>&1 | tee "$RUNNER_TEMP/init.log"
+
+      # 4. 完整勾了 macOS 裝不了的,要在略過彙整裡看到;沒有的話就是選單沒標、或腳本沒略過
+      - name: 裝不了的有略過
+        if: matrix.use == 'full'
+        run: |
+          summary=$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,$p' "$RUNNER_TEMP/init.log")
+          printf '%s\n' "$summary"
+          for t in headless-chrome playwright-cli snapserver earlyoom; do
+            grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
+          done
+
+      # 5. 檔案全部跟 source 一致。腳本另外看:略過彙整(run_after_zz-root-skipped-summary)是 run_after_,
+      #    有略過的機器每次 apply 都跑、diff 永遠看得到它(設計如此,見那支開頭),完整那組一定有;
+      #    除了它,不能有還沒跑過的腳本(run_onchange_／run_once_ 失敗或沒跑會留在這裡)。
+      - name: chezmoi verify
+        run: |
+          cat ~/.config/chezmoi/chezmoi.toml
+          chezmoi verify --exclude scripts || { chezmoi diff --exclude scripts; exit 1; }
+          pending=$(chezmoi status --include scripts | grep -v 'zz-root-skipped-summary' || true)
+          [ -z "$pending" ] || { echo "還有腳本待跑:"; echo "$pending"; exit 1; }
