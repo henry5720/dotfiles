@@ -1,9 +1,9 @@
 {{- /* 這台有沒有勾 node 或要 Node 的選裝工具(這台裝不了的不算,見 tools-to-install):有就輸出 true,否則空字串。用法:{{ if includeTemplate "needs-node" . }}
-       清單是 .chezmoidata/packages.yaml 的 nodeTools(為什麼要 Node 也寫在那裡)。
-       install-node 照它決定裝不裝 nvm 與 Node,套件腳本照它加 nodePackages(libatomic1)。
-       Windows 的 codegraph 不算:mise 裝的是自帶 Node runtime 的 release bundle(mise-tools,#323)。 */ -}}
+       清單是 .chezmoidata/packages.yaml 的 nodeTools(為什麼要 Node 也寫在那裡),
+       扣掉 nodeToolsSkip 裡這個 OS 的(那裡的裝法自帶 Node,例如 Windows 的 codegraph)。
+       install-node 照它決定裝不裝 nvm 與 Node,套件腳本照它加 nodePackages(libatomic1)。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
-{{- $windows := eq .chezmoi.os "windows" -}}
+{{- $skip := index .nodeToolsSkip .chezmoi.os | default list -}}
 {{- range .nodeTools -}}
-{{-   if and (has . $installing) (not (and $windows (eq . "codegraph"))) }}true{{ break }}{{ end -}}
+{{-   if and (has . $installing) (not (has . $skip)) }}true{{ break }}{{ end -}}
 {{- end -}}

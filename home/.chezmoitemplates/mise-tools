@@ -15,7 +15,7 @@
        opencode.ai/install 同一個大版本(設定檔通用);mise registry 的短名 opencode 已經指到 OpenCode 2 的 @opencode/cli。
        Linux、macOS 照舊官方 installer(install-opencode)。
        codegraph 勾了列 registry 的短名 codegraph(#323):指到 aqua:colbymchenry/codegraph,裝官方 release 的
-       codegraph-win32-<arch>.zip(自帶 Node runtime,不要 mise 的 Node;needs-node 在 Windows 不算它)。
+       codegraph-win32-<arch>.zip(自帶 Node runtime,不要 mise 的 Node;packages.yaml 的 nodeToolsSkip)。
        不用官方 install.ps1:它只在 PATH 放 codegraph.cmd,mise 的 shim 是 codegraph.exe,
        skillshare 同步的 MCP 設定(command: codegraph)不經 shell 也找得到。Linux 照舊 npm-install-codegraph。
        要 Node 的工具(needs-node)勾了,沒勾 node 也列 LTS:

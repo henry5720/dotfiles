@@ -174,7 +174,7 @@ toolPackages:
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
 # 判斷在 .chezmoitemplates/needs-node。
 #   node:選單上的 Node LTS(Linux、macOS 用 nvm;Termux 用 pkg 的 nodejs-lts)
-#   codegraph、playwright-cli:npm 全域套件(Windows 的 codegraph 是自帶 Node 的 release bundle,不算,見 needs-node)
+#   codegraph、playwright-cli:npm 全域套件(Windows 的 codegraph 是自帶 Node 的 release bundle,見下面 nodeToolsSkip)
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
 nodeTools:
@@ -183,6 +183,11 @@ nodeTools:
   - playwright-cli
   - opencode
   - wakatime
+# 在某個 OS 上不要 Node 的 nodeTools(那裡的裝法自帶 Node):.chezmoi.os → 工具。
+#   windows 的 codegraph:mise 裝官方 release 的 bundle,自帶 Node runtime(mise-tools,#323)
+nodeToolsSkip:
+  windows:
+    - codegraph
 # 勾了 nodeTools 其中一個時一起裝的系統套件(macOS 不用)。
 # ubuntu:nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
 #   基底拿掉它之後要自己列,不然 node 一執行就 exit 127
