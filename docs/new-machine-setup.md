@@ -144,12 +144,12 @@ sudo apt update && sudo apt upgrade -y
 Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。之後的 `chezmoi apply` 在 Ubuntu 只裝缺的
 套件、不升級；在 Termux 有缺的套件要裝時會先 `pkg upgrade`（Termux 不支援部分升級），不缺就不動。
 
-### 2.2（可選）產這台的 SSH key
+### 2.2（可選）放 SSH key
 
 clone、`chezmoi update` 走 HTTPS，不用 key；要 **push**（dotfiles、agent-config）或從這台
 **連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再做。
 
-每台用自己的 key，私鑰不複製到別台。註解寫這台的名字（例如 tailnet 裝置名），被連的那端靠它認出是哪台：
+ssh config 用 `~/.ssh/id_ed25519`。還沒有就產一把：
 
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
@@ -165,21 +165,11 @@ ssh-keygen -t ed25519 -C "<這台的名字>" -f $HOME\.ssh\id_ed25519
 Get-Content $HOME\.ssh\id_ed25519.pub
 ```
 
-把印出的那行公鑰加到這台要連的地方：
+公鑰加到要連的地方：
 
-- GitHub 的 [SSH keys](https://github.com/settings/keys)，Title 也填這台的名字。`ssh -T git@github.com`
-  回 `successfully authenticated` 就對了。
-- 要連的主機，放哪看那台的 OS 和帳號：
-
-  | 被連的主機 | 放哪 |
-  |---|---|
-  | Linux、macOS、Termux | `~/.ssh/authorized_keys` |
-  | Windows，管理員帳號 | `C:\ProgramData\ssh\administrators_authorized_keys`；權限要收成只有 Administrators、SYSTEM，不然 sshd 不讀（[`icacls` 那行](remote-access/sshd.md#windows)） |
-  | Windows，一般帳號 | `C:\Users\<使用者>\.ssh\authorized_keys` |
-
-  其他情況（沒有 root 的 Linux、怎麼開 sshd）見[開 sshd](remote-access/sshd.md)。
-
-這台不用了或私鑰外洩：到 GitHub 和那些主機刪掉這台名字的那一行，別台不受影響。
+- GitHub 的 [SSH keys](https://github.com/settings/keys)。`ssh -T git@github.com` 回 `successfully authenticated` 就對了。
+- 要連的主機的 `~/.ssh/authorized_keys`。Windows 的管理員帳號例外：放 `C:\ProgramData\ssh\administrators_authorized_keys`，
+  權限要收成只有 Administrators、SYSTEM，不然 sshd 不讀（[`icacls` 那行](remote-access/sshd.md#windows)）。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器

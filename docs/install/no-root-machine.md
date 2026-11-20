@@ -98,7 +98,7 @@ chezmoi 整段跳過、直接用系統那份，有沒有 root 都一樣、不會
 
 `<目標 Host>` 是 ssh config 裡已配置主機的 Host，關了密碼登入、也沒開 Tailscale SSH。
 
-1. 這台還沒有 `~/.ssh/id_ed25519` 就照[新機器設定 2.2](../new-machine-setup.md#22可選產這台的-ssh-key)產。
+1. 這台還沒有 `~/.ssh/id_ed25519` 就照[新機器設定 2.2](../new-machine-setup.md#22可選放-ssh-key)放。
 
 2. 在已經連得上目標的機器，把這台的公鑰加進目標的 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
 
