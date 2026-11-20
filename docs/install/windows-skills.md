@@ -18,7 +18,6 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 |---|---|---|
 | slack-list | 腳本檔頭 `import fcntl`，Windows 的 Python 沒有這個模組，連唯讀指令都跑不了；而且要 `python3` | [#94](https://github.com/henry5720/agent-config/issues/94) |
 | expose-port | 兩支腳本是 python3，用 `pgrep`、`sudo`、`SIGHUP`（Windows 沒有）。開公網網址改到 WSL 或 Linux 那台做 | [#95](https://github.com/henry5720/agent-config/issues/95) |
-| company-imagegen-fallback | 只給 Codex；叫的 `~/.local/bin/imagegen-fallback` 是 zsh 腳本，Windows 不部署 | 不開：只在 Codex 內建 `image_gen` 不能用時才用到 |
 
 ## 部分可用
 
@@ -28,7 +27,6 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 | browser-access | headless（`playwright-cli open`）、使用者的獨立 profile | 接插件的 `personal-chrome-attach`（要 `python3`、`/proc`、`mkfifo`）；查 port 的 `ss -ltnp` 換 `Get-NetTCPConnection` | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | verify-in-browser | 用 `playwright-cli` 逐條驗、存證據 | 產報告的 `uv run scripts/render-report.py`（Windows 沒裝 uv，自己 `winget install astral-sh.uv`）；證據資料夾 `chmod 700` 在 NTFS 不生效 | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | pr-review-and-verify | 審 PR、`gh` 發 comment | 瀏覽器結果的報告靠 verify-in-browser 的 `render-report.py`，同上 | [#96](https://github.com/henry5720/agent-config/issues/96) |
-| company-imagegen | 呼叫 runtime 產圖 | 回 Slack thread 靠 slack-list，同上 | [#94](https://github.com/henry5720/agent-config/issues/94) |
 | show-me | 寫 HTML、Mermaid | 開 HTML 寫的是 macOS 的 `open`，Windows 叫 agent 改用 `start` | 上游 skill，不開 |
 | agent-reach | SKILL.md 的路由 | 要自己裝 agent-reach CLI（dotfiles 在哪個 OS 都不裝），在 Windows 沒驗過 | 上游 skill，不開 |
 
