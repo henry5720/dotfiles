@@ -41,6 +41,7 @@
 #            - when: [<環境>…]        對到任一個就算(環境見 2.)
 #              state: discouraged 或 unsupported
 #              reason: 原因
+#              aptFix: 補裝這些 apt 套件就解除時的套件名(例:no-libatomic 的 libatomic1)。Debian 系的略過訊息附上 apt 指令(ADR 0004)
 #              issue: 原因是「還沒寫裝法」時,追蹤的 issue 編號(#348、#349 之後目前沒有)。只放在拿掉規則也一個裝法都用不了的
 #                     環境:補了裝法,規則就該拿掉,不然它會一直擋著(#309 的 herdr,測試擋)
 #          unsupported 不管有沒有裝法都算裝不了(例如 WSL 不裝 Linux 的 Chrome);discouraged 照樣算裝法,只是標原因。
@@ -455,6 +456,7 @@ toolTable:
         - when: [no-libatomic]
           state: unsupported
           reason: Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
+          aptFix: [libatomic1]
     # runtime(#341):Python 交給 uv,uv 自己下載專案要的 Python;系統 python3 只給 chezmoi 腳本。
     # Linux、Windows 走 mise(單一執行檔,ADR 0005),macOS、Termux 照例外走 brew、pkg。勾了 needsUv 的工具也會連帶裝
     uv:
@@ -482,9 +484,12 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有
-        - when: [no-libatomic]
+        # 走 npm backend 的工具共用這條(YAML anchor,playwright-cli 用 *needs-node-libatomic 引用)
+        - &needs-node-libatomic
+          when: [no-libatomic]
           state: unsupported
           reason: 要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
+          aptFix: [libatomic1]
     # Windows 的 Chrome 本身就能 --headless(#327)。用 Google 一般 installer 的 Google.Chrome.EXE:
     # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份。
     # macOS 走 brew 的 google-chrome cask(#348);從官網裝過的,brew 會因 /Applications 已經有而略過(同 tailscale)
@@ -534,9 +539,7 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android
-        - when: [no-libatomic]
-          state: unsupported
-          reason: 要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
+        - *needs-node-libatomic
     # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。
     # skillshare init 從 remote clone 要系統的 git(#321),Windows 基底沒裝
     agent-config:

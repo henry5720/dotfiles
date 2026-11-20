@@ -44,6 +44,25 @@ Linux 的 `node` 以前走 nvm，#342 起改由 mise 裝（跟 Windows 一樣）
 - `~/.nvm` 原地保留，不會被刪（取消勾選不解除安裝）。確定不用了就自己刪：`rm -rf ~/.nvm`。
   其他 shell 設定檔（例如自己在 `~/.bashrc` 加過的 nvm 那幾行）也要自己拿掉。
 
+### 自己裝過的 uv
+
+Linux 的 `uv` 從 #341 起由 mise 裝（勾 `uv`，或勾了要它的工具）。以前自己用 uv 官方 installer 裝過的，執行檔在
+`~/.local/bin/uv`；`.zshrc` 把 `~/.local/bin` 排在 mise 的 shims 前面，打 `uv` 會先找到舊的那份，它不會跟著 `mise up` 更新。
+dotfiles 不會自動刪它。看是哪一份：
+
+```bash
+command -v uv   # 要印出 ~/.local/share/mise/shims/uv;印 ~/.local/bin/uv 就是舊的
+```
+
+只用 mise 那份就刪掉舊的執行檔（[uv 官方的移除步驟](https://docs.astral.sh/uv/getting-started/installation/#uninstallation)第 2 步）：
+
+```bash
+rm ~/.local/bin/uv ~/.local/bin/uvx
+```
+
+官方第 1 步（`uv cache clean`、刪 `uv python dir`、`uv tool dir`）不要跑：cache、Python、`uv tool install` 的工具是兩份 uv 共用的，
+mise 那份也在用。
+
 ## 環境：不建議、裝不了
 
 選單每台都列全部工具。這台環境不建議或裝不了的，說明後面標原因（不建議的照樣先標裝法），裝不了的不標裝法，例如

@@ -187,7 +187,7 @@ _Avoid_: 安裝方式、管道、路徑
 _Avoid_: 套件清單（那是基底）、環境規則表
 
 **依賴套件**:
-選裝工具要用、但不上選單的套件，例如 claude 讀 PDF 要的 poppler、snapserver 的 ffmpeg、Windows 上 agent-config 要的 Git。寫在選裝工具表那個工具底下，跟著工具裝；依賴裝不了不擋工具本身。
+選裝工具要用、但不上選單的套件，例如 claude 讀 PDF 要的 poppler、snapserver 的 ffmpeg、Windows 上 agent-config 要的 Git。寫在選裝工具表那個工具底下，跟著工具裝；依賴裝不了不擋工具本身。node 缺 libatomic 不算依賴裝不了：那是環境 `no-libatomic`，Node 官方 binary 根本跑不起來，node 與要它的工具照規則裝不了。
 _Avoid_: 選裝工具（依賴不能單獨勾）、子工具
 
 **runtime**:

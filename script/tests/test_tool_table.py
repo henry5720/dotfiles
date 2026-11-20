@@ -25,8 +25,8 @@ ROOT = Path(__file__).resolve().parents[2]
 RESOLVE = '{{ includeTemplate "tool-install" . }}'
 MENU = '{{ includeTemplate "tool-menu-labels" . }}'
 TABLE = '{{ include ".chezmoidata/tool-table.yaml" | fromYaml | toJson }}'
-NO_METHOD = "沒有這個環境的裝法"
-RUNTIMES = {"needsNode": "node", "needsUv": "uv"}  # 表上「要這個 runtime 的 OS」欄 → runtime(#341)  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
+NO_METHOD = "沒有這個環境的裝法"  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
+RUNTIMES = {"needsNode": "node", "needsUv": "uv"}  # 表上「要這個 runtime 的 OS」欄 → runtime(#341)
 
 
 def table():
@@ -251,6 +251,18 @@ class ToolTableTest(unittest.TestCase):
                                     (ROOT / "home/.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl")
                                     .read_text(encoding="utf-8"))
         self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), ["skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'"])
+
+    def test_no_libatomic_skip_summary_gives_the_apt_command_on_debian(self):
+        # ADR 0004:略過訊息寫事實與對應指令。規則的 aptFix 在 Debian 系附上 apt 指令,沒有 apt 的 Linux 只寫事實。
+        # opencode 連帶要 Node,node 才會列進略過
+        node = "Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有"
+        fix = "；apt 的指令是 sudo apt-get install -y libatomic1"
+        script = (ROOT / "home/.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl").read_text(encoding="utf-8")
+        for env, hint in (("debian-noroot", fix), ("non-debian", "")):
+            with self.subTest(env=env), tempfile.TemporaryDirectory() as tmp:
+                out = Renderer(tmp).run(dict(ENVS[env], tools=["codegraph", "opencode"]), "execute-template", script)
+                self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), [
+                    f"skip_env 'codegraph' '要 Node：{node}{hint}'", f"skip_env 'node' '{node}{hint}'"])
 
     def test_old_rules_and_lists_are_gone(self):
         # 裝法只寫在表上(#332、#336):舊的環境規則樣板(tool-env、tool-status)、apt 用不了的判斷(use-mise)、

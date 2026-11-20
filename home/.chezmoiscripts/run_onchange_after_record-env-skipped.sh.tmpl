@@ -1,4 +1,4 @@
-{{- /* 原因由裝法判斷 tool-install 照 .chezmoidata/tool-table.yaml 算(#332) */ -}}
+{{- /* 原因由裝法判斷 tool-install 照 .chezmoidata/tool-table.yaml 算(#332)。規則寫了 aptFix 時,Debian 系附上 apt 指令(ADR 0004) */ -}}
 {{- $skipped := includeTemplate "tools-skipped" . -}}
 {{- if $skipped -}}
 {{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
@@ -11,6 +11,9 @@ set -eu
 
 {{ includeTemplate "sh-skip" . }}
 {{ range splitList " " $skipped -}}
-skip_env {{ squote . }} {{ dig . "reason" "" $status | squote }}
+{{   $fix := dig . "aptFix" (list) $status -}}
+{{-   $hint := "" -}}
+{{-   if and $fix (includeTemplate "is-debian" $) }}{{ $hint = printf "；apt 的指令是 sudo apt-get install -y %s" (join " " $fix) }}{{ end -}}
+skip_env {{ squote . }} {{ print (dig . "reason" "" $status) $hint | squote }}
 {{ end -}}
 {{ end -}}

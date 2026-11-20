@@ -19,11 +19,13 @@
              official  {kind: sh 或 ps1, url, shell, env, args, installed}
              script    自己那支腳本的名字                         deb  {url}
            setup     裝完還要設定的腳本名(表上沒寫就沒有這欄)
+           aptFix    對到的規則寫了 aptFix 才有:補裝這些 apt 套件就解除(略過彙整附上 apt 指令)
            deps.<依賴套件>  install 為 true 時才算:{state: ok 或 unsupported, method, 裝法的資料}
          lists      照上面彙整的清單,給各套件管理員用:要裝的工具與它們用得了的依賴,照工具名排、依賴接在工具後面、去掉重複:
                     apt、pkg、brew、cask、winget 是套件名;mise 是 {tool, version, options}
                     aptNeedsRoot:依賴套件裝不了、但只差 root(這個 OS 的裝法有 apt、這台是 Debian 系)時它的 apt 套件名。
-                    依賴裝不了不擋工具(例如 node 的 libatomic1,#315 的決定):套件腳本照樣列,執行時缺了才印缺什麼與指令(skip_root)
+                    依賴裝不了不擋工具(#315 的決定):套件腳本照樣列,執行時缺了才印缺什麼與指令(skip_root)。
+                    node 缺 libatomic 不走這條:那是環境 no-libatomic,node 與要它的工具照規則裝不了(#342)
        例:debian-root 勾 claude → tools.claude = {state: ok, method: official, official: {kind: sh, url: https://claude.ai/install.sh, …},
            deps: {poppler: {state: ok, method: apt, packages: [poppler-utils]}}, …},lists.apt = [poppler-utils] */ -}}
 {{- $t := index . "toolTable" -}}
@@ -53,11 +55,12 @@
 {{- range $name, $spec := $t.tools -}}
 {{-   $state := "ok" -}}
 {{-   $reason := "" -}}
+{{-   $fix := list -}}
 {{-   range (get $spec "rules" | default list) -}}
 {{-     if not (hasKey $labels .state) }}{{ fail (printf "tool-table:%s 的 state %q 不是 discouraged 或 unsupported" $name .state) }}{{ end -}}
 {{-     $hit := false -}}
 {{-     range .when }}{{ if has . $envs }}{{ $hit = true }}{{ end }}{{ end -}}
-{{-     if $hit }}{{ $state = .state }}{{ $reason = .reason }}{{ break }}{{ end -}}
+{{-     if $hit }}{{ $state = .state }}{{ $reason = .reason }}{{ $fix = get . "aptFix" | default list }}{{ break }}{{ end -}}
 {{-   end -}}
 {{-   $r := dict "method" "" -}}
 {{-   if ne $state "unsupported" -}}
@@ -73,6 +76,7 @@
 {{- /*   runtime 要不要裝還要看別的工具,第 3 步才算 */ -}}
 {{-   if not (hasKey $runtimes $name) }}{{ $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) }}{{ end -}}
 {{-   with get $spec "setup" }}{{ $_ := set $entry "setup" . }}{{ end -}}
+{{-   with $fix }}{{ $_ := set $entry "aptFix" . }}{{ end -}}
 {{-   $_ := set $tools $name $entry -}}
 {{- end -}}
 

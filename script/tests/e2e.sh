@@ -1476,8 +1476,8 @@ noroot_full_checks() {
   # codegraph、playwright-cli 也標裝不了(#342)。完整照樣勾 opencode、wakatime,它們連帶要 Node,所以 node 列在「這台裝不了」
   check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome,與沒有 libatomic 裝不了的 node、codegraph、playwright-cli" \
     "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome|node|codegraph|playwright-cli)\"' <<<\"\$t\" && grep -q '\"opencode\"' <<<\"\$t\""
-  check "「這台裝不了」那段只有 node,原因是 libatomic" \
-    "s=\$(sed -n '/以下選裝工具已略過/,/^\$/p' ~/e2e-init.log); echo \"\$s\"; [ \"\$(grep -c '^- ' <<<\"\$s\")\" = 1 ] && grep -q -- '^- node:.*libatomic' <<<\"\$s\""
+  check "「這台裝不了」那段只有 node,原因是 libatomic,附 apt 指令(ADR 0004)" \
+    "s=\$(sed -n '/以下選裝工具已略過/,/^\$/p' ~/e2e-init.log); echo \"\$s\"; [ \"\$(grep -c '^- ' <<<\"\$s\")\" = 1 ] && grep -q -- '^- node:.*libatomic.*sudo apt-get install -y libatomic1' <<<\"\$s\""
   check "沒有 ~/.local/share/mise/installs/node" "[ ! -e ~/.local/share/mise/installs/node ]"
   for s in tailscale 系統套件; do
     check_skipped "$s"

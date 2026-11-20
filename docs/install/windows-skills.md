@@ -25,7 +25,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 |---|---|---|---|
 | windows-mcp | 〈使用者在那台 PowerShell 貼〉那段 | `scripts/` 全部要在 WSL 跑（`powershell.exe`、`wslpath`）；agent 就在那台 Windows 時自己跑 PowerShell 的路 SKILL.md 沒寫 | [#95](https://github.com/henry5720/agent-config/issues/95) |
 | browser-access | headless（`playwright-cli open`）、使用者的獨立 profile | 接插件的 `personal-chrome-attach`（要 `python3`、`/proc`、`mkfifo`）；查 port 的 `ss -ltnp` 換 `Get-NetTCPConnection` | [#96](https://github.com/henry5720/agent-config/issues/96) |
-| verify-in-browser | 用 `playwright-cli` 逐條驗、存證據 | 產報告的 `uv run scripts/render-report.py`（Windows 沒裝 uv，自己 `winget install astral-sh.uv`）；證據資料夾 `chmod 700` 在 NTFS 不生效 | [#96](https://github.com/henry5720/agent-config/issues/96) |
+| verify-in-browser | 用 `playwright-cli` 逐條驗、存證據 | 產報告的 `uv run scripts/render-report.py`（要 uv：勾了 agent-config、`uv` 或 windows-mcp 就由 mise 一併裝）；證據資料夾 `chmod 700` 在 NTFS 不生效 | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | pr-review-and-verify | 審 PR、`gh` 發 comment | 瀏覽器結果的報告靠 verify-in-browser 的 `render-report.py`，同上 | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | show-me | 寫 HTML、Mermaid | 開 HTML 寫的是 macOS 的 `open`，Windows 叫 agent 改用 `start` | 上游 skill，不開 |
 | agent-reach | SKILL.md 的路由 | 要自己裝 agent-reach CLI（dotfiles 在哪個 OS 都不裝），在 Windows 沒驗過 | 上游 skill，不開 |

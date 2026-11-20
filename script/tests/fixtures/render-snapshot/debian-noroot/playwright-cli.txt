@@ -349,7 +349,7 @@ skip_env() {  # skip_env <工具> <原因>
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }
 
-skip_env 'playwright-cli' '要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有'
+skip_env 'playwright-cli' '要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有；apt 的指令是 sudo apt-get install -y libatomic1'
 
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
