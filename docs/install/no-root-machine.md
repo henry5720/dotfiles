@@ -45,7 +45,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
 
-只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，與用 `headless-chrome` 的 `playwright-cli`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
+只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
 勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。管理員裝過 snapserver、snapclient 的話，
 套件自帶、開機自動啟動的系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)）。
 

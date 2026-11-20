@@ -509,12 +509,14 @@ toolTable:
       mise: {tool: "npm:@playwright/cli"}
       setup: npm-install-playwright-cli
       needsNode: [linux, darwin, android, windows]
+      # 下面兩條沿用 #315 之前就有的「跟 headless-chrome 綁在一起」;它可以 attach 遠端瀏覽器(#260),
+      # 該看自己的裝法,拆掉見 #349。沒有 root 的 Debian 系刻意不綁(#315)
       rules:
         - when: [darwin]
           state: unsupported
           reason: 它用 headless-chrome，這台裝不了 headless-chrome
           issue: 348
-        - when: [android, wsl, non-amd64, non-debian, noroot]
+        - when: [android, wsl, non-amd64, non-debian]
           state: unsupported
           reason: 它用 headless-chrome，這台裝不了 headless-chrome
     # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。

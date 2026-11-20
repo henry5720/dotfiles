@@ -218,7 +218,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 選單上每一項後面都有一句說明和這台會走的裝法（例如 `[apt]`、`[mise]`），清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
-WSL、非 amd64、沒有 root 的機器與 macOS 裝不了 `headless-chrome`、`playwright-cli`。
+WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`、`playwright-cli`；沒有 root 的機器裝不了 `headless-chrome`。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
 `snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 走 mise 裝官方 release 的 zip；非 Debian 系裝不了，proot Ubuntu 標不建議。

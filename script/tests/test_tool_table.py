@@ -215,17 +215,12 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(self.status["debian-root"]["tools"]["snapclient"]["state"], "ok")
         self.assertEqual(self.status["android"]["tools"]["snapclient"]["state"], "ok")
 
-    def test_playwright_cli_is_unsupported_wherever_headless_chrome_is(self):
-        # playwright-cli 用 headless-chrome:Linux 上 headless-chrome 裝不了的環境,選單上 playwright-cli 也標裝不了
-        # (沒有 root 的 Debian 系以前沒對齊,選單說裝得了、headless-chrome 卻裝不了)
-        for env, res in self.status.items():
-            if ENVS[env]["chezmoi"]["os"] != "linux":
-                continue
-            with self.subTest(env=env):
-                self.assertEqual(res["tools"]["playwright-cli"]["state"] == "unsupported",
-                                 res["tools"]["headless-chrome"]["state"] == "unsupported")
-        self.assertEqual(self.status["debian-noroot"]["tools"]["playwright-cli"]["reason"],
-                         "它用 headless-chrome，這台裝不了 headless-chrome")
+    def test_playwright_cli_keeps_installing_without_root(self):
+        # 沒有 root 的 Debian 系:headless-chrome 裝不了,playwright-cli 照裝(npm,不要 root;可以 attach
+        # 遠端瀏覽器,#260)。其他環境還沿用舊 tool-env「它用 headless-chrome」那條,拆掉見 #349
+        res = self.status["debian-noroot"]["tools"]
+        self.assertEqual(res["headless-chrome"]["state"], "unsupported")
+        self.assertNotEqual(res["playwright-cli"]["state"], "unsupported")
 
     def test_noroot_skip_summary_prints_the_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
