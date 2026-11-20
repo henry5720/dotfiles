@@ -144,27 +144,27 @@ sudo apt update && sudo apt upgrade -y
 Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。之後的 `chezmoi apply` 在 Ubuntu 只裝缺的
 套件、不升級；在 Termux 有缺的套件要裝時會先 `pkg upgrade`（Termux 不支援部分升級），不缺就不動。
 
-### 2.2（可選）放 SSH key
+### 2.2（可選）產這台的 SSH key
 
 clone、`chezmoi update` 走 HTTPS，不用 key；要 **push**（dotfiles、agent-config）或從這台
-**連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再放。
+**連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再做。
 
-所有機器共用同一把 key，檔名一定要是 `~/.ssh/henry5720`：ssh config 對 GitHub 和所有
-Tailscale 主機都寫死這個 IdentityFile。在舊機器 `cat ~/.ssh/henry5720` 複製內容，然後在新機器：
+每台用自己的 key，私鑰不複製到別台。註解寫這台的名字（例如 tailnet 裝置名），被連的那端靠它認出是哪台：
 
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-cat > ~/.ssh/henry5720            # 貼上整段（含 BEGIN/END 兩行），換行後 Ctrl-D
-chmod 600 ~/.ssh/henry5720
-ssh-keygen -y -f ~/.ssh/henry5720 > ~/.ssh/henry5720.pub   # 能產生就代表 key 格式對
+ssh-keygen -t ed25519 -C "<這台的名字>" -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
 ```
 
-放好後跑一次 `chezmoi apply`（還沒裝 chezmoi 就等 2.3 一起做）：
+把印出的那行公鑰加到這台要連的地方：
 
-- `~/.ssh/config` 由 chezmoi 部署，GitHub 與各主機開始用這把 key。
-- **原生 Termux**：公鑰會被加進 `~/.ssh/authorized_keys`（已經有就跳過），別台才 ssh 得進來。
-- 這把 key 要在 GitHub 的 [SSH keys](https://github.com/settings/keys) 裡，`ssh -T git@github.com`
-  會回 `successfully authenticated` 就對了。
+- GitHub 的 [SSH keys](https://github.com/settings/keys)，Title 也填這台的名字。`ssh -T git@github.com`
+  回 `successfully authenticated` 就對了。
+- 要連的主機的 `~/.ssh/authorized_keys`；Windows 的系統管理員帳號放
+  `C:\ProgramData\ssh\administrators_authorized_keys`。
+
+這台不用了或私鑰外洩：到 GitHub 和那些主機刪掉這台名字的那一行，別台不受影響。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器

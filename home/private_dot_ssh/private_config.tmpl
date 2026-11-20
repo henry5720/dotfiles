@@ -1,10 +1,11 @@
+# 不寫 IdentityFile:每台用自己的 ~/.ssh/id_ed25519。Host 寫了 IdentityFile,ssh 就不找這個預設檔。
+
 # ===============================================================
 # 1. GitHub
 # ===============================================================
 Host github.com
     HostName github.com
     User git
-    IdentityFile ~/.ssh/henry5720
 
 # ===============================================================
 # 2. Tailscale 節點 (Tailscale devices)
@@ -20,24 +21,20 @@ Host github.com
 Host henry-laptop
     HostName henry-laptop
     User henry
-    IdentityFile ~/.ssh/henry5720
 
 # 平常用的那台桌機,tailnet 裝置名 desktop-ifmbqh5
 Host henry-desktop
     HostName desktop-ifmbqh5.tail29dcee.ts.net
     User henry
-    IdentityFile ~/.ssh/henry5720
 
 # 量華的 Windows(DESKTOP-4P510DU),本機帳號 user
 Host lianghua
     HostName lianghua.tail29dcee.ts.net
     User user
-    IdentityFile ~/.ssh/henry5720
 
 Host pos2-dev
     HostName pos2-dev.tail29dcee.ts.net
     User user
-    IdentityFile ~/.ssh/henry5720
 
 # ===============================================================
 # 3. Oracle VPS — tenancy A (我的)
@@ -58,7 +55,6 @@ Host pos2-dev
 Host henry-a1
     HostName 129.80.13.225
     User ubuntu
-    IdentityFile ~/.ssh/henry5720
 
 # ===============================================================
 # 4. Oracle VPS — tenancy B (別人的,不要動)
@@ -69,7 +65,6 @@ Host henry-a1
 Host hermes
     HostName 150.136.179.96
     User henry
-    IdentityFile ~/.ssh/henry5720
     IdentitiesOnly yes
 
 # a1-fleet-2,跑 openab-codex / openab-patrick / openab-claude 三個 container
@@ -77,7 +72,6 @@ Host hermes
 Host openab
     HostName 158.101.108.0
     User ubuntu
-    IdentityFile ~/.ssh/henry5720
     IdentitiesOnly yes
 
 # 另一個拿掉的舊 Host:oracle-2 = 129.159.185.160。它也在 tenancy B,是
@@ -92,14 +86,12 @@ Host openab
 Host company-ec2
     HostName aws-ec2-henry.tail29dcee.ts.net
     User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
     IdentitiesOnly yes
 
 # 備用:EC2 的 tailscale 掛掉時走公網 IP。
 Host company-ec2-public
     HostName 18.141.90.104
     User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
     IdentitiesOnly yes
 {{- if includeTemplate "tailscale-userspace" . }}
 
