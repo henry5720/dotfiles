@@ -22,6 +22,12 @@ Host henry-laptop
     User henry
     IdentityFile ~/.ssh/henry5720
 
+# 平常用的那台桌機,tailnet 裝置名 desktop-ifmbqh5
+Host henry-desktop
+    HostName desktop-ifmbqh5
+    User henry
+    IdentityFile ~/.ssh/henry5720
+
 # 量華的 Windows(DESKTOP-4P510DU),本機帳號 user
 Host lianghua
     HostName lianghua.tail29dcee.ts.net
@@ -101,6 +107,6 @@ Host company-ec2-public
 # 6. 沒有 root:tailnet 主機經 userspace tailscale
 # ===============================================================
 # userspace tailscale 沒有網卡,連線和解析都經 tailscaled(見 .chezmoitemplates/tailscale-userspace)。
-Host henry-laptop lianghua pos2-dev company-ec2
+Host henry-laptop henry-desktop lianghua pos2-dev company-ec2
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
