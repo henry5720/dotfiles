@@ -98,6 +98,7 @@ class Renderer:
         proc = subprocess.run([
             CHEZMOI, "--no-tty", "--source", str(ROOT), "--config", str(self.config),
             "--destination", HOME, "--persistent-state", state,
+            "--refresh-externals=never",
             "--override-data", json.dumps(data), *args,
         ], input=stdin, capture_output=True, text=True,
             env={"PATH": str(self.bin), "HOME": str(self.tmp), "LANG": "C.UTF-8"})
@@ -180,6 +181,9 @@ def render_all():
     """回傳 {(環境, 勾選): 快照文字}。"""
     with tempfile.TemporaryDirectory() as tmp:
         r = Renderer(tmp)
+        # managed 會把 externals 抓進共用的 ~/.cache/chezmoi;先單獨跑一次填好快取,
+        # 之後並行的只讀(--refresh-externals=never),不然同時寫快取會讀到一半(unexpected EOF)
+        r.run(ENVS[next(iter(ENVS))], "managed", "--include", "scripts")
         with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
             menus = dict(zip(ENVS, pool.map(r.menu, ENVS)))
             texts = pool.map(lambda c: r.cell(*c, menus[c[0]]), cells())
