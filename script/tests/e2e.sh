@@ -1480,12 +1480,11 @@ noroot_full_checks() {
   check "「這台裝不了」那段只有 node,原因是 libatomic,附 apt 指令(ADR 0004)" \
     "s=\$(sed -n '/以下選裝工具已略過/,/^\$/p' ~/e2e-init.log); echo \"\$s\"; [ \"\$(grep -c '^- ' <<<\"\$s\")\" = 1 ] && grep -q -- '^- node:.*libatomic.*sudo apt-get install -y libatomic1' <<<\"\$s\""
   check "沒有 ~/.local/share/mise/installs/node" "[ ! -e ~/.local/share/mise/installs/node ]"
-  for s in tailscale 系統套件; do
-    check_skipped "$s"
-  done
+  check_skipped tailscale
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
-  check "系統套件的指令不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
-    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' | grep -qwE 'vim|btop|ffmpeg|poppler-utils|jq|zsh'"
+  # 映像已有基底套件 git、curl、python3,libatomic1 不再進 apt 清單(#342),mise 裝的與 jq、zsh 也不算:沒有要 apt 的
+  check "略過彙整沒有系統套件(沒有要 apt 的套件)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
@@ -1498,7 +1497,8 @@ noroot_full_checks() {
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check_no_browser_wrappers
-  check_personal_chrome_attach yes
+  # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),personal-chrome-attach 不部署
+  check_personal_chrome_attach no
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
