@@ -1072,14 +1072,16 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[]}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
 
   # 放最後:這之後 config 是精簡,上面的渲染檢查有幾項看的是現在的 config
-  bold "▶ tools 把用途改成精簡:已經裝的工具不移除"
+  bold "▶ tools 把用途改成精簡:mise 裝的被移除(#330),其他裝法的不移除"
   check "tools 選精簡、選單直接 Enter,exit 0" \
     "~/.local/bin/tools --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") </dev/null"
   check "用途存精簡、tools 是精簡那八項" \
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
   check_tool fastfetch
   check "選精簡後 fastfetch 跑得起來" "~/.local/share/mise/shims/fastfetch --version"
-  for t in claude gh herdr codegraph tailscale btop; do check_tool "$t"; done
+  for t in claude gh herdr codegraph tailscale; do check_tool "$t"; done
+  check "mise 裝的 btop 取消勾選後被 mise prune 拿掉,shim 也不在" \
+    "[ ! -e ~/.local/share/mise/shims/btop ] && ! ls ~/.local/share/mise/installs/btop >/dev/null 2>&1"
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 

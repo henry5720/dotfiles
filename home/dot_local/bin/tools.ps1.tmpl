@@ -3,7 +3,7 @@
        只部署到 Windows(.chezmoiignore:Windows 段放行,其他 OS 排除)。
        渲染結果只用 ASCII:pwsh 7 與 5.1 都會跑它,5.1 讀沒有 BOM 的檔案用 ANSI 字碼頁。
 
-       init --prompt 只會重問用途與選單:憑證已經存過就沿用、不再問;取消勾選、改用途都不會解除安裝。
+       init --prompt 只會重問用途與選單:憑證已經存過就沿用、不再問;取消勾選、改用途時 mise 裝的會移除(#330),其他不解除安裝。
        參數原樣交給 chezmoi init。
 
        1. 重出選單,把勾選寫回 ~/.config/chezmoi/chezmoi.toml;失敗(例如 Ctrl+C)就停,不 apply

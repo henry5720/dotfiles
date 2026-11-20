@@ -12,7 +12,7 @@
        有改就存自訂(custom),tools 照勾的存、不再跟著預設組合走。
        不管存哪種,[data] 都寫展開後的 tools:其他樣板一律看 .tools,不認得用途。
        之後要改:打 `tools`(home/dot_local/bin/executable_tools.tmpl)重出兩個問題,預設帶現在的用途與勾選,
-       勾完直接 apply。新勾的會裝,取消勾選、改用途都不會解除安裝。
+       勾完直接 apply。新勾的會裝;取消勾選、改用途時 mise 裝的會被 mise prune 移除(#330),其他裝法不解除安裝。
        選項與說明在 .chezmoitemplates/tool-menu。加一個走既有裝法(apt、pkg、brew、cask、winget、mise、官方 installer)
        的工具,一定要動的是 1、2 兩處;3 是要不要放進精簡,4 是加完之後各台怎麼勾上,裝完還要設定的再看 2 後面那段:
          1. .chezmoidata/tool-table.yaml 加一筆:每個 OS 依序試哪些裝法、各裝法的套件名、依賴套件、
