@@ -77,6 +77,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git
 .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
 
 ### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $dir = Join-Path $env:APPDATA 'skillshare'
@@ -137,6 +138,7 @@ exit 0
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
 #   "zoxide" = "latest"
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -160,6 +162,7 @@ exit 0
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 # hash: c1e3e346a20d9b5e3cd603d12508e33085eab792cefa69dc9d49f1ac968873b6
 # pinned: ec6742c6cea07eda7d6b142d8b44f6582c794eadd75671407a79f8180376228b
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
@@ -174,6 +177,7 @@ if ($LASTEXITCODE -ne 0) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ids = @(

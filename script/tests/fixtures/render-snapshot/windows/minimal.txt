@@ -92,6 +92,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 #   "ripgrep" = "latest"
 #   "starship" = "latest"
 #   "vim" = "latest"
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -113,6 +114,7 @@ if ($LASTEXITCODE -ne 0) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ids = @(

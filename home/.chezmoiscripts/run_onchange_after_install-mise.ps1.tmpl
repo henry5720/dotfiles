@@ -19,6 +19,7 @@
 {{- if $list -}}
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
 {{ $list | trim | comment "#   " }}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 

@@ -8,6 +8,7 @@
 {{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 # hash: {{ include "AppData/Roaming/skillshare/modify_config.yaml" | sha256sum }}
 # pinned: {{ includeTemplate "skillshare-pinned" . | sha256sum }}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
 if (-not (Test-Path (Join-Path $env:APPDATA 'skillshare\.git')) -or -not (Test-Path $ss)) {

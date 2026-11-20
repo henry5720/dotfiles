@@ -1,0 +1,239 @@
+# Windows:在 GitHub Actions 的 Windows runner 上照 Runbook「Windows 主機」那節(winget install twpayne.chezmoi,
+# 再 chezmoi init --apply henry5720)從零裝一次,接著跑 AGENTS.md Windows 實機清單裡不用看畫面、不用登入的項目(#345)。
+# Windows 沒有容器可以跑 e2e,這個 workflow 補上;做法照 macos.yml。
+# 精簡、完整各跑一次:
+#   minimal  照 Runbook「免回答安裝那一行」:--promptDefaults + 用途 m,其他用預設
+#   full     用途 f,選單勾 tool-menu 上全部(含 Windows 標「裝不了」的),秘密給假值;
+#            裝不了的要被略過、apply 照樣跑完,最後的略過彙整要列出它們
+#
+# chezmoi 從 pwsh 7 跑,不從 Windows PowerShell 5.1 跑:5.1 傳給原生程式的參數會吃掉內層雙引號、
+# 中文參數會卡住(--promptChoice 的 key 是中文提示文字)。.ps1 腳本照舊由 config 的 [interpreters.ps1] 用 5.1 跑,
+# 測的就是實機那條路,也順便測到「從 pwsh 7 叫 chezmoi」(裝好之後的日常用法;.chezmoitemplates/ps1-winps-modules)。pwsh 先把 [Console]::OutputEncoding 設成 UTF-8,讀 chezmoi 印的中文才不會變 ?。
+#
+# runner 映像(https://github.com/actions/runner-images,images/windows)跟實機不一樣的地方:
+#   - UAC 關掉(scripts/build/Configure-BaseImage.ps1 的 Disable-UserAccessControl),machine scope 的 winget 不會停在 UAC
+#   - Developer Mode 開著(scripts/build/Configure-DeveloperMode.ps1):skillshare 會建 symlink,實機沒開時是複製
+#   - 預裝 pwsh 7、Git、Chrome:winget list 找得到的就跳過,測不到「從沒有到有」
+#   - 是 Windows Server,不是 Windows 11
+#   - 家目錄是全新的:沒有使用者自己的設定檔、「文件」沒有被 OneDrive 接管
+# 這些情況與要看畫面、要登入的項目留給實機,見 AGENTS.md 的 Windows 實機清單。
+name: Windows
+
+on:
+  pull_request:
+    paths:
+      - 'home/**'
+      - '.github/workflows/windows.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'home/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+# 同一個 PR 又 push 時取消還在跑的舊一輪,只跑最新的(公開 repo 的標準 runner 不計費,這是為了省時間)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  init-apply:
+    name: init --apply (${{ matrix.use }})
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        use: [minimal, full]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # mise、chezmoi 的 gitHub* 函式打 GitHub API,未登入每小時 60 次
+      GITHUB_TOKEN: ${{ github.token }}
+      USE_PROMPT: 用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）
+      TOOLS_PROMPT: 選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）
+    steps:
+      # persist-credentials: false:source 整個複製到家目錄,不要把 token 帶進 .git/config
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      # 1. 放好 source:跟 macos.yml 同一招,chezmoi init 看到 source 已經在就不 clone,測的是這個 PR 的內容
+      - name: 放好 source
+        run: |
+          New-Item -ItemType Directory -Force "$HOME\.local\share" | Out-Null
+          Copy-Item -Recurse $env:GITHUB_WORKSPACE "$HOME\.local\share\chezmoi"
+
+      # 2. Runbook 第 1 步:winget install twpayne.chezmoi。winget 把 Links 目錄加進使用者 PATH(登錄檔),
+      #    後面的 step 繼承的是 runner 的 PATH,所以另外寫進 GITHUB_PATH(等於實機「開新的 PowerShell」)
+      - name: winget install chezmoi
+        run: |
+          winget --version
+          winget install --id twpayne.chezmoi --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          "$env:LOCALAPPDATA\Microsoft\WinGet\Links" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      # 3. runner 預裝的 Chrome 是企業版 MSI,winget id 是 Google.Chrome;選裝工具表的 headless-chrome 用官網 installer 的
+      #    Google.Chrome.EXE(tool-table.yaml 那筆的註解),winget list 對不到它、install 會報「已經裝了別的版本」(exit 3)。
+      #    先移掉,測的是沒有 Chrome 的新機器;「已經有官網裝的 Chrome 就跳過」留給實機(實機清單第 9 項)
+      - name: 移掉預裝的 Chrome
+        if: matrix.use == 'full'
+        run: |
+          winget uninstall --name 'Google Chrome' --exact --silent --disable-interactivity --accept-source-agreements
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # 4. Runbook 第 5 步,加上不互動參數(跟 macos.yml、e2e 同一套)
+      - name: chezmoi init --apply
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          $ErrorActionPreference = 'Continue'
+          Set-Location $HOME
+          chezmoi --version
+          $flags = @('--no-tty')
+          if ('${{ matrix.use }}' -eq 'minimal') {
+            $flags += '--promptDefaults', '--promptChoice', "$env:USE_PROMPT=m"
+          } else {
+            # 選單上的每一行(含裝不了的原因標註),用 / 接起來給 --promptMultichoice。
+            # --config 指向不存在的檔:渲染時不讀任何 chezmoi 設定
+            $labels = chezmoi --source "$HOME\.local\share\chezmoi" --config "$env:RUNNER_TEMP\none.toml" --no-tty `
+              execute-template '{{ includeTemplate "tool-menu-labels" . }}' | Where-Object { $_ }
+            if ($LASTEXITCODE -ne 0 -or -not $labels) { Write-Error '渲染選單失敗'; exit 1 }
+            $labels
+            $flags += @(
+              '--promptString', 'code-server 密碼=ci'
+              '--promptString', 'codex-lb API key=ci'
+              '--promptString', 'Context7 API key（可留空）='
+              '--promptString', 'WakaTime API key（可留空）='
+              '--promptChoice', "$env:USE_PROMPT=f"
+              '--promptMultichoice', "$env:TOOLS_PROMPT=$($labels -join '/')"
+            )
+          }
+          chezmoi init --apply @flags henry5720 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\init.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # 實機清單第 8 項的「沒有紅字」:.ps1 腳本失敗只印一行、exit 0(不讓 apply 中止),exit code 看不出來,
+          # 改看 log 有沒有 PowerShell 的錯誤(FullyQualifiedErrorId)與腳本自己印的失敗訊息
+          $bad = Select-String -Path "$env:RUNNER_TEMP\init.log" -Encoding utf8 -Pattern 'FullyQualifiedErrorId', '沒裝好', '失敗,之後', '找不到 winget', '找不到 mise'
+          if ($bad) { '腳本有錯:'; $bad; exit 1 }
+
+      # 5. 完整勾了 Windows 裝不了的,要在略過彙整裡看到(run_onchange_after_zz-env-skipped.ps1);
+      #    該略過哪些照這台渲染 tools-skipped,不寫死
+      - name: 裝不了的有略過
+        if: matrix.use == 'full'
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          $skipped = (chezmoi execute-template '{{ includeTemplate "tools-skipped" . }}') -split ' ' | Where-Object { $_ }
+          "該略過:$skipped"
+          if (-not $skipped) { Write-Error '完整勾了全部,卻沒有裝不了的,檢查 tools-skipped'; exit 1 }
+          $log = Get-Content -Encoding utf8 "$env:RUNNER_TEMP\init.log"
+          $start = ($log | Select-String -SimpleMatch '== 這台裝不了,以下選裝工具已略過' | Select-Object -First 1).LineNumber
+          if (-not $start) { Write-Error 'init.log 沒有略過彙整'; exit 1 }
+          $summary = $log | Select-Object -Skip ($start - 1)
+          $summary
+          foreach ($t in $skipped) {
+            if (-not ($summary | Where-Object { $_.StartsWith("- ${t}:") })) { Write-Error "略過彙整沒有 $t"; exit 1 }
+          }
+
+      # 6. 實機清單第 1 項:檔案全部跟 source 一致,也沒有還沒跑過的腳本(run_onchange_ 失敗或沒跑會留在 status)。
+      #    Windows 的略過彙整是 run_onchange_,跑過就不在 status,不用像 macos.yml 排除它
+      - name: chezmoi verify
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          Get-Content -Encoding utf8 "$HOME\.config\chezmoi\chezmoi.toml"
+          chezmoi verify --exclude scripts
+          if ($LASTEXITCODE -ne 0) { chezmoi diff --exclude scripts; exit 1 }
+          $pending = chezmoi status --include scripts
+          if ($pending) { "還有腳本待跑:"; $pending; exit 1 }
+
+      # 7. 實機清單第 2 項:PowerShell 讀得到 chezmoi 部署的 profile
+      - name: Documents 是家目錄那份
+        run: |
+          $docs = [Environment]::GetFolderPath('MyDocuments')
+          "MyDocuments = $docs"
+          if ($docs -ne "$HOME\Documents") { exit 1 }
+
+      # 8. 實機清單第 8 項:勾的 app 在 winget list、勾的 CLI 在 mise ls。清單照這台渲染,不寫死
+      - name: winget、mise 都裝好
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+          $ids = chezmoi execute-template '{{ concat .packages.windows.winget (includeTemplate "tool-install" . | fromJson).lists.winget | uniq | join "\n" }}' | Where-Object { $_ }
+          $missing = @()
+          foreach ($id in $ids) {
+            winget list --id $id --exact --accept-source-agreements *> $null
+            if ($LASTEXITCODE -eq 0) { "winget: $id" } else { $missing += "winget $id" }
+          }
+          mise ls
+          $tools = mise ls --json | ConvertFrom-Json
+          foreach ($p in $tools.PSObject.Properties) {
+            foreach ($v in @($p.Value)) {
+              if (-not $v.installed) { $missing += "mise $($p.Name) $($v.version)" }
+            }
+          }
+          if ($missing) { "沒裝好:"; $missing; exit 1 }
+
+      # 9. 實機清單第 3 項(不看畫面的部分)與第 10 項:開新的 shell。PATH 只留登錄檔那份(跟實機開新視窗一樣),
+      #    profile 照常載入;pwsh -c 只印 hi(fastfetch 不跑、沒有紅字),勾了的 agent 兩個 shell 都印得出版本
+      - name: 新的 pwsh、powershell
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+          $fail = $false
+          foreach ($sh in 'pwsh', 'powershell') {
+            $out = & $sh -c 'echo hi' 2>&1 | ForEach-Object { "$_" }
+            "$sh -c 'echo hi' => $out"
+            if (($out -join "`n") -ne 'hi') { "$sh -c 輸出不只 hi"; $fail = $true }
+            & $sh -c 'if (-not (Get-Command starship -ErrorAction SilentlyContinue)) { exit 1 }'
+            if ($LASTEXITCODE -ne 0) { "$sh 找不到 starship"; $fail = $true }
+          }
+          $tools = chezmoi execute-template '{{ includeTemplate "tools-to-install" . }}'
+          foreach ($agent in 'claude', 'codex') {
+            if (-not (($tools -split ' ') -contains $agent)) { continue }
+            foreach ($sh in 'pwsh', 'powershell') {
+              & $sh -c "$agent --version"
+              if ($LASTEXITCODE -ne 0) { "$sh 跑不了 $agent --version"; $fail = $true }
+            }
+          }
+          if ($fail) { exit 1 }
+
+      # 10. playwright-cli 與 skillshare 裝好、跑得起來(skillshare status 是實機清單第 13 項不用開 agent 的部分)。
+      #    不開瀏覽器:CLI 能跑就好,真的開頁留給實機清單第 9 項。勾了才測,精簡兩項都沒勾
+      - name: playwright-cli、skillshare
+        if: matrix.use == 'full'
+        timeout-minutes: 10
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+          pwsh -c 'playwright-cli --version'
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          & "$env:LOCALAPPDATA\Programs\skillshare\skillshare.exe" status
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # 11. 實機清單第 11 項:再 apply 一次不重新下載。腳本 run_onchange_ 內容沒變就不跑(上面 status 已經是空的),
+      #    這裡再看官方 installer、mise、winget 裝的東西修改時間沒變,diff 也沒有輸出
+      - name: 第二次 apply 不重新下載
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          $ErrorActionPreference = 'Continue'
+          function Snapshot {
+            $roots = "$HOME\.local\bin", "$env:LOCALAPPDATA\Programs", "$env:LOCALAPPDATA\mise\installs", "$HOME\.wakatime"
+            Get-ChildItem -Recurse -Depth 3 -File -ErrorAction SilentlyContinue ($roots | Where-Object { Test-Path $_ }) |
+              ForEach-Object { "$($_.FullName) $($_.LastWriteTimeUtc.Ticks)" } | Sort-Object
+          }
+          $before = Snapshot
+          chezmoi apply --no-tty 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\apply2.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $changed = Compare-Object @($before) @(Snapshot)
+          if ($changed) { "第二次 apply 改了這些檔:"; $changed; exit 1 }
+          $diff = chezmoi diff
+          if ($diff) { $diff; exit 1 }
+          "沒有重新下載($(@($before).Count) 個檔),diff 沒有輸出"
+
+      - name: 留下 log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.use }}-logs
+          path: ${{ runner.temp }}/*.log
+          if-no-files-found: ignore
