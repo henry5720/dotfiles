@@ -72,7 +72,7 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 
 code-server 本身也**不是裝在原生 Termux**：原生 Termux 的選單一樣列 `code-server`，但標
 （裝不了：termux-packages 沒有，到 proot Ubuntu 裝），勾了也只會在 apply 最後列為略過
-（原因寫在 `home/.chezmoitemplates/tool-env`）。要在 phone 跑，先照
+（原因寫在 `home/.chezmoidata/tool-table.yaml`）。要在 phone 跑，先照
 [新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](../new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
 裝好 proot Ubuntu，在裡面勾 `code-server`。proot 跟 Termux 共用網路，proot 裡綁的
 `127.0.0.1:8080`，從 Termux 的 sshd（`Host phone`，port 8022）轉出去一樣連得到。

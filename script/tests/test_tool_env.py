@@ -97,19 +97,6 @@ class ToolEnvTest(unittest.TestCase):
         out = self.init(WSL, "custom", [label]).stdout
         self.assertIn(self.tools_line(["headless-chrome"]), out)
 
-    def test_rules_name_menu_tools_and_reasons_are_menu_safe(self):
-        # 原因接在選單文字後面:半形 / 會被 e2e 的 --promptMultichoice 切開,' 會弄壞略過腳本的引號
-        rules = json.loads(self.chezmoi({}, "execute-template",
-                                        stdin='{{ includeTemplate "tool-env" . | fromYaml | toJson }}').stdout)
-        self.assertTrue(rules)
-        for tool, rows in rules.items():
-            self.assertIn(tool, menu_tools())
-            for row in rows:
-                with self.subTest(tool=tool, when=row["when"]):
-                    self.assertIn(row["state"], ("discouraged", "unsupported"))
-                    self.assertTrue(row["reason"])
-                    self.assertFalse(set(row["reason"]) & set("/'="))
-
     def test_every_environment_lists_every_tool(self):
         names = menu_tools()
         for name, env in {"ubuntu": {}, "wsl": WSL, "arm": ARM, "fedora": FEDORA, "mac": MAC, "android": ANDROID}.items():

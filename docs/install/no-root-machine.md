@@ -41,11 +41,13 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | `TERM` | 沒設時 `.zshrc` 補成 `xterm-256color` |
 | ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝 |
 | 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
-| snapserver（勾了才有） | 只能用 apt 裝，略過；apply 最後的彙整印出要請有 root 的人跑的 apt 指令。管理員裝過的話，系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)） |
-| snapclient（勾了才有） | 同上：只能用 apt 裝，略過；管理員裝過的話，套件自帶、開機自動啟動的系統服務也要他停 |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
+
+只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
+勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。管理員裝過 snapserver、snapclient 的話，
+套件自帶、開機自動啟動的系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)）。
 
 不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd、cloudflared 本來就由 mise 裝（#233），
 Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
@@ -57,9 +59,8 @@ Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官
 
 | 彙整裡的項目 | 要做什麼 |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 libatomic1、Chrome 字型這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install` |
+| 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
-| headless-chrome | 缺十幾個系統函式庫，只能請有 root 的人裝 |
 | nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 | ssh | 解不開 openssh-client 時才有，請有 root 的人裝 |
 

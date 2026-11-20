@@ -77,7 +77,7 @@ toolPackages:
       - fonts-noto-color-emoji
   # 原生 Termux:termux-packages 主 repo 有的都走 pkg(Linux 上 eza、fzf 這些由 mise 裝,見下面 miseTools)。
   # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、bottom、tailscale、code-server、coding agent…)
-  # 在 .chezmoitemplates/tool-env 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
+  # 在 tool-table.yaml 的 rules 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
   termux:
     zsh:
       - zsh
@@ -108,7 +108,7 @@ toolPackages:
       - snapcast-client
   # macOS 全部走 brew:值是 formula 清單;app 寫成 casks: [...] 的 map(例如 tailscale),用 brew install --cask 裝。
   # zsh、vim 系統內建,不列;Node 由 nvm 裝(見下面 nodeTools),
-  # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(.chezmoitemplates/tool-env)。
+  # mac 不缺 libatomic。headless-chrome、playwright-cli 在 mac 裝不了(tool-table.yaml 的 rules)。
   # herdr、claude、codex、opencode、agent-config 照原本的官方 installer(各自的 run_ 腳本),不列。
   # wakatime-cli 也不走 brew:WakaTime plugin 找 ~/.wakatime 底下官方位置那支(install-wakatime)。
   darwin:
@@ -148,7 +148,7 @@ toolPackages:
     snapclient:
       - snapcast
   # Windows 主機:只列 app,值是 winget id(run_onchange_before_install-packages-windows)。
-  # CLI 一律走 mise(下面 miseTools,Windows 上不分 always,勾了就列);兩邊都沒有的在 tool-env 標裝不了。
+  # CLI 一律走 mise(下面 miseTools,Windows 上不分 always,勾了就列);兩邊都沒有的在 tool-table.yaml 的 rules 標裝不了。
   windows:
     tailscale:
       - Tailscale.Tailscale
@@ -201,7 +201,7 @@ nodePackages:
 
 # Linux 與 Windows 主機由 mise 裝到家目錄的選裝工具(Termux 走 pkg、macOS 走 brew,不看這裡):
 # Windows 沒有 apt,勾了就列,下面的 always 只對 Linux 有意義。mise 在 Windows 沒有的(btop 的 aqua 只有 Linux 版)
-# 在 .chezmoitemplates/tool-env 標裝不了。conda 那幾個(vim、ffmpeg)conda-forge 有 win-64。
+# 在 tool-table.yaml 的 rules 標裝不了。conda 那幾個(vim、ffmpeg)conda-forge 有 win-64。
 # 工具名 → mise 的工具名(tool)與裝完的指令名(cmd)。分兩種,看 mise 用什麼 backend 裝(#233):
 #   always: true —— GitHub release 的單一執行檔(aqua／github backend):不分有沒有 root 都用 mise,
 #                   也不看系統有沒有同名指令(Ubuntu 24.04 的 apt 有的太舊,例如 fzf 0.44 沒有 `fzf --zsh`)。

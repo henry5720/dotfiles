@@ -16,6 +16,10 @@
 略過由一支 `run_onchange_after_record-env-skipped` 統一記下，`run_after_zz-root-skipped-summary` 跟「沒有 root」分兩段列出。
 加一個環境限制只要在 `tool-env` 加一條規則，不用改各工具的腳本。
 
+更新（#332）：`tool-env`、`tool-status` 已刪除。規則與原因搬到選裝工具表 `home/.chezmoidata/tool-table.yaml` 各工具的 `rules`，
+選單標註、預設組合、略過彙整改讀裝法判斷 `tool-install` 的結果（spec #315）。config 樣板讀不到 `.chezmoidata` 的問題，
+由判斷改用 `include` 讀那個檔解決。原因的字元限制不變。
+
 Windows 主機也出用途與選單、也跑安裝腳本（#275）：CLI 用 mise（跟 Linux 共用 `miseTools`）、app 用 winget，
 腳本寫成 `.ps1`，`.chezmoiignore` 的 Windows 段只放行 `.chezmoiscripts/*.ps1`，sh 腳本照舊不會到 Windows。
 Windows 上 mise 裝得了的都可裝（`node` 也由 mise 裝 LTS，Linux 那邊是 nvm；herdr 也是，#309；playwright-cli 走 mise 的 npm backend、headless-chrome 用 winget 裝 Chrome，#327），

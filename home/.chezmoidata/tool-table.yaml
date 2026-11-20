@@ -6,8 +6,8 @@
 # 讀法:apply 時的樣板可以直接用 .toolTable;config 樣板(chezmoi init)直接讀不到 data 目錄,
 # 要 include ".chezmoidata/tool-table.yaml" | fromYaml(chezmoi 2.74.1 實測)。tool-install 兩種都接。
 #
-# 現在(#331)還沒有地方照它跑:選單、清單、腳本照舊看 tool-env、packages.yaml 的 toolPackages／miseTools、
-# 各自的腳本。script/tests/test_tool_table.py 比對兩邊算出的一樣;之後的 ticket(#332～#336)逐一改讀判斷結果。
+# 選單標註、預設組合、略過彙整讀判斷結果(#332);套件清單、mise 清單、腳本還照舊看 packages.yaml 的
+# toolPackages／miseTools 與各自的腳本,script/tests/test_tool_table.py 比對兩邊算出的一樣,之後的 ticket(#333～#336)逐一改讀。
 #
 # ===============================================================
 # 1. 欄位
@@ -31,7 +31,7 @@
 #          有這欄的工具,通用的官方 installer 腳本不碰它,由這支自己裝與設定。
 #   deps: 依賴套件,不上選單:<名字>: {cmd, install, 各裝法的資料},格式同上。工具裝得了才算它的依賴。
 #   needsNode: 要 Node 的 OS(勾了就連帶裝 Node,見 node 那筆;那個 OS 的裝法自帶 Node 的不列)。
-#   rules: 不建議、裝不了的規則與給人看的原因,由上往下比,第一條 when 對到這台的就是它(跟 tool-env 一樣):
+#   rules: 不建議、裝不了的規則與給人看的原因,由上往下比,第一條 when 對到這台的就是它:
 #            - when: [<環境>…]        對到任一個就算(環境見 2.)
 #              state: discouraged 或 unsupported
 #              reason: 原因
@@ -48,6 +48,8 @@
 #   non-amd64   linux 且 .chezmoi.arch 不是 amd64
 #   non-debian  linux 且不是 Debian 系(is-debian)
 #   proot       平板上的 proot Ubuntu(is-proot)
+#   noroot      linux 且沒有 root(has-root)。不寫規則時,要 root 的裝法照樣算用不了、原因由判斷組;
+#               要寫得更清楚才加規則(例:earlyoom、snapclient)
 #
 # ===============================================================
 # 3. 裝法能不能用(toolTable.methods、toolTable.needs)
@@ -201,6 +203,9 @@ toolTable:
           state: unsupported
           reason: earlyoom 走 apt，只能裝在 Debian 系
           issue: 315
+        - when: [noroot]
+          state: unsupported
+          reason: 要 root：要改系統服務的記憶體設定
 
     # ---------------------------------------------------------------
     # 開發與遠端
@@ -420,6 +425,9 @@ toolTable:
           state: unsupported
           reason: snapclient 走 apt，只能裝在 Debian 系
           issue: 315
+        - when: [noroot]
+          state: unsupported
+          reason: 沒有 root 用不了 apt，官方只出 .deb
         - when: [proot]
           state: discouraged
           reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app

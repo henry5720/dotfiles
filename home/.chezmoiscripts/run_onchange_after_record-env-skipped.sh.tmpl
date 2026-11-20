@@ -1,6 +1,8 @@
+{{- /* 原因由裝法判斷 tool-install 照 .chezmoidata/tool-table.yaml 算(#332)。下面 shell 註解寫的 tool-env 已刪,
+       沒改那行是因為改了渲染結果就變、每台都會重跑一次;下次動到這支的內容時一起改。 */ -}}
 {{- $skipped := includeTemplate "tools-skipped" . -}}
 {{- if $skipped -}}
-{{- $status := includeTemplate "tool-status" . | fromJson -}}
+{{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
 #!{{ lookPath "sh" }}
 # 勾了、但這台裝不了的選裝工具(.chezmoitemplates/tool-env 的 unsupported):各工具的腳本與套件清單
 # 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,

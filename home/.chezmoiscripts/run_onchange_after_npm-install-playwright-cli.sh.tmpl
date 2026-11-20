@@ -1,4 +1,4 @@
-{{- /* WSL、非 amd64、非 Debian 系、macOS 裝不了(同 headless-chrome):原因寫在 .chezmoitemplates/tool-env,勾了也渲染成空的,由略過彙整列出 */ -}}
+{{- /* WSL、非 amd64、非 Debian 系、macOS 裝不了(同 headless-chrome):原因寫在 .chezmoidata/tool-table.yaml,勾了也渲染成空的,由略過彙整列出 */ -}}
 {{- if has "playwright-cli" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。

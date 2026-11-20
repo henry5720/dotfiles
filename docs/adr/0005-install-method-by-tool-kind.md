@@ -16,6 +16,7 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
 
 「這個工具在這個環境走哪個裝法」要收進一張表，腳本只照表跑；表上沒有裝法的環境就是裝不了，
 `tool-env` 只留「不建議」和需要解釋給人看的原因。在那之前，Windows 的特例（node、herdr）還寫在 `mise-tools` 樣板裡。
+（#331 起這張表是 `home/.chezmoidata/tool-table.yaml`，#332 刪了 `tool-env`，原因寫在表上各工具的 `rules`。）
 
 ## Considered Options
 

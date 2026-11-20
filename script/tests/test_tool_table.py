@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """選裝工具表與裝法判斷(#331,spec #315):表 home/.chezmoidata/tool-table.yaml、判斷 home/.chezmoitemplates/tool-install。
 
-這張是 expand:還沒有任何地方改用判斷結果,所以這裡拿它跟現在的樣板比:
-- 狀態與原因:跟 tool-env 經 tool-status 算出的一致
+選單標註、預設組合、略過彙整已經讀判斷(#332);套件清單、mise 清單、腳本還沒(#333～#336),這裡拿判斷跟它們比:
+- 狀態與原因:選單、完整的預設組合、略過清單跟判斷一致
 - 裝法:跟渲染快照(#329)那一格實際渲染出的套件清單、mise 清單、會跑的腳本一致
 
 快照每一格跟現在的樣板一字不差(test_render_snapshot.py 擋),所以「跟快照比」就是「跟現在渲染出的比」。
@@ -22,6 +22,7 @@ from test_tool_env import menu_tools  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 RESOLVE = '{{ includeTemplate "tool-install" . }}'
+MENU = '{{ includeTemplate "tool-menu-labels" . }}'
 TABLE = '{{ include ".chezmoidata/tool-table.yaml" | fromYaml | toJson }}'
 
 
@@ -59,7 +60,7 @@ def parse_cell(text):
     scripts |= {s.removeprefix(".chezmoiscripts/"): True for s in sec["會跑的腳本"] if s}
     jq_zsh = text.partition("### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl")[2]
     return {"tools": json.loads(tools.partition(" = ")[2]),
-            "installing": " ".join(sec["要裝"]).split(), "packages": packages, "mise": set(filter(None, mise)),
+            "installing": " ".join(sec["要裝"]).split(), "skipped": " ".join(sec["略過(裝不了)"]).split(), "packages": packages, "mise": set(filter(None, mise)),
             "scripts": scripts, "zsh-bin": "zsh_install=" in jq_zsh.partition("\n### ")[0]}
 
 
@@ -91,22 +92,12 @@ SCRIPT_METHODS = {
 }
 
 # 刻意的差異(spec #315「行為改變」與它的推論):判斷已經照新規則算,消費端還照舊,等那張 ticket 切過去。
-# (環境, 比的項目, 工具或套件) → 說明。比的項目:state、installing、apt、mise、script:<腳本>
-NOROOT_APT = ("沒有 root 時 apt 用不了(spec #315:沒有 root 只讓「apt 能用嗎」回答否)。"
-              "現在照舊列進 apt 清單、渲染腳本,執行時才 skip_root 略過;#332 改讀判斷後標裝不了、#333 清單照表")
-SNAPSERVER = "#333:snapserver 走 apt,沒有 root 裝不了、列原因,不再默默拿掉 apt 套件卻照跑腳本、裝 uv"
-CHROME = "#335:headless-chrome 的 .deb 要 root,選單就標裝不了,不再到 apply 才在腳本裡略過"
+# (環境, 比的項目, 工具或套件) → 說明。比的項目:installing、apt、mise、script:<腳本>
+# #332 起選單、預設組合、略過讀判斷,沒有 root 的 earlyoom、snapclient、snapserver、headless-chrome 經 tools-to-install
+# 一起不裝了,剩下的是依賴套件:
 KNOWN = {
-    **{("debian-noroot", aspect, "snapserver"): SNAPSERVER for aspect in ("state", "installing")},
-    ("debian-noroot", "mise", '"uv" = "latest"'): SNAPSERVER,
-    ("debian-noroot", "script:run_onchange_after_install-snapserver.sh.tmpl", "snapserver"): SNAPSERVER,
-    **{("debian-noroot", aspect, "headless-chrome"): CHROME for aspect in ("state", "installing")},
-    **{("debian-noroot", "apt", p): CHROME for p in ("fonts-noto-cjk", "fonts-noto-color-emoji")},
-    ("debian-noroot", "script:run_onchange_after_install-headless-chrome.sh.tmpl", "headless-chrome"): CHROME,
-    **{("debian-noroot", aspect, t): NOROOT_APT for t in ("earlyoom", "snapclient") for aspect in ("state", "installing")},
-    **{("debian-noroot", "apt", p): NOROOT_APT for p in ("earlyoom", "snapclient", "libatomic1")},
-    **{("debian-noroot", f"script:run_onchange_after_install-{t}.sh.tmpl", t): NOROOT_APT
-       for t in ("earlyoom", "snapclient")},
+    ("debian-noroot", "apt", "libatomic1"): "#333:沒有 root 時 apt 用不了,依賴套件不列進 apt 清單"
+                                            "(缺 libatomic 維持在執行時判斷,#315 2026-11-20 決定)",
 }
 
 
@@ -123,42 +114,77 @@ class ToolTableTest(unittest.TestCase):
             cls.base = json.loads(r.run(ENVS["debian-root"], "execute-template", "{{ .packages | toJson }}"))
 
             def status(env):
-                out = r.run(ENVS[env], "execute-template", '{{ includeTemplate "tool-status" . }}', "@@", RESOLVE)
-                old, new = out.split("@@")
-                return json.loads(old), json.loads(new)
+                out = r.run(ENVS[env], "execute-template", RESOLVE, "@@", MENU)
+                res, menu = out.split("@@")
+                return json.loads(res), menu
 
             def resolve(cell):
                 data = dict(ENVS[cell[0]], tools=cls.snap[cell]["tools"])
                 return json.loads(r.run(data, "execute-template", RESOLVE))
 
             with ThreadPoolExecutor() as pool:
-                cls.status = dict(zip(ENVS, pool.map(status, ENVS)))
+                both = dict(zip(ENVS, pool.map(status, ENVS)))
+                cls.status = {env: res for env, (res, _) in both.items()}
+                cls.menus = {env: menu for env, (_, menu) in both.items()}
                 cls.resolved = dict(zip(cells, pool.map(resolve, cells)))
 
     def known(self, env, aspect, item):
         return (env, aspect, item) in KNOWN
 
     # ===============================================================
-    # 狀態與原因:跟 tool-env 經 tool-status 算出的一致
+    # 選單標註、預設組合、略過彙整讀判斷(#332)
     # ===============================================================
-    def test_state_and_reason_match_tool_status(self):
-        diffs = []
-        for env, (old, new) in self.status.items():
-            for name, entry in new["tools"].items():
-                want = old.get(name, {"state": "ok", "label": "", "reason": ""})
-                got = {k: entry[k] for k in ("state", "label", "reason")}
-                if got != want and not self.known(env, "state", name):
-                    diffs.append(f"{env} {name}: tool-status {want} ≠ 判斷 {got}")
-        self.assertFalse(diffs, "\n".join(diffs))
+    def test_menu_labels_come_from_resolver(self):
+        # 選單每一行:不建議、裝不了的後面標「（label：原因）」,跟判斷一致
+        for env, res in self.status.items():
+            for line in self.menus[env].splitlines():
+                name = line.split(" ")[0]
+                entry = res["tools"][name]
+                mark = f"（{entry['label']}：{entry['reason']}）" if entry["state"] != "ok" else ""
+                with self.subTest(env=env, tool=name):
+                    if mark:
+                        self.assertTrue(line.endswith(mark), line)
+                    else:
+                        self.assertNotRegex(line, "（(不建議|裝不了)：")
 
-    def test_known_state_differences_still_differ(self):
-        # 列在 KNOWN 的格子真的不一樣(切過去之後要從 KNOWN 拿掉,不然這裡擋)
-        for env, aspect, name in KNOWN:
-            if aspect != "state":
-                continue
-            old, new = self.status[env]
-            with self.subTest(env=env, tool=name):
-                self.assertNotEqual(old.get(name, {}).get("state", "ok"), new["tools"][name]["state"])
+    def test_full_preset_is_menu_minus_discouraged_and_unsupported(self):
+        for env, res in self.status.items():
+            want = [n for n in menu_tools() if res["tools"][n]["state"] == "ok"]
+            with self.subTest(env=env):
+                self.assertEqual(self.snap[env, "full"]["tools"], want)
+
+    def test_skipped_is_ticked_and_unsupported(self):
+        for (env, sel), res in self.resolved.items():
+            want = sorted(n for n, t in res["tools"].items() if t["ticked"] and t["state"] == "unsupported")
+            with self.subTest(env=env, sel=sel):
+                self.assertEqual(sorted(self.snap[env, sel]["skipped"]), want)
+
+    def test_noroot_apt_only_tools_say_why(self):
+        # 決定(#315 2026-11-20):沒有 root 的 Debian 系,只能走 apt 的兩個標裝不了,原因只寫事實
+        tools = self.status["debian-noroot"]["tools"]
+        self.assertEqual({n: (tools[n]["state"], tools[n]["reason"]) for n in ("earlyoom", "snapclient")}, {
+            "earlyoom": ("unsupported", "要 root：要改系統服務的記憶體設定"),
+            "snapclient": ("unsupported", "沒有 root 用不了 apt，官方只出 .deb"),
+        })
+        # 有 root 照裝;原生 Termux 的 pkg 不用 root
+        self.assertEqual(self.status["debian-root"]["tools"]["snapclient"]["state"], "ok")
+        self.assertEqual(self.status["android"]["tools"]["snapclient"]["state"], "ok")
+
+    def test_noroot_skip_summary_prints_the_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Renderer(tmp).run(dict(ENVS["debian-noroot"], tools=["earlyoom", "fzf"]), "execute-template",
+                                    (ROOT / "home/.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl")
+                                    .read_text(encoding="utf-8"))
+        self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), ["skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'"])
+
+    def test_tool_env_is_gone(self):
+        # 環境規則只剩表上的 rules:舊的 tool-env、tool-status 刪了,沒有樣板或測試再讀它們
+        for name in ("tool-env", "tool-status"):
+            self.assertFalse((ROOT / "home/.chezmoitemplates" / name).exists(), name)
+        pattern = re.compile(r'include(Template)? "(tool-env|tool-status)"')
+        hits = [str(p.relative_to(ROOT)) for d in ("home", "script") for p in (ROOT / d).rglob("*")
+                if p.is_file() and "fixtures" not in p.parts and pattern.search(p.read_text(errors="ignore"))]
+        self.assertEqual(hits, [])
 
     # ===============================================================
     # 裝法:跟快照那一格實際渲染出的清單與腳本一致

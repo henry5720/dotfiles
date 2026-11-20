@@ -77,7 +77,7 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | wakatime | 官方 release 的 zip 放到 `%USERPROFILE%\.wakatime\`（不走 mise）＋ 勾了的 agent 用官方的兩行指令裝 plugin（會一併列 Node LTS；marketplace 要 git，winget 裝 `Git.Git`，已經有就跳過、會跳 UAC） | 完整或自己勾 | 跟 Linux 一樣，見 [WakaTime](../ai-agent/wakatime.md)。plugin 只認 `.wakatime\wakatime-cli-windows-<arch>.exe`，之後由 plugin 自己更新；`wakatime-cli.exe` 是複製一份（Linux 是 symlink）。plugin 的 hook 用 PATH 上的 `node`（mise 的 shims，PowerShell profile 加進 PATH），從不讀 profile 的地方開 agent 可能找不到 node、送不出紀錄 |
 
 zsh、btop、code-server、earlyoom、
-snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata/tool-table.yaml`），要用就到 WSL 裝：
 工具本身沒有 Windows 版，或不適用 Windows（zsh：Windows 的 shell 是 PowerShell）。
 勾了也不會中斷 apply，最後列出略過了哪些。
 

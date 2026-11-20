@@ -5,7 +5,7 @@
        中文選項得切輸入法;代號打開頭一個字母就夠(f、m、c),Enter 用預設。
        Linux(Ubuntu、WSL、proot Ubuntu,與非 Debian 系;後者的選裝工具走 mise,見 .chezmoitemplates/use-mise)、
        macOS、原生 Termux、Windows 主機都問,流程一樣(Windows 的 CLI 用 mise、app 用 winget 裝,#275)。
-       選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)標原因、預設組合不勾,
+       選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(裝法判斷 .chezmoitemplates/tool-install)標原因、預設組合不勾,
        裝不了的勾了 apply 時略過,最後由略過彙整列出原因。
        Windows 不問 git 身分(不部署 .gitconfig,見 .chezmoiignore 的 Windows 白名單)。
        存法:選單結果等於這台的預設組合(已扣掉不建議與裝不了的)時存用途,之後預設組合改了,跑 `chezmoi init` 就跟上;
@@ -15,7 +15,8 @@
        勾完直接 apply。新勾的會裝,取消勾選、改用途都不會解除安裝。
        選項與說明在 .chezmoitemplates/tool-menu。加一個新工具要動四處:
          1. tool-menu 加一行「工具名 說明」(完整 = 選單上全部,自動算進去)。
-            哪個環境不建議或裝不了:在 tool-env 加規則與原因(選單標註、預設組合、略過彙整都從那裡拿)。
+            哪個環境不建議或裝不了:在 .chezmoidata/tool-table.yaml 那個工具的 rules 加規則與原因
+            (選單標註、預設組合、略過彙整都讀 tool-install 照表算出的結果)。
          2. 要不要放進精簡:改下面的 $lean。
          3. 照 #231 的順序挑裝法,填進 .chezmoidata/packages.yaml(macOS 一律走 brew,填 toolPackages.darwin,app 寫成 casks;
             Termux 走 pkg,填 toolPackages.termux):
@@ -29,8 +30,8 @@
             (用 npm 裝的例外,叫 npm-install-<工具>,見 npm-install-codegraph 開頭)。
             要 root 的步驟(apt、sudo)包在 {{ if includeTemplate "has-root" . }} 裡;沒有 root 時
             用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0(見 install-gh)。
-            Windows 主機:miseTools 裡的 Windows 照樣用 mise 裝(mise 在 Windows 沒有的,在 tool-env 標 windows 裝不了);
-            app 填 toolPackages.windows 的 winget id;只有 sh 腳本的,在 tool-env 標 windows 裝不了。
+            Windows 主機:miseTools 裡的 Windows 照樣用 mise 裝(mise 在 Windows 沒有的,在表的 rules 標 windows 裝不了);
+            app 填 toolPackages.windows 的 winget id;只有 sh 腳本的,在表的 rules 標 windows 裝不了。
          4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
        原本裝的東西不會少;寫回 config 時帶最新的 toolsSchema,之後就照存的勾選。
@@ -56,11 +57,11 @@
 {{- $use := "minimal" -}}
 {{- $tools := list -}}
 {{- $windows := eq .chezmoi.os "windows" -}}
-{{- /* 選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-env)在說明後面標原因,
+{{- /* 選單每台列 tool-menu 的全部工具;這台不建議、裝不了的(.chezmoitemplates/tool-install 的 state)在說明後面標原因,
        預設組合不勾它們,勾了照存(裝不了的 apply 時略過、最後列出原因)。
        $labels 記工具名 → 選單文字(排版在 tool-menu-labels)。
        $full 是完整的預設組合:選單上全部,扣掉這台不建議與裝不了的;精簡也扣掉它們。 */ -}}
-{{-   $status := includeTemplate "tool-status" . | fromJson -}}
+{{-   $status := (includeTemplate "tool-install" . | fromJson).tools -}}
 {{-   $toolChoices := list -}}
 {{-   $labels := dict -}}
 {{-   $full := list -}}
@@ -69,7 +70,7 @@
 {{-     if $name -}}
 {{-       $_ := set $labels $name . -}}
 {{-       $toolChoices = append $toolChoices . -}}
-{{-       if not (hasKey $status $name) }}{{ $full = append $full $name }}{{ end -}}
+{{-       if eq (dig $name "state" "" $status) "ok" }}{{ $full = append $full $name }}{{ end -}}
 {{-     end -}}
 {{-   end -}}
 {{-   $presets := dict "full" $full "minimal" (list) "custom" (list) -}}

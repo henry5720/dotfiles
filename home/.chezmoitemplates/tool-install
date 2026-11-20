@@ -4,7 +4,7 @@
        apply 時讀 .toolTable;config 樣板(chezmoi init)讀不到 data 目錄,改 include 那個檔(兩種都接)。
 
        輸出:
-         env        這台對到的環境(rules 的 when 用的那些,例如 ["linux", "wsl"])
+         env        這台對到的環境(rules 的 when 用的那些,例如 ["linux", "wsl"];環境的定義在表的「2. 環境」)
          needsNode  要不要裝 Node:勾了 node,或勾了 needsNode 有這個 OS 的工具(都要這台裝得了)
          tools.<工具>(表上每個工具都有,不管勾了沒,選單要全部):
            state     ok、discouraged(不建議,照裝)、unsupported(裝不了)
@@ -35,7 +35,7 @@
 {{-   if ne .chezmoi.arch "amd64" }}{{ $envs = append $envs "non-amd64" }}{{ else }}{{ $_ := set $have "amd64" true }}{{ end -}}
 {{-   if includeTemplate "is-debian" . }}{{ $_ := set $have "debian" true }}{{ else }}{{ $envs = append $envs "non-debian" }}{{ end -}}
 {{-   if includeTemplate "is-proot" . }}{{ $envs = append $envs "proot" }}{{ end -}}
-{{-   if includeTemplate "has-root" . }}{{ $_ := set $have "root" true }}{{ end -}}
+{{-   if includeTemplate "has-root" . }}{{ $_ := set $have "root" true }}{{ else }}{{ $envs = append $envs "noroot" }}{{ end -}}
 {{- end -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
 {{- $labels := dict "ok" "" "discouraged" "不建議" "unsupported" "裝不了" -}}

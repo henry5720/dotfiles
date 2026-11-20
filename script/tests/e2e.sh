@@ -811,7 +811,7 @@ scenario_ubuntu() {
     "[ \"\$(chezmoi --config /tmp/android-all.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/($TOOL_SCRIPT_RE|\\.chezmoiscripts/install-node)' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-wakatime ]"
 
   # 選單每台列全部工具(#272)。WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260)、Google 只出 amd64 的 .deb:
-  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoitemplates/tool-env),預設組合不勾,勾了照存、apply 時略過。
+  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoidata/tool-table.yaml),預設組合不勾,勾了照存、apply 時略過。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL、arch 模擬 ARM;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:選單文字對不上會報 invalid choice。
   bold "▶ (渲染)WSL、ARM 選單照列 headless Chrome、playwright-cli,標裝不了"
@@ -1252,7 +1252,7 @@ SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
 # 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
 # 情境就是用途(精簡、完整),跟免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
-# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,沒有不建議或裝不了的)。
+# 所以 config 存的是用途。完整 = 選單上全部扣掉這台裝不了的(這個容器是 amd64、不是 WSL;沒有 root 時走 apt、.deb 的裝不了,#332)。
 noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
   step "沒有 sudo(command -v sudo 失敗)" "! command -v sudo"
@@ -1424,7 +1424,12 @@ noroot_tailscale_checks() {
 }
 
 noroot_full_checks() {
-  for s in tailscale headless-chrome "nvm 與 Node" codegraph playwright-cli 系統套件; do
+  # 沒有 root 時只能走 apt、.deb 的 earlyoom、snapserver、snapclient、headless-chrome 標裝不了(#332),完整不勾,
+  # 所以也沒有「這台裝不了」那段;略過彙整只剩要 root 的步驟
+  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome" \
+    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome)\"' <<<\"\$t\" && grep -q '\"playwright-cli\"' <<<\"\$t\""
+  check "沒有「這台裝不了」那段" "! grep -q '以下選裝工具已略過' ~/e2e-init.log"
+  for s in tailscale "nvm 與 Node" codegraph playwright-cli 系統套件; do
     check_skipped "$s"
   done
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
@@ -1438,8 +1443,6 @@ noroot_full_checks() {
   check_mise pdftoppm -v
   check_mise_skips_system_vim
   check "zsh 會把 mise 的 shims 加進 PATH" "grep -q 'mise/shims' ~/.zshrc"
-  check "headless-chrome 的說明寫了缺系統函式庫" \
-    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client

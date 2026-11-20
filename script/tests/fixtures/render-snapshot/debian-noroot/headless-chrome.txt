@@ -11,7 +11,7 @@ vim              終端機文字編輯器
 fastfetch        終端機印出系統資訊
 btop             終端機看 CPU、記憶體、行程
 bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用
-earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：要 root：要改系統服務的記憶體設定）
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login
 code-server      瀏覽器開的 VS Code
 tailscale        私人 VPN,連自己的機器
@@ -23,11 +23,11 @@ claude           Claude Code CLI
 codex            Codex CLI
 opencode         OpenCode CLI(會一併裝 Node)
 ffmpeg           影音轉檔、抽音軌與影格
-snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)
-snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：走 apt，這台沒有 root）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流（裝不了：沒有 root 用不了 apt，官方只出 .deb）
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)
-headless-chrome  沒有畫面的 Chrome,給 agent 開網頁
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：走 deb，這台沒有 root）
 playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo)
 
@@ -44,13 +44,13 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-headless-chrome
+
 
 ## 略過(裝不了)
-
+headless-chrome
 
 ## 套件清單
-apt/pkg: git curl python3 fonts-noto-cjk fonts-noto-color-emoji
+apt/pkg: git curl python3
 brew: 
 brew cask: 
 winget: 
@@ -67,6 +67,7 @@ winget:
 .chezmoiscripts/run_onchange_after_install-codex.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
@@ -77,7 +78,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
-.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
@@ -86,8 +86,8 @@ winget:
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
@@ -238,51 +238,6 @@ for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
 
-### .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# agent 在這台開 headless Chrome 用(指令見 docs/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
-# Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(toolPackages)。
-set -eu
-# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
-if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
-# 不設 noninteractive,tzdata 這類套件會卡在設定選單。sudo 會清掉環境變數,所以用 env 帶進去。
-apt_get() { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get "$@"; }
-
-# 1. 已經有就不重裝
-if command -v google-chrome >/dev/null 2>&1; then
-  echo "headless Chrome 已安裝,跳過"
-  exit 0
-fi
-
-# 沒有 root(.chezmoitemplates/has-root):略過,印手動方式,不讓 apply 失敗。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root headless-chrome "Chrome 要十幾個系統函式庫(libnss3、libgbm、libasound2…)與中文／emoji 字型,只能用 apt 裝;下載 Chrome for Testing 也一樣缺函式庫跑不起來。請有 root 的人裝 https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
-exit 0
-# 2. 下載官方 .deb 再交給 apt 裝(apt 會一起裝依賴,也會加 Google 的 apt 來源讓之後跟著更新)
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-deb=$tmp/google-chrome-stable_current_amd64.deb
-curl -fsSL -o "$deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-chmod 644 "$deb"
-apt_get update
-apt_get install -y "$deb"
-
 ### .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 #!@BIN@/sh
 # 沒有 root 又沒有 ssh 的機器(例:TeamSync 工作區)把 openssh-client 解到家目錄。不分用途、不在選單上。
@@ -370,6 +325,32 @@ done
 # 6. 確認真的能跑(缺函式庫時 ssh -V 會失敗):跑不起來就拿掉 wrapper,免得 PATH 上有一支壞的 ssh
 "$bin/ssh" -V || give_up "解出來的 ssh 跑不起來(缺函式庫?)"
 
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+#!@BIN@/sh
+# 勾了、但這台裝不了的選裝工具(.chezmoitemplates/tool-env 的 unsupported):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <手動怎麼做>
+  echo "略過 $1(沒有 root)。手動:$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_env 'headless-chrome' '走 deb，這台沒有 root'
+
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
 # apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)把 jq 與 zsh 裝到家目錄。
@@ -421,7 +402,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3 fonts-noto-cjk fonts-noto-color-emoji; do
+for pkg in git curl python3; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

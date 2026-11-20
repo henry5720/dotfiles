@@ -47,10 +47,12 @@ WSL 的 `snapserver`（抓不到自己的 tailnet IP）；proot Ubuntu 的 `snap
 `agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
 `snapserver` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、非 Debian 系都裝不了。
 `snapclient` 在非 Debian 系 Linux 裝不了（Windows 由 mise 裝官方 release 的 zip）。
+沒有 root 的 Debian 系，只能走 apt 或 .deb 的 `earlyoom`、`snapclient`、`snapserver`、`headless-chrome` 也標裝不了。
 `earlyoom` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、WSL（記憶體由 `.wslconfig` 管）、非 Debian 系都裝不了。
 Windows 主機裝不了的只剩 `zsh`（Windows 的 shell 是 PowerShell）、`btop`（沒有 Windows 版，改勾 `bottom`）、`earlyoom`、`snapserver`（要 systemd）、`code-server`（官方不出 Windows 版）；其他照 [ADR 0005](../adr/0005-install-method-by-tool-kind.md) 的裝法裝（見[Windows 主機](windows.md#裝了什麼怎麼用)）。
 macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
-[`home/.chezmoitemplates/tool-env`](../../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
+[`home/.chezmoidata/tool-table.yaml`](../../home/.chezmoidata/tool-table.yaml) 各工具的 `rules`；
+選單標註、預設組合、略過彙整都讀裝法判斷 `home/.chezmoitemplates/tool-install` 照表算出的結果。
 
 ## 憑證
 
