@@ -87,8 +87,8 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata
 照 installer 放的位置刪 `%LOCALAPPDATA%\Programs\OpenAI\Codex`、`%USERPROFILE%\.codex\packages\standalone`，再從使用者 PATH 拿掉
 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin`。
 以前用 mise 或 winget 試裝過 claude 的，裝好官方那份後把舊的移掉（`mise uninstall claude` 並從 mise 設定拿掉、
-`winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 讓 `.local\bin` 排在 mise 的 shims 前面，打 `claude` 會先找到官方那份，
-但 CMD 這類不讀 profile 的地方可能找到舊的，而且舊的不會自己更新。
+`winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 把 mise 的 shims 排在 `.local\bin` 前面，mise 那份沒移掉的話，打 `claude` 會先找到它
+（2026-11-20 henry-desktop 實測 PATH 順序）；winget 那份則看 PATH 排序，CMD 這類不讀 profile 的地方也可能找到舊的，而且舊的不會自己更新。
 
 以前用 mise 試裝過 codex 的（例如 henry-laptop 的 0.170.0），一定要移掉：profile 把 mise 的 shims 排在 PATH 最前面，
 官方那份在使用者 PATH，打 `codex` 會先找到 mise 那份，而它不會自己更新、`codex update` 也認不出安裝方式。
