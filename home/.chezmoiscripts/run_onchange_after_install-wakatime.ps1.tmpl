@@ -18,7 +18,8 @@
        3. Codex CLI 的 plugin:照 wakatime/codex-cli-wakatime README 的兩行指令;已裝就跳過
        已裝的判斷照 plugin list --json 的欄位(同 Linux 的 jq);印出來的不是 JSON 就當作沒裝、照裝
        (Get-PluginList 接住 ConvertFrom-Json 的例外,不然整段 if 被跳過)。
-       agent 先找 PATH,再找官方 installer 裝的位置(chezmoi 跑腳本時 -NoProfile,PATH 不一定有 .local\bin)。
+       agent 先找 PATH,再找官方 installer 裝的位置(.chezmoitemplates/ps1-agent-exe;chezmoi 跑腳本時 -NoProfile,
+       PATH 不一定有 .local\bin)。
        任何一步失敗只印一行、exit 0(同 Windows 其他腳本:不然 apply 中止)。代價是不會自動重試,要照印出來的指令自己裝。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- if has "wakatime" $installing -}}
@@ -65,7 +66,7 @@ function Get-PluginList([string]$exe) {
 }
 {{- if has "claude" $installing }}
 
-$claude = Find-Agent 'claude' (Join-Path $HOME '.local\bin\claude.exe')
+$claude = Find-Agent 'claude' ({{ includeTemplate "ps1-agent-exe" "claude" }})
 if (-not (Test-Path $claude)) {
     Write-Host (T '{{ "找不到 claude,跳過 Claude Code 的 WakaTime plugin" | b64enc }}')
 } elseif (@(Get-PluginList $claude | Where-Object { $_.id -eq 'claude-code-wakatime@wakatime' }).Count -gt 0) {
@@ -80,7 +81,7 @@ if (-not (Test-Path $claude)) {
 {{- end }}
 {{- if has "codex" $installing }}
 
-$codex = Find-Agent 'codex' (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')
+$codex = Find-Agent 'codex' ({{ includeTemplate "ps1-agent-exe" "codex" }})
 if (-not (Test-Path $codex)) {
     Write-Host (T '{{ "找不到 codex,跳過 Codex CLI 的 WakaTime plugin" | b64enc }}')
 } elseif (@((Get-PluginList $codex).installed | Where-Object { $_.pluginId -eq 'codex-cli-wakatime@wakatime' }).Count -gt 0) {

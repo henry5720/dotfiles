@@ -1,0 +1,27 @@
+{{- /* 下載官方 install.ps1 成暫存檔、在同一個 process 跑、刪掉暫存檔(install-claude、install-codex、
+       install-agent-config 的 .ps1 共用;ADR 0005 的官方 installer)。跑完後 $code 是結果:0 成功,
+       官方腳本 exit 非 0 就是那個值,丟例外(下載失敗、Write-Error 加 Stop、throw)算 1,例外訊息照印。
+       用法(參數用 dict 傳;env 選填,跑 installer 前設好的環境變數):
+         {{ includeTemplate "ps1-official-installer" (dict "url" $url "env" (dict "CODEX_NON_INTERACTIVE" "1")) }}
+       渲染結果只能有 ASCII(由 Windows PowerShell 5.1 跑),這裡不印中文;失敗後印什麼由呼叫端決定。
+
+       1. 先下載成檔案再跑:接 pipe(irm | iex)的話下載失敗看不出來
+       2. 5.1 預設可能不開 TLS 1.2(Claude Code 官方 troubleshoot-install 的 TLS 那節),先打開;
+          -UseBasicParsing:5.1 的 Invoke-WebRequest 沒有它會去找 IE 引擎
+       3. 在同一個 process 跑:TLS 設定、環境變數才帶得進去 */ -}}
+$installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri {{ squote .url }} -OutFile $installer -UseBasicParsing -ErrorAction Stop
+{{- range $k, $v := index . "env" }}
+    $env:{{ $k }} = {{ squote $v }}
+{{- end }}
+    $global:LASTEXITCODE = 0
+    & $installer
+    $code = $LASTEXITCODE
+} catch {
+    Write-Host $_
+    $code = 1
+} finally {
+    Remove-Item -Force $installer -ErrorAction SilentlyContinue
+}
