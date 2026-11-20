@@ -1,4 +1,5 @@
-{{- if has "snapserver" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):snapserver 走 apt,沒有 root 或非 Debian 系裝不了就不跑(#333) */ -}}
+{{- if (includeTemplate "tool-install" . | fromJson).tools.snapserver.install -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
 # 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages);

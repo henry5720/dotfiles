@@ -1,4 +1,4 @@
-{{- /* Windows 主機的 CLI 工具交給 mise 裝:清單是 .chezmoitemplates/mise-tools(zoxide 加上有勾、在 miseTools 裡的),
+{{- /* Windows 主機的 CLI 工具交給 mise 裝:清單是 .chezmoitemplates/mise-tools(zoxide 加上裝法判斷算出走 mise 的),
        由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。Linux 那支是 install-mise.sh。
        只部署到 Windows(.chezmoiignore:Windows 段放行 .chezmoiscripts/*.ps1,其他 OS 排除)。
        套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本;清單寫在下面的註解裡,清單變了才重跑。

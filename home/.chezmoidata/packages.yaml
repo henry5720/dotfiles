@@ -41,6 +41,8 @@ packages:
     mise:
       - zoxide
 
+# ⚠️ #333 起各套件管理員與 mise 的清單改照選裝工具表(tool-table.yaml)產生,下面的 toolPackages、nodePackages、
+# miseTools 已經沒有樣板讀,等 #336 刪掉;要改裝法改 tool-table.yaml。
 # 選裝工具(.chezmoi.toml.tmpl 的 tools 選單)裡直接走 apt／pkg／brew 的:工具名 → 套件。
 # 有勾才裝,跟上面的清單一起由同一支套件腳本處理(macOS 是 install-packages-darwin)。
 # 要加 apt 來源、curl installer 的工具不放這裡,各自一支 run_onchange_after_install-<工具>.sh.tmpl。

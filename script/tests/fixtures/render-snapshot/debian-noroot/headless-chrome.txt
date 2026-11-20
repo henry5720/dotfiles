@@ -50,7 +50,7 @@ headless-chrome
 
 
 ## 套件清單
-apt/pkg: git curl python3 fonts-noto-cjk fonts-noto-color-emoji
+apt/pkg: git curl python3
 brew: 
 brew cask: 
 winget: 
@@ -421,7 +421,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3 fonts-noto-cjk fonts-noto-color-emoji; do
+for pkg in git curl python3; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

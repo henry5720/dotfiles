@@ -515,7 +515,7 @@ scenario_ubuntu() {
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入
   check_tool node
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
-  # uv 是 snapserver 帶的(照 miseTools 的工具名排序,在 starship 前面)
+  # uv 是 snapserver 的依賴套件(清單照選裝工具表的工具名排序、依賴接在工具後面,在 starship 前面)
   check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
     "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
@@ -883,8 +883,9 @@ scenario_ubuntu() {
     "rm -rf /tmp/nopath && mkdir /tmp/nopath && for c in chezmoi id sh sudo vim; do ln -s \"\$(command -v \$c)\" /tmp/nopath/\$c; done && PATH=/tmp/nopath chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && grep -qx '\"btop\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q vim /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
   check "有 root 的 Ubuntu:只勾 conda 的(ffmpeg)忽略 ~/.config/mise,勾了 always 的(fzf)不忽略;非 Debian 系不忽略" \
     "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise && ! chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
-  check "有 root 的 Ubuntu:系統已經有 vim,always 的工具照樣列(mise 清單不看 lookPath)" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"],\"miseTools\":{\"vim\":{\"tool\":\"vim\",\"cmd\":\"vim\",\"always\":true},\"fzf\":{\"tool\":\"fzf\",\"cmd\":\"fzf\",\"always\":true}}}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -qx '\"vim\" = \"latest\"'"
+  # 選裝工具表(tool-table.yaml)上 linux 只寫 mise 的(fzf)不看系統;vim 有 root 走 apt(#333 起清單照表產生)
+  check "有 root 的 Ubuntu:系統已經有 vim,只寫 mise 的工具照樣列(mise 清單不看 lookPath)、vim 走 apt 不列" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"]}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/root-mise.toml && cat /tmp/root-mise.toml && grep -qx '\"fzf\" = \"latest\"' /tmp/root-mise.toml && ! grep -q vim /tmp/root-mise.toml"
   local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-headless-chrome \

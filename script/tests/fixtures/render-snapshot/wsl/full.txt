@@ -54,7 +54,7 @@ zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server cloudf
 
 
 ## 套件清單
-apt/pkg: git curl jq python3 poppler-utils ffmpeg snapclient vim zsh libatomic1
+apt/pkg: git curl jq python3 poppler-utils ffmpeg libatomic1 snapclient vim zsh
 brew: 
 brew cask: 
 winget: 
@@ -677,7 +677,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl jq python3 poppler-utils ffmpeg snapclient vim zsh libatomic1; do
+for pkg in git curl jq python3 poppler-utils ffmpeg libatomic1 snapclient vim zsh; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

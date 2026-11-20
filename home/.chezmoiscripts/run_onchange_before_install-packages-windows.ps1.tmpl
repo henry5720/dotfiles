@@ -1,5 +1,7 @@
 {{- /* Windows 主機的 app:用 winget 裝 .chezmoidata/packages.yaml 的 packages.windows.winget(mise、pwsh 7、
-       Windows Terminal),加上 tools 有勾、這台裝得了的 toolPackages.windows(tailscale)。CLI 不在這裡,見 install-mise.ps1。
+       Windows Terminal),加上裝法判斷(.chezmoitemplates/tool-install)算出走 winget 的選裝工具與依賴套件
+       (lists.winget:tailscale、Chrome、Git、VC++ runtime;誰走 winget 寫在 .chezmoidata/tool-table.yaml)。
+       CLI 不在這裡,見 install-mise.ps1。
        只部署到 Windows(.chezmoiignore:Windows 段放行 .chezmoiscripts/*.ps1,其他 OS 排除)。
 
        chezmoi 官方「宣告式裝套件」只有 brew bundle 的範例,沒有 winget;照同一個套法:清單 + run_onchange_ 腳本
@@ -12,11 +14,7 @@
        2. 每個 id 先 winget list 看裝了沒,裝了就跳過(Win11 內建的 Terminal、已經手動裝的 pwsh)
        3. 沒裝的 winget install;tailscale 是 machine scope 的 MSI,會跳 UAC。
           裝失敗只印一行、exit 0:不然 apply 中止,排在後面的腳本全不會跑(同 Linux 的 install-mise) */ -}}
-{{- $ids := .packages.windows.winget -}}
-{{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
-{{- range $tool, $p := .toolPackages.windows -}}
-{{-   if has $tool $installing }}{{ $ids = concat $ids $p }}{{ end -}}
-{{- end -}}
+{{- $ids := concat .packages.windows.winget (includeTemplate "tool-install" . | fromJson).lists.winget -}}
 {{- /* 幾個工具共用同一個 app(agent-config、wakatime 都要 Git.Git)時只列一次 */ -}}
 {{- $ids = uniq $ids -}}
 {{ includeTemplate "ps1-text" . }}
