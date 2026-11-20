@@ -11,6 +11,10 @@
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
 #   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),找不到就直接失敗。
 #                    改 agent-config 的 personal-chrome-attach 時指到自己的 worktree
+#   E2E_NO_CACHE=1   不用下載快取,apt 的 .deb、mise 的下載都從網路重新抓(懷疑快取害測試失準時用)。
+#                    預設開:同目標的每一輪共用 docker volume dotfiles-e2e-cache-<目標>-*,
+#                    只快取下載的檔案,不快取裝好的結果;官方 installer 的網址每輪照樣真的連一次。
+#                    快取了什麼、怎麼清見 container.sh 的「下載快取」
 #
 # 測的是 repo 的工作目錄(含未 commit 的修改)加上 AGENT_CONFIG_DIR 指定的 agent-config checkout,不經過 GitHub。
 # agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):personal-chrome-attach 是從那份 checkout
@@ -1086,7 +1090,10 @@ ENV SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
 RUN /entrypoint.sh bash -lc true
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
-  docker run -d --name "$CTR" "$IMAGE" sleep infinity >/dev/null
+  # Termux 沒有 mise(選裝工具走 pkg),只快取 pkg(apt)的 .deb;pkg 以 system 跑,目錄要是它的
+  cache_args termux "$CTR_USER:/data/data/com.termux/cache/apt/archives"
+  docker run -d --name "$CTR" "${CACHE_ARGS[@]}" "$IMAGE" sleep infinity >/dev/null
+  cache_prepare
   make_fixtures
 }
 
@@ -1232,8 +1239,12 @@ DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
   # --init:PID 1 換成會回收子程序的 tini。apply 裝的 userspace tailscaled 會被 zsh 背景起來,
   # 測試停掉它之後,sleep 當 PID 1 不回收,留下的 zombie 讓 pgrep 以為還在跑
-  docker run -d --init --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
-  local u
+  # 沒有 root,執行時不會 apt:只快取每個使用者的 mise 下載
+  local u args=()
+  for u in "${NOROOT_USERS[@]}"; do args+=("$u" "/home/$u"); done
+  cache_args noroot - "${args[@]}"
+  docker run -d --init --name "$CTR" --hostname dotfiles "${CACHE_ARGS[@]}" "$IMAGE" sleep infinity >/dev/null
+  cache_prepare
   for u in "${NOROOT_USERS[@]}"; do use_user "$u"; make_fixtures; done
 }
 

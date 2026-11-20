@@ -10,6 +10,7 @@
 # 環境變數 E2E_KEEP=1:結束時不刪容器(cleanup 讀它)。
 # 環境變數 AGENT_CONFIG_DIR:agent-config 的 checkout(預設 ~/.config/skillshare),make_fixtures 從這裡複製
 #   personal-chrome-attach;找不到就 exit 1。
+# 環境變數 E2E_NO_CACHE=1:不掛下載快取(cache_args、cache_prepare 什麼都不做),整輪從網路重新下載。
 
 # ===============================================================
 # 輸出
@@ -27,6 +28,56 @@ cleanup() {
   else
     docker rm -f "$CTR" >/dev/null 2>&1 || true
   fi
+}
+
+# ===============================================================
+# 下載快取(#346)
+# ===============================================================
+# 重跑同一個目標時,下載過的檔案從 docker volume 拿,不再連網下載。只快取「下載的檔案」,
+# 不快取裝好的結果:容器、家目錄、安裝目錄每輪都是全新的,照樣從零 init --apply。
+#   apt 的 .deb   /var/cache/apt/archives(Termux 是 /data/data/com.termux/cache/apt/archives)。
+#                 套件清單(lists)不快取,每輪照樣 apt-get update;apt 拿新清單的 hash 比對,
+#                 快取裡的舊版不符就重新下載,所以裝到的仍是當下的版本
+#   mise 的下載   ~/.cache/mise/downloads-cas(mise 的 download_cache,以完整 URL 為 key)。
+#                 只掛這一層,不掛整個 ~/.cache/mise:版本清單(latest 是哪版)每輪照樣問 GitHub
+# 不快取的:官方 installer(get.chezmoi.io、mise.run、tailscale.com/install.sh…)每輪都真的 curl 一次,
+# 網址失效 e2e 就會失敗;chezmoi externals 也不快取(zsh 插件是 git clone,Termux 字型是釘版本的 URL,
+# 快取了就測不到網址失效)。
+# volume 名稱是 dotfiles-e2e-cache-<目標>-<apt|mise-<使用者>>,不帶 E2E_TAG,同目標的每一輪共用;
+# 平行跑共用同一個 volume 也安全(apt 有檔案鎖,mise 的快取是內容定址)。
+# 清掉:docker volume rm $(docker volume ls -q --filter name=dotfiles-e2e-cache-)
+CACHE_VOLUME=dotfiles-e2e-cache
+
+# cache_args <目標> <apt 快取目錄> [<使用者> <家目錄>]...:docker run 要加的 -v 參數放進 CACHE_ARGS。
+# apt 快取目錄沒有就給 -;apt 不是以 root 跑(Termux)時寫成 <使用者>:<目錄>,掛好後改 owner。
+# 每個使用者一個 mise volume:uid 不同,共用會寫不進別人建的目錄。
+cache_args() {
+  CACHE_ARGS=()
+  CACHE_OWNERS=()
+  [ "${E2E_NO_CACHE:-0}" = 1 ] && return 0
+  local target=$1 apt=$2
+  shift 2
+  if [ "$apt" != - ]; then
+    CACHE_ARGS+=(-v "$CACHE_VOLUME-$target-apt:${apt#*:}")
+    case $apt in *:*) CACHE_OWNERS+=("$apt") ;; esac
+  fi
+  while [ $# -ge 2 ]; do
+    CACHE_ARGS+=(-v "$CACHE_VOLUME-$target-mise-$1:$2/.cache/mise/downloads-cas")
+    CACHE_OWNERS+=("$1:$2/.cache $2/.cache/mise $2/.cache/mise/downloads-cas")
+    shift 2
+  done
+}
+
+# cache_prepare:docker run 之後呼叫。掛載點的上層目錄是 docker 建的(owner 是 root),改回使用者的;
+# Ubuntu 映像的 docker-clean 會在 apt 裝完刪掉 .deb,拿掉它(真的 Ubuntu 本來就沒有這個檔)。
+cache_prepare() {
+  [ "${E2E_NO_CACHE:-0}" = 1 ] && return 0
+  local o
+  for o in "${CACHE_OWNERS[@]}"; do
+    # shellcheck disable=SC2086  # 第二段是空白分隔的目錄清單
+    docker exec -u 0 "$CTR" chown "${o%%:*}:" ${o#*:} || { red "✗ 快取目錄改 owner 失敗"; exit 1; }
+  done
+  docker exec -u 0 "$CTR" rm -f /etc/apt/apt.conf.d/docker-clean
 }
 
 # ===============================================================
@@ -109,7 +160,9 @@ RUN apt-get update \
  && echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ubuntu
 DOCKERFILE
   docker rm -f "$CTR" >/dev/null 2>&1 || true
+  cache_args ubuntu /var/cache/apt/archives "$CTR_USER" "$CTR_HOME"
   # 固定 hostname:預設是容器 ID,README 的 GIF 裡 fastfetch 標題會印出來
-  docker run -d --name "$CTR" --hostname dotfiles "$IMAGE" sleep infinity >/dev/null
+  docker run -d --name "$CTR" --hostname dotfiles "${CACHE_ARGS[@]}" "$IMAGE" sleep infinity >/dev/null
+  cache_prepare
   make_fixtures
 }

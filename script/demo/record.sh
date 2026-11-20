@@ -8,6 +8,7 @@
 # 環境變數(跟 script/tests/e2e.sh 同一組):
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴(預設 local)
 #   E2E_KEEP=1       錄完不刪容器,錄壞時 `docker exec -it -u ubuntu <容器> bash` 進去看
+#   E2E_NO_CACHE=1   不用下載快取(見 script/tests/container.sh 的「下載快取」)
 #
 # 在全新的 ubuntu:24.04 容器裡錄,不碰本機家目錄;錄的是 repo 工作目錄(含未 commit 的修改)。
 # 建容器與 fixtures(本機 repo、假 agent-config remote)跟 e2e 共用 script/tests/container.sh。
