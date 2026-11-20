@@ -11,15 +11,28 @@
 
 ## 總覽
 
-| 平台 | 暫時開 | 關 | 常駐 | port | 公鑰放哪 |
-|---|---|---|---|---|---|
-| [Linux（有 root）](#linux有-root) | `sudo systemctl start ssh` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 22 | `~/.ssh/authorized_keys` |
-| [Linux（沒有 root）](#linux沒有-root) | `/usr/sbin/sshd -D -f ~/.sshd/sshd_config` | Ctrl+C | 要管理員 | 自選 ≥ 1024 | `~/.ssh/authorized_keys` |
-| [Termux](#termux) | `sshd` | `pkill sshd` | Termux:Boot | 8022 | `~/.ssh/authorized_keys` |
-| [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 | 管理員帳號：`C:\ProgramData\ssh\administrators_authorized_keys` |
-| [macOS](#macos) | 系統設定 → 一般 → 共享 → 遠端登入 | 同一處關掉 | 開了就常駐 | 22 | `~/.ssh/authorized_keys` |
+| 平台 | 暫時開 | 關 | 常駐 | port |
+|---|---|---|---|---|
+| [Linux（有 root）](#linux有-root) | `sudo systemctl start ssh` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 22 |
+| [Linux（沒有 root）](#linux沒有-root) | `/usr/sbin/sshd -D -f ~/.sshd/sshd_config` | Ctrl+C | 要管理員 | 自選 ≥ 1024 |
+| [Termux](#termux) | `sshd` | `pkill sshd` | Termux:Boot | 8022 |
+| [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 |
+| [macOS](#macos) | 系統設定 → 一般 → 共享 → 遠端登入 | 同一處關掉 | 開了就常駐 | 22 |
 
-連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../home/private_dot_ssh/private_config.tmpl)。
+公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../home/private_dot_ssh/private_config.tmpl)。
+
+## 公鑰放哪、權限
+
+權限不對時 sshd 不讀那個檔，連線只會回 `Permission denied (publickey)`。
+
+| 被連的那台 | 公鑰放哪 | 權限 |
+|---|---|---|
+| Linux、macOS、Termux | `~/.ssh/authorized_keys` | `chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys` |
+| Windows，管理員帳號（Administrators 群組） | `C:\ProgramData\ssh\administrators_authorized_keys`，放使用者目錄的不會被讀 | 系統管理員 PowerShell：`icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"` |
+| Windows，一般帳號 | `C:\Users\<使用者>\.ssh\authorized_keys` | 預設就對 |
+
+Windows 帳號是不是管理員：`net localgroup administrators` 的清單裡有沒有它。
+`icacls` 回找不到 `Administrators` 時換成 SID `*S-1-5-32-544`（2026-11-20 繁中 Windows 11 用 `Administrators` 可以）。
 
 ## Linux（有 root）
 
@@ -35,7 +48,7 @@ ss -ltn 'sport = :22'                           # 確認在聽 22
 
 - **Ubuntu 22.10 之後是 socket activation**：常駐的是 `ssh.socket`，有連線進來才起 `ssh.service`，
   所以 `ssh.service` 顯示 `disabled` 是正常的。不是 Ubuntu 的 Debian 系照舊 `sudo systemctl enable --now ssh`。
-- 公鑰：`ssh-copy-id <使用者>@<這台>`，或手動加進 `~/.ssh/authorized_keys`；權限不對時 `chmod go-w ~/.ssh/authorized_keys`。
+- 公鑰：`ssh-copy-id <使用者>@<這台>`，或照[公鑰放哪、權限](#公鑰放哪權限)手動加。
 - 改了 `/etc/ssh/sshd_config` 先 `sudo sshd -t` 檢查，再 `sudo systemctl restart ssh`。
 
 出處：[Ubuntu Server〈OpenSSH server〉](https://ubuntu.com/server/docs/how-to/security/openssh-server/)、
@@ -110,20 +123,7 @@ Get-Service sshd                                      # 確認：Status 是 Runn
 Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP'     # 確認防火牆有放 22（安裝時自動建）
 ```
 
-公鑰放哪看帳號是不是管理員：
-
-| 帳號 | 檔案 |
-|---|---|
-| 管理員（Administrators 群組） | `C:\ProgramData\ssh\administrators_authorized_keys`，放在使用者目錄的不會被讀 |
-| 一般使用者 | `C:\Users\<使用者>\.ssh\authorized_keys` |
-
-`administrators_authorized_keys` 的權限只能給 Administrators 和 SYSTEM，不然 sshd 不讀：
-
-```powershell
-icacls.exe "$env:ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
-```
-
-中文版 Windows 的群組名稱不一樣，`Administrators` 換成 SID `*S-1-5-32-544`。
+公鑰放哪、權限見[公鑰放哪、權限](#公鑰放哪權限)。
 
 出處：[Get started with OpenSSH Server for Windows](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse)、
 [Key-based authentication in OpenSSH for Windows](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement)。

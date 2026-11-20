@@ -147,24 +147,28 @@ Termux 不用另外做：第 2.3 節那行本來就先 `pkg upgrade`。之後的
 ### 2.2（可選）放 SSH key
 
 clone、`chezmoi update` 走 HTTPS，不用 key；要 **push**（dotfiles、agent-config）或從這台
-**連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再放。
+**連其他機器**（ssh config 裡的 Tailscale 主機、平板）才需要。可以裝完再做。
 
-所有機器共用同一把 key，檔名一定要是 `~/.ssh/henry5720`：ssh config 對 GitHub 和所有
-Tailscale 主機都寫死這個 IdentityFile。在舊機器 `cat ~/.ssh/henry5720` 複製內容，然後在新機器：
+ssh config 用 `~/.ssh/id_ed25519`。還沒有就產一把：
 
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-cat > ~/.ssh/henry5720            # 貼上整段（含 BEGIN/END 兩行），換行後 Ctrl-D
-chmod 600 ~/.ssh/henry5720
-ssh-keygen -y -f ~/.ssh/henry5720 > ~/.ssh/henry5720.pub   # 能產生就代表 key 格式對
+ssh-keygen -t ed25519 -C "<這台的名字>" -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
 ```
 
-放好後跑一次 `chezmoi apply`（還沒裝 chezmoi 就等 2.3 一起做）：
+Windows（PowerShell）：
 
-- `~/.ssh/config` 由 chezmoi 部署，GitHub 與各主機開始用這把 key。
-- **原生 Termux**：公鑰會被加進 `~/.ssh/authorized_keys`（已經有就跳過），別台才 ssh 得進來。
-- 這把 key 要在 GitHub 的 [SSH keys](https://github.com/settings/keys) 裡，`ssh -T git@github.com`
-  會回 `successfully authenticated` 就對了。
+```powershell
+New-Item -ItemType Directory -Force $HOME\.ssh | Out-Null
+ssh-keygen -t ed25519 -C "<這台的名字>" -f $HOME\.ssh\id_ed25519
+Get-Content $HOME\.ssh\id_ed25519.pub
+```
+
+公鑰加到要連的地方：
+
+- GitHub 的 [SSH keys](https://github.com/settings/keys)。`ssh -T git@github.com` 回 `successfully authenticated` 就對了。
+- 要連的主機：放哪、權限照[公鑰放哪、權限](remote-access/sshd.md#公鑰放哪權限)。Windows 的管理員帳號不在 `~/.ssh`。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器

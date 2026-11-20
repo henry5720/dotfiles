@@ -120,6 +120,11 @@ config 樣板的 windows 分支)時:
 `chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
 `chezmoi update` 換回來,不然那台會一直拉舊分支。
 
+照 spec 做(`/implement-spec`)時,每張 ticket 只跑單元測試(含 `test_render_snapshot.py` 的渲染快照,快照有變的格子逐格說明原因);
+容器 e2e 三個目標、macOS workflow、Windows 實機清單,以及在這台跑 `chezmoi --source <integration worktree>/home diff`
+(只看、不 apply:已經裝好的機器換到這個分支會被改到什麼),在 integration 分支所有 ticket 併完後各跑一次,全過才把 PR 標成 ready。
+這台是 company-ec2,不在這裡 apply 測試分支。
+
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。
 
