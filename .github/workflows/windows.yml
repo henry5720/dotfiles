@@ -204,9 +204,13 @@ jobs:
         timeout-minutes: 10
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-          # open 會在背景留一個瀏覽器的常駐程序,它沿用 open 的輸出;open 接管線的話管線永遠不會關,
-          # 這一步就卡住(2026-11-20 卡了 57 分鐘)。open 的輸出寫到檔案,只有 snapshot 接管線,close 放 finally
-          pwsh -c 'playwright-cli -s=t open https://example.com' *> "$env:RUNNER_TEMP\pw-open.log"
+          # open 會在背景留一個瀏覽器的常駐程序,它沿用 open 的 stdout。PowerShell 的 | 和 *> 都是自己用管線讀
+          # 原生程式的輸出,常駐程序不關那條管線,這一步就永遠等不完(2026-11-20 卡了 57 分鐘、改 *> 後又卡 10 分鐘)。
+          # Start-Process 的 -Redirect* 由 OS 直接給檔案 handle;WaitForExit 只等 open 本身(-Wait 連子程序都等)
+          $p = Start-Process pwsh -ArgumentList '-NoProfile', '-c', 'playwright-cli -s=t open https://example.com' -NoNewWindow -PassThru `
+            -RedirectStandardOutput "$env:RUNNER_TEMP\pw-open.log" -RedirectStandardError "$env:RUNNER_TEMP\pw-open.err.log"
+          if (-not $p.WaitForExit(120000)) { 'playwright-cli open 兩分鐘沒結束'; exit 1 }
+          Get-Content "$env:RUNNER_TEMP\pw-open.log"
           try { $snap = pwsh -c 'playwright-cli -s=t snapshot' 2>&1 | Out-String; $snap }
           finally { pwsh -c 'playwright-cli -s=t close' }
           if (-not ($snap | Select-String -SimpleMatch 'Example Domain')) { 'snapshot 讀不到 Example Domain'; exit 1 }
