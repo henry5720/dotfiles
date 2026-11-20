@@ -34,7 +34,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 
 ## 可用
 
-剩下 39 支在 Windows 跟 Linux 一樣用。有前提的：
+剩下 38 支在 Windows 跟 Linux 一樣用。有前提的：
 
 | 要先有 | skill |
 |---|---|
@@ -44,7 +44,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 
 只靠 `git`、`gh` 或純文字的：archive-branches、ask-matt、caveman、code-review、codebase-design、
 domain-modeling、grill-me、grill-with-docs、grilling、handoff、humanizer-zh、implement、implement-spec、
-improve-codebase-architecture（開 HTML 已寫 Windows 的 `start`）、ponytail、pr、prototype、research、retro、
+improve-codebase-architecture（開 HTML 已寫 Windows 的 `start`）、pr、prototype、research、retro、
 setup-matt-pocock-skills、tdd、teach、to-questionnaire、to-spec、to-tickets、triage、wait-what、wayfinder、writing-for-agents。
 
 agent-config 加了新 skill 或上面的 issue 修好後，更新這頁。
