@@ -1,0 +1,50 @@
+{{- /* tool-install 的內部步驟:一個工具(或依賴套件)在這台走哪個裝法。別的樣板不要直接用,用 tool-install 的結果。
+       輸入(dict):name 工具或依賴套件的名字、spec 表上那一筆、table 整張表(toolTable)、os、have 這台有的環境條件(root、debian、amd64 → true)、
+                   own mise 自己的目錄(system 裝法排除它)。
+       輸出 JSON:用得了 → {"method": 裝法, 再加那個裝法的資料(見 tool-install 開頭)};
+                 一個都用不了 → {"method": "", "reason": 原因}。原因照第一個裝法缺的條件組,沒有這個 OS 的裝法另一句。
+       裝法能不能用的規則寫在 .chezmoidata/tool-table.yaml 的「3. 裝法能不能用」。 */ -}}
+{{- $spec := .spec -}}
+{{- $os := .os -}}
+{{- $order := dig "install" $os list $spec -}}
+{{- $out := dict "method" "" "reason" "" -}}
+{{- $firstWhy := "" -}}
+{{- range $m := $order -}}
+{{-   $needs := dig $m "needs" list $.table.methods -}}
+{{-   if has $m (list "official" "script") }}{{ $needs = concat $needs (dig $m "needs" list $spec) }}{{ end -}}
+{{-   $why := "" -}}
+{{-   range $needs -}}
+{{-     if and (not $why) (not (hasKey $.have .)) }}{{ $why = printf "走 %s，%s" $m (dig . "reason" "" $.table.needs) }}{{ end -}}
+{{-   end -}}
+{{-   if not $why -}}
+{{-     if eq $m "system" -}}
+{{-       $p := lookPath (default $.name (dig "cmd" "" $spec)) -}}
+{{-       if or (not $p) (hasPrefix $.own $p) }}{{ $why = "-" }}{{ end -}}
+{{-     else if eq $m "official" -}}
+{{-       if not (dig "official" (ternary "ps1" "sh" (eq $os "windows")) "url" "" $spec) }}{{ $why = "-" }}{{ end -}}
+{{-     end -}}
+{{-   end -}}
+{{-   if $why -}}
+{{-     if and (not $firstWhy) (ne $why "-") }}{{ $firstWhy = $why }}{{ end -}}
+{{-     continue -}}
+{{-   end -}}
+{{-   $_ := set $out "method" $m -}}
+{{-   if has $m (list "apt" "pkg" "brew" "cask" "winget") -}}
+{{-     $_ := set $out "packages" (get $spec $m) -}}
+{{-   else if eq $m "mise" -}}
+{{-     $mise := get $spec "mise" -}}
+{{-     $_ := set $out "mise" (dict "tool" $mise.tool "version" (dig "version" "latest" $mise) "options" (dig "options" dict $mise)) -}}
+{{-   else if eq $m "official" -}}
+{{-     $kind := ternary "ps1" "sh" (eq $os "windows") -}}
+{{-     $_ := set $out "official" (merge (dict "kind" $kind) (dig "official" $kind dict $spec)) -}}
+{{-   else if eq $m "script" -}}
+{{-     $_ := set $out "script" (dig "script" "name" "" $spec) -}}
+{{-   else if eq $m "deb" -}}
+{{-     $_ := set $out "deb" (get $spec "deb") -}}
+{{-   end -}}
+{{-   break -}}
+{{- end -}}
+{{- if not $out.method -}}
+{{-   $_ := set $out "reason" (ternary "這個 OS 沒有裝法" (default "這台找不到能用的裝法" $firstWhy) (not $order)) -}}
+{{- end -}}
+{{- $out | toJson -}}

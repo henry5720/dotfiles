@@ -1,0 +1,96 @@
+{{- /* 裝法判斷(spec #315 唯一的判斷):照選裝工具表(.chezmoidata/tool-table.yaml,欄位與規則寫在那個檔開頭)、
+       這台的環境、勾選(.tools)算出每個工具走哪個裝法,或裝不了加原因。輸出 JSON,每次渲染重算、不存檔。
+       用法:{{ $install := includeTemplate "tool-install" . | fromJson }}
+       apply 時讀 .toolTable;config 樣板(chezmoi init)讀不到 data 目錄,改 include 那個檔(兩種都接)。
+
+       輸出:
+         env        這台對到的環境(rules 的 when 用的那些,例如 ["linux", "wsl"])
+         needsNode  要不要裝 Node:勾了 node,或勾了 needsNode 有這個 OS 的工具(都要這台裝得了)
+         tools.<工具>(表上每個工具都有,不管勾了沒,選單要全部):
+           state     ok、discouraged(不建議,照裝)、unsupported(裝不了)
+           label     不建議、裝不了(state 是 ok 時空字串)        reason  原因(ok 時空字串)
+           ticked    有沒有勾                                     install 要不要裝:勾了(或 node 被連帶)而且不是 unsupported
+           method    這台走的裝法(apt、pkg、brew、cask、winget、mise、builtin、system、official、script、deb);裝不了時空字串
+           再加那個裝法的資料(只有用到的那一項):
+             packages  apt、pkg、brew、cask、winget 的套件名清單
+             mise      {tool, version, options}(version 預設 latest,options 預設 {})
+             official  {kind: sh 或 ps1, url, shell, env, args, installed}
+             script    自己那支腳本的名字                         deb  {url}
+           setup     裝完還要設定的腳本名(表上沒寫就沒有這欄)
+           deps.<依賴套件>  install 為 true 時才算:{state: ok 或 unsupported, reason, method, 裝法的資料}
+         lists      照上面彙整的清單,給各套件管理員用:要裝的工具與它們用得了的依賴,照工具名排、依賴接在工具後面、去掉重複:
+                    apt、pkg、brew、cask、winget 是套件名;mise 是 {tool, version, options}
+       例:debian-root 勾 claude → tools.claude = {state: ok, method: official, official: {kind: sh, url: https://claude.ai/install.sh, …},
+           deps: {poppler: {state: ok, method: apt, packages: [poppler-utils]}}, …},lists.apt = [poppler-utils] */ -}}
+{{- $t := index . "toolTable" -}}
+{{- if not $t }}{{ $t = (include ".chezmoidata/tool-table.yaml" | fromYaml).toolTable }}{{ end -}}
+{{- $os := .chezmoi.os -}}
+{{- $ticked := index . "tools" | default list -}}
+
+{{- /* 1. 這台的環境:rules 的 when(envs)與裝法要的條件(have) */ -}}
+{{- $envs := list $os -}}
+{{- $have := dict -}}
+{{- if eq (includeTemplate "is-wsl" .) "true" }}{{ $envs = append $envs "wsl" }}{{ end -}}
+{{- if eq $os "linux" -}}
+{{-   if ne .chezmoi.arch "amd64" }}{{ $envs = append $envs "non-amd64" }}{{ else }}{{ $_ := set $have "amd64" true }}{{ end -}}
+{{-   if includeTemplate "is-debian" . }}{{ $_ := set $have "debian" true }}{{ else }}{{ $envs = append $envs "non-debian" }}{{ end -}}
+{{-   if includeTemplate "is-proot" . }}{{ $envs = append $envs "proot" }}{{ end -}}
+{{-   if includeTemplate "has-root" . }}{{ $_ := set $have "root" true }}{{ end -}}
+{{- end -}}
+{{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
+{{- $labels := dict "ok" "" "discouraged" "不建議" "unsupported" "裝不了" -}}
+{{- $pickArgs := dict "table" $t "os" $os "have" $have "own" $own -}}
+
+{{- /* 2. 每個工具:先比 rules(unsupported 就定了),再依序試裝法,一個都用不了也是裝不了 */ -}}
+{{- $tools := dict -}}
+{{- range $name, $spec := $t.tools -}}
+{{-   $state := "ok" -}}
+{{-   $reason := "" -}}
+{{-   range (get $spec "rules" | default list) -}}
+{{-     if not (hasKey $labels .state) }}{{ fail (printf "tool-table:%s 的 state %q 不是 discouraged 或 unsupported" $name .state) }}{{ end -}}
+{{-     $hit := false -}}
+{{-     range .when }}{{ if has . $envs }}{{ $hit = true }}{{ end }}{{ end -}}
+{{-     if $hit }}{{ $state = .state }}{{ $reason = .reason }}{{ break }}{{ end -}}
+{{-   end -}}
+{{-   $r := dict "method" "" -}}
+{{-   if ne $state "unsupported" -}}
+{{-     $r = includeTemplate "tool-install-pick" (merge (dict "name" $name "spec" $spec) $pickArgs) | fromJson -}}
+{{-     if not $r.method }}{{ $state = "unsupported" }}{{ $reason = $r.reason }}{{ end -}}
+{{-     $_ := unset $r "reason" -}}
+{{-   end -}}
+{{-   $entry := merge $r (dict "state" $state "label" (get $labels $state) "reason" $reason "ticked" (has $name $ticked)) -}}
+{{-   $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) -}}
+{{-   with get $spec "setup" }}{{ $_ := set $entry "setup" . }}{{ end -}}
+{{-   $_ := set $tools $name $entry -}}
+{{- end -}}
+
+{{- /* 3. Node:勾了 node,或勾了要 Node 的工具(needsNode 有這個 OS) */ -}}
+{{- $needsNode := (get $tools "node").install -}}
+{{- range $name, $spec := $t.tools -}}
+{{-   if and (get $tools $name).install (has $os (get $spec "needsNode" | default list)) }}{{ $needsNode = true }}{{ end -}}
+{{- end -}}
+{{- $node := get $tools "node" -}}
+{{- $needsNode = and $needsNode (ne $node.state "unsupported") -}}
+{{- $_ := set $node "install" $needsNode -}}
+
+{{- /* 4. 要裝的工具:算依賴、彙整清單 */ -}}
+{{- $lists := dict "apt" list "pkg" list "brew" list "cask" list "winget" list "mise" list -}}
+{{- range $name, $spec := $t.tools -}}
+{{-   $entry := get $tools $name -}}
+{{-   if not $entry.install }}{{ continue }}{{ end -}}
+{{-   $deps := dict -}}
+{{-   $picked := list $entry -}}
+{{-   range $dep, $dspec := (get $spec "deps" | default dict) -}}
+{{-     $d := includeTemplate "tool-install-pick" (merge (dict "name" $dep "spec" $dspec) $pickArgs) | fromJson -}}
+{{-     $_ := set $d "state" (ternary "ok" "unsupported" (ne $d.method "")) -}}
+{{-     $_ := set $deps $dep $d -}}
+{{-     if $d.method }}{{ $picked = append $picked $d }}{{ end -}}
+{{-   end -}}
+{{-   $_ := set $entry "deps" $deps -}}
+{{-   range $picked -}}
+{{-     if hasKey . "packages" }}{{ $_ := set $lists .method (concat (get $lists .method) .packages | uniq) }}{{ end -}}
+{{-     if hasKey . "mise" }}{{ $_ := set $lists "mise" (append (get $lists "mise") .mise | uniq) }}{{ end -}}
+{{-   end -}}
+{{- end -}}
+
+{{- dict "env" $envs "needsNode" $needsNode "tools" $tools "lists" $lists | toJson -}}
