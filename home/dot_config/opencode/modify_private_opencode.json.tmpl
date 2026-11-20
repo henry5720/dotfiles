@@ -7,6 +7,8 @@
 {{ "{{-" }} $mcp := dict {{ "-}}" }}
 {{ "{{-" }} if trim .chezmoi.stdin {{ "}}{{" }} $mcp = get (fromJson .chezmoi.stdin) "mcp" | default dict {{ "}}{{" }} end {{ "-}}" }}
 {{ "{{" }} set $repo "mcp" $mcp | toPrettyJson "  " {{ "}}" }}
+{{- /* 上一行的換行不輸出:toPrettyJson 自己以換行結尾,多的一個在 CRLF 的 checkout(Windows Git 預設 autocrlf)
+       還會是 \r\n */ -}}
 {{ else -}}
 #!{{ lookPath "sh" }}
 # shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。

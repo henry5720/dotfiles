@@ -9,7 +9,10 @@ AppData\Roaming)。Windows 不能部署 ~/.config/skillshare:有那個目錄時 
 沒勾 agent-config 不部署(.chezmoiignore 的 Windows 段)。
 
 1. 吃現有內容(去掉結尾的換行,同 sh 的 $(cat));空的(新機器)從 init 前的基底開始,路徑是 Windows 的設定目錄
-2. 釘的 targets、extras(.chezmoitemplates/skillshare-pinned,照勾的 client 與 OS 產生)拆成「頂層 key → 整段」
+2. 釘的 targets、extras(.chezmoitemplates/skillshare-pinned,照勾的 client 與 OS 產生)拆成「頂層 key → 整段」。
+   先拿掉 \r:Windows 的 Git 預設 core.autocrlf=true,source checkout 成 CRLF,樣板裡的換行會帶 \r;
+   skillshare 存檔用 LF,不拿掉的話每行差一個 \r,chezmoi diff 永遠有差異。在樣板裡處理、不靠 .gitattributes,
+   因為 .gitattributes 改了也要重新 checkout 才生效,已經 clone 的機器照樣是 CRLF
 3. 逐行掃現有內容:頂層 key 是 targets、extras 的那段原地換成釘的那份;釘的那份沒有這段就整段拿掉,
    沿用它前面的空行。段落之間的空行先暫存,遇到下一個 key 才輸出。其餘原樣輸出
 4. 現有內容沒有的段落接在最後,前面空一行
@@ -22,7 +25,7 @@ AppData\Roaming)。Windows 不能部署 ~/.config/skillshare:有那個目錄時 
 {{- $order := list -}}
 {{- $body := dict -}}
 {{- $key := "" -}}
-{{- range $line := splitList "\n" (includeTemplate "skillshare-pinned" .) -}}
+{{- range $line := splitList "\n" (includeTemplate "skillshare-pinned" . | replace "\r" "") -}}
 {{-   if regexMatch "^[^ \t#-]" $line -}}
 {{-     $key = regexReplaceAll ":.*" $line "" -}}
 {{-     $order = append $order $key -}}

@@ -48,6 +48,8 @@ WINDOWS_SCRIPTS = {
 }
 # skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
 SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
+# henry-desktop 上 skillshare 自己存的 config.yaml(LF,勾 claude、codex、opencode、agent-config)
+SKILLSHARE_FIXTURE = ROOT / "script/tests/fixtures/windows-skillshare-config.yaml"
 # WakaTime 的 API key(#324),兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,勾了 wakatime 才部署
 WAKATIME_CFG = ".wakatime.cfg"
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
@@ -481,6 +483,54 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("& $ss sync --all", only_claude)
         self.assertNotEqual(only_claude, self.render(script, ["agent-config", "claude", "codex"]))
         self.assertEqual(only_claude, self.render(script, ["agent-config", "claude", "fzf"]))
+
+    # ===============================================================
+    # Windows 的 Git 預設 core.autocrlf=true:source checkout 成 CRLF,modify-template 的輸出不能跟著帶 \r
+    # ===============================================================
+    def crlf_source(self):
+        """repo 的 home/ 複製一份、文字檔換成 CRLF,模擬 Windows 上 autocrlf=true 的 checkout。"""
+        src = Path(self.tmp.name) / "crlf-source"
+        (src / "home").mkdir(parents=True)
+        (src / ".chezmoiroot").write_bytes((ROOT / ".chezmoiroot").read_bytes())
+        for f in (ROOT / "home").rglob("*"):
+            dest = src / f.relative_to(ROOT)
+            if f.is_dir():
+                dest.mkdir(parents=True, exist_ok=True)
+                continue
+            data = f.read_bytes()
+            if b"\0" not in data:
+                data = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+            dest.write_bytes(data)
+        return src
+
+    def cat_bytes(self, target, existing, tools, source):
+        """把 existing(bytes)放到 target,回傳 chezmoi cat 算出的 bytes。"""
+        path = self.home / target
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(existing)
+        info = {"os": "windows", "homeDir": str(self.home), "kernel": {"osrelease": ""}}
+        return subprocess.run([
+            "chezmoi", "--no-tty", "--source", str(source), "--config", str(self.cfg),
+            "--destination", str(self.home), "--override-data",
+            json.dumps({"chezmoi": info, "tools": tools, "codexLbApiKey": "fixture"}), "cat", str(path),
+        ], stdin=subprocess.DEVNULL, capture_output=True, check=True).stdout
+
+    def test_windows_skillshare_config_keeps_skillshare_bytes_from_crlf_checkout(self):
+        # skillshare 存的檔案(LF)已經是釘的內容:CRLF 或 LF 的 checkout 渲染出來都要逐 byte 一樣,chezmoi diff 才是空的
+        saved = SKILLSHARE_FIXTURE.read_bytes()
+        tools = ["agent-config", "claude", "codex", "opencode"]
+        for name, source in (("lf", ROOT), ("crlf", self.crlf_source())):
+            with self.subTest(checkout=name):
+                once = self.cat_bytes(SKILLSHARE_CONFIG, saved, tools, source)
+                self.assertEqual(once, saved)
+                self.assertEqual(self.cat_bytes(SKILLSHARE_CONFIG, once, tools, source), once)
+
+    def test_windows_opencode_json_has_no_cr_from_crlf_checkout(self):
+        # toPrettyJson 的輸出是 LF;樣板自己的換行不能漏進來(CRLF checkout 會在檔尾多一個 \r\n)
+        target = ".config/opencode/opencode.json"
+        lf = self.cat_bytes(target, b"", ["opencode"], ROOT)
+        self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
+        self.assertEqual(self.cat_bytes(target, b"", ["opencode"], self.crlf_source()), lf)
 
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
