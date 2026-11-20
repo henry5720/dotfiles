@@ -168,8 +168,7 @@ Get-Content $HOME\.ssh\id_ed25519.pub
 公鑰加到要連的地方：
 
 - GitHub 的 [SSH keys](https://github.com/settings/keys)。`ssh -T git@github.com` 回 `successfully authenticated` 就對了。
-- 要連的主機的 `~/.ssh/authorized_keys`。Windows 的管理員帳號例外：放 `C:\ProgramData\ssh\administrators_authorized_keys`，
-  權限要收成只有 Administrators、SYSTEM，不然 sshd 不讀（[`icacls` 那行](remote-access/sshd.md#windows)）。
+- 要連的主機：放哪、權限照[公鑰放哪、權限](remote-access/sshd.md#公鑰放哪權限)。Windows 的管理員帳號不在 `~/.ssh`。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器
