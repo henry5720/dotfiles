@@ -95,7 +95,7 @@ jobs:
         run: |
           summary=$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,$p' "$RUNNER_TEMP/init.log")
           printf '%s\n' "$summary"
-          for t in snapserver earlyoom; do
+          for t in snapserver earlyoom windows-mcp; do
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
           # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 npm 裝,不在略過彙整

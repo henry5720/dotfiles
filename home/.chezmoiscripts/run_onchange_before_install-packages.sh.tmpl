@@ -18,7 +18,7 @@ missing=""
 {{- /* 選裝工具的套件照裝法判斷(.chezmoitemplates/tool-install,#333)的 lists.apt、lists.pkg:勾了、這台裝得了、
        裝法是 apt／pkg 的工具與依賴套件;誰走 apt、pkg 寫在 .chezmoidata/tool-table.yaml。
        沒有 root 時 apt 用不了,判斷已經把選裝工具改到別的裝法(zsh 的 zsh-bin、vim 這類的 mise)或標裝不了;
-       只剩依賴套件(node 的 libatomic1,lists.aptNeedsRoot)照樣列:依賴裝不了不擋工具,執行時缺了才印手動指令。 */}}
+       只剩依賴套件(lists.aptNeedsRoot)照樣列:依賴裝不了不擋工具,執行時缺了才印手動指令。 */}}
 {{- $install := includeTemplate "tool-install" . | fromJson }}
 {{- $pkgs := .packages.ubuntu }}
 {{- $tool := concat $install.lists.apt $install.lists.aptNeedsRoot }}

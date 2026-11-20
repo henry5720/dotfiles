@@ -26,6 +26,7 @@ RESOLVE = '{{ includeTemplate "tool-install" . }}'
 MENU = '{{ includeTemplate "tool-menu-labels" . }}'
 TABLE = '{{ include ".chezmoidata/tool-table.yaml" | fromYaml | toJson }}'
 NO_METHOD = "沒有這個環境的裝法"  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
+RUNTIMES = {"needsNode": "node", "needsUv": "uv"}  # 表上「要這個 runtime 的 OS」欄 → runtime(#341)
 
 
 def table():
@@ -84,7 +85,8 @@ SCRIPT_METHODS = {
     "run_onchange_after_install-headless-chrome.sh.tmpl": ("headless-chrome", {"deb"}),
     "run_onchange_after_install-node.sh.tmpl": ("node", {"script"}),
     "run_onchange_after_npm-install-codegraph.sh.tmpl": ("codegraph", {"script"}),
-    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"script"}),
+    # Linux 的 playwright-cli 走 mise(#342),這支照樣跑:它也是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
+    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"script", "mise"}),
     "run_onchange_after_install-tailscale.sh.tmpl": ("tailscale", {"official", "script"}),
     **{f"run_onchange_after_install-{t}.sh.tmpl": (t, {"apt"}) for t in ("snapserver", "snapclient", "earlyoom")},
     **{f"run_onchange_after_install-wakatime.{ext}.tmpl": ("wakatime", {"script"}) for ext in ("sh", "ps1")},
@@ -202,7 +204,9 @@ class ToolTableTest(unittest.TestCase):
 
     def test_skipped_is_ticked_and_unsupported(self):
         for (env, sel), res in self.resolved.items():
-            want = sorted(n for n, t in res["tools"].items() if t["ticked"] and t["state"] == "unsupported")
+            # 連帶要 Node、node 卻裝不了時,沒勾 node 也列(#342)
+            want = sorted(n for n, t in res["tools"].items()
+                          if (t["ticked"] or t.get("wanted")) and t["state"] == "unsupported")
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(sorted(self.snap[env, sel]["skipped"]), want)
 
@@ -221,8 +225,9 @@ class ToolTableTest(unittest.TestCase):
         # #349:playwright-cli 看自己的裝法(npm,要 Node),不跟 headless-chrome 綁:沒有本機 Chrome 也能
         # attach 遠端瀏覽器(#260)。Playwright 官方支援 WSL、macOS、arm64、非 Debian 系的 Linux 照 npm 裝
         # (fedora:42 容器實測 attach --cdp,見 #349 留言)。期望值照那份盤點,不從表推
-        want = {"debian-root": "script", "debian-noroot": "script", "wsl": "script", "arm": "script",
-                "non-debian": "script", "proot": "script", "darwin": "script", "windows": "mise"}
+        # Linux 從 #342 起走 mise 的 npm backend;沒有 libatomic 的格子(快照裡的 debian-noroot、non-debian)
+        # Node 跑不起來,見 test_node_skipped_without_libatomic
+        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "script", "windows": "mise"}
         for env, method in want.items():
             with self.subTest(env=env):
                 res = self.status[env]["tools"]
@@ -246,6 +251,18 @@ class ToolTableTest(unittest.TestCase):
                                     (ROOT / "home/.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl")
                                     .read_text(encoding="utf-8"))
         self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), ["skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'"])
+
+    def test_no_libatomic_skip_summary_gives_the_apt_command_on_debian(self):
+        # ADR 0004:略過訊息寫事實與對應指令。規則的 aptFix 在 Debian 系附上 apt 指令,沒有 apt 的 Linux 只寫事實。
+        # opencode 連帶要 Node,node 才會列進略過
+        node = "Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有"
+        fix = "；apt 的指令是 sudo apt-get install -y libatomic1"
+        script = (ROOT / "home/.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl").read_text(encoding="utf-8")
+        for env, hint in (("debian-noroot", fix), ("non-debian", "")):
+            with self.subTest(env=env), tempfile.TemporaryDirectory() as tmp:
+                out = Renderer(tmp).run(dict(ENVS[env], tools=["codegraph", "opencode"]), "execute-template", script)
+                self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), [
+                    f"skip_env 'codegraph' '要 Node：{node}{hint}'", f"skip_env 'node' '{node}{hint}'"])
 
     def test_old_rules_and_lists_are_gone(self):
         # 裝法只寫在表上(#332、#336):舊的環境規則樣板(tool-env、tool-status)、apt 用不了的判斷(use-mise)、
@@ -449,23 +466,129 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(root["mise"], {'"uv" = "latest"'})
         self.assertTrue(root["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
 
-    def test_libatomic_stays_in_apt_list_without_root(self):
-        # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
-        for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full"):
-            with self.subTest(sel=sel):
-                self.assertEqual(self.snap["debian-noroot", sel]["packages"]["apt/pkg"][-1], "libatomic1")
-        self.assertNotIn("earlyoom", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
-        self.assertNotIn("snapclient", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
+    def test_node_skipped_without_libatomic(self):
+        # #342:Linux 的 Node 由 mise 裝,mise 裝完會跑 node -v,沒有 libatomic.so.1 就失敗。快照裡只有 Debian 系有 root
+        # 算有 libatomic(test_render_snapshot 開頭):其他 Linux 格子 node 與走 npm backend 的工具裝不了,原因寫事實。
+        # 只勾了 opencode、wakatime(連帶要 Node)時 node 也列進略過,照舊在 apply 最後印出來
+        node = "Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有"
+        for env in ("debian-noroot", "non-debian"):
+            tools = self.status[env]["tools"]
+            with self.subTest(env=env):
+                self.assertIn("no-libatomic", self.status[env]["env"])
+                self.assertEqual((tools["node"]["state"], tools["node"]["reason"]), ("unsupported", node))
+                for name in ("codegraph", "playwright-cli"):
+                    self.assertEqual((tools[name]["state"], tools[name]["reason"]), ("unsupported", "要 Node：" + node))
+                for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full", "all"):
+                    snap = self.snap[env, sel]
+                    self.assertFalse([m for m in snap["mise"] if m.startswith(('"node"', '"npm:'))], (sel, snap["mise"]))
+                    self.assertNotIn("libatomic1", snap["packages"]["apt/pkg"])
+                for sel in ("opencode", "wakatime"):
+                    self.assertIn("node", self.snap[env, sel]["skipped"], sel)
+        for env in ("debian-root", "wsl", "arm", "proot"):
+            with self.subTest(env=env):
+                self.assertNotIn("no-libatomic", self.status[env]["env"])
+                self.assertEqual(self.status[env]["tools"]["node"]["method"], "mise")
 
     def test_needs_node_matches_rendered_node(self):
-        # Node 有沒有被連帶裝:Linux、macOS 看 install-node、Termux 看 pkg 的 nodejs-lts、Windows 看 mise 的 node
+        # Node 有沒有被連帶裝:macOS 看 install-node(nvm)、Termux 看 pkg 的 nodejs-lts、Linux 與 Windows 看 mise 的 node(#342)
         for (env, sel), res in self.resolved.items():
             snap = self.snap[env, sel]
             want = {"android": bool(snap["packages"].get("pkg(node)")),
-                    "windows": '"node" = "lts"' in snap["mise"]}.get(
-                env, snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False))
+                    "darwin": snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False)}.get(
+                env, '"node" = "lts"' in snap["mise"])
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsNode"], want)
+
+    def test_linux_node_and_npm_tools_go_through_mise(self):
+        # #342:Linux 的 Node、codegraph、playwright-cli 由 mise 裝(npm backend),不再跑 nvm 與 npm install -g
+        scripts = ("run_onchange_after_install-node.sh.tmpl", "run_onchange_after_npm-install-codegraph.sh.tmpl")
+        for env in ("debian-root", "wsl", "arm", "proot"):
+            for sel, want in (("node", {'"node" = "lts"'}),
+                              ("codegraph", {'"node" = "lts"', '"npm:@colbymchenry/codegraph" = "latest"'}),
+                              ("playwright-cli", {'"node" = "lts"', '"npm:@playwright/cli" = "latest"'})):
+                snap = self.snap[env, sel]
+                with self.subTest(env=env, sel=sel):
+                    self.assertLessEqual(want, snap["mise"])
+                    for s in scripts:
+                        self.assertFalse(snap["scripts"].get(s, False), s)
+        # playwright-cli 的設定腳本照跑(ffmpeg、找不到本機 Chrome 的提醒),但不用 npm 裝
+        text = path_of("debian-root", "playwright-cli").read_text(encoding="utf-8")
+        body = text.partition("### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl")[2]
+        body = body.partition("\n### ")[0]
+        self.assertIn("install-browser ffmpeg", body)
+        self.assertNotIn("npm install", body)
+        self.assertNotIn("nvm", body)
+        # Windows 的 codegraph 照舊走 aqua(自帶 Node runtime,#323),macOS 照舊 nvm(#340 Out of Scope)
+        self.assertIn('"codegraph" = "latest"', self.snap["windows", "codegraph"]["mise"])
+        self.assertTrue(self.snap["darwin", "codegraph"]["scripts"]["run_onchange_after_install-node.sh.tmpl"])
+
+    def test_needs_uv_matches_rendered_uv(self):
+        # uv 有沒有裝(勾了或被連帶):Linux、Windows 看 mise 的 uv、macOS 看 brew、Termux 看 pkg
+        for (env, sel), res in self.resolved.items():
+            snap = self.snap[env, sel]
+            want = {"darwin": "uv" in snap["packages"]["brew"],
+                    "android": "uv" in snap["packages"]["apt/pkg"]}.get(env, '"uv" = "latest"' in snap["mise"])
+            with self.subTest(env=env, sel=sel):
+                self.assertEqual(res["needsUv"], want)
+                self.assertEqual(res["tools"]["uv"]["install"], want)
+
+    # ===============================================================
+    # runtime(#341):別的選裝工具要靠它才跑得起來、也能單獨勾。node、uv
+    # ===============================================================
+    def test_runtime_fields_list_oses(self):
+        # needsNode、needsUv 同一種格式:非空、不重複的 OS 清單;只有這兩欄,對到的 runtime 在表上
+        for name, tool in self.table["tools"].items():
+            for field in (k for k in tool if k.startswith("needs")):
+                with self.subTest(tool=name, field=field):
+                    self.assertIn(field, RUNTIMES)
+                    self.assertIn(RUNTIMES[field], self.table["tools"])
+                    self.assertNotEqual(name, RUNTIMES[field])
+                    oses = tool[field]
+                    self.assertIsInstance(oses, list)
+                    self.assertTrue(oses)
+                    self.assertEqual(len(oses), len(set(oses)))
+                    self.assertLessEqual(set(oses), {"linux", "darwin", "android", "windows"})
+
+    def test_uv_is_a_runtime_on_the_menu(self):
+        # #341(獨立的期望值):uv 能單獨勾,走 mise(macOS brew、Termux pkg,ADR 0005 的例外);
+        # 不再是 snapserver 的依賴套件,改由 snapserver、agent-config 的 needsUv 連帶裝
+        want = {"debian-root": "mise", "debian-noroot": "mise", "wsl": "mise", "arm": "mise", "non-debian": "mise",
+                "proot": "mise", "darwin": "brew", "android": "pkg", "windows": "mise"}
+        for env, method in want.items():
+            with self.subTest(env=env):
+                uv = self.resolved[env, "uv"]
+                self.assertEqual((uv["tools"]["uv"]["state"], uv["tools"]["uv"]["method"]), ("ok", method))
+                self.assertTrue(uv["needsUv"])
+                self.assertEqual(self.snap[env, "uv"]["installing"], ["uv"])
+                self.assertFalse(self.resolved[env, "minimal"]["needsUv"])
+                self.assertNotIn("uv", self.snap[env, "minimal"]["tools"])
+        self.assertNotIn("uv", self.table["tools"]["snapserver"].get("deps", {}))
+        for env, sel in [("debian-root", "snapserver"), ("debian-root", "agent-config"), ("darwin", "agent-config"),
+                         ("windows", "agent-config")]:
+            with self.subTest(env=env, sel=sel):
+                res = self.resolved[env, sel]
+                self.assertFalse(res["tools"]["uv"]["ticked"])
+                self.assertTrue(res["needsUv"])
+                self.assertEqual(self.snap[env, sel]["installing"][-1], "uv")
+        # 裝不了的工具不連帶:原生 Termux 的 agent-config、沒有 root 的 snapserver
+        self.assertFalse(self.resolved["android", "agent-config"]["needsUv"])
+        self.assertFalse(self.resolved["debian-noroot", "snapserver"]["needsUv"])
+
+    def test_windows_mcp_only_on_windows_and_brings_uv(self):
+        # #343(獨立的期望值):Windows 走 mise(pipx backend,要 uv),連帶裝 uv;其他環境裝不了,原因寫只在 Windows 有用
+        win = self.resolved["windows", "windows-mcp"]
+        self.assertEqual((win["tools"]["windows-mcp"]["state"], win["tools"]["windows-mcp"]["method"]), ("ok", "mise"))
+        self.assertTrue(win["needsUv"])
+        self.assertEqual(self.snap["windows", "windows-mcp"]["installing"], ["windows-mcp", "uv"])
+        for env in ENVS:
+            if env == "windows":
+                continue
+            with self.subTest(env=env):
+                res = self.resolved[env, "windows-mcp"]
+                self.assertEqual(res["tools"]["windows-mcp"]["state"], "unsupported")
+                self.assertIn("Windows", res["tools"]["windows-mcp"]["reason"])
+                self.assertNotEqual(res["tools"]["windows-mcp"]["reason"], NO_METHOD)
+                self.assertFalse(res["needsUv"])
 
     def test_system_command_is_reused_without_root_like_mise_tools(self):
         # 快照的 PATH 什麼都找不到,system 裝法另外驗:沒有 root 的 Debian 系、系統已經有 vim

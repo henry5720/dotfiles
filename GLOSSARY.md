@@ -187,8 +187,12 @@ _Avoid_: 安裝方式、管道、路徑
 _Avoid_: 套件清單（那是基底）、環境規則表
 
 **依賴套件**:
-選裝工具要用、但不上選單的套件，例如 claude 讀 PDF 要的 poppler、snapserver 的 ffmpeg 與 uv、Windows 上 agent-config 要的 Git。寫在選裝工具表那個工具底下，跟著工具裝；依賴裝不了不擋工具本身。
+選裝工具要用、但不上選單的套件，例如 claude 讀 PDF 要的 poppler、snapserver 的 ffmpeg、Windows 上 agent-config 要的 Git。寫在選裝工具表那個工具底下，跟著工具裝；依賴裝不了不擋工具本身。node 缺 libatomic 不算依賴裝不了：那是環境 `no-libatomic`，Node 官方 binary 根本跑不起來，node 與要它的工具照規則裝不了。
 _Avoid_: 選裝工具（依賴不能單獨勾）、子工具
+
+**runtime**:
+別的選裝工具要靠它才跑得起來、也能單獨勾的選裝工具，例如 node、uv。勾了要它的工具（例如 codegraph 要 node、snapserver 要 uv）沒勾它也會連帶裝；要它的 OS 寫在選裝工具表那個工具的 `needsNode`、`needsUv`。照裝法的分類走 mise（Termux、macOS 照例外）；dotfiles 只裝全域預設版本，專案要固定版本由專案自己的 `mise.toml` 決定。
+_Avoid_: dev tools（mise 的用語，範圍包含所有 CLI）、依賴（依賴套件不能單獨勾）
 
 **Windows 主機**:
 原生 Windows，由 Windows 原生 chezmoi 管；可能是 WSL 的外層，也可能沒有 WSL、本身就是開發機。跟 Linux 一樣有用途與選單，CLI 用 mise、app 用 winget 裝，安裝腳本只有 `.ps1`。有 WSL 時跟跑在它裡面的 WSL 是兩台機器，各有一份 clone、各自 `chezmoi init`。

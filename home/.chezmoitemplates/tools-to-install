@@ -1,5 +1,5 @@
 {{- /* 要裝的選裝工具:裝法判斷(tool-install)裡 install 為 true 的,空白分隔。
-       = 勾了、這台裝得了的,加上被別的工具連帶裝的 node(needsNode)。勾選的照 .tools 的順序,連帶的 node 接在最後。
+       = 勾了、這台裝得了的,加上被別的工具連帶裝的 runtime(needsNode、needsUv)。勾選的照 .tools 的順序,連帶的照名字接在最後。
        選裝工具的腳本、套件清單一律看它或判斷結果,不直接看 .tools:裝不了的勾了就安靜不裝,交給略過彙整。
        用法:{{ if has "<工具>" (splitList " " (includeTemplate "tools-to-install" .)) }}
        includeTemplate 只回傳字串,所以呼叫端要自己 splitList 切回清單才能用 has。
@@ -10,5 +10,6 @@
 {{- range index . "tools" -}}
 {{-   if dig . "install" false $status }}{{ $out = append $out . }}{{ end -}}
 {{- end -}}
-{{- if and $status.node.install (not (has "node" $out)) }}{{ $out = append $out "node" }}{{ end -}}
+{{- /* 沒勾卻要裝的只有被連帶的 runtime */ -}}
+{{- range $name, $entry := $status }}{{ if and $entry.install (not (has $name $out)) }}{{ $out = append $out $name }}{{ end }}{{ end -}}
 {{- $out | join " " -}}

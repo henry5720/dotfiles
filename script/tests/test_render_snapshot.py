@@ -70,7 +70,8 @@ ENVS = {
 # 勾選組合:用途的預設組合,加全部勾、各別勾跨裝法或有依賴的工具
 # ===============================================================
 SINGLES = ["snapserver", "snapclient", "headless-chrome", "playwright-cli", "claude", "codex", "opencode",
-           "herdr", "node", "codegraph", "tailscale", "agent-config", "wakatime"]
+           "herdr", "node", "uv", "codegraph", "tailscale", "agent-config", "wakatime",
+           "windows-mcp"]
 SELECTIONS = ["full", "minimal", "all", *SINGLES]
 
 
@@ -255,9 +256,8 @@ class RenderSnapshotTest(unittest.TestCase):
         header = re.findall(r"^[ \t]*echo \"== 沒有 root.*$", all_cells, re.M)
         self.assertTrue(header)
         self.assert_facts_only("\n".join(header), "略過彙整標題")
-        # 獨立的期望值:要 apt 的三項都附上 apt 的指令
-        for what, cmd in (("系統套件", "sudo apt-get install -y"), ("\"nvm 與 Node\"", "sudo apt-get install -y libatomic1"),
-                          ("ssh", "sudo apt-get install -y openssh-client")):
+        # 獨立的期望值:要 apt 的兩項都附上 apt 的指令(Node 缺 libatomic 從 #342 起是選裝工具表的規則,不走 skip_root)
+        for what, cmd in (("系統套件", "sudo apt-get install -y"), ("ssh", "sudo apt-get install -y openssh-client")):
             with self.subTest(what=what):
                 self.assertTrue([c for c in calls if f"skip_root {what} " in c and cmd in c], calls)
 

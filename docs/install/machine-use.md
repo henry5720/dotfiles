@@ -21,9 +21,10 @@
 
 精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，mise 裝的 btop 在下次 apply 會被移除（#330），其他已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
-- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Windows 是 mise 的 Node LTS，都不走 nvm。
+- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Linux 與 Windows 是 mise 的 Node LTS，只有 macOS 還走 nvm。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
-- `node` 裝 nvm 與 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
+- `node` 裝 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
+  已經用 nvm 裝過的 Linux 機器見下面〈從 nvm 換到 mise〉。
 - `starship` 是 zsh、bash 共用的提示列，跟 `zsh` 分開勾：只要 zsh 外掛、不要提示列，或用 bash 配 starship 都行；沒勾就是 shell 預設的提示列。以前存自訂、勾了 `zsh` 的 config（當時 zsh 附帶 p10k），下次 `chezmoi init` 自動補勾 `starship`。
 
 選單每一項的說明後面標這台會走的裝法（#335），例如
@@ -33,6 +34,34 @@
 
 選項清單與每一項的說明在 [`home/.chezmoitemplates/tool-menu`](../../home/.chezmoitemplates/tool-menu)，
 用途的預設組合在 [`home/.chezmoi.toml.tmpl`](../../home/.chezmoi.toml.tmpl) 的 `$lean`。
+
+### 從 nvm 換到 mise
+
+Linux 的 `node` 以前走 nvm，#342 起改由 mise 裝（跟 Windows 一樣）。已經裝過 nvm 的機器下次 `chezmoi apply`：
+
+- mise 裝 Node LTS，`node`、`npm` 經 mise 的 shims 找得到；`.zshrc` 不再載入 `~/.nvm/nvm.sh`（只有 macOS 還載入）。
+- codegraph、playwright-cli 改由 mise 的 npm backend 裝，nvm 底下 `npm -g` 裝的那份不再用到。
+- `~/.nvm` 原地保留，不會被刪（取消勾選不解除安裝）。確定不用了就自己刪：`rm -rf ~/.nvm`。
+  其他 shell 設定檔（例如自己在 `~/.bashrc` 加過的 nvm 那幾行）也要自己拿掉。
+
+### 自己裝過的 uv
+
+Linux 的 `uv` 從 #341 起由 mise 裝（勾 `uv`，或勾了要它的工具）。以前自己用 uv 官方 installer 裝過的，執行檔在
+`~/.local/bin/uv`；`.zshrc` 把 `~/.local/bin` 排在 mise 的 shims 前面，打 `uv` 會先找到舊的那份，它不會跟著 `mise up` 更新。
+dotfiles 不會自動刪它。看是哪一份：
+
+```bash
+command -v uv   # 要印出 ~/.local/share/mise/shims/uv;印 ~/.local/bin/uv 就是舊的
+```
+
+只用 mise 那份就刪掉舊的執行檔（[uv 官方的移除步驟](https://docs.astral.sh/uv/getting-started/installation/#uninstallation)第 2 步）：
+
+```bash
+rm ~/.local/bin/uv ~/.local/bin/uvx
+```
+
+官方第 1 步（`uv cache clean`、刪 `uv python dir`、`uv tool dir`）不要跑：cache、Python、`uv tool install` 的工具是兩份 uv 共用的，
+mise 那份也在用。
 
 ## 環境：不建議、裝不了
 

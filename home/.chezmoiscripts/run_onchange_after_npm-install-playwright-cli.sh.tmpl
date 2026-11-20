@@ -1,19 +1,26 @@
-{{- /* Linux、macOS 都走這支(Windows 走 mise)。原生 Termux 裝不了:原因寫在 .chezmoidata/tool-table.yaml,勾了也渲染成空的,由略過彙整列出 */ -}}
+{{- /* Linux、macOS 都走這支(Windows 只有 mise,沒有這支)。Linux 由 mise 的 npm backend 裝(#342),這支只做裝完的設定;
+       macOS 照舊用 nvm 的 npm 裝。原生 Termux 裝不了:原因寫在 .chezmoidata/tool-table.yaml,勾了也渲染成空的,由略過彙整列出 */ -}}
 {{- if has "playwright-cli" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- $method := index (includeTemplate "tool-install" . | fromJson).tools "playwright-cli" "method" -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # agent 操作瀏覽器用它(ADR 0001)。open 開的是本機的 Chrome(Linux 是 headless-chrome 裝的
 # /opt/google/chrome/chrome,macOS 是 /Applications 的 Google Chrome),沒有那支就報錯,不會自己下載;
 # 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
 #
-# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-node 之後。
+# 檔名刻意不叫 install-playwright-cli:要排在 install-mise(Linux)、install-node(macOS)之後。
 set -eu
 
+{{ if eq $method "mise" -}}
+# 1. mise 的 shims(chezmoi 跑腳本時不會讀 .zshrc)。install-mise 已經照清單裝好 npm:@playwright/cli
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+{{- else -}}
 # 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
 if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
   export NVM_DIR="$HOME/.nvm"
   set +u; . "$NVM_DIR/nvm.sh"; set -u
 fi
+{{- end }}
 
 # 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
 #    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
@@ -23,13 +30,13 @@ version_ok() {
   [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
 }
 
-{{ if not (includeTemplate "node-runnable" .) -}}
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-{{ template "sh-skip" . }}
-skip_root "playwright-cli" "要 Node,跟著上面「nvm 與 Node」那項"
-exit 0
-{{ end -}}
+{{ if eq $method "mise" -}}
+# 3. 確認版本。latest 低於下限或沒裝好就只印一行、exit 0,同 install-mise:apply 不中止
+if ! version_ok; then
+  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:mise install" >&2
+  exit 0
+fi
+{{- else -}}
 # 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
 command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
 if version_ok; then
@@ -38,6 +45,7 @@ else
   npm install -g @playwright/cli@latest
   version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
 fi
+{{- end }}
 
 # 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
 #    用 CLI 自己的 install-browser 裝(等同 playwright 官方的 `playwright install ffmpeg`),下載到

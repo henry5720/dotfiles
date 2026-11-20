@@ -65,11 +65,12 @@ WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
 # 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
-# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝)
+# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝),加 mise 裝的 runtime uv(#341),
+# 加 mise 的 pipx backend 裝的 windows-mcp(#343)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "uv", "herdr", "bottom", "snapclient", "tailscale",
                 "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
-                "wakatime"}
+                "wakatime", "windows-mcp"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -231,12 +232,12 @@ class WindowsDeployTest(unittest.TestCase):
 
     def test_windows_playwright_cli_installs_with_mise_npm_and_node(self):
         # #327:官方裝法是 npm 全域套件,Windows 走 mise 的 npm backend;它要 Node,沒勾 node 也列 LTS。
-        # Linux 照舊 npm-install-playwright-cli(nvm 的 npm),不進 mise 清單
+        # Linux 從 #342 起也走 mise 的 npm backend
         self.assertEqual(self.mise_list(["playwright-cli"]), {"zoxide", "npm:@playwright/cli", "node"})
         linux = self.chezmoi("linux", "execute-template",
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["playwright-cli"]})
-        self.assertNotIn("playwright", linux)
+        self.assertEqual(set(linux.split()), {'"node"', '"npm:@playwright/cli"', '"lts"', '"latest"', "="})
 
     def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
         # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
@@ -259,18 +260,29 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
         # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),
         # 所以不連帶列 Node LTS;shim 是 codegraph.exe,MCP 設定的 command: codegraph 找得到。
-        # Linux 照舊 npm-install-codegraph(nvm 的 npm),不進 mise 清單
+        # Linux 從 #342 起走 mise 的 npm backend(不是 aqua),連帶列 Node LTS
         self.assertEqual(self.mise_list(["codegraph"]), {"zoxide", "codegraph"})
         linux = self.chezmoi("linux", "execute-template",
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["codegraph"]})
-        self.assertNotIn("codegraph", linux)
+        self.assertEqual(linux.split(), ['"npm:@colbymchenry/codegraph"', "=", '"latest"', '"node"', "=", '"lts"'])
 
     def test_windows_wakatime_brings_node_lts_for_plugin_hooks(self):
         # #324:Claude Code、Codex 的 WakaTime plugin 用 PATH 上的 node 跑 hook,Windows 的 Node 由 mise 的 LTS 提供;
         # wakatime-cli 不進 mise:plugin 只認 ~/.wakatime 底下官方位置那支
         self.assertEqual(self.mise_list(["wakatime"]), {"zoxide", "node"})
         self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["wakatime"]).strip(), "")
+
+    def test_windows_mcp_installs_with_mise_pipx_and_uv(self):
+        # #343:windows-mcp 是 PyPI 套件,mise 的 pipx backend 有 uv 就用 uv tool install,uv 在同一份清單時先裝 uv
+        # (https://mise.jdx.dev/dev-tools/backends/pypi.html)。沒勾 uv 也要列 uv,不然 mise 找不到 uv 會改要 pipx 而失敗
+        self.assertEqual(self.mise_list(["windows-mcp"]), {"zoxide", "pipx:windows-mcp", "uv"})
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["windows-mcp"]).strip(), "")
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["windows-mcp"]})
+        self.assertNotIn("windows-mcp", linux)
+        self.assertNotIn('"uv"', linux)
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過

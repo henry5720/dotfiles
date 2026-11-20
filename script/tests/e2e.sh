@@ -265,13 +265,15 @@ menu_choice() {
 }
 # 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
-# node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動裝 nvm 與 Node(見 check_tool node)。
+# node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動由 mise 裝 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
 TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/bottom/earlyoom/gh/code-server/tailscale/cloudflared/herdr/claude/codex/snapserver/snapclient/codegraph/headless-chrome/playwright-cli/agent-config
 
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
 FULL_TOOLS=$(grep -E '^[a-z]' "$REPO/home/.chezmoitemplates/tool-menu" | cut -d' ' -f1 | paste -sd/)
+# Linux、macOS 的完整:windows-mcp 只裝在 Windows 主機(#343),每台非 Windows 都裝不了、完整不勾
+LINUX_FULL=${FULL_TOOLS/\/windows-mcp/}
 toml_list() {  # toml_list a/b/c → config 裡 tools 那一行
   local t out=()
   for t in ${1//\// }; do out+=("\"$t\""); done
@@ -305,8 +307,8 @@ declare -A TOOL_CHECK=(
   [bottom]="[ -x ~/.local/share/mise/shims/btm ] || command -v btm"
   # gh 要是官方 apt 源那版(有 pin),不是 Ubuntu 套件庫的舊版
   [gh]="command -v gh && [ -f /etc/apt/preferences.d/github-cli ] && apt-cache policy gh | grep -A1 '^ \*\*\*' | grep -q cli.github.com"
-  # nvm＋Node LTS;沒勾 node 時也會跟著 codegraph、playwright-cli 自動裝
-  [node]=". ~/.nvm/nvm.sh && node --version"
+  # Linux 是 mise 的 Node LTS(#342),沒勾 node 時也會跟著 codegraph、playwright-cli 自動裝;Termux 是 pkg 的 nodejs-lts
+  [node]="{ [ -x ~/.local/share/mise/shims/node ] && ~/.local/share/mise/shims/node --version; } || node --version"
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
   # Linux 由 mise 裝(選裝工具表上 linux 只寫 mise)
@@ -320,20 +322,22 @@ declare -A TOOL_CHECK=(
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
-  # 與它跑 edge-tts 用的 uv(mise 裝,選裝工具表上 snapserver 的依賴套件;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
+  # 與它跑 edge-tts 用的 uv(runtime,勾 snapserver 就連帶由 mise 裝,表上的 needsUv;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
+  # runtime(#341):Linux 由 mise 裝(要是 mise 那份,不是 ~/.local/bin 的官方 installer 版);Termux 的 pkg 版在 scenario_termux 另外驗
+  [uv]="[ -d ~/.local/share/mise/installs/uv ] && ~/.local/share/mise/shims/uv --version"
   # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻,與保護保留服務、常駐服務的 drop-in(#298)。
   # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(主題文件)
   [earlyoom]="command -v earlyoom && grep -q -- '--avoid' /etc/default/earlyoom && grep -qx 'MemoryMin=512M' /etc/systemd/system/system.slice.d/50-earlyoom.conf && grep -qx 'MemoryMin=infinity' /etc/systemd/system/ssh.service.d/50-earlyoom.conf"
-  # npm 全域套件裝在 nvm 的 Node 底下,bash -l 不會載入 nvm(那是 .zshrc 的事)
-  [codegraph]=". ~/.nvm/nvm.sh && codegraph --version"
+  # Linux 由 mise 的 npm backend 裝(#342);bash -l 沒有 shims,直接找 shim
+  [codegraph]="~/.local/share/mise/shims/codegraph --version"
   # 真的能 headless 開頁,而且中文／emoji 字型在
   [headless-chrome]="google-chrome --headless --no-sandbox --disable-gpu --dump-dom 'data:text/html,<p>e2e-ok</p>' 2>/dev/null | grep -q e2e-ok && [ \$(dpkg-query -W -f='\${Status}\\n' fonts-noto-cjk fonts-noto-color-emoji 2>/dev/null | grep -c 'install ok installed') = 2 ]"
   # 用 headless-chrome 裝的那支 Chrome 真的開得了頁(它預設找 /opt/google/chrome/chrome,不會自己下載)。
   # 容器擋 user namespace,Chrome sandbox 起不來,所以關掉(同上面 headless-chrome 的 --no-sandbox)
-  [playwright-cli]=". ~/.nvm/nvm.sh && playwright-cli --version && PLAYWRIGHT_MCP_SANDBOX=false playwright-cli -s=e2e open 'data:text/html,<title>e2e-ok</title>' | grep -q e2e-ok; r=\$?; playwright-cli -s=e2e close >/dev/null 2>&1; [ \$r = 0 ]"
+  [playwright-cli]="export PATH=~/.local/share/mise/shims:\$PATH && playwright-cli --version && PLAYWRIGHT_MCP_SANDBOX=false playwright-cli -s=e2e open 'data:text/html,<title>e2e-ok</title>' | grep -q e2e-ok; r=\$?; playwright-cli -s=e2e close >/dev/null 2>&1; [ \$r = 0 ]"
   # skillshare 從假 remote init 完:repo 在、skill 連進 Claude、MCP 寫進 Claude 的設定;extras 把 CLAUDE.md 連到 AGENTS.md
   [agent-config]="command -v skillshare && [ -d ~/.config/skillshare/.git ] && [ -r ~/.claude/skills/e2e-hello/SKILL.md ] && grep -q e2e-mcp ~/.claude.json && [ -L ~/.claude/CLAUDE.md ] && grep -q e2e-agents ~/.claude/CLAUDE.md"
 )
@@ -409,7 +413,7 @@ check_cli_tools() {
 # 0.1.23 起 show 的畫面才能點擊、打字;錄影要 playwright 自己的 ffmpeg(0.1.23 是 ffmpeg-1013)。
 # 版本下限是獨立的期望值,不從安裝腳本讀。
 PWCLI_MIN=0.1.23
-PWCLI="cd \$(mktemp -d) && . ~/.nvm/nvm.sh && export PLAYWRIGHT_MCP_SANDBOX=false &&"
+PWCLI="cd \$(mktemp -d) && export PATH=~/.local/share/mise/shims:\$PATH PLAYWRIGHT_MCP_SANDBOX=false &&"
 PWCLI_VERSION_OK="v=\$(playwright-cli --version) && echo \"版本 \$v\" && [ \"\$(printf '%s\\n' $PWCLI_MIN \"\$v\" | sort -V | head -n1)\" = $PWCLI_MIN ]"
 PWCLI_SHOW_PORT=9377
 
@@ -425,11 +429,10 @@ check_playwright_cli() {
   local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
   check "show --port 起得來、只聽 127.0.0.1" \
     "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host=127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
-  # 已經裝 0.1.22 的機器:安裝腳本內容一變 run_onchange_ 就重跑,要升上來(不是「已裝就跳過」)。
-  # run_onchange_ 內容沒變不會再跑,所以裝回舊版後直接跑渲染出來的腳本。
-  step "playwright-cli 裝回 0.1.22" ". ~/.nvm/nvm.sh && npm install -g @playwright/cli@0.1.22 && [ \"\$(playwright-cli --version)\" = 0.1.22 ]"
-  check "0.1.22 的機器跑安裝腳本後 ≥ $PWCLI_MIN、exit 0" \
-    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | sh && $PWCLI $PWCLI_VERSION_OK"
+  # Linux 由 mise 裝 latest(#342),設定腳本只確認版本、補 ffmpeg,不用 npm 升級(npm 升級那條只剩 macOS)。
+  # run_onchange_ 內容沒變不會再跑,所以直接跑渲染出來的腳本
+  check "設定腳本再跑一次 exit 0、沒有 npm install、版本 ≥ $PWCLI_MIN" \
+    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/pw.sh && ! grep -q 'npm install' /tmp/pw.sh && sh /tmp/pw.sh && $PWCLI $PWCLI_VERSION_OK"
 }
 
 # ===============================================================
@@ -447,7 +450,7 @@ ATTACH_URL_RE='^chrome-extension://[a-z]+/connect\.html\?.*mcpRelayUrl=ws%3A%2F%
 
 check_personal_chrome_attach_dry_run() {
   bold "▶ personal-chrome-attach:dry run"
-  # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、nvm 都在背景的 subshell 跑,
+  # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、export 都在背景的 subshell 跑,
   # $! 是那個 subshell,kill 不到腳本本身。/connect 頁的網址在 value="…" 裡,&amp; 換回 &。
   check "有 token:輸出不印網址、指到 /connect;/connect 回帶 token 的網址;/ 是 relay 的 404;session 是 personal-chrome" \
     "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$ATTACH_TOKEN personal-chrome-attach --timeout=60 > ~/attach.log 2>&1 & p=\$!; for i in \$(seq 30); do grep -q '127.0.0.1:9555/connect' ~/attach.log && break; sleep 1; done; url=\$(curl -s http://127.0.0.1:9555/connect | grep -o 'value=\"[^\"]*\"' | sed 's/^value=\"//; s/\"\$//; s/&amp;/\\&/g'); code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); daemon=\$(for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep 'cliDaemon.js personal-chrome ' | grep -vc grep); kill \$p; wait \$p; cat ~/attach.log; echo \"curl /:\$code daemon:\$daemon\"; grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && grep -q '&token=$ATTACH_TOKEN' <<<\"\$url\" && echo '/connect 的網址 OK' && grep -q 'http://127.0.0.1:9555/connect' ~/attach.log && ! grep -q 'chrome-extension://' ~/attach.log && [ \"\$code\" = 404 ] && [ \"\$daemon\" -ge 1 ]"
@@ -512,12 +515,17 @@ scenario_ubuntu() {
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
-  # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入
+  # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入(mise 的 Node LTS,沒有 nvm,#342)
   check_tool node
+  check "Node 是 mise 裝的、沒有 ~/.nvm" "~/.local/bin/mise which node | grep -q '/.local/share/mise/installs/node/' && [ ! -e ~/.nvm ]"
+  # 選單沒勾 uv,勾了 snapserver、agent-config 就要自動帶入(#341);agent-config 的測試用 uv run 跑
+  check_tool uv
+  check "uv run 跑得起來(agent-config 的測試這樣跑)" \
+    "~/.local/share/mise/shims/uv run --no-project python -c 'print(\"e2e-ok\")' | grep -qx e2e-ok"
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
-  # uv 是 snapserver 的依賴套件(清單照選裝工具表的工具名排序、依賴接在工具後面,在 starship 前面)
-  check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
-    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
+  # 清單照選裝工具表的工具名排序;Linux 的 codegraph、playwright-cli 走 npm backend(#342),node、uv 是被連帶裝的 runtime
+  check "有 root:mise 清單是勾了的單一執行檔工具、npm backend 與連帶的 runtime,沒有 vim" \
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared npm:@colbymchenry/codegraph eza fastfetch fzf node npm:@playwright/cli ripgrep starship uv' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
     "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd
@@ -729,16 +737,16 @@ scenario_ubuntu() {
   check "精簡的機器選裝腳本一支都不跑(tailscale 不在精簡裡)" \
     "chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty > /tmp/lean-dry 2>&1 && ! grep -E '^diff --git a/$TOOL_SCRIPT_RE' /tmp/lean-dry"
   check "選完整、選單不改:存完整,tools 是選單上全部" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)") > /tmp/full.toml && $(printf "$use_is" full /tmp/full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/full.toml"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)") > /tmp/full.toml && $(printf "$use_is" full /tmp/full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/full.toml"
   check "完整的預設組合有 node,精簡沒有" "grep -q '\"node\"' /tmp/full.toml && ! grep -q '\"node\"' /tmp/lean.toml"
   check "完整的預設組合有 cloudflared、tailscale、btop,精簡沒有" \
     "for t in cloudflared tailscale btop; do grep -q \"\\\"\$t\\\"\" /tmp/full.toml && ! grep -q \"\\\"\$t\\\"\" /tmp/lean.toml || exit 1; done"
-  local full_no_ttyd=${FULL_TOOLS/\/ttyd\///}
+  local full_no_ttyd=${LINUX_FULL/\/ttyd\///}
   check "選完整後取消 ttyd:存自訂加 tools 清單" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" custom /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
   check "選精簡後多勾 gh:存自訂" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
-  local full_filtered=${FULL_TOOLS/\/headless-chrome\///}
+  local full_filtered=${LINUX_FULL/\/headless-chrome\///}
   # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾;snapserver 抓不到 tailnet IP(#290),同樣不建議
   local full_wsl=${full_filtered/\/tailscale\///}
   full_wsl=${full_wsl/\/snapserver\///}
@@ -769,14 +777,14 @@ scenario_ubuntu() {
     "cp /tmp/lean.toml /tmp/lean-prompt.toml && chezmoi --config /tmp/lean-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && $(printf "$use_is" minimal /tmp/lean-prompt.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-prompt.toml"
   # 精簡沒問過憑證,改成完整就要問(給 SECRET_FLAGS)
   check "存精簡的機器在 tools 改選完整:選單預設帶完整的組合" \
-    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice full)") </dev/null && $(printf "$use_is" full /tmp/lean-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/lean-full.toml"
+    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice full)") </dev/null && $(printf "$use_is" full /tmp/lean-full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/lean-full.toml"
   check "只有 tools(有 toolsSchema)、沒有用途的舊 config:init 不問、存自訂、tools 不變" \
     "sed '/^    machineUse = /d' $cfg > /tmp/no-use.toml && ! grep -q machineUse /tmp/no-use.toml && chezmoi --config /tmp/no-use.toml init --no-tty </dev/null && $(printf "$use_is" custom /tmp/no-use.toml) && [ \"\$(grep '^    tools = ' /tmp/no-use.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
   # #222 以前 machineUse 存中文:init(不帶 --prompt)換成代號,勾選不變
   check "存「精簡」的舊 config:init 後存 minimal、tools 是精簡那九項" \
     "sed 's/^    machineUse = .*/    machineUse = \"精簡\"/' /tmp/lean.toml > /tmp/legacy-lean.toml && chezmoi --config /tmp/legacy-lean.toml init --no-tty </dev/null && $(printf "$use_is" minimal /tmp/legacy-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/legacy-lean.toml"
   check "存「完整」的舊 config:init 後存 full、tools 是選單上全部" \
-    "sed 's/^    machineUse = .*/    machineUse = \"完整\"/' /tmp/full.toml > /tmp/legacy-full.toml && chezmoi --config /tmp/legacy-full.toml init --no-tty </dev/null && $(printf "$use_is" full /tmp/legacy-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/legacy-full.toml"
+    "sed 's/^    machineUse = .*/    machineUse = \"完整\"/' /tmp/full.toml > /tmp/legacy-full.toml && chezmoi --config /tmp/legacy-full.toml init --no-tty </dev/null && $(printf "$use_is" full /tmp/legacy-full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/legacy-full.toml"
   check "存「自訂」的舊 config:init 後存 custom、tools 不變" \
     "sed 's/^    machineUse = .*/    machineUse = \"自訂\"/' $cfg > /tmp/legacy-custom.toml && chezmoi --config /tmp/legacy-custom.toml init --no-tty </dev/null && $(printf "$use_is" custom /tmp/legacy-custom.toml) && [ \"\$(grep '^    tools = ' /tmp/legacy-custom.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
 
@@ -848,7 +856,7 @@ scenario_ubuntu() {
     check "$ov 的選單列 playwright-cli、沒有標註,勾了照存" \
       "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list playwright-cli)'"
   done
-  check "(對照)非 WSL 的 amd64 選單沒有任何標註" "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$(menu_labels)")"
+  check "(對照)非 WSL 的 amd64 選單除了只裝在 Windows 主機的 windows-mcp,沒有任何標註" "! grep -v '^windows-mcp ' <<<$(printf '%q' "$(menu_labels)") | grep -qE '（(裝不了|不建議)：'"
   label=$(menu_choice tailscale "$wsl")
   check "WSL 的選單 tailscale 標不建議,勾了照存" \
     "grep -q '（不建議：網路借 Windows' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list tailscale)'"
@@ -860,8 +868,8 @@ scenario_ubuntu() {
     "grep -q '（不建議：網路借 Android' <<<$(printf '%q' "$(menu_choice tailscale "$proot")")"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "WSL 勾了 playwright-cli:安裝腳本渲染出 npm 安裝與 attach 提醒,語法對" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/wsl-pw.sh && sh -n /tmp/wsl-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/wsl-pw.sh && grep -q 'playwright-cli attach --extension' /tmp/wsl-pw.sh"
+  check "WSL 勾了 playwright-cli:安裝腳本渲染出 mise shims 與 attach 提醒,語法對(Linux 由 mise 的 npm backend 裝,#342)" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/wsl-pw.sh && sh -n /tmp/wsl-pw.sh && grep -qF 'mise/shims' /tmp/wsl-pw.sh && ! grep -q 'npm install' /tmp/wsl-pw.sh && grep -q 'playwright-cli attach --extension' /tmp/wsl-pw.sh"
   local wsl_hc='{"tools":["headless-chrome","fzf"],"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   check "WSL 勾了 headless-chrome:略過腳本只記它與原因、彙整腳本(有 root 也)渲染出來,語法對" \
     "chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/rec.sh && sh -n /tmp/rec.sh && [ \"\$(grep -c '^skip_env ' /tmp/rec.sh)\" = 1 ] && grep -q \"^skip_env 'headless-chrome' '.*WSL\" /tmp/rec.sh && chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum.sh && sh -n /tmp/sum.sh && grep -q 這台裝不了 /tmp/sum.sh"
@@ -878,7 +886,7 @@ scenario_ubuntu() {
   bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
   # snapserver 走 apt(#290),非 Debian 系同樣裝不了
-  local fedora_full=${FULL_TOOLS/\/headless-chrome\///}
+  local fedora_full=${LINUX_FULL/\/headless-chrome\///}
   fedora_full=${fedora_full/\/snapserver\///}
   # snapclient 也走 apt(#292)
   fedora_full=${fedora_full/\/snapclient\///}
@@ -908,8 +916,8 @@ scenario_ubuntu() {
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "非 Debian 系勾了 playwright-cli 照裝(npm,不要 apt,#349)" \
-    "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | grep -q 'npm install -g @playwright/cli'"
+  check "非 Debian 系勾了 playwright-cli 照裝(mise 的 npm backend,不要 apt,#349、#342)" \
+    "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/fedora-pw.sh && grep -qF 'mise/shims' /tmp/fedora-pw.sh && ! grep -qE 'apt|npm install' /tmp/fedora-pw.sh"
   # jq、zsh 不走 mise:jq 要在 modify_ 之前就有,zsh 用 zsh-bin(spec US42)
   local fedora_zsh='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["zsh"]}'
   check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
@@ -927,7 +935,7 @@ scenario_ubuntu() {
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
   # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 npm(#349)
-  local mac_full=${FULL_TOOLS/\/snapserver\///}
+  local mac_full=${LINUX_FULL/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
   check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom)" \
@@ -997,32 +1005,43 @@ scenario_ubuntu() {
   check "舊 config 跑 tools 那條(init --prompt)不報 invalid choice、濾掉拿掉的項目、nvm 換成 node" \
     "cp /tmp/old.toml /tmp/old-prompt.toml && chezmoi --config /tmp/old-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && grep -qx '    tools = \\[\"node\", \"codegraph\", \"ffmpeg\"\\]' /tmp/old-prompt.toml"
 
-  # 只勾 codegraph(沒勾 node、playwright-cli 等其他 node 相關項)也要先裝 nvm 再裝 codegraph。
-  # 第一次 apply 已經裝了 nvm,這裡換一個空的 HOME,照 chezmoi 的順序(install-node 排在 npm-install-codegraph 前)
-  # 把兩支渲染出來的腳本真的跑一次。
-  bold "▶ 勾了 node 或要 Node 的工具(codegraph、playwright-cli、opencode、wakatime)會裝 nvm 與 Node"
-  local only_cg='{"tools":["codegraph"]}'
-  check "只勾 codegraph:install-node 不是空的" \
-    "[ -n \"\$(chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "只勾 playwright-cli:install-node 不是空的" \
-    "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ]"
+  # Linux 的 Node 由 mise 裝(#342):勾了 node 或要 Node 的工具,mise 清單就有 node(lts);codegraph、playwright-cli
+  # 走 mise 的 npm backend,同一份清單裡 mise 先裝 node 再裝它們(https://mise.jdx.dev/dev-tools/backends/npm.html)。
+  # 下面的空 HOME apply 是 README 那條路線(先裝 mise、照清單 mise install),不是只跑單一腳本。
+  bold "▶ 勾了 node 或要 Node 的工具(codegraph、playwright-cli、opencode、wakatime)由 mise 裝 Node"
+  local mise_list=$tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl
+  mise_has() {  # mise_has <tools JSON 陣列> <清單裡的一行>:渲染出的 mise 清單有這一行
+    echo "chezmoi execute-template --override-data '{\"tools\":$1}' < $mise_list | grep -qxF '$2'"
+  }
+  check "只勾 codegraph:mise 清單有 node 與 npm:@colbymchenry/codegraph、install-node 是空的" \
+    "$(mise_has '["codegraph"]' '"node" = "lts"') && $(mise_has '["codegraph"]' '"npm:@colbymchenry/codegraph" = "latest"') && [ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"codegraph\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "只勾 playwright-cli:mise 清單有 node 與 npm:@playwright/cli" \
+    "$(mise_has '["playwright-cli"]' '"node" = "lts"') && $(mise_has '["playwright-cli"]' '"npm:@playwright/cli" = "latest"')"
   for t in opencode wakatime; do
-    check "只勾 $t:install-node 不是空的、套件腳本加 libatomic1" \
-      "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ] && chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
+    check "只勾 $t:mise 清單有 node、套件腳本加 libatomic1" \
+      "$(mise_has "[\"$t\"]" '"node" = "lts"') && chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
   done
-  check "沒勾要 Node 的工具:install-node 是空的、套件腳本沒有 libatomic1" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"codex\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ] && ! chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"codex\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -qw libatomic1"
-  check "腳本順序:install-node 排在 npm-install-codegraph 前" \
-    "[ \"\$(ls $scripts | grep -E 'install-node|npm-install-codegraph' | sort | head -n1)\" = run_onchange_after_install-node.sh.tmpl ]"
-  # 只勾 node:整個 apply 在空的 HOME 真的跑一次(config 用選單勾 node 渲染出來的)
-  check "只勾 node:install-node 不是空的、套件腳本加 libatomic1" \
-    "[ -n \"\$(chezmoi execute-template --override-data '{\"tools\":[\"node\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ] && chezmoi execute-template --override-data '{\"tools\":[\"node\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
+  check "沒勾要 Node 的工具:mise 清單沒有 node、套件腳本沒有 libatomic1" \
+    "! $(mise_has '["claude","codex"]' '"node" = "lts"') && ! chezmoi execute-template --override-data '{\"tools\":[\"claude\",\"codex\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -qw libatomic1"
+  check "腳本順序:install-mise 排在 npm-install-playwright-cli 前" \
+    "[ \"\$(ls $scripts | grep -E 'install-mise\.sh|npm-install-playwright-cli' | sort | head -n1)\" = run_onchange_after_install-mise.sh.tmpl ]"
+  check "只勾 node:mise 清單有 node、套件腳本加 libatomic1" \
+    "$(mise_has '["node"]' '"node" = "lts"') && chezmoi execute-template --override-data '{\"tools\":[\"node\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
   check "只勾 node:選單勾 node 存 custom、tools 只有 node" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice node)") > /tmp/only-node.toml && $(printf "$use_is" custom /tmp/only-node.toml) && grep -qxF '$(toml_list node)' /tmp/only-node.toml"
-  check "只勾 node:在空的 HOME apply exit 0、nvm 與 node 能跑" \
-    "rm -rf /tmp/only-node /tmp/only-node.boltdb && mkdir /tmp/only-node && HOME=/tmp/only-node chezmoi --source ~/.local/share/chezmoi --config /tmp/only-node.toml --persistent-state /tmp/only-node.boltdb apply --no-tty && HOME=/tmp/only-node bash -c '. ~/.nvm/nvm.sh && nvm --version && node --version'"
-  check "只勾 codegraph:在空的 HOME 照順序跑兩支腳本,exit 0、codegraph 能跑" \
-    "chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-node.sh.tmpl > /tmp/cg-1.sh && chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_npm-install-codegraph.sh.tmpl > /tmp/cg-2.sh && rm -rf /tmp/only-cg && mkdir /tmp/only-cg && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin sh -c 'sh /tmp/cg-1.sh && sh /tmp/cg-2.sh' && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin bash -c '. ~/.nvm/nvm.sh && codegraph --version'"
+  check "只勾 node:在空的 HOME apply exit 0、node 是 mise 的、沒有 ~/.nvm" \
+    "rm -rf /tmp/only-node /tmp/only-node.boltdb && mkdir /tmp/only-node && HOME=/tmp/only-node chezmoi --source ~/.local/share/chezmoi --config /tmp/only-node.toml --persistent-state /tmp/only-node.boltdb apply --no-tty && HOME=/tmp/only-node bash -c '~/.local/share/mise/shims/node --version && ~/.local/share/mise/shims/npm --version && [ ! -e ~/.nvm ]'"
+  # 只勾 uv(#341):runtime 能單獨勾,裝的是 mise 那份
+  check "只勾 uv:選單勾 uv 存 custom,在空的 HOME apply exit 0、uv 是 mise 裝的" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice uv)") > /tmp/only-uv.toml && grep -qxF '$(toml_list uv)' /tmp/only-uv.toml && rm -rf /tmp/only-uv /tmp/only-uv.boltdb && mkdir /tmp/only-uv && HOME=/tmp/only-uv chezmoi --source ~/.local/share/chezmoi --config /tmp/only-uv.toml --persistent-state /tmp/only-uv.boltdb apply --no-tty && [ -d /tmp/only-uv/.local/share/mise/installs/uv ] && HOME=/tmp/only-uv /tmp/only-uv/.local/share/mise/shims/uv --version"
+  check "只勾 codegraph:在空的 HOME apply exit 0、codegraph 能跑" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice codegraph)") > /tmp/only-cg.toml && rm -rf /tmp/only-cg /tmp/only-cg.boltdb && mkdir /tmp/only-cg && HOME=/tmp/only-cg chezmoi --source ~/.local/share/chezmoi --config /tmp/only-cg.toml --persistent-state /tmp/only-cg.boltdb apply --no-tty && HOME=/tmp/only-cg bash -c '~/.local/share/mise/shims/codegraph --version'"
+
+  # 已經裝過 nvm 的機器(#342 前的 Linux):先用 nvm 裝 Node 與 npm 全域的 codegraph,再 apply。
+  # 新開的 zsh 裡 node 是 mise 那份、~/.nvm 原地保留(取消勾選不解除安裝)、codegraph 與 playwright-cli 找得到
+  bold "▶ 先裝 nvm 再 apply"
+  check "先裝 nvm、Node 與 npm 全域的 codegraph,再勾 codegraph、playwright-cli apply:zsh 的 node 是 mise 的、~/.nvm 還在、兩個指令找得到" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice zsh/codegraph/playwright-cli)") > /tmp/nvm-first.toml && rm -rf /tmp/nvm-first /tmp/nvm-first.boltdb && mkdir /tmp/nvm-first && src=\$HOME/.local/share/chezmoi && export HOME=/tmp/nvm-first && curl -fsSL -o /tmp/nvm-install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh && PROFILE=/dev/null bash /tmp/nvm-install.sh >/dev/null && bash -c '. ~/.nvm/nvm.sh && nvm install --lts >/dev/null && npm install -g @colbymchenry/codegraph >/dev/null' && chezmoi --source \$src --config /tmp/nvm-first.toml --persistent-state /tmp/nvm-first.boltdb apply --no-tty && out=\$(zsh -i -c 'whence -p node; whence -p codegraph; whence -p playwright-cli; codegraph --version && playwright-cli --version' 2>&1); echo \"\$out\"; [ -s ~/.nvm/nvm.sh ] && grep -qx '/tmp/nvm-first/.local/share/mise/shims/node' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/codegraph' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/playwright-cli' <<<\"\$out\""
 
   # 基底只剩 git、curl、jq、python3;zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
@@ -1081,9 +1100,10 @@ scenario_ubuntu() {
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
   check_tool fastfetch
   check "選精簡後 fastfetch 跑得起來" "~/.local/share/mise/shims/fastfetch --version"
-  for t in claude gh herdr codegraph tailscale; do check_tool "$t"; done
-  check "mise 裝的 btop 取消勾選後被 mise prune 拿掉,shim 也不在" \
-    "[ ! -e ~/.local/share/mise/shims/btop ] && ! ls ~/.local/share/mise/installs/btop >/dev/null 2>&1"
+  for t in claude gh herdr tailscale; do check_tool "$t"; done
+  # Linux 的 codegraph 也是 mise 裝的(npm backend,#342),跟 btop 一樣被 prune
+  check "mise 裝的 btop、codegraph 取消勾選後被 mise prune 拿掉,shim 也不在" \
+    "! ls -d ~/.local/share/mise/shims/btop ~/.local/share/mise/shims/codegraph ~/.local/share/mise/installs/btop ~/.local/share/mise/installs/npm-*codegraph* 2>/dev/null | grep -q ."
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 
@@ -1195,10 +1215,10 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、codex、cloudflared、snapclient),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、uv、wakatime、codex、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  bold "▶ tools 勾 gh、node、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
+  bold "▶ tools 勾 gh、node、uv、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/uv/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
@@ -1207,6 +1227,7 @@ scenario_termux() {
   # snapclient(#292):pkg 的 snapcast-client,出聲靠它依賴的 pulseaudio(容器沒有音效裝置,只驗能執行)
   check "snapclient 用 pkg 的 snapcast-client 裝好,pulseaudio 跟著裝" \
     "dpkg-query -W -f='\${Status}' snapcast-client | grep -q 'install ok installed' && command -v pulseaudio && snapclient --version"
+  check "uv 用 pkg 裝好(#341,Termux 照 ADR 0005 的例外)" "dpkg-query -W -f='\${Status}' uv | grep -q 'install ok installed' && uv --version"
   check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
   # Node 走 pkg 的 nodejs-lts,不走 nvm(nvm 的官方 binary 在 Android 跑不起來)
   check "node 是 pkg 的 nodejs-lts、沒有 ~/.nvm" \
@@ -1452,19 +1473,22 @@ noroot_tailscale_checks() {
 noroot_full_checks() {
   # 沒有 root 時只能走 apt、.deb 的 earlyoom、snapserver、snapclient、headless-chrome 標裝不了(#332),完整不勾,
   # 所以也沒有「這台裝不了」那段;略過彙整只剩要 root 的步驟
-  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome" \
-    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome)\"' <<<\"\$t\" && grep -q '\"playwright-cli\"' <<<\"\$t\""
-  check "沒有「這台裝不了」那段" "! grep -q '以下選裝工具已略過' ~/e2e-init.log"
-  for s in tailscale "nvm 與 Node" codegraph playwright-cli 系統套件; do
-    check_skipped "$s"
-  done
+  # 這個映像沒有 libatomic.so.1:Node 官方 binary 跑不起來(mise 裝完會跑 node -v),node 與走 mise npm backend 的
+  # codegraph、playwright-cli 也標裝不了(#342)。完整照樣勾 opencode、wakatime,它們連帶要 Node,所以 node 列在「這台裝不了」
+  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome,與沒有 libatomic 裝不了的 node、codegraph、playwright-cli" \
+    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome|node|codegraph|playwright-cli)\"' <<<\"\$t\" && grep -q '\"opencode\"' <<<\"\$t\""
+  check "「這台裝不了」那段只有 node,原因是 libatomic,附 apt 指令(ADR 0004)" \
+    "s=\$(sed -n '/以下選裝工具已略過/,/^\$/p' ~/e2e-init.log); echo \"\$s\"; [ \"\$(grep -c '^- ' <<<\"\$s\")\" = 1 ] && grep -q -- '^- node:.*libatomic.*sudo apt-get install -y libatomic1' <<<\"\$s\""
+  check "沒有 ~/.local/share/mise/installs/node" "[ ! -e ~/.local/share/mise/installs/node ]"
+  check_skipped tailscale
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
-  check "系統套件的指令不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
-    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' | grep -qwE 'vim|btop|ffmpeg|poppler-utils|jq|zsh'"
+  # 映像已有基底套件 git、curl、python3,libatomic1 不再進 apt 清單(#342),mise 裝的與 jq、zsh 也不算:沒有要 apt 的
+  check "略過彙整沒有系統套件(沒有要 apt 的套件)" \
+    "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
-  for t in btop btm gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared; do check_mise "$t"; done
+  for t in btop btm gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared uv; do check_mise "$t"; done
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim
@@ -1473,7 +1497,8 @@ noroot_full_checks() {
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check_no_browser_wrappers
-  check_personal_chrome_attach yes
+  # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),personal-chrome-attach 不部署
+  check_personal_chrome_attach no
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

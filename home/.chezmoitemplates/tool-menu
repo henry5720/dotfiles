@@ -27,10 +27,12 @@ claude Claude Code CLI
 codex Codex CLI
 opencode OpenCode CLI(會一併裝 Node)
 ffmpeg 影音轉檔、抽音軌與影格
+uv Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝)
 snapserver Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)
 snapclient Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流
-node Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 {{ if ne .chezmoi.os "windows" }}codegraph、{{ end }}playwright-cli、opencode、wakatime 也會自動裝）
+node Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 {{ if ne .chezmoi.os "windows" }}codegraph、{{ end }}playwright-cli、opencode、wakatime 也會自動裝）
 codegraph 程式碼索引給 agent 查({{ if eq .chezmoi.os "windows" }}mise 裝官方 release{{ else }}npm 裝,會一併裝 Node{{ end }})
 headless-chrome 沒有畫面的 Chrome,給 agent 開網頁
 playwright-cli agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)
-agent-config skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo)
+agent-config skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv)
+windows-mcp 讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)
