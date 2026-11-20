@@ -28,9 +28,8 @@ apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不
 before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
 （部署上面的檔案）
 after   install-agent-config.ps1       勾了 agent-config 才跑：官方 install.ps1 裝 skillshare，從 agent-config init、sync（已經有 %AppData%\skillshare\.git 就跳過）
-after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
-after   install-codex.ps1              勾了 codex 才跑：下載官方 install.ps1 再執行（已經有 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   install-official.ps1           勾了 claude、codex 才跑：照選裝工具表下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe、%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-wakatime.ps1           勾了 wakatime 才跑：wakatime-cli 放到 .wakatime\（已經有就跳過），再為勾了的 claude、codex 裝 WakaTime plugin（已裝就跳過）
 after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼

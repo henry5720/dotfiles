@@ -63,15 +63,11 @@ winget:
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-claude.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-code-server.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-codex.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-opencode.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
@@ -88,7 +84,7 @@ winget:
 
 ## 會跑的腳本
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-.chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
 ### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
@@ -212,21 +208,20 @@ for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
 
-### .chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
+### .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 herdr(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# 官方 installer 裝到 ~/.local/bin;之後用 herdr update 更新。
+# 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
 set -eu
-
-if command -v herdr >/dev/null 2>&1; then
-  echo "herdr 已安裝,跳過"
-  exit 0
-fi
-# 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://herdr.dev/install.sh
-sh "$tmp/install.sh"
+
+# herdr
+if command -v herdr >/dev/null 2>&1; then
+  echo "herdr 已安裝,跳過"
+else
+  curl -fsSL -o "$tmp/herdr.sh" https://herdr.dev/install.sh
+  sh "$tmp/herdr.sh"
+fi
 
 ### .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 #!@BIN@/sh

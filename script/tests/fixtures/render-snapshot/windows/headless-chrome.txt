@@ -66,8 +66,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Google.Chrome.EX
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
-.chezmoiscripts/run_onchange_after_install-claude.ps1.tmpl
-.chezmoiscripts/run_onchange_after_install-codex.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl

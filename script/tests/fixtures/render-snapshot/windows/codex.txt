@@ -67,42 +67,14 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
-.chezmoiscripts/run_onchange_after_install-claude.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
 
 ## 會跑的腳本
-.chezmoiscripts/run_onchange_after_install-codex.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
-
-### .chezmoiscripts/run_onchange_after_install-codex.ps1.tmpl
-function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
-
-if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')) {
-    Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'Codex CLI')
-    exit 0
-}
-
-$installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
-try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri 'https://chatgpt.com/codex/install.ps1' -OutFile $installer -UseBasicParsing -ErrorAction Stop
-    $env:CODEX_NON_INTERACTIVE = '1'
-    $global:LASTEXITCODE = 0
-    & $installer
-    $code = $LASTEXITCODE
-} catch {
-    Write-Host $_
-    $code = 1
-} finally {
-    Remove-Item -Force $installer -ErrorAction SilentlyContinue
-}
-if ($code -ne 0) {
-    Write-Host ((T 'ezB9IOaykuijneWlvSzkuYvlvozoh6rlt7Hot5E6aXJtIHsxfSB8IGlleA==') -f 'Codex CLI', 'https://chatgpt.com/codex/install.ps1')
-}
-exit 0
 
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
@@ -119,6 +91,34 @@ if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
 mise install
 if ($LASTEXITCODE -ne 0) {
     Write-Host (T 'bWlzZSBpbnN0YWxsIOacieW3peWFt+aykuijneWlvSzkuYvlvozoh6rlt7Hot5E6bWlzZSBpbnN0YWxs')
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+
+# codex
+if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')) {
+    Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'codex')
+} else {
+    $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri 'https://chatgpt.com/codex/install.ps1' -OutFile $installer -UseBasicParsing -ErrorAction Stop
+        $env:CODEX_NON_INTERACTIVE = '1'
+        $global:LASTEXITCODE = 0
+        & $installer
+        $code = $LASTEXITCODE
+    } catch {
+        Write-Host $_
+        $code = 1
+    } finally {
+        Remove-Item -Force $installer -ErrorAction SilentlyContinue
+    }
+    if ($code -ne 0) {
+        Write-Host ((T 'ezB9IOaykuijneWlvSzkuYvlvozoh6rlt7Hot5E6aXJtIHsxfSB8IGlleA==') -f 'codex', 'https://chatgpt.com/codex/install.ps1')
+    }
 }
 exit 0
 
