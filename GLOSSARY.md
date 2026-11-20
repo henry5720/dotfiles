@@ -163,7 +163,7 @@ _Avoid_: 對外入口（「入口」指從個人電腦操作已配置主機的�
 _Avoid_: 必裝、核心套件
 
 **選裝工具**:
-基底以外、要在選單上勾了才裝的工具，例如 zsh、tailscale、claude。取消勾選不會解除安裝。
+基底以外、要在選單上勾了才裝的工具，例如 zsh、tailscale、claude。取消勾選時，mise 裝的會移除（指令跟著消失）；其他裝法（apt、brew、pkg、winget、官方 installer）不解除安裝。
 _Avoid_: 外掛、optional packages、模組
 
 **用途**:

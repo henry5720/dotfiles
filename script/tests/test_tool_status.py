@@ -747,6 +747,44 @@ exec "$cmd" "$@"
         self.assertIn("skip_env 'bottom'", rec)
 
     # ===============================================================
+    # 取消勾選 mise 的工具(#330):mise install 之後 mise prune,沒有設定檔要的版本連 shim 一起刪
+    # ===============================================================
+    def run_mise_script(self, install_rc=0, prune_rc=0):
+        """用假的 mise 跑渲染出來的 install-mise.sh,回傳 (exit code, 輸出, mise 收到的參數一行一次)。"""
+        import os
+        script = self.render({}, f"{SCRIPTS}/run_onchange_after_install-mise.sh.tmpl", ["bottom"])
+        bin_dir = self.dir / "bin"
+        bin_dir.mkdir()
+        log = self.dir / "mise.log"
+        fake = bin_dir / "mise"
+        fake.write_text(f"""#!/bin/sh
+echo "$*" >> {log}
+case "$1" in install) exit {install_rc};; prune) exit {prune_rc};; esac
+""")
+        fake.chmod(0o755)
+        (self.dir / "run.sh").write_text(script)
+        env = {**os.environ, "PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(self.dir)}
+        r = subprocess.run(["sh", str(self.dir / "run.sh")], capture_output=True, text=True, env=env)
+        calls = log.read_text().splitlines() if log.exists() else []
+        return r.returncode, r.stdout + r.stderr, calls
+
+    def test_mise_script_prunes_after_install(self):
+        rc, out, calls = self.run_mise_script()
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(calls, ["install", "prune --yes"])
+
+    def test_mise_script_still_prunes_when_install_fails(self):
+        # 裝失敗不影響清單:沒勾的工具照樣要清掉
+        rc, out, calls = self.run_mise_script(install_rc=1)
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(calls, ["install", "prune --yes"])
+
+    def test_mise_script_prune_failure_does_not_abort_apply(self):
+        rc, out, calls = self.run_mise_script(prune_rc=1)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("mise prune", out)
+
+    # ===============================================================
     # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 的 edge-tts 用 uv 跑(uv 由 mise 裝),不另裝全域套件
     # ===============================================================
     def test_snapserver_installs_uv_with_mise(self):

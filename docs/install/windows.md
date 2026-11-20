@@ -80,7 +80,7 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata
 工具本身沒有 Windows 版，或不適用 Windows（zsh：Windows 的 shell 是 PowerShell）。
 勾了也不會中斷 apply，最後列出略過了哪些。
 
-要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
+要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選時 mise 裝的會移除，其他（winget、官方 installer）不解除安裝，
 移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`；官方 installer 裝的照它官方文件的 Uninstall 段
 （claude 是[這裡](https://code.claude.com/docs/en/setup#uninstall-claude-code)）；codex 的官方文件沒寫 Windows 怎麼移除，
 照 installer 放的位置刪 `%LOCALAPPDATA%\Programs\OpenAI\Codex`、`%USERPROFILE%\.codex\packages\standalone`，再從使用者 PATH 拿掉
