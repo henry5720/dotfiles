@@ -310,7 +310,7 @@ agent-config 走，每台用 `skillshare plugin add` 各裝一次（WakaTime 的
 
 ```bash
 skillshare plugin add https://github.com/jarrodwatts/claude-hud.git --name claude-hud --target claude -g
-skillshare plugin add https://github.com/cursor/plugins.git --plugin pstack --name pstack --target claude -g
+skillshare plugin add https://github.com/cursor/plugins.git --plugin pstack --name pstack --target claude --target codex -g
 skillshare plugin add https://github.com/DietrichGebert/ponytail.git --plugin ponytail --name ponytail --target claude --target codex -g
 ```
 
