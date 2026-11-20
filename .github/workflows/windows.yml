@@ -196,10 +196,14 @@ jobs:
       # 10. 實機清單第 9 項,與第 13 項不用開 agent 的部分(skillshare status)。勾了才測,精簡兩項都沒勾
       - name: playwright-cli、skillshare
         if: matrix.use == 'full'
+        timeout-minutes: 10
         run: |
           $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-          pwsh -c 'playwright-cli -s=t open https://example.com; playwright-cli -s=t snapshot' 2>&1 | Tee-Object -Variable snap
-          pwsh -c 'playwright-cli -s=t close'
+          # open 會在背景留一個瀏覽器的常駐程序,它沿用 open 的輸出;open 接管線的話管線永遠不會關,
+          # 這一步就卡住(2026-11-20 卡了 57 分鐘)。open 的輸出寫到檔案,只有 snapshot 接管線,close 放 finally
+          pwsh -c 'playwright-cli -s=t open https://example.com' *> "$env:RUNNER_TEMP\pw-open.log"
+          try { $snap = pwsh -c 'playwright-cli -s=t snapshot' 2>&1 | Out-String; $snap }
+          finally { pwsh -c 'playwright-cli -s=t close' }
           if (-not ($snap | Select-String -SimpleMatch 'Example Domain')) { 'snapshot 讀不到 Example Domain'; exit 1 }
           & "$env:LOCALAPPDATA\Programs\skillshare\skillshare.exe" status
           if ($LASTEXITCODE -ne 0) { exit 1 }
