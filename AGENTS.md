@@ -30,7 +30,7 @@ Docker、swap、平板桌面刻意放 `script/`、不交給 chezmoi:它們會改
 要 apply 時執行的 `run_` 腳本一律放 `home/.chezmoiscripts/` 第一層,**不要再分子資料夾**:
 chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順序就亂掉。
 
-加選裝工具要動哪幾處,寫在 `home/.chezmoi.toml.tmpl` 選單上方的註解。
+加選裝工具 = `home/.chezmoidata/tool-table.yaml` 加一筆、`home/.chezmoitemplates/tool-menu` 加說明;裝完要設定、精簡要不要勾,照 `home/.chezmoi.toml.tmpl` 選單上方的註解。
 
 ## 檔名前綴是語意,不是命名風格
 

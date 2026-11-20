@@ -1,8 +1,9 @@
-{{- if has "earlyoom" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):earlyoom 只走 apt,沒有 root 在表上標裝不了,所以這裡一定有 root */ -}}
+{{- if (includeTemplate "tool-install" . | fromJson).tools.earlyoom.install -}}
 {{- $e := .earlyoom -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
-# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml)。
 # 這支把 .chezmoidata/earlyoom.yaml 的數字寫進 /etc;數字一改,渲染結果跟著變,下次 apply 重跑。
 # 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/install/earlyoom.md:
 #   保留服務  各 unit 的 drop-in:MemoryMin=infinity、CPUWeight;earlyoom --avoid
@@ -10,7 +11,6 @@
 #   工作程序  不設限
 # 只做 daemon-reload:cgroup 的設定在 reload 後套到跑著的 unit,不重啟 ssh、tailscaled、docker、herdr。
 set -eu
-{{ if includeTemplate "has-root" . -}}
 {{ includeTemplate "sh-sudo" . }}
 dir=/etc/systemd/system
 name=50-earlyoom.conf
@@ -56,8 +56,4 @@ if command -v earlyoom >/dev/null 2>&1; then
 else
   echo "earlyoom 沒裝起來(apt 失敗?),只套了保留服務與常駐服務的保護設定"
 fi
-{{- else -}}
-{{ includeTemplate "sh-skip" . }}
-skip_root "啟用 earlyoom、保護保留服務與常駐服務" "請有 root 的人照 docs/install/earlyoom.md 寫入 /etc 的設定,再 sudo systemctl enable --now earlyoom"
-{{- end }}
 {{ end -}}

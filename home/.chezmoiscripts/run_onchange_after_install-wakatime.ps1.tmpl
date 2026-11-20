@@ -1,7 +1,7 @@
 {{- /* 選裝工具 WakaTime 的 Windows 版(#324),Linux 那支是 install-wakatime.sh,行為對齊它。沒勾就渲染成空的,chezmoi 不跑。
        裝 wakatime-cli,再為有勾的 claude、codex 裝官方 WakaTime plugin;API key 由 private_dot_wakatime.cfg.tmpl 部署
        (%USERPROFILE%\.wakatime.cfg,沒填就不部署,plugin 只是送不出 heartbeat)。code-server 在 Windows 裝不了,沒有那段。
-       plugin 用 PATH 上的 node 跑 hook:勾了 wakatime 由 mise 裝 Node LTS(.chezmoitemplates/needs-node、mise-tools),
+       plugin 用 PATH 上的 node 跑 hook:勾了 wakatime 由 mise 裝 Node LTS(.chezmoidata/tool-table.yaml 的 needsNode、mise-tools),
        install-mise 照檔名順序排在這支前面。由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
        勾選組合一變,渲染結果就變,run_onchange 會重跑,補勾 agent 也會裝到 plugin(同 Linux)。
 

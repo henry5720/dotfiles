@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """選裝工具表與裝法判斷(#331,spec #315):表 home/.chezmoidata/tool-table.yaml、判斷 home/.chezmoitemplates/tool-install。
 
-選單標註、預設組合、略過彙整已經讀判斷(#332);套件清單、mise 清單、腳本還沒(#333～#336),這裡拿判斷跟它們比:
+選單標註、預設組合、略過彙整(#332)、套件清單、mise 清單(#333)、腳本(#334、#336)都讀判斷,這裡拿判斷跟渲染結果比:
 - 狀態與原因:選單、完整的預設組合、略過清單跟判斷一致
 - 裝法:跟渲染快照(#329)那一格實際渲染出的套件清單、mise 清單、會跑的腳本一致
 
@@ -10,6 +10,7 @@
 """
 import json
 import re
+import shutil
 import sys
 import tempfile
 import unittest
@@ -174,14 +175,58 @@ class ToolTableTest(unittest.TestCase):
                                     .read_text(encoding="utf-8"))
         self.assertEqual(re.findall(r"^skip_env .*$", out, re.M), ["skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'"])
 
-    def test_tool_env_is_gone(self):
-        # 環境規則只剩表上的 rules:舊的 tool-env、tool-status 刪了,沒有樣板或測試再讀它們
-        for name in ("tool-env", "tool-status"):
+    def test_old_rules_and_lists_are_gone(self):
+        # 裝法只寫在表上(#332、#336):舊的環境規則樣板(tool-env、tool-status)、apt 用不了的判斷(use-mise)、
+        # 要不要 Node 的判斷(needs-node)刪了;套件清單檔只剩基本套件,沒有 toolPackages、miseTools、nodeTools、
+        # nodeToolsSkip、nodePackages。沒有樣板、腳本、測試、文件再提到它們(docs/superpowers 是歷史紀錄)
+        templates = ("tool-env", "tool-status", "use-mise", "needs-node")
+        for name in templates:
             self.assertFalse((ROOT / "home/.chezmoitemplates" / name).exists(), name)
-        pattern = re.compile(r'include(Template)? "(tool-env|tool-status)"')
-        hits = [str(p.relative_to(ROOT)) for d in ("home", "script") for p in (ROOT / d).rglob("*")
-                if p.is_file() and "fixtures" not in p.parts and pattern.search(p.read_text(errors="ignore"))]
+        self.assertEqual(sorted(self.base), ["darwin", "termux", "ubuntu", "windows"])
+        names = (*templates, "toolPackages", "miseTools", "nodeTools", "nodePackages")
+        pattern = re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, names)) + r")(?![\w-])")
+        files = [p for d in ("home", "script", "docs", ".github") for p in (ROOT / d).rglob("*")
+                 if p.is_file() and not {"fixtures", "superpowers", "__pycache__"} & set(p.parts)]
+        files += [ROOT / "AGENTS.md", ROOT / "GLOSSARY.md", ROOT / "README.md"]
+        hits = [f"{p.relative_to(ROOT)}:{m.group(0)}" for p in files if p != Path(__file__).resolve()
+                for m in pattern.finditer(p.read_text(errors="ignore"))]
         self.assertEqual(hits, [])
+
+    def test_adding_a_tool_takes_a_table_entry_and_a_menu_line(self):
+        # 照 .chezmoi.toml.tmpl 選單上方的說明加一個走既有裝法的假工具:只改表、加選單說明,
+        # 選單、預設組合、各套件管理員與 mise 的清單就都有它
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "src"
+            shutil.copytree(ROOT / "home", src / "home", symlinks=True)
+            shutil.copy(ROOT / ".chezmoiroot", src / ".chezmoiroot")
+            with (src / "home/.chezmoidata/tool-table.yaml").open("a", encoding="utf-8") as f:
+                f.write("    faketool:\n"
+                        "      docs: https://example.com/faketool\n"
+                        "      checked: 2026-11-20\n"
+                        "      install: {linux: [apt, mise], darwin: [brew], android: [pkg], windows: [mise]}\n"
+                        "      apt: [faketool-apt]\n      pkg: [faketool-pkg]\n      brew: [faketool-brew]\n"
+                        "      mise: {tool: faketool-mise}\n")
+            with (src / "home/.chezmoitemplates/tool-menu").open("a", encoding="utf-8") as f:
+                f.write("faketool 測試用的假工具\n")
+            (Path(tmp) / "r").mkdir()
+            r = Renderer(Path(tmp) / "r", source=src)
+            home = src / "home"
+            pkgs = (home / ".chezmoiscripts/run_onchange_before_install-packages.sh.tmpl").read_text()
+            darwin = (home / ".chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl").read_text()
+            mise = (home / "dot_config/mise/conf.d/dotfiles.toml.tmpl").read_text()
+            menu = r.menu("debian-root")
+            self.assertRegex(menu, r"(?m)^faketool +測試用的假工具")
+            config = r.init("debian-root", "full", menu)
+            self.assertIn('"faketool"', config)
+
+            def render(env, template):
+                return r.run(dict(ENVS[env], tools=["faketool"]), "execute-template", template)
+
+            self.assertRegex(render("debian-root", pkgs), r"(?m)^for pkg in .*\bfaketool-apt\b")
+            self.assertIn('"faketool-mise" = "latest"', render("debian-noroot", mise))
+            self.assertRegex(render("android", pkgs), r"(?m)^for pkg in .*\bfaketool-pkg\b")
+            self.assertIn('brew "faketool-brew"', render("darwin", darwin))
+            self.assertIn('"faketool-mise" = "latest"', render("windows", mise))
 
     # ===============================================================
     # 裝法:跟快照那一格實際渲染出的清單與腳本一致

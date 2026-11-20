@@ -1,4 +1,6 @@
-{{- if and (has "gh" (splitList " " (includeTemplate "tools-to-install" .))) (includeTemplate "is-debian" .) (includeTemplate "has-root" .) -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):有 root 的 Debian 系走這支(表上 gh 的 script),其他照表走 system 或 mise */ -}}
+{{- $gh := (includeTemplate "tool-install" . | fromJson).tools.gh -}}
+{{- if and $gh.install (eq $gh.method "script") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾、不是 Debian 系、或沒有 root 就渲染成空的,chezmoi 不跑;
 # 後兩種改由 mise 裝到家目錄(run_onchange_after_install-mise)。

@@ -92,7 +92,7 @@ winget:
 # 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
 # (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
 # 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
-#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoitemplates/tool-env)
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
 #   root-skipped  沒有 root 略過的步驟(skip_root)
 # 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
 # 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
@@ -248,7 +248,7 @@ bin=$HOME/.local/bin
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
 #   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
 skip_root() {  # skip_root <略過什麼> <手動怎麼做>
   echo "略過 $1(沒有 root)。手動:$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -323,7 +323,7 @@ done
 
 ### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 #!@BIN@/sh
-# 勾了、但這台裝不了的選裝工具(.chezmoitemplates/tool-env 的 unsupported):各工具的腳本與套件清單
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
 # 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
 # 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
 # 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
@@ -333,7 +333,7 @@ set -eu
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
 #   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
 skip_root() {  # skip_root <略過什麼> <手動怎麼做>
   echo "略過 $1(沒有 root)。手動:$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -349,7 +349,7 @@ skip_env 'snapclient' '沒有 root 用不了 apt，官方只出 .deb'
 
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
-# apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)把 jq 與 zsh 裝到家目錄。
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)把 jq 與 zsh 裝到家目錄。
 # 其他機器渲染成空的:有 root 的 Debian 系、Termux 由 install-packages 用 apt／pkg 裝,macOS 走 brew。
 # 這兩個不交給 mise:jq 要在 modify_ 之前就有(mise 是 after_ 才裝);zsh 用 zsh-bin,不用 conda 版
 # (會帶 CONDA_PREFIX,以前 p10k 因此一直多顯示 anaconda)。
@@ -383,13 +383,13 @@ fi
 
 ### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 #!@BIN@/sh
-# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages,Debian 系看 ubuntu、Termux 看 termux);
-# 這台裝不了的勾了也不裝(.chezmoitemplates/tools-to-install)。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
 #
 # 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
-# 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
@@ -413,7 +413,7 @@ echo "安裝缺少的套件:$missing"
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
 #   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
 skip_root() {  # skip_root <略過什麼> <手動怎麼做>
   echo "略過 $1(沒有 root)。手動:$2"
   mkdir -p "$HOME/.local/state/dotfiles"

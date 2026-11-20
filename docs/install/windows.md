@@ -49,7 +49,7 @@ Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經�
 
 ## 裝了什麼、怎麼用
 
-CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝，
+CLI 用 mise 裝、app 用 winget 裝（跟 Linux 寫在同一張選裝工具表 `home/.chezmoidata/tool-table.yaml`），
 官方有會自己更新的 installer 的（coding agent）走官方 installer（[ADR 0005](../adr/0005-install-method-by-tool-kind.md)）：
 
 | 工具 | 怎麼裝 | 什麼時候裝 | 常用 |

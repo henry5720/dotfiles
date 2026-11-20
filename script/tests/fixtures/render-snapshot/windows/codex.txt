@@ -61,7 +61,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 ## mise 清單
 # chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
 # 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
-# 怎麼挑的見 home/.chezmoidata/packages.yaml 的 miseTools;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
 [tools]
 "zoxide" = "latest"
 

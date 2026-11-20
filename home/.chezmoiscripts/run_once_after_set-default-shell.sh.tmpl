@@ -1,5 +1,6 @@
-{{- $noRoot := and (ne .chezmoi.os "android") (not (includeTemplate "has-root" .)) -}}
-{{- if and (has "zsh" (index . "tools")) (or (includeTemplate "is-debian" .) (eq .chezmoi.os "android")) (not $noRoot) -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):zsh 走 apt、pkg(在 /etc/shells、Termux 的 chsh)才換預設 shell */ -}}
+{{- $zsh := (includeTemplate "tool-install" . | fromJson).tools.zsh -}}
+{{- if and $zsh.install (has $zsh.method (list "apt" "pkg")) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 zsh 的一部分:把預設 shell 換成 zsh。沒勾 zsh 就渲染成空的,chezmoi 不跑。
 # zsh 由 run_onchange_before_install-packages 先裝好。

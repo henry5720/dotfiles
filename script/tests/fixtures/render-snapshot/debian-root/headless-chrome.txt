@@ -212,7 +212,7 @@ clean_codex()
 #!@BIN@/sh
 # 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # agent 在這台開 headless Chrome 用(指令見 docs/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
-# Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(toolPackages)。
+# Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(選裝工具表的依賴套件)。
 set -eu
 # root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
 if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
@@ -236,13 +236,13 @@ apt_get install -y "$deb"
 
 ### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 #!@BIN@/sh
-# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages,Debian 系看 ubuntu、Termux 看 termux);
-# 這台裝不了的勾了也不裝(.chezmoitemplates/tools-to-install)。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
 #
 # 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
-# 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。

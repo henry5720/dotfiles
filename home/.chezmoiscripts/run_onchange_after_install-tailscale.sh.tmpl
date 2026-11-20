@@ -1,4 +1,6 @@
-{{- if and (eq .chezmoi.os "linux") (has "tailscale" (splitList " " (includeTemplate "tools-to-install" .))) -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):Linux 有 root 走官方 installer(official),沒有 root 走 userspace(script) */ -}}
+{{- $ts := (includeTemplate "tool-install" . | fromJson).tools.tailscale -}}
+{{- if and $ts.install (has $ts.method (list "official" "script")) -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/packages.yaml)。
@@ -12,7 +14,7 @@ if tailscale_running; then
   echo "系統層的 tailscaled 已經在跑,跳過"
   exit 0
 fi
-{{- if includeTemplate "has-root" . }}
+{{- if eq $ts.method "official" }}
 {{ template "sh-sudo" . }}
 # 2. 裝(官方 installer 會加 apt 來源)。~/.local/bin 那份是沒有 root 時裝的 userspace 版,不算:
 #    它沒有系統的 tailscaled unit,下面 systemctl enable 會失敗

@@ -62,7 +62,7 @@ winget:
 ## mise 清單
 # chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
 # 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
-# 怎麼挑的見 home/.chezmoidata/packages.yaml 的 miseTools;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
 [tools]
 "bat" = "latest"
 "bottom" = "latest"
@@ -110,7 +110,7 @@ winget:
 # 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
 # (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
 # 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
-#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoitemplates/tool-env)
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
 #   root-skipped  沒有 root 略過的步驟(skip_root)
 # 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
 # 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
@@ -360,7 +360,7 @@ echo "gh 已安裝。登入:gh auth login"
 ### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 #!@BIN@/sh
 # Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
-# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。怎麼挑的見 .chezmoidata/packages.yaml 的 miseTools。
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。誰走 mise 見 .chezmoidata/tool-table.yaml。
 # 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
 # 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
@@ -404,7 +404,7 @@ fi
 
 ### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
+# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
 # codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
 # 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
 # dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
@@ -474,9 +474,9 @@ fi
 
 ### .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 snapclient(選單見 .chezmoi.toml.tmpl,#292)。只有 Debian 系要跑:沒勾、這台裝不了(tool-env),
+# 選裝工具 snapclient(選單見 .chezmoi.toml.tmpl,#292)。只有走 apt 的要跑:沒勾、這台裝不了(選裝工具表),
 # 或是 Termux(pkg 的 snapcast-client 沒有系統服務)、macOS(brew 不自動起服務)就渲染成空的,chezmoi 不跑。
-# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml)。
 # 這支只做一件事:停用並關掉 apt 套件自帶的系統服務 —— 它開機自動啟動、用 _snapclient 帳號直接開 ALSA,
 # 靠 mDNS 找伺服器(過不了 tailnet,區網裡有別的 snapserver 反而會自己連上去),還會跟桌面的音效伺服器搶裝置。
 # 要聽時自己跑 snapclient --host <tailnet IP>,要常駐用 user service(docs/remote-access/voice-out.md)。
@@ -506,9 +506,9 @@ echo "snapclient 的系統服務已停用。收聽朗讀:snapclient --host <tail
 
 ### .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
-# 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages);
-# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(miseTools),edge-tts 不另裝。
+# 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
+# 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml 的依賴套件);
+# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(同一張表),edge-tts 不另裝。
 # 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
 # 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
 # 步驟在共用樣板 sh-disable-system-service。
@@ -633,7 +633,7 @@ fi
 
 # 3. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
 #    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
-#    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 nvm,見 .chezmoitemplates/needs-node;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
+#    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 nvm,見 .chezmoidata/tool-table.yaml 的 needsNode;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
 #    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
 claude=$(command -v claude || echo "$HOME/.local/bin/claude")
@@ -700,7 +700,7 @@ npm install -g @colbymchenry/codegraph
 
 ### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 #!@BIN@/sh
-# 勾了、但這台裝不了的選裝工具(.chezmoitemplates/tool-env 的 unsupported):各工具的腳本與套件清單
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
 # 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
 # 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
 # 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
@@ -710,7 +710,7 @@ set -eu
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
 #   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoitemplates/tool-env),由 record-env-skipped 呼叫
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
 skip_root() {  # skip_root <略過什麼> <手動怎麼做>
   echo "略過 $1(沒有 root)。手動:$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -747,13 +747,13 @@ fi
 
 ### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 #!@BIN@/sh
-# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages,Debian 系看 ubuntu、Termux 看 termux);
-# 這台裝不了的勾了也不裝(.chezmoitemplates/tools-to-install)。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
 #
 # 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
-# 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。

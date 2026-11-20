@@ -292,7 +292,7 @@ render_cmd() {
 declare -A TOOL_CHECK=(
   # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、提示列等細項在 check_zsh_env
   [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
-  # Linux 由 mise 裝(miseTools 的 always;這裡的 bash -l 沒有 shims,直接找 shim);Termux 走 pkg。設定檔跟著勾選部署
+  # Linux 由 mise 裝(選裝工具表上 linux 只寫 mise;這裡的 bash -l 沒有 shims,直接找 shim);Termux 走 pkg。設定檔跟著勾選部署
   [starship]="{ ~/.local/share/mise/shims/starship --version || starship --version; } && [ -f ~/.config/starship.toml ]"
   # 同上:Linux 由 mise 裝,Termux 走 pkg
   [eza]="[ -x ~/.local/share/mise/shims/eza ] || command -v eza"
@@ -309,7 +309,7 @@ declare -A TOOL_CHECK=(
   [node]=". ~/.nvm/nvm.sh && node --version"
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
-  # Linux 由 mise 裝(miseTools 的 always)
+  # Linux 由 mise 裝(選裝工具表上 linux 只寫 mise)
   [cloudflared]="{ [ -x ~/.local/share/mise/shims/cloudflared ] && ~/.local/share/mise/shims/cloudflared --version; } || cloudflared --version"
   [herdr]="command -v herdr"
   [ttyd]="[ -x ~/.local/share/mise/shims/ttyd ] || command -v ttyd"
@@ -320,7 +320,7 @@ declare -A TOOL_CHECK=(
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
-  # 與它跑 edge-tts 用的 uv(mise 裝,miseTools 的 snapserver;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
+  # 與它跑 edge-tts 用的 uv(mise 裝,選裝工具表上 snapserver 的依賴套件;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
@@ -374,7 +374,7 @@ ANDROID_ENV='{"chezmoi":{"os":"android"}}'
 TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | paste -sd/)
 TERMUX_TOML=$LEAN_TOML
 
-# 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
+# 有 root 的 Ubuntu 也由 mise 裝的選裝工具(選裝工具表上 linux 只寫 mise,#233),這裡列第一次 init 有勾的那幾個的指令名。
 CLI_TOOLS=(eza fzf bat rg starship btop btm fastfetch)
 SHIMS='~/.local/share/mise/shims'
 
@@ -1008,7 +1008,7 @@ scenario_ubuntu() {
   check "只勾 codegraph:在空的 HOME 照順序跑兩支腳本,exit 0、codegraph 能跑" \
     "chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-node.sh.tmpl > /tmp/cg-1.sh && chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_npm-install-codegraph.sh.tmpl > /tmp/cg-2.sh && rm -rf /tmp/only-cg && mkdir /tmp/only-cg && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin sh -c 'sh /tmp/cg-1.sh && sh /tmp/cg-2.sh' && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin bash -c '. ~/.nvm/nvm.sh && codegraph --version'"
 
-  # 基底只剩 git、curl、jq、python3;zsh、vim 走 toolPackages,eza 等走下載腳本,都是勾了才有。
+  # 基底只剩 git、curl、jq、python3;zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
   local none='{"tools":[]}'
   # 前面「套件清單加一個套件」在 yaml 的 ubuntu 清單加了 tree,所以這裡是四項 + tree
@@ -1091,7 +1091,7 @@ DOCKERFILE
 }
 
 # Termux 基底:git curl openssh,加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,
-# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(toolPackages.termux)。
+# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(選裝工具表)。
 TERMUX_BASE=(git curl openssh jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的

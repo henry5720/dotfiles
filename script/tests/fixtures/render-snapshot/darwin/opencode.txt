@@ -211,7 +211,7 @@ clean_codex()
 
 ### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
+# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
 # codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
 # 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
 # dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
@@ -251,7 +251,8 @@ fi
 #!@BIN@/sh
 # macOS 的系統套件:照 chezmoi 官方「Install packages declaratively」的 brew bundle 範例
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/),
-# 把 .chezmoidata/packages.yaml 的 darwin 欄(基底 + tools 有勾的 toolPackages)交給 brew bundle。
+# 把 .chezmoidata/packages.yaml 的 darwin 欄(基本套件),加上選裝工具表
+# (.chezmoidata/tool-table.yaml)裡 tools 有勾、這台走 brew 的,交給 brew bundle。
 # 其他 OS 渲染成空的,chezmoi 不跑;Linux／Termux 是 install-packages 那支。
 #
 # 跟官方範例不同的地方:

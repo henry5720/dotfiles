@@ -90,7 +90,7 @@ AppData
 {{ if not (or $bashToZsh (has "starship" (index . "tools"))) }}
 # .bashrc 由 modify_dot_bashrc.tmpl 加段落,兩種情況才要:
 # - 勾了 starship:互動式 bash 啟用 starship 提示列。
-# - apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)、勾了 zsh:
+# - apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/bash-to-zsh)、勾了 zsh:
 #   zsh 是 zsh-bin 裝到家目錄的,改由互動式 bash 切 zsh。
 .bashrc
 {{ end }}

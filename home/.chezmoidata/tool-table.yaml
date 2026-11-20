@@ -6,9 +6,9 @@
 # 讀法:apply 時的樣板可以直接用 .toolTable;config 樣板(chezmoi init)直接讀不到 data 目錄,
 # 要 include ".chezmoidata/tool-table.yaml" | fromYaml(chezmoi 2.74.1 實測)。tool-install 兩種都接。
 #
-# 照它跑的:選單標註、預設組合、略過彙整(#332)、官方 installer(install-official,#334)。套件清單、mise 清單、
-# 其他腳本照舊看 packages.yaml 的 toolPackages／miseTools 與各自的腳本,script/tests/test_tool_table.py 比對兩邊算出的一樣,
-# 之後的 ticket(#333、#335、#336)逐一改讀。
+# 照它跑的:選單標註、預設組合、略過彙整(#332)、apt／pkg／brew／winget 與 mise 的清單(#333)、官方 installer
+# (install-official,#334)、留在自己腳本的工具要不要跑(setup、script、deb,#336)。packages.yaml 只剩跟勾選無關的基本套件。
+# 加一個走既有裝法的工具:這裡加一筆 + tool-menu 加說明(.chezmoi.toml.tmpl 選單上方的註解)。
 #
 # ===============================================================
 # 1. 欄位

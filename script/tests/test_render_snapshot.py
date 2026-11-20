@@ -13,7 +13,7 @@
 環境用 --override-data 模擬(同 test_tool_env.py、test_windows.py),在 Linux 上直接渲染,不用容器。
 跟這台裝了什麼無關:
 - PATH 只放 sh、ls、awk(home-owner-guard 要後兩個,不然 output 失敗),所以樣板的 lookPath(sudo、tailscale、
-  miseTools 的系統指令)一律找不到;node-runnable 的 `ldconfig -p | grep` 沒有 grep,libatomic 一律算沒有
+  選裝工具表 system 裝法的系統指令)一律找不到;node-runnable 的 `ldconfig -p | grep` 沒有 grep,libatomic 一律算沒有
   (只有 Debian 系有 root 算有)。
   shebang 的 lookPath "sh" 在快照裡寫成 @BIN@/sh。
 - 有沒有 root 只看 .chezmoi.uid(root 的格子給 0,其他給 1000,這時找不到 sudo 就是沒有 root)。
@@ -81,8 +81,9 @@ def cells():
 class Renderer:
     """在一個暫存目錄裡跑 chezmoi:PATH 只有 sh、家目錄固定、每次呼叫各用一份 state。"""
 
-    def __init__(self, tmp):
+    def __init__(self, tmp, source=ROOT):
         self.tmp = Path(tmp)
+        self.source = Path(source)
         self.bin = self.tmp / "bin"
         self.bin.mkdir()
         for cmd in ("sh", "ls", "awk"):
@@ -96,7 +97,7 @@ class Renderer:
         os.close(fd)
         os.unlink(state)
         proc = subprocess.run([
-            CHEZMOI, "--no-tty", "--source", str(ROOT), "--config", str(self.config),
+            CHEZMOI, "--no-tty", "--source", str(self.source), "--config", str(self.config),
             "--destination", HOME, "--persistent-state", state,
             "--refresh-externals=never",
             "--override-data", json.dumps(data), *args,
@@ -120,7 +121,7 @@ class Renderer:
                 labels = [l for l in labels if l.split(" ")[0] == selection]
             flags += ["--promptChoice", f"{USE_PROMPT}=c",
                       "--promptMultichoice", f"{TOOLS_PROMPT}={'/'.join(labels)}"]
-        template = (ROOT / "home/.chezmoi.toml.tmpl").read_text(encoding="utf-8")
+        template = (self.source / "home/.chezmoi.toml.tmpl").read_text(encoding="utf-8")
         return self.run(ENVS[env], "execute-template", "--init", *flags, stdin=template)
 
     def cell(self, env, selection, menu):

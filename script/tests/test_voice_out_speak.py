@@ -453,7 +453,7 @@ sys.stdout.write('PCM:' + open(a[a.index('-i') + 1], encoding='utf-8').read())
         self.assertEqual(len(self.spoken("很長的回覆。" * 300)), 600)
 
     def test_finds_uv_in_mise_shims_when_hook_path_lacks_it(self):
-        # uv 由 mise 裝(miseTools);hook 的 PATH 不一定有 mise 的 shims
+        # uv 由 mise 裝(選裝工具表);hook 的 PATH 不一定有 mise 的 shims
         self.fake_uv_and_ffmpeg(uv_dir=self.dir / ".local/share/mise/shims")
         reader = Reader(self.fifo)
         env = {**self.env(None), "PATH": f"{self.dir / 'bin'}:/usr/bin:/bin"}

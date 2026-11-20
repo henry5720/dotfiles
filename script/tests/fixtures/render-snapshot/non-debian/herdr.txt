@@ -225,7 +225,7 @@ fi
 
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
-# apt 用不了的 Linux(沒有 root,或非 Debian 系;.chezmoitemplates/use-mise)把 jq 與 zsh 裝到家目錄。
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)把 jq 與 zsh 裝到家目錄。
 # 其他機器渲染成空的:有 root 的 Debian 系、Termux 由 install-packages 用 apt／pkg 裝,macOS 走 brew。
 # 這兩個不交給 mise:jq 要在 modify_ 之前就有(mise 是 after_ 才裝);zsh 用 zsh-bin,不用 conda 版
 # (會帶 CONDA_PREFIX,以前 p10k 因此一直多顯示 anaconda)。
