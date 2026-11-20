@@ -369,7 +369,7 @@ exit 0
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
                                "claude", "codex", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
-                               "earlyoom"})
+                               "earlyoom", "bottom"})
 
     def test_android_installs_pkg_tools(self):
         tools = ["fastfetch", "gh", "ffmpeg", "ttyd", "cloudflared", "zsh"]
@@ -513,7 +513,7 @@ exit 0
     # snapclient(#292):個人電腦用 CLI 收聽朗讀串流
     # ===============================================================
     def test_snapclient_menu_states_per_environment(self):
-        # apt、Termux 的 pkg、brew 都有;winget 沒有,非 Debian 系沒有 apt;proot 沒有音效裝置
+        # apt、Termux 的 pkg、brew 都有;Windows 由 mise 裝官方 zip(#326);非 Debian 系沒有 apt;proot 沒有音效裝置
         expected = {
             "ubuntu": ({}, None),
             "arm": (ARM, None),
@@ -522,7 +522,7 @@ exit 0
             "android": (ANDROID, None),
             "proot": (PROOT, "不建議"),
             "fedora": (FEDORA, "裝不了"),
-            "windows": ({"chezmoi": {"os": "windows"}}, "裝不了"),
+            "windows": ({"chezmoi": {"os": "windows"}}, None),
         }
         for name, (env, mark) in expected.items():
             with self.subTest(env=name):
@@ -532,9 +532,6 @@ exit 0
                     self.assertNotIn("（裝不了：", line)
                 else:
                     self.assertIn(f"（{mark}：", line)
-        windows = next(l for l in self.labels({"chezmoi": {"os": "windows"}}) if l.startswith("snapclient "))
-        self.assertIn("winget 沒有", windows)
-        self.assertIn("snapclient_win64.zip", windows)
 
     def test_snapclient_package_per_platform(self):
         # apt 的 snapclient、Termux 的 snapcast-client(主 repo 的 subpackage,靠 pulseaudio)、brew 的 snapcast
@@ -697,6 +694,70 @@ exec "$cmd" "$@"
         self.assertIn("CPUWeight=500", (etc / "ssh.service.d/50-earlyoom.conf").read_text(encoding="utf-8"))
         self.assertFalse((etc / "dbus.service.d").exists())
         self.assertIn("-m 3 -s 5", (root / "etc/default/earlyoom").read_text(encoding="utf-8"))
+
+    # ===============================================================
+    # bottom(#325):跨 OS 的資源監控,Linux 與 Windows 用 mise、macOS 用 brew;termux-packages 沒有
+    # ===============================================================
+    def test_bottom_menu_states_and_presets(self):
+        for name, env, mark in (("ubuntu", {}, None), ("arm", ARM, None), ("wsl", WSL, None), ("proot", PROOT, None),
+                                ("fedora", FEDORA, None), ("mac", MAC, None), ("android", ANDROID, "裝不了"),
+                                ("windows", {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}}, None)):
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("bottom "))
+                self.assertIn("btm", line)
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+        self.assertIn('"bottom"', self.init({}, "full").stdout)
+        self.assertNotIn('"bottom"', self.init({}, "minimal").stdout)
+
+    # ===============================================================
+    # opencode(#318):Linux、macOS 官方 installer,Windows 走 mise 的 npm backend,原生 Termux 裝不了
+    # ===============================================================
+    def test_opencode_menu_states_per_environment(self):
+        for name, env, mark in (("ubuntu", {}, None), ("mac", MAC, None), ("android", ANDROID, "裝不了"),
+                                ("windows", {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}}, None)):
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("opencode "))
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+
+    # ===============================================================
+    # codegraph(#323):Linux、macOS 用 npm 全域套件,Windows 用 mise(aqua),原生 Termux 裝不了
+    # ===============================================================
+    def test_codegraph_menu_states_per_environment(self):
+        for name, env, mark in (("ubuntu", {}, None), ("mac", MAC, None), ("android", ANDROID, "裝不了"),
+                                ("windows", {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}}, None)):
+            with self.subTest(env=name):
+                line = next(l for l in self.labels(env) if l.startswith("codegraph "))
+                if mark is None:
+                    self.assertNotIn("（不建議：", line)
+                    self.assertNotIn("（裝不了：", line)
+                else:
+                    self.assertIn(f"（{mark}：", line)
+
+    def test_codegraph_still_brings_node_on_linux(self):
+        # Windows 的 codegraph 不要 Node(#323),Linux 照舊靠 nvm 的 npm 裝,install-node 不能變成空的
+        out = self.render({}, f"{SCRIPTS}/run_onchange_after_install-node.sh.tmpl", ["codegraph"])
+        self.assertNotEqual(out.strip(), "")
+
+    def test_bottom_installs_with_mise_on_linux_and_brew_on_mac(self):
+        # GitHub release 的單一執行檔:有沒有 root、是不是 Debian 系都由 mise 裝
+        mise = '{{ includeTemplate "mise-tools" . }}'
+        for name, env in (("ubuntu", {}), ("arm", ARM), ("fedora", FEDORA)):
+            with self.subTest(env=name):
+                ticked = self.chezmoi(env, "execute-template", data={"tools": ["bottom"]}, stdin=mise).stdout
+                self.assertIn('"bottom" = "latest"', ticked.splitlines())
+        self.assertNotIn('"bottom"', self.chezmoi({}, "execute-template", data={"tools": ["btop"]}, stdin=mise).stdout)
+        brew = self.render(MAC, f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl", ["bottom"])
+        self.assertIn('brew "bottom"', brew.splitlines())
+        rec = self.render(ANDROID, f"{SCRIPTS}/{RECORDER}", ["bottom"])
+        self.assertIn("skip_env 'bottom'", rec)
 
     # ===============================================================
     # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 的 edge-tts 用 uv 跑(uv 由 mise 裝),不另裝全域套件

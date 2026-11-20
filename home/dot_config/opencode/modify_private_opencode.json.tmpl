@@ -1,13 +1,22 @@
+{{- if eq .chezmoi.os "windows" -}}
+{{- /* Windows(#318):跑不了下面的 sh + jq,渲染成 modify-template(chezmoi 拿現有檔案當 .chezmoi.stdin 再跑一次),
+       做同一件事:repo 的版本,mcp 換回現有檔案裡的那一段。輸出經 toPrettyJson,key 照字母排。
+       repo 的版本先在這一輪渲染好,用 JSON 字串字面值放進下一輪(JSON 的跳脫是 Go 字串字面值的子集)。 */ -}}
+{{ "{{-" }} /* chezmoi:modify-template */ {{ "-}}" }}
+{{ "{{-" }} $repo := fromJson {{ includeTemplate "opencode-json" . | toJson }} {{ "-}}" }}
+{{ "{{-" }} $mcp := dict {{ "-}}" }}
+{{ "{{-" }} if trim .chezmoi.stdin {{ "}}{{" }} $mcp = get (fromJson .chezmoi.stdin) "mcp" | default dict {{ "}}{{" }} end {{ "-}}" }}
+{{ "{{" }} set $repo "mcp" $mcp | toPrettyJson "  " {{ "}}" }}
+{{- /* 上一行的換行不輸出:toPrettyJson 自己以換行結尾,多的一個在 CRLF 的 checkout(Windows Git 預設 autocrlf)
+       還會是 \r\n */ -}}
+{{ else -}}
 #!{{ lookPath "sh" }}
 # shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.config/opencode/opencode.json 兩方共用:provider、agent、plugin 這些由這個 repo 管,
 # `mcp` 由 skillshare 管(清單在 agent-config 的 mcp.yaml,`skillshare sync mcp -g` 寫進來)。
 # 整份部署的話每次 apply 都會把 skillshare 寫的 MCP 蓋掉,所以用 modify_:
 # 下面這份整個照 repo 的版本輸出,只有 `mcp` 換回現有檔案裡的那一段。
-{{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
-{{- $active := index (index $company "presets") (index $company "preset") -}}
-{{- $main := index (index $active "orchestrator") "model" -}}
-{{- $small := index (index $active "explorer") "model" -}}
+{{- /* 照搬原本的輸出:上一行註解直接接著 set -eu,所以 set -eu 沒有生效(#318 發現,另外修) */ -}}
 set -eu
 {{ template "sh-jq-path" . }}
 
@@ -17,78 +26,7 @@ existing=$(cat)
 
 # 2. repo 的版本。"mcp": {} 只是佔位,讓 key 留在原本的位置。
 printf '%s' "$existing" | jq --argjson repo "$(cat <<'JSON'
-{
-  "$schema": "https://opencode.ai/config.json",
-  "instructions": [{{ printf "%s/.config/opencode/commit-instructions.md" .chezmoi.homeDir | toJson }}],
-  "model": {{ $main | toJson }},
-  "small_model": {{ $small | toJson }},
-  "permission": {
-    "external_directory": {
-      "*": "ask",
-      "~/code/**": "allow",
-      "/tmp/**": "allow",
-      "~/.local/share/chezmoi/**": "allow"
-    }
-  },
-  "provider": {
-    "codex-lb-gcp": {
-      "npm": "@ai-sdk/openai",
-      "name": "TeamSync",
-      "options": {
-        "baseURL": "https://codex.teamsync.com.tw/backend-api/codex",
-        "apiKey": "{{ .codexLbApiKey }}"
-      },
-      "models": {
-        "gpt-6-astra": {
-          "name": "GPT-6 Astra",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        },
-        "gpt-6.1-sol": {
-          "name": "GPT-6.1 Sol",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        },
-        "gpt-6-luna": {
-          "name": "GPT-6 Luna",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          }
-        }
-      }
-    }
-  },
-  "mcp": {},
-  "agent": {
-    "explore": {
-      "disable": true
-    },
-    "general": {
-      "disable": true
-    }
-  },
-  "lsp": true,
-  "plugin": [
-    "opencode-wakatime",
-    "oh-my-opencode-slim"
-  ]
-}
+{{ includeTemplate "opencode-json" . | trimSuffix "\n" }}
 JSON
 )" '$repo + {mcp: (.mcp // {})}'
+{{ end -}}

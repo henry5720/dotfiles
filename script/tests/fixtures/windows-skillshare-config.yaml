@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/runkids/skillshare/main/schemas/config.schema.json
+
+sources:
+  mcp: ~\AppData\Roaming\skillshare\mcp.yaml
+  skills: ~\AppData\Roaming\skillshare\skills
+
+git_root: root
+
+targets:
+  claude:
+    skills:
+      path: ~\.claude\skills
+    agents:
+      path: ~\.claude\agents
+  codex:
+    skills:
+      path: ~\.agents\skills
+
+extras:
+  - name: agents-md
+    source: ~\AppData\Roaming\skillshare\instructions\agents-md
+    file: AGENTS.md
+    targets:
+      - path: ~\.claude
+        as: CLAUDE.md
+      - path: ~\.codex
+      - path: ~\.config\opencode
+  - name: agent-commit
+    source: ~\AppData\Roaming\skillshare\instructions\agent-commit
+    file: instructions.md
+    targets:
+      - path: ~\.config\agent-commit
+  - name: opencode-commit
+    source: ~\AppData\Roaming\skillshare\instructions\opencode-commit
+    file: commit-instructions.md
+    targets:
+      - path: ~\.config\opencode
+
+preserve_tilde_on_save: true

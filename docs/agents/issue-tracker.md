@@ -27,3 +27,5 @@ Wayfinder map 是帶 `wayfinder:map` label 的 GitHub issue。它的決定 ticke
 - **Claim**：`gh issue edit <n> --add-assignee @me`，動手前的第一個寫入。issue 已關、有開著的 blocker、或已有別人的 assignee 就不做，停下來問。
 - **卡住**：`gh issue comment <n> --body "卡在…"`，不關、assignee 留著。
 - **Resolve**：`gh issue close <n> --comment "<commit、怎麼驗的>"`。PR 或 commit message 寫了 `Closes #<n>`、會進預設分支的，交給 merge 關。
+  例外是 `/implement-spec`：ticket 併進 integration 分支、這邊驗得到的都驗過就關，不等 PR merge，
+  後面的 ticket 才不會顯示成「接了還被擋著的任務」。實機這類這邊驗不到的，寫進 PR 的驗證清單，spec 等 PR merge 才關。

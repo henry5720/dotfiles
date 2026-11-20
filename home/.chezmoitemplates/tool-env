@@ -18,8 +18,11 @@
        原因不能用半形 /(e2e 的 --promptMultichoice 拿它分隔選項)、不能有 '(略過的腳本用單引號包它),
        用全形標點;它接在選單說明後面,寫給勾選的人看:為什麼不行、要的話怎麼辦。
        這是 .chezmoitemplates 不是 .chezmoidata:config 樣板(chezmoi init)讀不到 .chezmoidata。 */ -}}
+{{- /* headless-chrome、playwright-cli 在 Windows 主機可裝(#327):Chrome 本身就能 --headless,
+       headless-chrome 在 Windows 是用 winget 確保有 Chrome(toolPackages.windows,已經有就跳過);
+       playwright-cli 走 mise 的 npm backend(mise-tools)。 */}}
 headless-chrome:
-  - when: [darwin, windows]
+  - when: [darwin]
     state: unsupported
     reason: 這裡裝的是 Google 給 Linux 的 .deb
   - when: [android]
@@ -35,7 +38,7 @@ headless-chrome:
     state: unsupported
     reason: .deb 只能裝在 Debian 系
 playwright-cli:
-  - when: [darwin, android, windows, wsl, non-amd64, non-debian]
+  - when: [darwin, android, wsl, non-amd64, non-debian]
     state: unsupported
     reason: 它用 headless-chrome，這台裝不了 headless-chrome
 tailscale:
@@ -51,8 +54,12 @@ tailscale:
 {{- /* 原生 Termux(#274):termux-packages 沒有的、或官方 installer 沒在 Termux 驗過的。
        coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
        Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
-       app 用 winget(toolPackages.windows),node、herdr 也由 mise 裝(mise-tools)。
-       其他工具這裡只有 sh 安裝腳本、沒在 Windows 驗過,Windows 標裝不了,到 WSL 裝。 */}}
+       app 用 winget(toolPackages.windows),node、herdr、snapclient、playwright-cli 也由 mise 裝(mise-tools);
+       claude、codex 走官方 install.ps1(run_onchange_after_install-claude.ps1 #316、-codex.ps1 #317);opencode 沒有 install.ps1,走 mise(#318);
+       agent-config 的 skillshare 也走官方 install.ps1(run_onchange_after_install-agent-config.ps1,#321)。
+       codegraph 走 mise 的 aqua backend(release 的 bundle,自帶 Node runtime,#323)。
+       wakatime 放 wakatime-cli 到官方位置、為有勾的 agent 裝 plugin(run_onchange_after_install-wakatime.ps1,#324)。
+       下面 Windows 標裝不了的,是工具本身沒有 Windows 版或不適用 Windows,原因寫在各自的規則。 */}}
 zsh:
   - when: [windows]
     state: unsupported
@@ -60,10 +67,16 @@ zsh:
 btop:
   - when: [windows]
     state: unsupported
-    reason: mise 的 btop 只有 Linux 版
+    reason: btop 的 release 只有 Linux 版，改勾 bottom
   - when: [android]
     state: unsupported
     reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
+{{- /* bottom(#325):Linux、Windows 用 mise(aqua:ClementTsang/bottom)、macOS 用 brew 的 bottom formula。
+       termux-packages 沒有(打包請求 termux/termux-packages#8565 還開著),Termux 一律走 pkg,不另用 release 執行檔。 */}}
+bottom:
+  - when: [android]
+    state: unsupported
+    reason: termux-packages 沒有 bottom，到 proot Ubuntu 裝
 code-server:
   - when: [windows]
     state: unsupported
@@ -72,23 +85,14 @@ code-server:
     state: unsupported
     reason: termux-packages 沒有，到 proot Ubuntu 裝
 claude:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 codex:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 opencode:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
@@ -97,23 +101,13 @@ herdr:
     state: unsupported
     reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
 agent-config:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
 codegraph:
-  - when: [windows]
-    state: unsupported
-    reason: 安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝
   - when: [android]
     state: unsupported
     reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
-wakatime:
-  - when: [windows]
-    state: unsupported
-    reason: 它是 Claude Code、Codex 的 plugin，這兩個在 Windows 裝不了，到 WSL 裝
 {{- /* snapserver(#290):apt 裝、voice-out 包 systemd user service、服務只綁 tailscale ip -4 的位址;
        朗讀指令的 edge-tts 用 mise 裝的 uv 跑。 */}}
 snapserver:
@@ -130,11 +124,9 @@ snapserver:
     state: discouraged
     reason: WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機
 {{- /* snapclient(#292):Debian 系 apt、原生 Termux pkg(snapcast-client)、macOS brew(snapcast)。
-       winget 沒有 Snapcast(2026-11 查 winget-pkgs 的 manifests,沒有 badaix、Snapcast),mise registry 也沒有。 */}}
+       Windows(#326):mise 的 github backend 裝官方 release 的 snapclient_win64.zip(mise-tools),
+       它要的 VC++ runtime 由 winget 裝(toolPackages.windows)。 */}}
 snapclient:
-  - when: [windows]
-    state: unsupported
-    reason: winget 沒有 snapclient，手動下載官方 release 的 snapclient_win64.zip，見 voice-out 主題文件
   - when: [non-debian]
     state: unsupported
     reason: snapclient 走 apt，只能裝在 Debian 系

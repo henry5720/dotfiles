@@ -23,7 +23,7 @@ code-server ─ vscode-wakatime ──────┘        讀 ~/.wakatime.cfg
 ## 第一次要做的
 
 - Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
-- Claude Code、Codex 的 plugin 用 node 跑 hook，要有 node：勾了 `wakatime` 會一併裝 nvm 與 Node LTS。
+- Claude Code、Codex 的 plugin 用 node 跑 hook，要有 node：勾了 `wakatime` 會一併裝 nvm 與 Node LTS（Windows 主機用 mise 的 Node LTS，見 [Windows 主機](../install/windows.md#裝了什麼怎麼用)）。
 - API key 留空（init 時沒填）就不部署 `~/.wakatime.cfg`，什麼都不會送。要改見[改設定與更新](../after-install.md)。
 
 ## 沒記到
@@ -34,6 +34,7 @@ code-server ─ vscode-wakatime ──────┘        讀 ~/.wakatime.cfg
 ## 為什麼這樣裝
 
 - wakatime-cli 照官方 `install_cli.py` 的位置：本體 `~/.wakatime/wakatime-cli-linux-<arch>`，
-  symlink 成 `~/.wakatime/wakatime-cli`。各 plugin 都找這裡，也會自己更新它。
+  symlink 成 `~/.wakatime/wakatime-cli`。各 plugin 都找這裡，也會自己更新它。Windows 主機是 `%USERPROFILE%\.wakatime\wakatime-cli-windows-<arch>.exe`，
+  `wakatime-cli.exe` 是複製一份（codex 的 plugin 在 Windows 也是複製）。
 - 不裝 zsh 的 WakaTime 外掛：官方的 [terminal 頁面](https://wakatime.com/terminal)明講別用 terminal
   plugin。以前裝過的機器，apply 時會刪掉舊的 `~/.config/zsh/wakatime-zsh-plugin`（列在 `home/.chezmoiremove`）。

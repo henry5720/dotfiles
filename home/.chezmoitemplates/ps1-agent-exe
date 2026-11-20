@@ -1,0 +1,9 @@
+{{- /* coding agent 的官方 installer 在 Windows 裝的位置,寫成 PowerShell 運算式(呼叫端自己加括號)。
+       install-<agent>.ps1 用它判斷裝過沒有,install-wakatime.ps1 在 PATH 找不到 agent 時用它。
+       用法:Test-Path ({{ includeTemplate "ps1-agent-exe" "claude" }})
+       claude:官方 setup 那頁(https://code.claude.com/docs/en/setup)的 %USERPROFILE%\.local\bin\claude.exe
+       codex:官方 install.ps1 的 $defaultVisibleBinDir(指向 %USERPROFILE%\.codex\packages\standalone 的 junction) */ -}}
+{{- $exe := dict
+      "claude" "Join-Path $HOME '.local\\bin\\claude.exe'"
+      "codex" "Join-Path $env:LOCALAPPDATA 'Programs\\OpenAI\\Codex\\bin\\codex.exe'" -}}
+{{- index $exe . -}}

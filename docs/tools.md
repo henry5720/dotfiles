@@ -6,7 +6,7 @@
 哪些工具會裝，看那台的用途與勾選（[用途與憑證](install/machine-use.md)）；要加減用 `tools`。
 
 ```
-shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop
+shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom
 入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node
@@ -28,6 +28,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node
 | vim | terminal 裡的文字編輯器 | `vim <檔案>`；`:wq` 存檔離開、`:q!` 不存離開 | [vim](https://www.vim.org/) |
 | fastfetch | 印出系統資訊 | `fastfetch` | [fastfetch](https://github.com/fastfetch-cli/fastfetch) |
 | btop | 工作管理員：CPU、記憶體、行程 | `btop`，按 `q` 離開 | [btop](https://github.com/aristocratos/btop) |
+| bottom | 跟 btop 一樣看 CPU、記憶體、行程，Windows 也能裝（btop 不能） | `btm`，按 `q` 離開 | [bottom](https://github.com/ClementTsang/bottom) |
 
 `bat <檔案>`：語法上色、上面標檔名
 
@@ -37,7 +38,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node
 
 ![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
 
-Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](install/mise.md)。
+Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](install/mise.md)。
 
 ## 入口與連線
 
@@ -54,10 +55,10 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
 | herdr | terminal 多工，同時開多個 agent | `herdr --session <名字>` | [herdr](https://github.com/herdrdev/herdr) | [操作已配置主機〈herdr〉](configured-host.md#herdr) |
-| claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent) |
-| codex | Codex CLI | `codex` | [Codex CLI](https://developers.openai.com/codex/cli) | |
-| opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](ai-agent/opencode.md) |
-| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent/ai-agent-setup.md) |
+| claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
+| codex | Codex CLI | `codex` | [Codex CLI](https://developers.openai.com/codex/cli) | Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
+| opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](ai-agent/opencode.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
+| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent/ai-agent-setup.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#agent-configskillshare) |
 
 ## agent 輔助
 
@@ -65,7 +66,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 
 | 工具 | 做什麼 | 常用 | 官網 | 細節 |
 |---|---|---|---|---|
-| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md) |
+| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#codegraph) |
 | headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
 | playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
 | node | nvm＋Node LTS，給要 Node 的工具 | `node -v` | [nvm](https://github.com/nvm-sh/nvm) | |
@@ -76,8 +77,8 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、fastfetch、cloudflared 
 |---|---|---|---|---|
 | ffmpeg | 影音轉檔、抽音軌與影格 | `ffmpeg -i 輸入.mov 輸出.mp4` | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | |
 | snapserver | 朗讀串流服務：agent 的回覆唸到開著 Snapcast 的個人電腦 | `voice-out on`、`voice-out off` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md) |
-| snapclient | 在個人電腦收聽朗讀串流 | `snapclient --host <tailnet IP>` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md#桌機筆電termuxsnapclient) |
-| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md) |
+| snapclient | 在個人電腦（Linux、macOS、Windows、Termux）收聽朗讀串流 | `snapclient --host <tailnet IP>` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md#桌機筆電termuxsnapclient) |
+| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
 | earlyoom | 記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU | 不用打指令；砍了誰：`journalctl -u earlyoom` | [earlyoom](https://github.com/rfjakob/earlyoom) | [earlyoom](install/earlyoom.md) |
 
 ## 自寫指令

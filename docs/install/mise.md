@@ -7,7 +7,7 @@ Termux 走 `pkg`、macOS 走 `brew`，不用這份。
 
 ```text
 有勾才裝，清單看 home/.chezmoidata/packages.yaml 的 miseTools
-├─ 每台 Linux：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd（單一執行檔）
+├─ 每台 Linux：eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、ttyd（單一執行檔）
 └─ 只有 apt 用不了時（沒有 root、非 Debian 系）：vim、ffmpeg、poppler、gh、code-server
    有 root 時這幾個走 apt 或官方 .deb
 ```

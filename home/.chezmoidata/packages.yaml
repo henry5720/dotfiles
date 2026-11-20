@@ -76,7 +76,7 @@ toolPackages:
       - fonts-noto-cjk
       - fonts-noto-color-emoji
   # 原生 Termux:termux-packages 主 repo 有的都走 pkg(Linux 上 eza、fzf 這些由 mise 裝,見下面 miseTools)。
-  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、tailscale、code-server、coding agent…)
+  # 主 repo 沒有、或官方 installer 沒在 Termux 驗過的(btop、bottom、tailscale、code-server、coding agent…)
   # 在 .chezmoitemplates/tool-env 標裝不了,不列。Node 不在這裡:見下面 nodePackages.termux。
   termux:
     zsh:
@@ -126,6 +126,8 @@ toolPackages:
       - fastfetch
     btop:
       - btop
+    bottom:
+      - bottom
     gh:
       - gh
     code-server:
@@ -150,12 +152,29 @@ toolPackages:
   windows:
     tailscale:
       - Tailscale.Tailscale
+    # snapclient 本體由 mise 裝(mise-tools,#326);snapclient.exe 要 MSVCP140、VCRUNTIME140,
+    # 官方 zip 只附 vc_redist.x64.exe 不附 DLL,由 winget 裝(machine scope,會跳 UAC)
+    snapclient:
+      - Microsoft.VCRedist.2015+.x64
+    # Windows 的 Chrome 本身就能 --headless,playwright-cli 預設的 chrome channel 也找它(#327)。
+    # 用 Google 一般 installer 的 Google.Chrome.EXE、不用企業版 MSI 的 Google.Chrome:從官網裝的 Chrome
+    # 在 winget list 對到的是 .EXE(2026-11-19 lianghua 實查),用另一個 id 會在已經有 Chrome 的機器再裝一份
+    headless-chrome:
+      - Google.Chrome.EXE
+    # skillshare init 從 agent-config 的 remote clone 要系統的 git(#321);Windows 基底沒裝 git。
+    # 已經裝過 Git for Windows 的機器 winget list 對得到,跳過;installer 預設 machine scope,會跳 UAC
+    agent-config:
+      - Git.Git
+    # claude plugin marketplace add 從 git URL clone WakaTime 的 marketplace,也要系統的 git(#324)。
+    # 跟 agent-config 一起勾時套件腳本去掉重複的 id,只裝一次
+    wakatime:
+      - Git.Git
 
 # 要 Node 的選裝工具:勾了其中一個,就由 nvm 裝 Node LTS(run_onchange_after_install-node)。
 # 選單上的 node 本身就是「只要 Node」;其他幾項沒勾 node 也會自動裝,免得漏勾讓 apply 半路失敗。
 # 判斷在 .chezmoitemplates/needs-node。
 #   node:選單上的 Node LTS(Linux、macOS 用 nvm;Termux 用 pkg 的 nodejs-lts)
-#   codegraph、playwright-cli:npm 全域套件
+#   codegraph、playwright-cli:npm 全域套件(Windows 的 codegraph 是自帶 Node 的 release bundle,見下面 nodeToolsSkip)
 #   opencode:oh-my-opencode-slim 用 npx 跑(dot_config/opencode/oh-my-opencode-slim.json)
 #   wakatime:Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
 nodeTools:
@@ -164,6 +183,11 @@ nodeTools:
   - playwright-cli
   - opencode
   - wakatime
+# 在某個 OS 上不要 Node 的 nodeTools(那裡的裝法自帶 Node):.chezmoi.os → 工具。
+#   windows 的 codegraph:mise 裝官方 release 的 bundle,自帶 Node runtime(mise-tools,#323)
+nodeToolsSkip:
+  windows:
+    - codegraph
 # 勾了 nodeTools 其中一個時一起裝的系統套件(macOS 不用)。
 # ubuntu:nvm 裝的 Node 官方 binary 要 libatomic.so.1。以前 build-essential(gcc)順帶裝了,
 #   基底拿掉它之後要自己列,不然 node 一執行就 exit 127
@@ -215,6 +239,11 @@ miseTools:
     tool: btop                      # aqua:aristocratos/btop
     cmd: btop
     always: true
+  # 跨 OS 的資源監控(#325):release 有 Windows 版,Windows 主機也由 mise 裝;指令叫 btm
+  bottom:
+    tool: bottom                    # aqua:ClementTsang/bottom
+    cmd: btm
+    always: true
   # Ubuntu 24.04 的套件庫沒有 fastfetch
   fastfetch:
     tool: fastfetch                 # aqua:fastfetch-cli/fastfetch
@@ -241,7 +270,8 @@ miseTools:
     tool: uv                        # aqua:astral-sh/uv
     cmd: uv
     always: true
-  # Claude Code 讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)
+  # Claude Code 照頁數讀 PDF 要 pdftoppm(同 toolPackages 的 poppler-utils)。Windows 也用這項(#316):
+  # 官方要 Windows 自己裝一份 poppler,conda-forge 有 win-64 的 build;claude 本體走官方 install.ps1,不在這裡
   claude:
     tool: poppler                   # conda:poppler
     cmd: pdftoppm

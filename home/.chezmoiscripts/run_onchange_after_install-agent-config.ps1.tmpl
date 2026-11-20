@@ -1,0 +1,65 @@
+{{- /* 選裝工具 agent-config 的 Windows 版(#321),Linux 那支是 install-agent-config.sh,行為對齊它(ADR 0003)。
+       沒勾就渲染成空的,chezmoi 不跑。由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
+       skillshare 走官方 install.ps1(ADR 0005;https://skillshare.runkids.cc/docs/troubleshooting/windows),
+       裝到 %LOCALAPPDATA%\Programs\skillshare\skillshare.exe,installer 自己把那個目錄加進使用者 PATH;
+       之後用 skillshare upgrade 升級。
+       是 after_:%AppData%\skillshare\config.yaml(AppData/Roaming/skillshare/modify_config.yaml)要先部署,
+       init 才會直接從 remote 拉。remote 走 HTTPS(公開 repo,新機器沒有 SSH key 也 clone 得下來)。
+       AGENT_CONFIG_REMOTE 只給測試換 remote 用,同 Linux。
+
+       1. 已經 init 過(%AppData%\skillshare\.git)就跳過,之後更新用 skillshare pull 再 sync --all
+       2. skillshare init 要系統的 git:勾 agent-config 時 install-packages-windows(before_)用 winget 裝 Git.Git,
+          但這個 process 的 PATH 是 apply 開始時的,先把登錄檔裡的 Machine、User PATH 接上,才找得到剛裝的 git
+       3. 沒有官方位置的 skillshare.exe 就裝(.chezmoitemplates/ps1-official-installer,同 install-claude.ps1);
+          裝好沒有看 skillshare.exe 在不在,不看 exit code
+       4. 從 remote init,再 install -g、sync --all(同 Linux:單講 sync 不含 MCP 與 extras)。
+          targets 由 config.yaml 決定,init 明講 --no-targets。指令檔(extras)沒開 Developer Mode 時
+          skillshare 自動改成複製,不用設定(官方 troubleshooting/windows 的 file links 那節)
+       任何一步失敗只印一行、exit 0(同 Windows 其他腳本:不然 apply 中止,排在後面的腳本全不會跑)。
+       代價是不會自動重試,要照印出來的指令自己跑。 */ -}}
+{{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- $url := "https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1" -}}
+{{ includeTemplate "ps1-text" . }}
+$dir = Join-Path $env:APPDATA 'skillshare'
+$remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/henry5720/agent-config.git' }
+$ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
+$manual = "skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets; skillshare install -g; skillshare sync --all"
+
+if (Test-Path (Join-Path $dir '.git')) {
+    Write-Host ((T '{{ "agent-config 已安裝({0}),跳過。更新:skillshare pull; skillshare sync --all" | b64enc }}') -f $dir)
+    exit 0
+}
+
+$env:Path = $env:Path + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host (T '{{ "skillshare 要 git,這台找不到。winget install --id Git.Git --exact 之後,開新的 shell 跑:" | b64enc }}')
+    Write-Host "  $manual"
+    exit 0
+}
+
+if (-not (Test-Path $ss)) {
+{{ includeTemplate "ps1-official-installer" (dict "url" $url) | indent 4 }}
+    if (-not (Test-Path $ss)) {
+        Write-Host ((T '{{ "skillshare 沒裝好,之後自己跑:irm {0} | iex,再開新的 shell 跑:" | b64enc }}') -f '{{ $url }}')
+        Write-Host "  $manual"
+        exit 0
+    }
+}
+
+if (-not (Test-Path (Join-Path $dir 'config.yaml'))) {
+    Write-Host ((T '{{ "找不到 {0},沒有 init" | b64enc }}') -f (Join-Path $dir 'config.yaml'))
+    exit 0
+}
+function Invoke-Skillshare {
+    & $ss @args
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ((T '{{ "skillshare {0} 失敗,之後自己跑:" | b64enc }}') -f $args[0])
+        Write-Host "  $manual"
+        exit 0
+    }
+}
+Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets
+Invoke-Skillshare install -g
+Invoke-Skillshare sync --all
+exit 0
+{{ end -}}

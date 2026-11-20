@@ -150,7 +150,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 | Debian 系 Linux（含 WSL） | apt 的 `snapclient` | apply 會停用套件自帶的系統服務（開機自動啟動、靠 mDNS 找伺服器，過不了 tailnet） |
 | 原生 Termux | pkg 的 `snapcast-client` | 跟著裝 pulseaudio，出聲靠它 |
 | macOS | brew 的 `snapcast` | |
-| Windows | 裝不了，手動下載 | 見下面 [Windows](#windows手動下載) |
+| Windows | mise 裝官方 release 的 `snapclient_win64.zip`，winget 補 VC++ runtime | 見下面 [Windows](#windows) |
 
 非 Debian 系 Linux 裝不了（只走 apt）；平板的 proot Ubuntu 標不建議（沒有音效裝置，到同一台的原生 Termux 勾，或用 Snapcast app）。
 
@@ -187,17 +187,18 @@ systemctl --user enable --now snapclient
 伺服器沒開（`voice-out off`）時 snapclient 會一直重連，不用重啟它。Termux、macOS 沒有對應做法，要聽時手動開；
 Android 要常駐就用上面的 Snapcast app。
 
-### Windows：手動下載
+### Windows
 
-winget 沒有 snapclient，選單標裝不了。官方有 Windows 版：
+勾 `snapclient` 後 apply 會裝兩樣（#326）：
 
-1. 下載 Snapcast [release](https://github.com/badaix/snapcast/releases) 的 `snapclient_win64.zip`。
-2. 解開到 `$HOME\.local\opt\snapclient`。只需要 `snapclient.exe` 與同層的 `.dll`；
-   跑起來說缺 `VCRUNTIME` 的 DLL 時，才裝 zip 裡附的 `vc_redist.x64.exe`。
-3. 在 PowerShell 用 `&` 呼叫（路徑放在引號裡，PowerShell 要 `&` 才會執行）：
+- mise 從 Snapcast 的 GitHub [release](https://github.com/badaix/snapcast/releases) 裝 `snapclient_win64.zip`
+  （winget、mise registry 都沒有 Snapcast，`home/.chezmoitemplates/mise-tools` 直接點名這個檔）。`mise ls` 看得到 `github:badaix/snapcast`。
+- winget 裝 `Microsoft.VCRedist.2015+.x64`：`snapclient.exe` 要 MSVC runtime，zip 沒附那幾個 DLL。這一步會跳 UAC；已經裝過就跳過。
+
+開新的 PowerShell 後跟 Linux 一樣打：
 
 ```powershell
-& "$HOME\.local\opt\snapclient\snapclient.exe" --host <tailnet IP>
+snapclient --host <tailnet IP>
 ```
 
 要登入後自動開，用工作排程器建一個「登入時」執行上面那行的工作（會留一個主控台視窗）。這段還沒在 Windows 實機驗過。

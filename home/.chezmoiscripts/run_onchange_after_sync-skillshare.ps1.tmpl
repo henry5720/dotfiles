@@ -1,0 +1,22 @@
+{{- /* Windows 版的 sync-skillshare(#321),Linux 那支是 sync-skillshare.sh,說明以那份為準。沒勾 agent-config 就渲染成空的。
+       config.yaml 釘的 targets、extras(.chezmoitemplates/skillshare-pinned,照勾的 client 與 OS 產生)
+       或 Windows 的 AppData/Roaming/skillshare/modify_config.yaml 本身改了,就跑 skillshare sync --all:新勾的 client 拿到 skills、MCP、指令檔。
+       兩個 hash 寫在下面的註解,內容變了 run_onchange_ 才重跑(同 Linux)。
+       新機器上 install-agent-config(字母序在前)的 sync --all 已經做過,這裡再跑一次無害。
+       沒開 Developer Mode 時指令檔是複製的:agent-config 的內容改了(skillshare pull 之後)也要 sync --all 才會更新。
+       失敗只印一行、exit 0(同 Windows 其他腳本)。由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII。 */ -}}
+{{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+# hash: {{ include "AppData/Roaming/skillshare/modify_config.yaml" | sha256sum }}
+# pinned: {{ includeTemplate "skillshare-pinned" . | sha256sum }}
+{{ includeTemplate "ps1-text" . }}
+$ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
+if (-not (Test-Path (Join-Path $env:APPDATA 'skillshare\.git')) -or -not (Test-Path $ss)) {
+    Write-Host (T '{{ "agent-config 還沒裝好,跳過 skillshare sync" | b64enc }}')
+    exit 0
+}
+& $ss sync --all
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T '{{ "skillshare sync --all 失敗,之後自己再跑一次" | b64enc }}')
+}
+exit 0
+{{ end -}}

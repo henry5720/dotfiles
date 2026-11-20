@@ -29,12 +29,29 @@ WINDOWS_TARGETS = {
     # PowerShell 版的 tools
     ".local/bin/tools.ps1",
 }
+# 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
+# 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
+OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
     ".chezmoiscripts/install-mise.ps1",
+    # 官方 install.ps1 裝的 coding agent(claude #316、codex #317);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
+    ".chezmoiscripts/install-claude.ps1",
+    ".chezmoiscripts/install-codex.ps1",
+    # agent-config(#321):官方 install.ps1 裝 skillshare、init;config 釘的兩段變了就 sync
+    ".chezmoiscripts/install-agent-config.ps1",
+    ".chezmoiscripts/sync-skillshare.ps1",
+    # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
+    ".chezmoiscripts/install-wakatime.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
+# skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
+SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
+# henry-desktop 上 skillshare 自己存的 config.yaml(LF,勾 claude、codex、opencode、agent-config)
+SKILLSHARE_FIXTURE = ROOT / "script/tests/fixtures/windows-skillshare-config.yaml"
+# WakaTime 的 API key(#324),兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,勾了 wakatime 才部署
+WAKATIME_CFG = ".wakatime.cfg"
 # 只給 Windows 的 target(或它們的頂層目錄),Linux／Termux 不能部署
 WINDOWS_ONLY = ("Documents", "AppData", ".wslconfig")
 SCRIPTS = ROOT / "home/.chezmoiscripts"
@@ -46,9 +63,20 @@ USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 s
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)
 WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
-# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr 見 mise-tools,#309),加 winget 裝的 tailscale
+# Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
+# 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
+# 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
+# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "tailscale"}
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
+                "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
+                "wakatime"}
+# 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
+# claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
+OFFICIAL_INSTALLERS = {
+    "claude": ("https://claude.ai/install.ps1", r"Join-Path $HOME '.local\bin\claude.exe'"),
+    "codex": ("https://chatgpt.com/codex/install.ps1", r"Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'"),
+}
 
 
 def parse_jsonc(text):
@@ -91,11 +119,19 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 勾什麼都一樣:裝不了的(zsh、claude)也不會放行 sh 腳本或設定目錄
-        files = WINDOWS_TARGETS | parents(WINDOWS_TARGETS)
-        for tools in ([], WINDOWS_LEAN, sorted(WINDOWS_FULL), ["zsh", "claude", "agent-config", "tailscale"]):
+        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
+        # opencode、agent-config 勾了才放它們的設定;Linux 那份 ~/.config/skillshare 永遠不放
+        # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
+        base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
+        opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
+        skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
+        # .wakatime.cfg 要有 API key 才管(test_wakatime_cfg_managed_only_with_api_key),這裡沒帶 key
+        for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
+                             (sorted(WINDOWS_FULL), opencode | skillshare),
+                             (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
+                             (["agent-config"], skillshare), (["wakatime"], set())):
             with self.subTest(tools=tools):
-                self.assertEqual(self.managed("windows", tools), files | WINDOWS_SCRIPTS)
+                self.assertEqual(self.managed("windows", tools), base | extra)
 
     def test_linux_and_termux_skip_windows_only_targets(self):
         for os_name in ("linux", "android"):
@@ -104,6 +140,30 @@ class WindowsDeployTest(unittest.TestCase):
                     leaked = {t for t in self.managed(os_name, tools)
                               if PurePosixPath(t).parts[0] in WINDOWS_ONLY or t.endswith(".ps1")}
                     self.assertEqual(leaked, set())
+
+    def render_opencode_json(self, existing):
+        """Windows 上 chezmoi 算出的 ~/.config/opencode/opencode.json(existing = None 是檔案不存在)。"""
+        target = self.home / ".config/opencode/opencode.json"
+        if existing is not None:
+            target.parent.mkdir(parents=True)
+            target.write_text(existing, encoding="utf-8")
+        return json.loads(self.chezmoi("windows", "cat", str(target),
+                                       data={"tools": ["opencode"], "codexLbApiKey": "fixture"}))
+
+    def test_windows_opencode_json_is_repo_version_and_keeps_mcp(self):
+        # Linux 那份是 sh + jq 的 modify_ 腳本,Windows 跑不了;Windows 渲染成 modify-template(同 Terminal 的 settings.json):
+        # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
+        fresh = self.render_opencode_json(None)
+        self.assertEqual(fresh["mcp"], {})
+        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim"])
+        self.assertEqual(fresh["provider"]["codex-lb-gcp"]["options"]["apiKey"], "fixture")
+        self.assertEqual(fresh["model"], "codex-lb-gcp/gpt-6.1-sol")
+        self.assertEqual(fresh["small_model"], "codex-lb-gcp/gpt-6-luna")
+        existing = json.dumps({"mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}},
+                               "model": "someone/else", "theme": "x"})
+        kept = self.render_opencode_json(existing)
+        self.assertEqual(kept["mcp"], {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}})
+        self.assertEqual(kept, fresh | {"mcp": kept["mcp"]})
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -143,8 +203,17 @@ class WindowsDeployTest(unittest.TestCase):
                          {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "zoxide"})
 
     def test_windows_mise_skips_unsupported_and_winget_tools(self):
-        # zoxide 不看勾選;tailscale 走 winget;claude 裝不了(它的 poppler 也不裝)
-        self.assertEqual(self.mise_list(["tailscale", "claude", "btop", "gh"]), {"zoxide", "gh"})
+        # zoxide 不看勾選;tailscale 走 winget;btop 裝不了
+        self.assertEqual(self.mise_list(["tailscale", "btop", "gh"]), {"zoxide", "gh"})
+
+    def test_windows_claude_brings_poppler_for_pdf_pages(self):
+        # Claude Code 照頁數讀 PDF 要 pdftoppm,官方要 Windows 自己裝一份 poppler(#316):
+        # 勾 claude 就由 mise 裝 conda 的 poppler;claude 本體走官方 install.ps1,不進 mise
+        self.assertEqual(self.mise_list(["claude"]), {"zoxide", "poppler"})
+
+    def test_windows_codex_not_in_mise(self):
+        # codex 本體走官方 install.ps1(#317),mise 不裝;mise 裝的那份 codex update 認不出安裝方式
+        self.assertEqual(self.mise_list(["codex"]), {"zoxide"})
 
     def test_windows_herdr_installs_with_mise(self):
         # herdr 有 Windows 版,mise 的 registry 有它(#309);Linux 走官方 installer,不進 mise 清單
@@ -153,6 +222,56 @@ class WindowsDeployTest(unittest.TestCase):
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["herdr"]})
         self.assertNotIn("herdr", linux)
+
+    def test_windows_bottom_installs_with_mise_and_btop_points_to_it(self):
+        # bottom 的 release 有 Windows 版(#325);btop 只有 Linux 版,選單上叫人改勾 bottom
+        self.assertEqual(self.mise_list(["bottom", "btop"]), {"zoxide", "bottom"})
+        btop = next(l for l in self.labels() if l.startswith("btop "))
+        self.assertIn("（裝不了：", btop)
+        self.assertIn("改勾 bottom", btop)
+
+    def test_windows_playwright_cli_installs_with_mise_npm_and_node(self):
+        # #327:官方裝法是 npm 全域套件,Windows 走 mise 的 npm backend;它要 Node,沒勾 node 也列 LTS。
+        # Linux 照舊 npm-install-playwright-cli(nvm 的 npm),不進 mise 清單
+        self.assertEqual(self.mise_list(["playwright-cli"]), {"zoxide", "npm:@playwright/cli", "node"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["playwright-cli"]})
+        self.assertNotIn("playwright", linux)
+
+    def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
+        # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
+        # 點名 opencode-ai:這個套件只有 OpenCode 1,跟 Linux 的 opencode.ai/install 同一個大版本;
+        # registry 的短名 opencode 已經指到 OpenCode 2(@opencode/cli)。它要 Node,沒勾 node 也列 LTS。
+        # Linux 照舊官方 installer,不進 mise 清單
+        self.assertEqual(self.mise_list(["opencode"]), {"zoxide", "npm:opencode-ai", "node"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["opencode"]})
+        self.assertNotIn("opencode", linux)
+
+    def test_windows_opencode_runs_its_postinstall(self):
+        # mise 的 npm backend 預設不跑 lifecycle script:opencode-ai 的 bin/opencode.exe 是佔位檔,
+        # 要 postinstall 換成平台套件裡的真執行檔(henry-desktop 實測沒跑時 opencode --version 失敗)。
+        # tool option allow_builds 只放行 opencode-ai 自己的 script
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["opencode"])
+        self.assertIn('"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }', out)
+
+    def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
+        # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),
+        # 所以不連帶列 Node LTS;shim 是 codegraph.exe,MCP 設定的 command: codegraph 找得到。
+        # Linux 照舊 npm-install-codegraph(nvm 的 npm),不進 mise 清單
+        self.assertEqual(self.mise_list(["codegraph"]), {"zoxide", "codegraph"})
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["codegraph"]})
+        self.assertNotIn("codegraph", linux)
+
+    def test_windows_wakatime_brings_node_lts_for_plugin_hooks(self):
+        # #324:Claude Code、Codex 的 WakaTime plugin 用 PATH 上的 node 跑 hook,Windows 的 Node 由 mise 的 LTS 提供;
+        # wakatime-cli 不進 mise:plugin 只認 ~/.wakatime 底下官方位置那支
+        self.assertEqual(self.mise_list(["wakatime"]), {"zoxide", "node"})
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["wakatime"]).strip(), "")
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過
@@ -168,6 +287,15 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertNotIn("Tailscale.Tailscale", base)
         self.assertIn("'Tailscale.Tailscale'", self.render(script, ["tailscale"]))
 
+    def test_windows_headless_chrome_is_googles_regular_installer(self):
+        # #327:Windows 的 headless-chrome 就是 Chrome 本身(--headless)。用一般 installer 的 Google.Chrome.EXE:
+        # 從官網裝的 Chrome 在 winget list 對到它,不是企業版 MSI 的 Google.Chrome(lianghua 實查),已經有就跳過
+        script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertNotIn("Google.Chrome", self.render(script, []))
+        out = self.render(script, ["headless-chrome"])
+        self.assertIn("'Google.Chrome.EXE'", out)
+        self.assertNotIn("'Google.Chrome'", out)
+
     def test_windows_mise_script_runs_mise_install(self):
         out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", WINDOWS_LEAN)
         self.assertIn("mise install", out)
@@ -177,33 +305,255 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_skip_summary_lists_unsupported_ticked_tools(self):
         script = SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl"
         self.assertEqual(self.render(script, WINDOWS_LEAN).strip(), "")
-        out = self.render(script, ["claude", "zsh", "fzf"])
+        out = self.render(script, ["code-server", "zsh", "fzf"])
         # 中文訊息用 base64 放進腳本(渲染結果只能有 ASCII,見下一個測試)
         decoded = "\n".join(base64.b64decode(b).decode("utf-8")
                             for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
         self.assertIn("== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):", decoded)
-        self.assertIn("claude", decoded)
-        self.assertIn("安裝腳本只有 sh 版，沒在 Windows 驗過，到 WSL 裝", decoded)
+        self.assertIn("code-server", decoded)
+        self.assertIn("code-server 官方不出 Windows 版，到 WSL 裝", decoded)
         self.assertIn("zsh", decoded)
         self.assertNotIn("fzf", decoded)
 
-    def test_windows_skip_summary_points_snapclient_to_manual_zip(self):
-        # winget 沒有 snapclient(#292):勾了就略過,原因帶手動做法(官方 zip 寫在 voice-out 主題文件)
-        out = self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["snapclient"])
-        self.assertEqual(out, out.encode("ascii", "strict").decode("ascii"))
-        decoded = "\n".join(base64.b64decode(b).decode("utf-8")
-                            for b in re.findall(r"'([A-Za-z0-9+/]{8,}={0,2})'", out))
-        self.assertIn("snapclient", decoded)
-        self.assertIn("winget 沒有 snapclient", decoded)
-        self.assertIn("snapclient_win64.zip", decoded)
-        self.assertNotIn("snapclient", self.render(SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl",
-                                                   ["snapclient"]))
+    def test_windows_snapclient_installs_official_zip_with_mise_and_vcredist(self):
+        # 官方 release 的 snapclient_win64.zip(#326):mise github backend 點名這個 asset,只把 snapclient.exe
+        # 放上 PATH;exe 要 MSVC runtime、壓縮檔沒附那幾個 DLL,VC++ redistributable 由 winget 裝。勾了不再算略過
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["snapclient"])
+        self.assertIn('"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", '
+                      'filter_bins = "snapclient.exe" }', out)
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Microsoft.VCRedist.2015+.x64'", self.render(winget, ["snapclient"]))
+        self.assertNotIn("VCRedist", self.render(winget, []))
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["snapclient"]).strip(), "")
+        # Linux 照舊 apt,不進 mise 清單
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["snapclient"]})
+        self.assertNotIn("snapcast", linux)
+
+    # ===============================================================
+    # coding agent:官方 install.ps1(#316 claude、#317 codex)
+    # ===============================================================
+    def agent_script(self, tool):
+        return SCRIPTS / f"run_onchange_after_install-{tool}.ps1.tmpl"
+
+    def test_windows_agent_script_empty_when_not_ticked(self):
+        for tool in OFFICIAL_INSTALLERS:
+            others = [t for t in OFFICIAL_INSTALLERS if t != tool]
+            for tools in ([], WINDOWS_LEAN, others):
+                with self.subTest(tool=tool, tools=tools):
+                    self.assertEqual(self.render(self.agent_script(tool), tools).strip(), "")
+
+    def test_windows_agent_script_downloads_official_installer_then_runs_it(self):
+        for tool, (url, _) in OFFICIAL_INSTALLERS.items():
+            with self.subTest(tool=tool):
+                out = self.render(self.agent_script(tool), [tool])
+                # 先下載成檔案再跑:接 pipe(irm | iex)的話下載失敗看不出來
+                self.assertNotIn("| iex", out)
+                self.assertNotIn("Invoke-Expression", out)
+                download = out.index(url)
+                self.assertIn("-OutFile", out[download:])
+                self.assertLess(download, out.index("& $installer"))
+
+    def test_windows_agent_script_skips_when_official_install_exists(self):
+        # 只認官方裝的位置:mise、winget 那份(PATH 上的同名指令)不算,不然會被它擋住而不裝官方版
+        for tool, (url, exe) in OFFICIAL_INSTALLERS.items():
+            with self.subTest(tool=tool):
+                out = self.render(self.agent_script(tool), [tool])
+                self.assertIn(f"Test-Path ({exe})", out)
+                self.assertLess(out.index("Test-Path"), out.index(url))
+                self.assertNotIn(f"Get-Command {tool}", out)
+
+    def test_windows_codex_installer_runs_non_interactive(self):
+        # 官方 install.ps1 最後會問「Start Codex now?」(Read-Host),apply 會停在那裡;CODEX_NON_INTERACTIVE=1 才不問
+        out = self.render(self.agent_script("codex"), ["codex"])
+        self.assertLess(out.index("$env:CODEX_NON_INTERACTIVE = '1'"), out.index("& $installer"))
+
+    # ===============================================================
+    # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
+    # ===============================================================
+    WAKATIME_SCRIPT = SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl"
+
+    def test_windows_wakatime_script_empty_when_not_ticked(self):
+        for tools in ([], WINDOWS_LEAN, ["claude", "codex"]):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.render(self.WAKATIME_SCRIPT, tools).strip(), "")
+
+    def test_windows_wakatime_cli_goes_to_official_location(self):
+        # 兩個 plugin 找 %USERPROFILE%\.wakatime\wakatime-cli-windows-<arch>.exe(官方 release 的 zip 裡就是這個檔名);
+        # 已經有就跳過,在下載之前
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime"])
+        self.assertIn("$dir = Join-Path $HOME '.wakatime'", out)
+        self.assertIn("'wakatime-cli-windows-amd64.exe'", out)
+        url = "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-windows-amd64.zip"
+        download = out.index(url)
+        self.assertLess(out.index("Test-Path $bin"), download)
+        self.assertIn("-OutFile", out[download:])
+        self.assertLess(download, out.index("Expand-Archive"))
+        # codex 的 plugin 在 Windows 把 wakatime-cli.exe 做成複製(Linux 是 symlink)
+        self.assertIn("Join-Path $dir 'wakatime-cli.exe'", out)
+
+    def test_windows_wakatime_plugins_only_for_ticked_agents(self):
+        claude = "plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git"
+        codex = "plugin marketplace add wakatime/codex-cli-wakatime"
+        for tools, want in ((["wakatime"], set()), (["wakatime", "claude"], {claude}),
+                            (["wakatime", "codex"], {codex}), (["wakatime", "claude", "codex"], {claude, codex})):
+            with self.subTest(tools=tools):
+                out = self.render(self.WAKATIME_SCRIPT, tools)
+                self.assertEqual({c for c in (claude, codex) if c in out}, want)
+
+    def test_windows_wakatime_plugins_skip_when_installed(self):
+        # 已裝就跳過(重跑也只印 already,但會連 GitHub);判斷照 plugin list --json 的欄位,同 Linux
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime", "claude", "codex"])
+        for listing, plugin_id, install in (
+                ("Get-PluginList $claude", "'claude-code-wakatime@wakatime'",
+                 "& $claude plugin install claude-code-wakatime@wakatime"),
+                ("(Get-PluginList $codex).installed", "'codex-cli-wakatime@wakatime'",
+                 "& $codex plugin add codex-cli-wakatime@wakatime")):
+            with self.subTest(plugin=plugin_id):
+                self.assertLess(out.index(listing), out.index(plugin_id))
+                self.assertLess(out.index(plugin_id), out.index(install))
+        # 找不到 agent 時找官方 installer 裝的位置(chezmoi 跑腳本的 PATH 不一定有)
+        self.assertIn(r"Join-Path $HOME '.local\bin\claude.exe'", out)
+        self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'", out)
+
+    def test_wakatime_cfg_managed_only_with_api_key(self):
+        # 沒填 API key(或沒問過)時 chezmoi 不管 ~/.wakatime.cfg。管了又渲染成空的,chezmoi 會把現有的檔刪掉:
+        # henry-desktop 第一次 init 時 key 留空,原本能用的 .wakatime.cfg 就這樣被刪(#324)。
+        # Linux 用同一份樣板,同樣要擋
+        for os_name in ("windows", "linux"):
+            for data in ({"tools": ["wakatime"]}, {"tools": ["wakatime"], "wakatimeApiKey": ""}):
+                with self.subTest(os=os_name, data=data):
+                    managed = set(self.chezmoi(os_name, "managed", data=data).split())
+                    self.assertNotIn(WAKATIME_CFG, managed)
+            with self.subTest(os=os_name, key="set"):
+                data = {"tools": ["wakatime"], "wakatimeApiKey": "waka_fixture"}
+                self.assertIn(WAKATIME_CFG, set(self.chezmoi(os_name, "managed", data=data).split()))
+                self.assertIn("api_key = waka_fixture",
+                              self.chezmoi(os_name, "cat", str(self.home / WAKATIME_CFG), data=data))
+
+    # ===============================================================
+    # agent-config:官方 install.ps1 裝 skillshare,init 後 sync(#321)
+    # ===============================================================
+    AGENT_SCRIPTS = (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl",
+                     SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl")
+
+    def test_windows_agent_config_scripts_empty_when_not_ticked(self):
+        for script in self.AGENT_SCRIPTS:
+            for tools in ([], WINDOWS_LEAN, ["claude"]):
+                with self.subTest(script=script.name, tools=tools):
+                    self.assertEqual(self.render(script, tools).strip(), "")
+
+    def test_windows_agent_config_skips_initialized_then_installs_official_then_inits(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        # 已經 init 過(%AppData%\skillshare\.git)就跳過,在下載之前
+        skip = out.index("Join-Path $dir '.git'")
+        self.assertIn("$dir = Join-Path $env:APPDATA 'skillshare'", out)
+        url = "https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1"
+        download = out.index(url)
+        self.assertLess(skip, download)
+        # 先下載成檔案再跑,不接 pipe
+        self.assertIn("-OutFile", out[download:])
+        self.assertNotIn("| iex", out)
+        self.assertNotIn("Invoke-Expression", out)
+        run = out.index("& $installer")
+        self.assertLess(download, run)
+        # 官方 installer 裝的位置
+        self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'", out)
+        # remote 走 HTTPS,init 不照 --targets 加,最後 sync --all(含 MCP 與指令檔)
+        self.assertIn("'https://github.com/henry5720/agent-config.git'", out)
+        steps = [out.index(s) for s in ("Invoke-Skillshare init --git-root root --remote $remote --no-copy "
+                                        "--no-skill --no-targets\n", "Invoke-Skillshare install -g\n",
+                                        "Invoke-Skillshare sync --all\n")]
+        self.assertEqual(steps, sorted(steps))
+        self.assertLess(run, steps[0])
+
+    def test_windows_agent_config_brings_git_for_skillshare_init(self):
+        # skillshare init --remote 要系統的 git;Windows 基底沒有,勾 agent-config 由 winget 裝(已經有就跳過)
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Git.Git'", self.render(winget, ["agent-config"]))
+        self.assertNotIn("Git.Git", self.render(winget, []))
+        # 剛裝的 git 不在 apply 這個 process 的 PATH:install-agent-config 先接上登錄檔的 PATH 再找 git
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"), out.index("Get-Command git"))
+
+    def test_windows_wakatime_brings_git_for_plugin_marketplace(self):
+        # claude plugin marketplace add <git URL> 要系統的 git:勾 wakatime 也由 winget 裝 Git.Git;
+        # 跟 agent-config 一起勾只裝一次
+        winget = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertEqual(self.render(winget, ["claude", "wakatime"]).count("'Git.Git'"), 1)
+        self.assertEqual(self.render(winget, ["agent-config", "claude", "wakatime"]).count("'Git.Git'"), 1)
+        # 剛裝的 git 不在 apply 這個 process 的 PATH:先接上登錄檔的 PATH 再叫 claude 加 marketplace
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime", "claude"])
+        self.assertLess(out.index("GetEnvironmentVariable('Path', 'Machine')"),
+                        out.index("& $claude plugin marketplace add"))
+
+    def test_windows_skillshare_sync_reruns_when_checked_clients_change(self):
+        # run_onchange_:釘的 targets、extras 照勾的 client 產生,勾選變了腳本內容就變,chezmoi 才重跑 sync --all
+        script = SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl"
+        only_claude = self.render(script, ["agent-config", "claude"])
+        self.assertIn("& $ss sync --all", only_claude)
+        self.assertNotEqual(only_claude, self.render(script, ["agent-config", "claude", "codex"]))
+        self.assertEqual(only_claude, self.render(script, ["agent-config", "claude", "fzf"]))
+
+    # ===============================================================
+    # Windows 的 Git 預設 core.autocrlf=true:source checkout 成 CRLF,modify-template 的輸出不能跟著帶 \r
+    # ===============================================================
+    def crlf_source(self):
+        """repo 的 home/ 複製一份、文字檔換成 CRLF,模擬 Windows 上 autocrlf=true 的 checkout。"""
+        src = Path(self.tmp.name) / "crlf-source"
+        (src / "home").mkdir(parents=True)
+        (src / ".chezmoiroot").write_bytes((ROOT / ".chezmoiroot").read_bytes())
+        for f in (ROOT / "home").rglob("*"):
+            dest = src / f.relative_to(ROOT)
+            if f.is_dir():
+                dest.mkdir(parents=True, exist_ok=True)
+                continue
+            data = f.read_bytes()
+            if b"\0" not in data:
+                data = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+            dest.write_bytes(data)
+        return src
+
+    def cat_bytes(self, target, existing, tools, source):
+        """把 existing(bytes)放到 target,回傳 chezmoi cat 算出的 bytes。"""
+        path = self.home / target
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(existing)
+        info = {"os": "windows", "homeDir": str(self.home), "kernel": {"osrelease": ""}}
+        return subprocess.run([
+            "chezmoi", "--no-tty", "--source", str(source), "--config", str(self.cfg),
+            "--destination", str(self.home), "--override-data",
+            json.dumps({"chezmoi": info, "tools": tools, "codexLbApiKey": "fixture"}), "cat", str(path),
+        ], stdin=subprocess.DEVNULL, capture_output=True, check=True).stdout
+
+    def test_windows_skillshare_config_keeps_skillshare_bytes_from_crlf_checkout(self):
+        # skillshare 存的檔案(LF)已經是釘的內容:CRLF 或 LF 的 checkout 渲染出來都要逐 byte 一樣,chezmoi diff 才是空的
+        saved = SKILLSHARE_FIXTURE.read_bytes()
+        tools = ["agent-config", "claude", "codex", "opencode"]
+        for name, source in (("lf", ROOT), ("crlf", self.crlf_source())):
+            with self.subTest(checkout=name):
+                once = self.cat_bytes(SKILLSHARE_CONFIG, saved, tools, source)
+                self.assertEqual(once, saved)
+                self.assertEqual(self.cat_bytes(SKILLSHARE_CONFIG, once, tools, source), once)
+
+    def test_windows_opencode_json_has_no_cr_from_crlf_checkout(self):
+        # toPrettyJson 的輸出是 LF;樣板自己的換行不能漏進來(CRLF checkout 會在檔尾多一個 \r\n)
+        target = ".config/opencode/opencode.json"
+        lf = self.cat_bytes(target, b"", ["opencode"], ROOT)
+        self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
+        self.assertEqual(self.cat_bytes(target, b"", ["opencode"], self.crlf_source()), lf)
 
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
-                            (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["claude", "zsh"]),
+                            (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
+                            (SCRIPTS / "run_onchange_after_install-codex.ps1.tmpl", ["codex"]),
+                            (SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl", ["wakatime", "claude", "codex"]),
+                            (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
+                            (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
+                            (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):
                 out = self.render(path, tools)
@@ -268,12 +618,22 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn('\n    machineUse = "full"\n', out)
         self.assertEqual(set(self.tools_of(out)), WINDOWS_FULL)
 
+    def test_windows_codegraph_menu_says_bundle_without_node(self):
+        # Windows 的 codegraph 是 mise 裝自帶 Node 的 release bundle(#323):選單不能說 npm 裝、一併裝 Node,
+        # node 那項也不能說勾了 codegraph 會自動裝
+        labels = self.labels()
+        codegraph = next(l for l in labels if l.startswith("codegraph "))
+        self.assertNotIn("npm", codegraph)
+        self.assertNotIn("Node", codegraph)
+        node = next(l for l in labels if l.startswith("node "))
+        self.assertNotIn("codegraph", node)
+
     def test_windows_menu_lists_every_tool_and_marks_the_rest(self):
         labels = self.labels()
         menu = {l.split(" ")[0] for l in labels}
         marked = {l.split(" ")[0] for l in labels if "（裝不了：" in l}
         self.assertEqual(menu - marked, WINDOWS_FULL)
-        self.assertTrue({"zsh", "btop", "headless-chrome", "claude"} <= marked)
+        self.assertTrue({"zsh", "btop", "code-server"} <= marked)
 
     def test_windows_runs_ps1_scripts_with_powershell_bypassing_policy(self):
         # 第一次 init 時 pwsh 可能還沒裝、執行原則可能是 Restricted:固定用 5.1,只對這個 process 繞過執行原則

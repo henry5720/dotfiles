@@ -17,14 +17,22 @@ git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `ho
 | `home/dot_local/bin/tools.ps1.tmpl` | `%USERPROFILE%\.local\bin\tools.ps1` | `tools` 指令：重選用途與選裝工具，勾完直接裝 |
 | `home/Documents/PowerShell/Profile.ps1.tmpl` | `Documents\PowerShell\Profile.ps1` | pwsh 7 的 all-hosts profile |
 | `home/Documents/WindowsPowerShell/Profile.ps1.tmpl` | `Documents\WindowsPowerShell\Profile.ps1` | Windows PowerShell 5.1 的 all-hosts profile |
+| `home/dot_config/opencode/modify_private_opencode.json.tmpl`、`oh-my-opencode-slim.json` | `%USERPROFILE%\.config\opencode\` | 勾了 opencode 才部署，跟 Linux 同一份設定（provider、model、plugin、oh-my-opencode-slim 的 preset）；`opencode.json` 的 `mcp` 照現有檔案留著。`routes\personal` 不部署（`opencode-personal` 只有 Linux） |
 | `home/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/modify_settings.json` | `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`（Store 版 Windows Terminal） | 只改兩個值：預設設定檔是 pwsh 7、預設字型是 Hack Nerd Font；其餘照 Terminal 自己寫的保留，兩個值都對時一個 byte 都不動 |
+| `home/private_dot_wakatime.cfg.tmpl`（勾了 wakatime、填了 API key 才部署） | `%USERPROFILE%\.wakatime.cfg` | WakaTime 的 API key，跟 Linux 同一份；兩個 plugin 都讀這裡 |
+| `home/AppData/Roaming/skillshare/modify_config.yaml`（勾了 agent-config 才部署） | `%AppData%\skillshare\config.yaml` | skillshare 的設定：只釘 `targets`、`extras` 兩段（照勾的 client 產生，跟 Linux 同一份樣板，路徑換成 Windows 的），其餘照 skillshare 寫的保留 |
 
 apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不會到 Windows）：
 
 ```text
 before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
 （部署上面的檔案）
+after   install-agent-config.ps1       勾了 agent-config 才跑：官方 install.ps1 裝 skillshare，從 agent-config init、sync（已經有 %AppData%\skillshare\.git 就跳過）
+after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
+after   install-codex.ps1              勾了 codex 才跑：下載官方 install.ps1 再執行（已經有 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   install-wakatime.ps1           勾了 wakatime 才跑：wakatime-cli 放到 .wakatime\（已經有就跳過），再為勾了的 claude、codex 裝 WakaTime plugin（已裝就跳過）
+after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
 ```
 
@@ -42,7 +50,8 @@ Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經�
 
 ## 裝了什麼、怎麼用
 
-CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝：
+CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝，
+官方有會自己更新的 installer 的（coding agent）走官方 installer（[ADR 0005](../adr/0005-install-method-by-tool-kind.md)）：
 
 | 工具 | 怎麼裝 | 什麼時候裝 | 常用 |
 |---|---|---|---|
@@ -55,16 +64,71 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | gh、cloudflared、ttyd、ffmpeg | mise | 完整或自己勾 | |
 | node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 用 nvm 裝，Windows 改用 mise |
 | herdr | mise | 完整或自己勾 | 終端機多工，不搭 coding agent 也能用：`herdr` 開、`ctrl+b q` 離開、再打 `herdr` 接回去 |
+| bottom | mise | 完整或自己勾 | 資源監控：`btm` 開、`q` 離開。btop 在 Windows 裝不了（release 只有 Linux 版），改用它 |
+| snapclient | mise（官方 release 的 zip）＋ winget（VC++ runtime） | 完整或自己勾 | 收聽朗讀串流：`snapclient --host <tailnet IP>`；VC++ runtime 會跳 UAC。見 [voice-out](../remote-access/voice-out.md#windows) |
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
+| headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
+| playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
+| opencode | mise（npm backend 的 `opencode-ai`，會一併列 Node LTS） | 完整或自己勾 | OpenCode 沒有 Windows 的 `install.ps1`，官方文件列了 npm 與 mise；`opencode-ai` 是 OpenCode 1，跟 Linux 那份同一個大版本。它的 postinstall 才會放上真的 `opencode.exe`，清單用 `allow_builds` 放行（mise 預設不跑）；在放行之前裝過的，`opencode --version` 會說 postinstall 沒跑，`mise install -f npm:opencode-ai` 重裝一次。更新跑 `mise upgrade`（`opencode upgrade` 認不出 mise 裝的）。設定見上面的部署表；commit 指引、MCP 要勾 agent-config |
+| codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見下面〈codegraph〉 |
+| agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
+| claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
+| codex | 官方 [`install.ps1`](https://learn.chatgpt.com/docs/codex/cli)（Windows 分頁） | 完整或自己勾 | 裝到 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`（本體在 `%USERPROFILE%\.codex\packages\standalone`），installer 自己把它加進使用者 PATH；更新打 `codex update`，開 `codex` 時有新版也會問要不要更新（兩者都是重跑官方 install.ps1）；第一次打 `codex` 照瀏覽器登入。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
+| wakatime | 官方 release 的 zip 放到 `%USERPROFILE%\.wakatime\`（不走 mise）＋ 勾了的 agent 用官方的兩行指令裝 plugin（會一併列 Node LTS；marketplace 要 git，winget 裝 `Git.Git`，已經有就跳過、會跳 UAC） | 完整或自己勾 | 跟 Linux 一樣，見 [WakaTime](../ai-agent/wakatime.md)。plugin 只認 `.wakatime\wakatime-cli-windows-<arch>.exe`，之後由 plugin 自己更新；`wakatime-cli.exe` 是複製一份（Linux 是 symlink）。plugin 的 hook 用 PATH 上的 `node`（mise 的 shims，PowerShell profile 加進 PATH），從不讀 profile 的地方開 agent 可能找不到 node、送不出紀錄 |
 
-zsh、btop、code-server、coding agent（claude、codex、opencode）、codegraph、wakatime、headless-chrome、
-playwright-cli、agent-config、snapserver、snapclient 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
-這個 repo 給它們的安裝腳本只有 sh 版、沒在 Windows 驗過，或工具本身沒有 Windows 版。
+zsh、btop、code-server、earlyoom、
+snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+工具本身沒有 Windows 版，或不適用 Windows（zsh：Windows 的 shell 是 PowerShell）。
 勾了也不會中斷 apply，最後列出略過了哪些。
-snapclient 例外：winget 沒有，但官方有 Windows 版，手動下載（見 [voice-out](../remote-access/voice-out.md#windows手動下載)）。
 
 要加減工具打 `tools`（PowerShell 版，做的事跟 Linux 一樣：重問用途、重出選單、勾完直接 apply）；取消勾選不會解除安裝，
-移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`。
+移除用 `mise uninstall <工具>` 或 `winget uninstall --id <id>`；官方 installer 裝的照它官方文件的 Uninstall 段
+（claude 是[這裡](https://code.claude.com/docs/en/setup#uninstall-claude-code)）；codex 的官方文件沒寫 Windows 怎麼移除，
+照 installer 放的位置刪 `%LOCALAPPDATA%\Programs\OpenAI\Codex`、`%USERPROFILE%\.codex\packages\standalone`，再從使用者 PATH 拿掉
+`%LOCALAPPDATA%\Programs\OpenAI\Codex\bin`。
+以前用 mise 或 winget 試裝過 claude 的，裝好官方那份後把舊的移掉（`mise uninstall claude` 並從 mise 設定拿掉、
+`winget uninstall Anthropic.ClaudeCode`），一台只留一份。profile 讓 `.local\bin` 排在 mise 的 shims 前面，打 `claude` 會先找到官方那份，
+但 CMD 這類不讀 profile 的地方可能找到舊的，而且舊的不會自己更新。
+
+以前用 mise 試裝過 codex 的（例如 henry-laptop 的 0.170.0），一定要移掉：profile 把 mise 的 shims 排在 PATH 最前面，
+官方那份在使用者 PATH，打 `codex` 會先找到 mise 那份，而它不會自己更新、`codex update` 也認不出安裝方式。
+`mise ls` 找出那一項的名字（例如 `codex`、`npm:@openai/codex`），`mise unuse -g <那一項>` 從設定拿掉並移除，
+再開新的 shell 確認 `(Get-Command codex).Source` 是 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`。
+
+### codegraph
+
+官方的 Windows 裝法是 `install.ps1` 或 npm，加上 mise 三種裝的都是同一個 release bundle。這裡用 mise（#323）：
+mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定（`command: codegraph`）不經 shell 也找得到；
+`install.ps1` 只在 PATH 放 `codegraph.cmd`。
+
+**Windows 上不要跑 `codegraph install -t claude`。** 它在 `~/.claude/settings.json` 加的 `UserPromptSubmit` hook
+在 Windows 寫成 `codegraph.cmd prompt-hook`（Claude Code 用 Git Bash 跑 hook，Git Bash 不補 `.cmd`，上游 #1466），
+mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
+少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
+
+同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
+Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
+
+### agent-config（skillshare）
+
+做的事跟 Linux 一樣（[ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md)）：skillshare 把 agent-config 的
+skills 同步到勾了的 client、MCP 寫進各 client、指令檔（`CLAUDE.md`、`AGENTS.md`、commit 指引）放到各 client 讀的位置。
+跟 Linux 不同的地方：
+
+| | Linux | Windows |
+|---|---|---|
+| skillshare 本體 | `~/.local/bin/skillshare` | `%LOCALAPPDATA%\Programs\skillshare\skillshare.exe`（installer 加進使用者 PATH，新開的 shell 才找得到） |
+| 設定與 agent-config 的 clone | `~/.config/skillshare` | `%AppData%\skillshare`（skillshare 在 Windows 的位置；Windows 上不要放 `~\.config\skillshare`，skillshare 會把它整個搬過去） |
+| skills | 連結 | 目錄用 junction，不用 Developer Mode |
+| 指令檔 | 連結 | 有開 Developer Mode 是連結；沒開時 skillshare 自動改成複製，`skillshare status` 顯示 `copy` |
+
+指令檔是複製的時候，agent-config 的內容改了不會馬上到：`skillshare pull` 之後一定要 `skillshare sync --all`
+（Linux 也是這兩步，只是連結看不出差別）。之後開了 Developer Mode，再 `sync --all` 一次就換成連結。
+
+多勾一個 client 後 apply，`sync-skillshare.ps1` 會重新 sync，新的 client 拿到 skills 與指令檔。
+`skillshare upgrade` 升級 skillshare 本身。哪些 skill 在 Windows 跑不了、卡在哪，見[Windows 上的 skill](windows-skills.md)。
+
+### PowerShell
 
 PowerShell 內建的 PSReadLine 給的，不用設：
 

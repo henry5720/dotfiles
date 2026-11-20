@@ -1,0 +1,29 @@
+{{- /* 選裝工具 Codex CLI 的 Windows 版(#317),Linux 那支是 install-codex.sh。沒勾就渲染成空的,chezmoi 不跑。
+       結構同 install-claude.ps1(#316),換掉下面兩個值,另外多一步 CODEX_NON_INTERACTIVE。
+       裝法照 ADR 0005:官方 install.ps1(https://learn.chatgpt.com/docs/codex/cli 的 Windows 分頁),
+       本體在 %USERPROFILE%\.codex\packages\standalone,%LOCALAPPDATA%\Programs\OpenAI\Codex\bin 是指過去的 junction。
+       installer 自己把那個 bin 加進使用者 PATH,新開的 pwsh 與 5.1 都讀得到,profile 不用補。
+       更新:官方的更新指令就是重跑 install.ps1;codex update、TUI 的新版提示也是跑它(只認得官方裝的那份)。
+       由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
+
+       1. 已經裝過就跳過。只認官方裝的位置:PATH 上的 codex 可能是 mise、npm 那份,認了就永遠裝不到官方版
+       2. 下載官方腳本成檔案、在同一個 process 跑(.chezmoitemplates/ps1-official-installer)。
+          CODEX_NON_INTERACTIVE=1:installer 最後會問「Start Codex now?」(Read-Host),apply 會停在那裡等人回答。
+          官方腳本出錯是 throw(ErrorActionPreference Stop)
+          或 exit 1,兩種都接住。裝失敗只印一行、exit 0:不然 apply 中止。代價是不會自動重試,要自己照印出來的指令裝
+       移除:官方文件沒寫,見 docs/install/windows.md。 */ -}}
+{{- if has "codex" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{- $name := "Codex CLI" -}}
+{{- $url := "https://chatgpt.com/codex/install.ps1" -}}
+{{ includeTemplate "ps1-text" . }}
+if (Test-Path ({{ includeTemplate "ps1-agent-exe" "codex" }})) {
+    Write-Host ((T '{{ "{0} 已安裝,跳過" | b64enc }}') -f '{{ $name }}')
+    exit 0
+}
+
+{{ includeTemplate "ps1-official-installer" (dict "url" $url "env" (dict "CODEX_NON_INTERACTIVE" "1")) }}
+if ($code -ne 0) {
+    Write-Host ((T '{{ "{0} 沒裝好,之後自己跑:irm {1} | iex" | b64enc }}') -f '{{ $name }}', '{{ $url }}')
+}
+exit 0
+{{ end -}}
