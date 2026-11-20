@@ -1,10 +1,12 @@
 {
+  "elementOrder": ["project", "addedDirs", "context", "usage", "memory", "promptCache", "cacheHitRate", "environment", "tools", "skills", "mcp", "agents", "todos", "sessionTime"],
   "display": {
     "showTodos": true,
-    "showSessionName": true,
     "showAddedDirs": false,
     "showTokenBreakdown": false,
     "showMemoryUsage": true,
-    "sevenDayThreshold": 0
+    "sevenDayThreshold": 0,
+    "usageCompact": true,
+    "mergeGroups": [["context", "usage", "memory"]]
   }
 }
