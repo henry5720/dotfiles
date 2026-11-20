@@ -13,22 +13,22 @@ btop             終端機看 CPU、記憶體、行程（裝不了：Termux 的 
 bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用（裝不了：termux-packages 沒有 bottom，到 proot Ubuntu 裝）
 earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：平板上沒有 systemd，保護不了保留服務與常駐服務）
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login [pkg]
-code-server      瀏覽器開的 VS Code（裝不了：termux-packages 沒有，到 proot Ubuntu 裝）
+code-server      瀏覽器開的 VS Code（裝不了：官方的 Termux 裝法要另加 TUR 套件庫）
 tailscale        私人 VPN,連自己的機器（裝不了：原生 Termux 裝 Tailscale 的 Android app）
 cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [pkg]
-herdr            終端機多工,同時開多個 coding agent（裝不了：官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝）
+herdr            終端機多工,同時開多個 coding agent（裝不了：官方 installer 擋 Android，release 沒有 Android 版，npm 上的 herdr 是佔名的空套件）
 ttyd             把終端機開成網頁,share-shell 用 [pkg]
 wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
-claude           Claude Code CLI（裝不了：官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝）
-codex            Codex CLI（裝不了：官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝）
-opencode         OpenCode CLI(會一併裝 Node)（裝不了：官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝）
+claude           Claude Code CLI（裝不了：官方沒有 Android 版，npm 版也沒有 Android 的執行檔）
+codex            Codex CLI [pkg]
+opencode         OpenCode CLI(會一併裝 Node)（裝不了：官方沒有 Android 版，npm 版限定 macOS、Linux、Windows，Termux 的 npm 拒裝）
 ffmpeg           影音轉檔、抽音軌與影格 [pkg]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [pkg]
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [pkg]
-codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝）
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有）
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：原生 Termux 裝不了 Google 的 .deb）
-playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)（裝不了：Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo)（裝不了：給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝）
 
 ## init 存下的設定
@@ -108,7 +108,7 @@ fi
 rm -f "$d/env-skipped"
 if [ -s "$d/root-skipped" ]; then
   echo
-  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
   cat "$d/root-skipped"
 fi
 rm -f "$d/root-skipped"
@@ -124,10 +124,11 @@ set -eu
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
 }
@@ -137,7 +138,7 @@ skip_env() {  # skip_env <工具> <原因>
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }
 
-skip_env 'opencode' '官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝'
+skip_env 'opencode' '官方沒有 Android 版，npm 版限定 macOS、Linux、Windows，Termux 的 npm 拒裝'
 
 ### .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
 #!@BIN@/sh

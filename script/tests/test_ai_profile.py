@@ -180,14 +180,7 @@ class AiProfileTest(unittest.TestCase):
         self.assertEqual(omo["autoUpdate"], False)
         self.assertEqual(omo["$schema"], company["$schema"])
 
-    def test_personal_opencode_route_denies_company_imagegen_skill(self):
-        with tempfile.TemporaryDirectory() as d:
-            cfg = Path(d) / "data.toml"
-            cfg.write_text('[data.aiPersonal.models]\nastra="astra"\nluna="luna"\n', encoding="utf-8")
-            rendered = json.loads(subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl").read_bytes()))
-        self.assertEqual(rendered["permission"]["skill"]["company-imagegen-fallback"], "deny")
-
-    def test_personal_codex_skill_deny_renders_valid_and_idempotent_toml(self):
+    def test_personal_codex_config_renders_valid_and_idempotent_toml(self):
         with tempfile.TemporaryDirectory() as d:
             cfg = Path(d) / "data.toml"
             cfg.write_text('[data.aiPersonal]\ncodexModel="gpt-6-astra"\n', encoding="utf-8")
@@ -200,10 +193,7 @@ class AiProfileTest(unittest.TestCase):
         parsed = tomllib.loads(first)
         self.assertEqual(parsed["model"], "gpt-6-astra")
         self.assertEqual(parsed["skills"]["state"], "keep")
-        target = Path.home() / ".agents/skills/company-imagegen-fallback/SKILL.md"
-        matches = [entry for entry in parsed["skills"]["config"] if entry.get("path") == str(target)]
-        self.assertEqual(len(matches), 1)
-        self.assertFalse(matches[0]["enabled"])
+        self.assertEqual(parsed["skills"]["config"], [{"path": "/tmp/other/SKILL.md", "enabled": True}])
 
 
 if __name__ == "__main__": unittest.main()

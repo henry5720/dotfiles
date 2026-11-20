@@ -667,6 +667,20 @@ scenario_ubuntu() {
     "[ -f ~/.codex/config.toml ] && [ -e ~/.codex/AGENTS.md ] && [ -e ~/.agents/skills/e2e-hello ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
+  # mise 只把工具從清單拿掉的話 shim 還在,打指令報 No version is set for shim(#330):install-mise 跑完 install 再 prune
+  bold "▶ 取消勾選 bottom(mise 管的工具)"
+  step "自己 mise use -g 一個清單外的工具(jq)" "~/.local/bin/mise use -g jq@latest && [ -x $SHIMS/jq ]"
+  step "config 的 tools 拿掉 bottom" \
+    "sed -i 's/, \"bottom\"//' ~/.config/chezmoi/chezmoi.toml && ! grep -q '\"bottom\"' ~/.config/chezmoi/chezmoi.toml"
+  check "mise 清單變了:install-mise 待跑" "chezmoi status | grep -qE '^.?R.*install-mise'"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check "btm 的 shim 與安裝都清掉了" "[ ! -e $SHIMS/btm ] && [ ! -e ~/.local/share/mise/installs/bottom ]"
+  check "zsh 打 btm 是找不到指令,不是 mise 的 No version 錯誤" \
+    "out=\$(zsh -i -c btm 2>&1); echo \"\$out\" | tail -n 3; ! grep -q 'No version is set' <<<\"\$out\" && grep -q 'command not found: btm' <<<\"\$out\""
+  check "自己 mise use -g 的 jq 留著、其他 mise 工具照常" "$SHIMS/jq --version && $SHIMS/fzf --version && $SHIMS/btop --version"
+  check "清單沒變:install-mise 不再待跑(不會再 prune)" "! chezmoi status | grep -q install-mise"
+  check "chezmoi verify 通過" "chezmoi verify"
+
   bold "▶ 套件清單加一個套件"
   step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
   check "套件腳本待跑(chezmoi status 有 R)" "chezmoi status | grep -E '^.?R.*install-packages'"
@@ -724,13 +738,13 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" custom /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
   check "選精簡後多勾 gh:存自訂" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
-  local full_filtered=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
+  local full_filtered=${FULL_TOOLS/\/headless-chrome\///}
   # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾;snapserver 抓不到 tailnet IP(#290),同樣不建議
   local full_wsl=${full_filtered/\/tailscale\///}
   full_wsl=${full_wsl/\/snapserver\///}
   # earlyoom(#298)要 systemd 與 cgroup,WSL 的記憶體由 .wslconfig 管,裝不了
   full_wsl=${full_wsl/\/earlyoom\///}
-  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、snapserver、earlyoom、headless-chrome、playwright-cli)" \
+  check "WSL 選完整、選單不改:判斷為沒改(存完整、沒有 tailscale、snapserver、earlyoom、headless-chrome,有 playwright-cli)" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' --promptChoice "$(use_choice full)") > /tmp/full-wsl.toml && $(printf "$use_is" full /tmp/full-wsl.toml) && grep -qxF '$(toml_list "$full_wsl")' /tmp/full-wsl.toml"
   check "ARM 選完整、選單不改:判斷為沒改" \
     "$(render_cmd /tmp/u-none.toml --override-data '{"chezmoi":{"arch":"arm64"}}' --promptChoice "$(use_choice full)") > /tmp/full-arm.toml && $(printf "$use_is" full /tmp/full-arm.toml) && grep -qxF '$(toml_list "$full_filtered")' /tmp/full-arm.toml"
@@ -811,10 +825,11 @@ scenario_ubuntu() {
     "[ \"\$(chezmoi --config /tmp/android-all.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/($TOOL_SCRIPT_RE|\\.chezmoiscripts/install-node)' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-wakatime ]"
 
   # 選單每台列全部工具(#272)。WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260)、Google 只出 amd64 的 .deb:
-  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoidata/tool-table.yaml),預設組合不勾,勾了照存、apply 時略過。
+  # headless Chrome 照列,後面標「裝不了」與原因(.chezmoidata/tool-table.yaml),預設組合不勾,勾了照存、apply 時略過。
+  # playwright-cli 不跟它綁(#349):沒有本機 Chrome 也能 attach 遠端瀏覽器,WSL、ARM 照裝、不標註。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL、arch 模擬 ARM;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:選單文字對不上會報 invalid choice。
-  bold "▶ (渲染)WSL、ARM 選單照列 headless Chrome、playwright-cli,標裝不了"
+  bold "▶ (渲染)WSL、ARM 選單照列 headless Chrome 標裝不了,playwright-cli 照裝"
   local wsl='{"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}' arm='{"chezmoi":{"arch":"arm64"}}'
   # 加引號:~ 要留到容器裡才展開(容器的家目錄是 /home/ubuntu,不是跑 e2e 這台的)
   local tmpl='~/.local/share/chezmoi/home' scripts='~/.local/share/chezmoi/home/.chezmoiscripts'
@@ -826,11 +841,12 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/fresh-wsl.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice agent-config)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"agent-config\"'"
   local ov label
   for ov in "$wsl" "$arm"; do
-    for t in headless-chrome playwright-cli; do
-      label=$(menu_choice "$t" "$ov")
-      check "$ov 的選單列 $t、標裝不了與原因,勾了照存" \
-        "grep -q '（裝不了：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list "$t")'"
-    done
+    label=$(menu_choice headless-chrome "$ov")
+    check "$ov 的選單列 headless-chrome、標裝不了與原因,勾了照存" \
+      "grep -q '（裝不了：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list headless-chrome)'"
+    label=$(menu_choice playwright-cli "$ov")
+    check "$ov 的選單列 playwright-cli、沒有標註,勾了照存" \
+      "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list playwright-cli)'"
   done
   check "(對照)非 WSL 的 amd64 選單沒有任何標註" "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$(menu_labels)")"
   label=$(menu_choice tailscale "$wsl")
@@ -844,8 +860,8 @@ scenario_ubuntu() {
     "grep -q '（不建議：網路借 Android' <<<$(printf '%q' "$(menu_choice tailscale "$proot")")"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "WSL 上就算 tools 裡有 playwright-cli,安裝腳本也渲染成空的" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "WSL 勾了 playwright-cli:安裝腳本渲染出 npm 安裝與 attach 提醒,語法對" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/wsl-pw.sh && sh -n /tmp/wsl-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/wsl-pw.sh && grep -q 'playwright-cli attach --extension' /tmp/wsl-pw.sh"
   local wsl_hc='{"tools":["headless-chrome","fzf"],"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   check "WSL 勾了 headless-chrome:略過腳本只記它與原因、彙整腳本(有 root 也)渲染出來,語法對" \
     "chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/rec.sh && sh -n /tmp/rec.sh && [ \"\$(grep -c '^skip_env ' /tmp/rec.sh)\" = 1 ] && grep -q \"^skip_env 'headless-chrome' '.*WSL\" /tmp/rec.sh && chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum.sh && sh -n /tmp/sum.sh && grep -q 這台裝不了 /tmp/sum.sh"
@@ -862,13 +878,13 @@ scenario_ubuntu() {
   bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
   # snapserver 走 apt(#290),非 Debian 系同樣裝不了
-  local fedora_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
+  local fedora_full=${FULL_TOOLS/\/headless-chrome\///}
   fedora_full=${fedora_full/\/snapserver\///}
   # snapclient 也走 apt(#292)
   fedora_full=${fedora_full/\/snapclient\///}
   # earlyoom 也走 apt(#298)
   fedora_full=${fedora_full/\/earlyoom\///}
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、playwright-cli、snapserver、snapclient、earlyoom" \
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、snapserver、snapclient、earlyoom" \
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "$fedora_full")' /tmp/fedora.toml"
   label=$(menu_choice headless-chrome "$fedora")
   check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
@@ -888,11 +904,12 @@ scenario_ubuntu() {
     "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"]}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/root-mise.toml && cat /tmp/root-mise.toml && grep -qx '\"fzf\" = \"latest\"' /tmp/root-mise.toml && ! grep -q vim /tmp/root-mise.toml"
   local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
-           run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
-           run_onchange_after_npm-install-playwright-cli; do
+           run_onchange_after_install-gh run_onchange_after_install-headless-chrome; do
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
+  check "非 Debian 系勾了 playwright-cli 照裝(npm,不要 apt,#349)" \
+    "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | grep -q 'npm install -g @playwright/cli'"
   # jq、zsh 不走 mise:jq 要在 modify_ 之前就有,zsh 用 zsh-bin(spec US42)
   local fedora_zsh='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["zsh"]}'
   check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
@@ -909,21 +926,18 @@ scenario_ubuntu() {
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
-  # snapserver 靠 systemd user service(#290),macOS 裝不了
-  local mac_full=${FULL_TOOLS/\/headless-chrome\/playwright-cli/}
-  mac_full=${mac_full/\/snapserver\///}
+  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 npm(#349)
+  local mac_full=${FULL_TOOLS/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale,沒有 headless-chrome、playwright-cli、snapserver、earlyoom)" \
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
   check "macOS 的選單 tailscale 沒有標註、標裝法 cask" "grep -qx 'tailscale *私人 VPN,連自己的機器 \\[cask\\]' <<<$(printf '%q' "$(menu_labels "$mac")")"
-  for t in headless-chrome playwright-cli; do
-    label=$(menu_choice "$t" "$mac")
-    check "macOS 的選單列 $t、標裝不了,勾了照存" \
-      "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list "$t")'"
-  done
+  label=$(menu_choice snapserver "$mac")
+  check "macOS 的選單列 snapserver、標裝不了,勾了照存" \
+    "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list snapserver)'"
   local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr","cloudflared","tailscale"]}'
   check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,app 另外 brew install --cask、失敗不中斷,語法對" \
     "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"cloudflared\" brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ] && ! grep -q '^cask ' /tmp/brew.sh && [ \"\$(grep -E '^brew install --cask ' /tmp/brew.sh)\" = 'brew install --cask \"tailscale-app\" ||' ]"
@@ -931,16 +945,18 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Termux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
-  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
+  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop","snapserver"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-mise \
            run_onchange_after_install-official run_onchange_after_install-headless-chrome \
-           run_onchange_after_npm-install-playwright-cli run_onchange_after_install-tailscale; do
+           run_onchange_after_install-tailscale; do
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "macOS 勾了裝不了的(headless-chrome、playwright-cli):略過腳本只列這兩項(tailscale 走 cask),彙整腳本渲染出來" \
-    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'headless-chrome playwright-cli' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
+  check "macOS 勾了 playwright-cli:跟 Linux 同一支 npm 安裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
+  check "macOS 勾了裝不了的(snapserver):略過腳本只列這一項(tailscale、headless-chrome 走 cask,playwright-cli 照裝),彙整腳本渲染出來" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'snapserver' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \
     "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
   check "macOS 部署 tools 指令" \
@@ -1058,14 +1074,16 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[]}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | tr -d '[:space:]')\" ]"
 
   # 放最後:這之後 config 是精簡,上面的渲染檢查有幾項看的是現在的 config
-  bold "▶ tools 把用途改成精簡:已經裝的工具不移除"
+  bold "▶ tools 把用途改成精簡:mise 裝的被移除(#330),其他裝法的不移除"
   check "tools 選精簡、選單直接 Enter,exit 0" \
     "~/.local/bin/tools --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") </dev/null"
   check "用途存精簡、tools 是精簡那八項" \
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
   check_tool fastfetch
   check "選精簡後 fastfetch 跑得起來" "~/.local/share/mise/shims/fastfetch --version"
-  for t in claude gh herdr codegraph tailscale btop; do check_tool "$t"; done
+  for t in claude gh herdr codegraph tailscale; do check_tool "$t"; done
+  check "mise 裝的 btop 取消勾選後被 mise prune 拿掉,shim 也不在" \
+    "[ ! -e ~/.local/share/mise/shims/btop ] && ! ls ~/.local/share/mise/installs/btop >/dev/null 2>&1"
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 
@@ -1117,8 +1135,9 @@ scenario_termux() {
   # 精簡沒勾任何 agent:client 的設定目錄都不部署(#211)。
   check "沒勾的 client 不部署設定目錄(~/.claude、~/.codex、~/.config/opencode、skillshare 的 config.yaml)" \
     "[ ! -e ~/.claude ] && [ ! -e ~/.codex ] && [ ! -e ~/.config/opencode ] && [ ! -e ~/.config/skillshare/config.yaml ]"
-  # claude、codex、opencode、agent-config 在 Termux 裝不了(#274):勾了也不部署它們的設定目錄,
-  # 所以不再在 Termux 驗它們的 modify_ 產物(Ubuntu 目標驗)。勾了不部署由下面 tools 那段驗。
+  # claude、opencode、agent-config 在 Termux 裝不了(#274):勾了也不部署它們的設定目錄,
+  # 所以不在 Termux 驗它們的 modify_ 產物(Ubuntu 目標驗)。勾了不部署由下面 tools 那段驗;
+  # codex 走 pkg(#348),它的 modify_ 產物也在下面 tools 那段驗。
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "tools 指令部署成可執行檔、shebang 指得到(Termux 沒有 /bin/sh)" \
     "[ -x ~/.local/bin/tools ] && sh_path=\$(head -n1 ~/.local/bin/tools | sed 's/^#!//') && [ -x \"\$sh_path\" ]"
@@ -1176,10 +1195,10 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、cloudflared、snapclient),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、codex、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  bold "▶ tools 勾 gh、node、wakatime、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/headless-chrome/cloudflared/snapclient
+  bold "▶ tools 勾 gh、node、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
@@ -1194,10 +1213,16 @@ scenario_termux() {
     "dpkg-query -W -f='\${Status}' nodejs-lts | grep -q 'install ok installed' && node --version && [ ! -e ~/.nvm ]"
   # wakatime 在 Termux 實測裝得起來:linux 版 wakatime-cli 能跑(連得到 API 由 #274 手動驗過,這裡不連)
   check_tool wakatime
+  # codex(#348):termux-packages 的 codex,不跑官方 installer(沒有 ~/.local/bin/codex);~/.codex 跟著部署,
+  # 勾了 wakatime 也裝 Codex 的 WakaTime plugin
+  check "codex 用 pkg 裝好、不是官方 installer 那份" \
+    "dpkg-query -W -f='\${Status}' codex | grep -q 'install ok installed' && codex --version && [ ! -e ~/.local/bin/codex ]"
+  check_codex_permissions
+  check_waka_plugin codex
   check "claude 沒裝、~/.claude 沒部署" "! command -v claude && [ ! -e ~/.local/bin/claude ] && [ ! -e ~/.claude ]"
   check "headless-chrome 沒裝" "! command -v google-chrome"
   check "略過彙整列出 claude、headless-chrome 與原因,沒有「沒有 root」那段" \
-    "s=\$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' ~/e2e-tools.log) && grep -q -- '^- claude:.*proot Ubuntu' <<<\"\$s\" && grep -q -- '^- headless-chrome:.*Termux' <<<\"\$s\" && ! grep -q '^== 沒有 root' ~/e2e-tools.log"
+    "s=\$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' ~/e2e-tools.log) && grep -q -- '^- claude:.*Android' <<<\"\$s\" && grep -q -- '^- headless-chrome:.*Termux' <<<\"\$s\" && ! grep -q '^== 沒有 root' ~/e2e-tools.log"
 
   # 以前 android 每次 init 都把 tools 重算回固定那幾項,手動加的會不見(#274)
   bold "▶ 手動在 config 的 tools 加 ttyd,再 init、apply"
@@ -1434,7 +1459,7 @@ noroot_full_checks() {
     check_skipped "$s"
   done
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
-  check "系統套件的手動方式不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
+  check "系統套件的指令不含 mise 裝的(vim、btop、ffmpeg、poppler-utils)與 jq、zsh" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- 系統套件:' | grep -qwE 'vim|btop|ffmpeg|poppler-utils|jq|zsh'"
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"

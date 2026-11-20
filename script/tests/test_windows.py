@@ -300,6 +300,9 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("mise install", out)
         # 清單在腳本裡(註解),清單變了 run_onchange_ 才會重跑
         self.assertIn('"zoxide" = "latest"', out)
+        # 取消勾選的工具(#330):install 之後 prune,沒有設定檔要的版本連 shim 一起刪
+        self.assertIn("mise prune --yes", out)
+        self.assertLess(out.index("mise install"), out.index("mise prune --yes"))
 
     def test_windows_skip_summary_lists_unsupported_ticked_tools(self):
         script = SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl"

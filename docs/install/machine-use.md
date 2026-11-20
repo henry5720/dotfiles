@@ -19,7 +19,7 @@
 選完沒改勾選，config 只認用途：之後 repo 改了這個用途的預設組合，跑 `chezmoi init` 就跟上（拉新版時用 `chezmoi update --init`，見[改設定與更新](../after-install.md)）。
 改過勾選就存成自訂，照你勾的、不再跟著預設組合走。
 
-精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，但已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
+精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，mise 裝的 btop 在下次 apply 會被移除（#330），其他已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
 - 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Windows 是 mise 的 Node LTS，都不走 nvm。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
@@ -47,9 +47,9 @@
 
 目前不建議的：WSL、proot Ubuntu 的 `tailscale`（網路借外層 Windows 或 Android 那份 Tailscale，再裝一份會變成 tailnet 上兩個節點）；
 WSL 的 `snapserver`（抓不到自己的 tailnet IP）；proot Ubuntu 的 `snapclient`（沒有音效裝置，到原生 Termux 勾）。
-目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`；原生 Termux 除了這兩項，
-還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`bottom`（termux-packages 沒有）、`code-server`、`claude`、`codex`、`opencode`、`herdr`、
-`agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
+目前裝不了的：WSL、非 amd64、非 Debian 系的 `headless-chrome`（macOS 走 brew 的 `google-chrome`）；原生 Termux 除了它和 `playwright-cli`（Playwright 不支援 Android），
+還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`bottom`（termux-packages 沒有）、`code-server`（官方的 Termux 裝法要另加 TUR 套件庫）、
+`claude`、`opencode`、`herdr`、`codegraph`（官方沒有 Android 版）、`agent-config`。`codex` 在原生 Termux 走 pkg。
 `snapserver` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、非 Debian 系都裝不了。
 `snapclient` 在非 Debian 系 Linux 裝不了（Windows 由 mise 裝官方 release 的 zip）。
 沒有 root 的 Debian 系，只能走 apt 或 .deb 的 `earlyoom`、`snapclient`、`snapserver`、`headless-chrome` 也標裝不了。

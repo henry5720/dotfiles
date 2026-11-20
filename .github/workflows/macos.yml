@@ -95,10 +95,20 @@ jobs:
         run: |
           summary=$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,$p' "$RUNNER_TEMP/init.log")
           printf '%s\n' "$summary"
-          for t in headless-chrome playwright-cli snapserver earlyoom; do
+          for t in snapserver earlyoom; do
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
+          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 npm 裝,不在略過彙整
+          ! grep -q -- "^- playwright-cli:" <<<"$summary" || { echo "playwright-cli 被略過了" >&2; exit 1; }
+          . ~/.nvm/nvm.sh && playwright-cli --version
 
+      # 4b. headless-chrome 在 macOS 走 brew 的 google-chrome cask(#348)。runner 多半已經預裝 Chrome,
+      #     那時 brew 裝 cask 失敗、印略過(同 tailscale),apply 照樣跑完;兩種結果都要有 Chrome.app
+      - name: headless-chrome 有 Chrome.app
+        if: matrix.use == 'full'
+        run: |
+          grep -E 'google-chrome' "$RUNNER_TEMP/init.log" || true
+          [ -d "/Applications/Google Chrome.app" ]
       # 5. 檔案全部跟 source 一致。腳本另外看:略過彙整(run_after_zz-root-skipped-summary)是 run_after_,
       #    有略過的機器每次 apply 都跑、diff 永遠看得到它(設計如此,見那支開頭),完整那組一定有;
       #    除了它,不能有還沒跑過的腳本(run_onchange_／run_once_ 失敗或沒跑會留在這裡)。
