@@ -47,9 +47,9 @@
 
 目前不建議的：WSL、proot Ubuntu 的 `tailscale`（網路借外層 Windows 或 Android 那份 Tailscale，再裝一份會變成 tailnet 上兩個節點）；
 WSL 的 `snapserver`（抓不到自己的 tailnet IP）；proot Ubuntu 的 `snapclient`（沒有音效裝置，到原生 Termux 勾）。
-目前裝不了的：WSL、非 amd64、非 Debian 系、macOS 的 `headless-chrome`、`playwright-cli`；原生 Termux 除了這兩項，
-還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`bottom`（termux-packages 沒有）、`code-server`、`claude`、`codex`、`opencode`、`herdr`、
-`agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
+目前裝不了的：WSL、非 amd64、非 Debian 系的 `headless-chrome`、`playwright-cli`，macOS 的 `playwright-cli`（`headless-chrome` 走 brew 的 `google-chrome`）；原生 Termux 除了這兩項，
+還有 `tailscale`（裝 Android app）、`btop`（在 root-repo）、`bottom`（termux-packages 沒有）、`code-server`（官方的 Termux 裝法要另加 TUR 套件庫）、
+`claude`、`opencode`、`herdr`、`codegraph`（官方沒有 Android 版）、`agent-config`。`codex` 在原生 Termux 走 pkg。
 `snapserver` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、非 Debian 系都裝不了。
 `snapclient` 在非 Debian 系 Linux 裝不了（Windows 由 mise 裝官方 release 的 zip）。
 沒有 root 的 Debian 系，只能走 apt 或 .deb 的 `earlyoom`、`snapclient`、`snapserver`、`headless-chrome` 也標裝不了。

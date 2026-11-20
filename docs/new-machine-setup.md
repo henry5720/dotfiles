@@ -11,7 +11,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](remote-access/browser.md)） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
-| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、bottom、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
+| 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、bottom、code-server、headless Chrome、playwright-cli、claude、opencode、herdr、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu），codex 走 `pkg`；終端機字型、`authorized_keys` |
 | Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale、Chrome）用 winget 裝；claude、codex 與 agent-config 的 skillshare 走官方 install.ps1、opencode、codegraph 走 mise、wakatime 的 plugin 跟 Linux 同樣由 agent 裝；zsh、btop、code-server 這類沒有 Windows 裝法的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單，勾了 opencode 加它的設定、勾了 agent-config 加 skillshare 的設定、勾了 wakatime 加 `.wakatime.cfg`），只跑 `.ps1` 腳本；見[Windows 主機](install/windows.md) |
 
 機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟略過，印出缺什麼與對應的指令，見[沒有 root 的機器](install/no-root-machine.md)。
@@ -222,8 +222,8 @@ WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`、`playwright-cli
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
 `snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 走 mise 裝官方 release 的 zip；非 Debian 系裝不了，proot Ubuntu 標不建議。
-macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`，herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
-原生 Termux 有勾的工具走 `pkg`（Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。
+macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（app 是 cask，例如 Tailscale、Chrome），herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
+原生 Termux 有勾的工具走 `pkg`（Node 是 `nodejs-lts`，codex 是 termux-packages 的 `codex`），claude、opencode 這類裝不了的到 proot Ubuntu 裝。
 每個工具在每個環境走哪個裝法、套件名是什麼，寫在選裝工具表
 [`home/.chezmoidata/tool-table.yaml`](../home/.chezmoidata/tool-table.yaml)；`packages.yaml` 只放跟勾選無關的基本套件。
 

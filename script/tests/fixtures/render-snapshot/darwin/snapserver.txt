@@ -27,7 +27,7 @@ snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,v
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [brew]
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
-headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：這裡裝的是 Google 給 Linux 的 .deb）
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [cask]
 playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
 

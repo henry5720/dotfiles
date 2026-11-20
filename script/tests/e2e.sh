@@ -1133,8 +1133,9 @@ scenario_termux() {
   # 精簡沒勾任何 agent:client 的設定目錄都不部署(#211)。
   check "沒勾的 client 不部署設定目錄(~/.claude、~/.codex、~/.config/opencode、skillshare 的 config.yaml)" \
     "[ ! -e ~/.claude ] && [ ! -e ~/.codex ] && [ ! -e ~/.config/opencode ] && [ ! -e ~/.config/skillshare/config.yaml ]"
-  # claude、codex、opencode、agent-config 在 Termux 裝不了(#274):勾了也不部署它們的設定目錄,
-  # 所以不再在 Termux 驗它們的 modify_ 產物(Ubuntu 目標驗)。勾了不部署由下面 tools 那段驗。
+  # claude、opencode、agent-config 在 Termux 裝不了(#274):勾了也不部署它們的設定目錄,
+  # 所以不在 Termux 驗它們的 modify_ 產物(Ubuntu 目標驗)。勾了不部署由下面 tools 那段驗;
+  # codex 走 pkg(#348),它的 modify_ 產物也在下面 tools 那段驗。
   check "移除 chezmoi MCP 的 python 腳本被排除" "! chezmoi managed --include scripts | grep -q remove-chezmoi-mcp"
   check "tools 指令部署成可執行檔、shebang 指得到(Termux 沒有 /bin/sh)" \
     "[ -x ~/.local/bin/tools ] && sh_path=\$(head -n1 ~/.local/bin/tools | sed 's/^#!//') && [ -x \"\$sh_path\" ]"
@@ -1192,10 +1193,10 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、cloudflared、snapclient),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、codex、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  bold "▶ tools 勾 gh、node、wakatime、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/headless-chrome/cloudflared/snapclient
+  bold "▶ tools 勾 gh、node、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
@@ -1210,10 +1211,16 @@ scenario_termux() {
     "dpkg-query -W -f='\${Status}' nodejs-lts | grep -q 'install ok installed' && node --version && [ ! -e ~/.nvm ]"
   # wakatime 在 Termux 實測裝得起來:linux 版 wakatime-cli 能跑(連得到 API 由 #274 手動驗過,這裡不連)
   check_tool wakatime
+  # codex(#348):termux-packages 的 codex,不跑官方 installer(沒有 ~/.local/bin/codex);~/.codex 跟著部署,
+  # 勾了 wakatime 也裝 Codex 的 WakaTime plugin
+  check "codex 用 pkg 裝好、不是官方 installer 那份" \
+    "dpkg-query -W -f='\${Status}' codex | grep -q 'install ok installed' && codex --version && [ ! -e ~/.local/bin/codex ]"
+  check_codex_permissions
+  check_waka_plugin codex
   check "claude 沒裝、~/.claude 沒部署" "! command -v claude && [ ! -e ~/.local/bin/claude ] && [ ! -e ~/.claude ]"
   check "headless-chrome 沒裝" "! command -v google-chrome"
   check "略過彙整列出 claude、headless-chrome 與原因,沒有「沒有 root」那段" \
-    "s=\$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' ~/e2e-tools.log) && grep -q -- '^- claude:.*proot Ubuntu' <<<\"\$s\" && grep -q -- '^- headless-chrome:.*Termux' <<<\"\$s\" && ! grep -q '^== 沒有 root' ~/e2e-tools.log"
+    "s=\$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' ~/e2e-tools.log) && grep -q -- '^- claude:.*Android' <<<\"\$s\" && grep -q -- '^- headless-chrome:.*Termux' <<<\"\$s\" && ! grep -q '^== 沒有 root' ~/e2e-tools.log"
 
   # 以前 android 每次 init 都把 tools 重算回固定那幾項,手動加的會不見(#274)
   bold "▶ 手動在 config 的 tools 加 ttyd,再 init、apply"
