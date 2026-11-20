@@ -64,7 +64,7 @@
 `tailscaled-.service.d` 是前綴 drop-in，`tailscaled-preview.service` 這類 `tailscaled-*` 也套到。
 `/etc/default/earlyoom` 是套件的設定檔：哪天 earlyoom 套件升級也改了它，`apt upgrade` 會問要留哪一份，選留現在的，再 `chezmoi apply`。
 
-沒有 root 的機器要請管理員照上面寫好，再 `sudo systemctl daemon-reload && sudo systemctl enable --now earlyoom`。
+這些檔都在 `/etc`，寫入與啟用要 root：照上面寫好，再 `sudo systemctl daemon-reload && sudo systemctl enable --now earlyoom`。
 
 容器裡 systemd 沒在跑：設定照寫，不啟用，開機後才生效。
 

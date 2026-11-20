@@ -7,13 +7,13 @@
 │
 ├─ 改用途、加減選裝工具（Linux）
 │    tools ──→ 用途（預設帶現在的）──→ 選單（預設帶現在的勾選；改成完整或精簡就帶那組）
-│          ──→ Enter ──→ 自動 apply，新勾的才裝；改用途也不會移除已裝的
+│          ──→ Enter ──→ 自動 apply，新勾的才裝；改用途時 mise 裝的會移除，其他的留著
 │
 ├─ 更新 eza、fzf 這類工具（Linux，mise 裝的）
 │    mise outdated ──→ mise up ──→ mise prune（清掉舊版）；其他指令見 install/mise.md
 │
 ├─ 移除工具
-│    取消勾選不會解除安裝 ──→ 用它自己的方式移除 ──→ 再打 tools 取消勾選
+│    取消勾選：mise 裝的自動移除；其他裝法不解除安裝 ──→ 用它自己的方式移除 ──→ 再打 tools 取消勾選
 │                              mise uninstall btop（`mise ls` 列得到的；Linux 上 eza、fzf、btop 這類都是）
 │                              sudo apt remove vim
 │                              npm uninstall -g <套件>

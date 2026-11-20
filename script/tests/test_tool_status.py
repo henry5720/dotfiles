@@ -115,7 +115,7 @@ class ToolStatusTest(unittest.TestCase):
             "arm": (ARM, {"headless-chrome": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "snapserver": "裝不了",
                                 "snapclient": "裝不了", "earlyoom": "裝不了"}),
-            "mac": (MAC, {"headless-chrome": "裝不了", "snapserver": "裝不了",
+            "mac": (MAC, {"snapserver": "裝不了",
                           "earlyoom": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
@@ -139,7 +139,7 @@ class ToolStatusTest(unittest.TestCase):
                                    ("arm", ARM, {"headless-chrome"}),
                                    ("fedora", FEDORA, {"headless-chrome", "snapserver", "snapclient",
                                                        "earlyoom"}),
-                                   ("mac", MAC, {"headless-chrome", "snapserver", "earlyoom"})):
+                                   ("mac", MAC, {"snapserver", "earlyoom"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -199,6 +199,24 @@ class ToolStatusTest(unittest.TestCase):
         # Linux 的 installer 不在 mac 跑,也不記略過
         self.assertEqual(self.render(MAC, f"{SCRIPTS}/run_onchange_after_install-tailscale.sh.tmpl", ["tailscale"]).strip(), "")
         self.assertNotIn("skip_env", self.render(MAC, f"{SCRIPTS}/{RECORDER}", ["tailscale"]))
+
+    def test_mac_installs_chrome_with_brew_cask(self):
+        # #348:macOS 的 headless-chrome 走 brew 的 google-chrome cask;Linux 的 .deb 腳本不在 mac 跑,也不記略過
+        darwin = f"{SCRIPTS}/run_onchange_before_install-packages-darwin.sh.tmpl"
+        brew = self.render(MAC, darwin, ["headless-chrome"])
+        self.assert_sh(brew)
+        self.assertIn('brew install --cask "google-chrome"', brew)
+        self.assertNotIn("google-chrome", self.render(MAC, darwin, ["eza"]))
+        self.assertEqual(self.render(MAC, f"{SCRIPTS}/run_onchange_after_install-headless-chrome.sh.tmpl",
+                                     ["headless-chrome"]).strip(), "")
+        self.assertNotIn("skip_env 'headless-chrome'", self.render(MAC, f"{SCRIPTS}/{RECORDER}", ["headless-chrome"]))
+
+    def test_mac_chrome_already_in_applications_is_skipped(self):
+        # #348:從官網裝過 Chrome 的 Mac,brew 裝 cask 失敗,比照 tailscale 印略過、apply 照樣跑完
+        run, log = self.run_darwin_packages(["headless-chrome", "eza"], "google-chrome")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("--cask google-chrome", log)
+        self.assertIn("略過 google-chrome", run.stdout)
 
     def run_darwin_packages(self, tools, failing_cask):
         """在 Linux 上跑 mac 的套件腳本:假的 brew 記下收到的參數,裝 failing_cask 時失敗(像 app 已經從官網裝過)。"""
@@ -358,7 +376,6 @@ exit 0
             "tailscale": "run_onchange_after_install-tailscale.sh.tmpl",
             "code-server": "run_onchange_after_install-official.sh.tmpl",
             "claude": "run_onchange_after_install-official.sh.tmpl",
-            "codex": "run_onchange_after_install-official.sh.tmpl",
             "opencode": "run_onchange_after_install-official.sh.tmpl",
             "herdr": "run_onchange_after_install-official.sh.tmpl",
             "agent-config": "run_onchange_after_install-agent-config.sh.tmpl",
@@ -381,8 +398,18 @@ exit 0
     def test_android_annotations(self):
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
-                               "claude", "codex", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
+                               "claude", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
                                "earlyoom", "bottom"})
+
+    def test_android_codex_is_pkg(self):
+        # #348:Termux 的 codex 走 termux-packages 的 codex,不跑官方 installer;設定目錄 ~/.codex 跟著部署
+        pkgs = self.render(ANDROID, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["codex"])
+        line = next(l for l in pkgs.splitlines() if l.startswith("for pkg in"))
+        self.assertIn("codex", line.replace(";", " ").split())
+        self.assertEqual(self.render(ANDROID, f"{SCRIPTS}/run_onchange_after_install-official.sh.tmpl", ["codex"]).strip(), "")
+        self.assertNotIn("skip_env 'codex'", self.render(ANDROID, f"{SCRIPTS}/{RECORDER}", ["codex"]))
+        ignore = self.render(ANDROID, "home/.chezmoiignore", ["codex"])
+        self.assertNotIn(".codex", [l.strip() for l in ignore.splitlines()])
 
     def test_android_installs_pkg_tools(self):
         tools = ["fastfetch", "gh", "ffmpeg", "ttyd", "cloudflared", "zsh"]
@@ -410,9 +437,10 @@ exit 0
         self.assertIn("chezmoi init --prompt", out)
 
     def test_android_does_not_deploy_config_of_unsupported_clients(self):
-        ignore = self.render(ANDROID, "home/.chezmoiignore", ["claude", "codex", "opencode", "agent-config", "code-server"])
+        # codex 在 Termux 走 pkg(#348),~/.codex 照部署,由 test_android_codex_is_pkg 驗
+        ignore = self.render(ANDROID, "home/.chezmoiignore", ["claude", "opencode", "agent-config", "code-server"])
         lines = {l.strip() for l in ignore.splitlines()}
-        for target in (".claude", ".codex", ".config/opencode", ".config/skillshare", ".config/code-server"):
+        for target in (".claude", ".config/opencode", ".config/skillshare", ".config/code-server"):
             self.assertIn(target, lines)
 
     # ===============================================================
@@ -771,6 +799,44 @@ exec "$cmd" "$@"
         self.assertIn('brew "bottom"', brew.splitlines())
         rec = self.render(ANDROID, f"{SCRIPTS}/{RECORDER}", ["bottom"])
         self.assertIn("skip_env 'bottom'", rec)
+
+    # ===============================================================
+    # 取消勾選 mise 的工具(#330):mise install 之後 mise prune,沒有設定檔要的版本連 shim 一起刪
+    # ===============================================================
+    def run_mise_script(self, install_rc=0, prune_rc=0):
+        """用假的 mise 跑渲染出來的 install-mise.sh,回傳 (exit code, 輸出, mise 收到的參數一行一次)。"""
+        import os
+        script = self.render({}, f"{SCRIPTS}/run_onchange_after_install-mise.sh.tmpl", ["bottom"])
+        bin_dir = self.dir / "bin"
+        bin_dir.mkdir()
+        log = self.dir / "mise.log"
+        fake = bin_dir / "mise"
+        fake.write_text(f"""#!/bin/sh
+echo "$*" >> {log}
+case "$1" in install) exit {install_rc};; prune) exit {prune_rc};; esac
+""")
+        fake.chmod(0o755)
+        (self.dir / "run.sh").write_text(script)
+        env = {**os.environ, "PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(self.dir)}
+        r = subprocess.run(["sh", str(self.dir / "run.sh")], capture_output=True, text=True, env=env)
+        calls = log.read_text().splitlines() if log.exists() else []
+        return r.returncode, r.stdout + r.stderr, calls
+
+    def test_mise_script_prunes_after_install(self):
+        rc, out, calls = self.run_mise_script()
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(calls, ["install", "prune --yes"])
+
+    def test_mise_script_still_prunes_when_install_fails(self):
+        # 裝失敗不影響清單:沒勾的工具照樣要清掉
+        rc, out, calls = self.run_mise_script(install_rc=1)
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(calls, ["install", "prune --yes"])
+
+    def test_mise_script_prune_failure_does_not_abort_apply(self):
+        rc, out, calls = self.run_mise_script(prune_rc=1)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("mise prune", out)
 
     # ===============================================================
     # 朗讀指令 voice-out-speak(#291):跟著 snapserver 裝,TTS 的 edge-tts 用 uv 跑(uv 由 mise 裝),不另裝全域套件

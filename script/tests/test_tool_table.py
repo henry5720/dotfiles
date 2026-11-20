@@ -161,8 +161,10 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(line("android", "gh"), "gh               GitHub CLI(官方 apt 源),裝完 gh auth login [pkg]")
         self.assertEqual(line("wsl", "tailscale"), "tailscale        私人 VPN,連自己的機器 [official]（不建議：網路借 Windows "
                          "那份 Tailscale（mirrored），再裝一份會變成 tailnet 上兩個節點）")
-        self.assertEqual(line("android", "claude"), "claude           Claude Code CLI（裝不了：官方 installer 沒有原生 "
-                         "Termux 版，到 proot Ubuntu 裝）")
+        self.assertEqual(line("android", "claude"), "claude           Claude Code CLI（裝不了：官方沒有 Android 版，"
+                         "npm 版也沒有 Android 的執行檔）")
+        self.assertEqual(line("android", "codex"), "codex            Codex CLI [pkg]")
+        self.assertEqual(line("darwin", "headless-chrome"), "headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [cask]")
 
     def test_menu_has_no_multichoice_separators(self):
         # ADR 0004:選單文字是 --promptMultichoice 的值,不能有半形 /、'、=
@@ -225,8 +227,8 @@ class ToolTableTest(unittest.TestCase):
             with self.subTest(env=env):
                 res = self.status[env]["tools"]
                 self.assertEqual((res["playwright-cli"]["state"], res["playwright-cli"]["method"]), ("ok", method))
-        # 這幾台 headless-chrome 照樣裝不了:兩者真的拆開了
-        for env in ("debian-noroot", "wsl", "arm", "non-debian", "darwin"):
+        # 這幾台 headless-chrome 照樣裝不了:兩者真的拆開了(macOS 的 headless-chrome 由 #348 改走 brew cask)
+        for env in ("debian-noroot", "wsl", "arm", "non-debian"):
             with self.subTest(env=env, tool="headless-chrome"):
                 self.assertEqual(self.status[env]["tools"]["headless-chrome"]["state"], "unsupported")
 
@@ -509,10 +511,8 @@ class ToolTableTest(unittest.TestCase):
 
     def test_not_written_yet_reasons_carry_an_issue(self):
         # 盤點(#315)找到「裝不了」其實是「還沒寫裝法」的(獨立的期望值,照盤點筆記列)
-        not_yet = {("headless-chrome", "darwin"), ("headless-chrome", "non-debian"),
-                   ("snapserver", "non-debian"), ("snapclient", "non-debian"), ("earlyoom", "non-debian"),
-                   ("code-server", "android"), ("bottom", "android"), ("codegraph", "android"),
-                   ("claude", "android"), ("codex", "android"), ("opencode", "android"), ("herdr", "android")}
+        # #348、#349 之後表上沒有「還沒寫裝法」的規則
+        not_yet = set()
         for name, env in not_yet:
             with self.subTest(tool=name, env=env):
                 rule = next(r for r in self.table["tools"][name]["rules"] if env in r["when"])
@@ -538,12 +538,42 @@ class ToolTableTest(unittest.TestCase):
                     checked += 1
                     with self.subTest(tool=name, env=env, when=rule["when"]):
                         self.assertEqual(bare[env]["tools"][name]["method"], "")
-        self.assertTrue(checked)
+        # #348、#349 之後表上沒有帶 issue 的規則,checked 可以是 0;之後加了規則這裡就會檢查到
+
+    def test_348_decisions(self):
+        # #348 使用者的決定(2026-11-20,獨立的期望值):codex 在 Termux 走 pkg、headless-chrome 在 macOS 走 cask;
+        # 其他確定裝不了,原因只寫查證過的事實,規則不再帶 issue
+        installs = {("android", "codex"): "pkg", ("darwin", "headless-chrome"): "cask"}
+        for (env, name), method in installs.items():
+            with self.subTest(env=env, tool=name):
+                entry = self.status[env]["tools"][name]
+                self.assertEqual((entry["state"], entry["method"]), ("ok", method))
+        self.assertEqual(self.table["tools"]["codex"]["pkg"], ["codex"])
+        self.assertEqual(self.table["tools"]["headless-chrome"]["cask"], ["google-chrome"])
+        unsupported = {
+            ("android", "claude"): "官方沒有 Android 版，npm 版也沒有 Android 的執行檔",
+            ("android", "opencode"): "官方沒有 Android 版，npm 版限定 macOS、Linux、Windows，Termux 的 npm 拒裝",
+            ("android", "herdr"): "官方 installer 擋 Android，release 沒有 Android 版，npm 上的 herdr 是佔名的空套件",
+            ("android", "codegraph"): "官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有",
+            ("android", "bottom"): "termux-packages 沒有 bottom，到 proot Ubuntu 裝",
+            ("android", "code-server"): "官方的 Termux 裝法要另加 TUR 套件庫",
+            ("non-debian", "earlyoom"): "earlyoom 走 apt，只能裝在 Debian 系",
+            ("non-debian", "snapclient"): "snapclient 走 apt，只能裝在 Debian 系",
+            ("non-debian", "snapserver"): "snapserver 走 apt，只能裝在 Debian 系",
+            ("non-debian", "headless-chrome"): ".deb 只能裝在 Debian 系",
+        }
+        for (env, name), reason in unsupported.items():
+            with self.subTest(env=env, tool=name):
+                entry = self.status[env]["tools"][name]
+                self.assertEqual((entry["state"], entry["reason"]), ("unsupported", reason))
+                rule = next(r for r in self.table["tools"][name]["rules"] if r["reason"] == reason)
+                self.assertNotIn("issue", rule)
 
     def test_issue_rules_point_at_the_open_tracking_issue(self):
-        # 「還沒寫裝法」追蹤在 #348(spec #315 收尾時開的)
+        # 「還沒寫裝法」曾追蹤在 #348(spec #315 收尾時開的),#348、#349 之後一條都不剩。
+        # 之後再加,issue 要指向開著的追蹤單:這裡改成那張的編號
         issues = {r["issue"] for t in self.table["tools"].values() for r in t.get("rules", []) if "issue" in r}
-        self.assertEqual(issues, {348})
+        self.assertEqual(issues, set())
 
     def test_every_install_method_is_a_known_method(self):
         methods = set(self.table["methods"])

@@ -1,21 +1,12 @@
 {
-  "lineLayout": "expanded",
-  "showSeparators": false,
+  "elementOrder": ["project", "addedDirs", "context", "usage", "memory", "promptCache", "cacheHitRate", "environment", "tools", "skills", "mcp", "agents", "todos", "sessionTime"],
   "display": {
-    "showTools": false,
-    "showAgents": false,
     "showTodos": true,
-    "showSessionName": true,
     "showAddedDirs": false,
-    "showConfigCounts": false,
-    "showCost": false,
-    "showSessionTokens": false,
     "showTokenBreakdown": false,
-    "showDuration": false,
-    "showSpeed": false,
     "showMemoryUsage": true,
-    "usageCompact": false,
-    "usageBarEnabled": true,
-    "sevenDayThreshold": 0
+    "sevenDayThreshold": 0,
+    "usageCompact": true,
+    "mergeGroups": [["context", "usage", "memory"]]
   }
 }

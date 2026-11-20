@@ -43,8 +43,8 @@
 #          unsupported 不管有沒有裝法都算裝不了(例如 WSL 不裝 Linux 的 Chrome);discouraged 照樣算裝法,只是標原因。
 #          原因只在要解釋時才寫(spec #315):沒有這個 OS 的裝法、也沒有規則對到 → 原因固定是「沒有這個環境的裝法」,
 #          不用寫規則;有這個 OS 的裝法卻一個都用不了(例如只有 apt、這台沒有 root)要寫規則說為什麼,判斷不照缺的條件組(#335,測試擋)。
-#          原因寫給勾選的人看,怎麼寫照 ADR 0004 的代價那段;沒有 root 的原因只寫事實、不教人怎麼做(#315 2026-11-20 的決定,
-#          通則要不要跟著改在 #339)。字元限制照 ADR 0004:不能有半形 /、'、=(測試擋),用全形標點。
+#          原因寫給勾選的人看,怎麼寫照 ADR 0004 的代價那段;沒有 root 的原因只寫事實、不教人怎麼做(#315 2026-11-20 的決定;
+#          略過訊息同一個原則,#339)。字元限制照 ADR 0004:不能有半形 /、'、=(測試擋),用全形標點。
 #
 # ===============================================================
 # 2. 環境(rules 的 when)
@@ -180,7 +180,6 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: termux-packages 沒有 bottom，到 proot Ubuntu 裝
-          issue: 348
     # #298:保護保留服務與常駐服務的 systemd drop-in 由 install-earlyoom 寫進 /etc(數字在 earlyoom.yaml)
     earlyoom:
       docs: https://github.com/rfjakob/earlyoom#installation
@@ -201,7 +200,6 @@ toolTable:
         - when: [non-debian]
           state: unsupported
           reason: earlyoom 走 apt，只能裝在 Debian 系
-          issue: 348
         - when: [noroot]
           state: unsupported
           reason: 要 root：要改系統服務的記憶體設定
@@ -235,8 +233,7 @@ toolTable:
           reason: code-server 官方不出 Windows 版，到 WSL 裝
         - when: [android]
           state: unsupported
-          reason: termux-packages 沒有，到 proot Ubuntu 裝
-          issue: 348
+          reason: 官方的 Termux 裝法要另加 TUR 套件庫
     # 有 root:官方 installer,install-tailscale 再開服務;沒有 root:同一支腳本裝 userspace 的 static tarball
     tailscale:
       docs: https://tailscale.com/kb/1347/installation
@@ -276,10 +273,11 @@ toolTable:
         sh: {url: https://herdr.dev/install.sh, shell: sh, installed: {cmds: [herdr]}}
       mise: {tool: herdr}
       rules:
+        # 查證(#348):install.sh 遇到 uname -o 是 Android 直接報錯;release v0.9.5 只有 linux、macos、windows;
+        # npm 的 herdr 是 0.0.0 的保留名稱
         - when: [android]
           state: unsupported
-          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
-          issue: 348
+          reason: 官方 installer 擋 Android，release 沒有 Android 版，npm 上的 herdr 是佔名的空套件
     ttyd:
       docs: https://github.com/tsl0922/ttyd#installation
       checked: 2026-11-20
@@ -321,15 +319,19 @@ toolTable:
           brew: [poppler]
           mise: {tool: poppler}       # conda:poppler,有 win-64 的 build
       rules:
+        # 查證(#348):官方系統需求只有 macOS、Windows、Ubuntu、Debian、Alpine;npm 版的平台套件沒有 android
+        # (Termux 的 Node 是 process.platform = android,postinstall 找不到 linux-arm64-android 就讓安裝失敗)
         - when: [android]
           state: unsupported
-          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
-          issue: 348
+          reason: 官方沒有 Android 版，npm 版也沒有 Android 的執行檔
     # CODEX_NON_INTERACTIVE=1:有終端機時 installer 會問「Start Codex now?」,apply 會停在那裡
+    # 原生 Termux 走 termux-packages 的 codex(#348;從 openai/codex 原始碼編、自動跟版本,沒有 arm、i686),
+    # 更新靠 pkg upgrade
     codex:
       docs: https://learn.chatgpt.com/docs/codex/cli
       checked: 2026-11-20
-      install: {linux: [official], darwin: [official], windows: [official]}
+      install: {linux: [official], darwin: [official], android: [pkg], windows: [official]}
+      pkg: [codex]
       official:
         sh:
           url: https://chatgpt.com/codex/install.sh
@@ -343,11 +345,6 @@ toolTable:
           url: https://chatgpt.com/codex/install.ps1
           env: {CODEX_NON_INTERACTIVE: "1"}
           installed: {paths: ["Join-Path $env:LOCALAPPDATA 'Programs\\OpenAI\\Codex\\bin\\codex.exe'"]}
-      rules:
-        - when: [android]
-          state: unsupported
-          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
-          issue: 348
     # Windows 沒有 install.ps1,走 mise 的 npm backend(#318):opencode-ai 是 OpenCode 1,跟 Linux 同一個大版本;
     # allow_builds 放行它自己的 postinstall,不然 bin\opencode.exe 是佔位檔
     opencode:
@@ -363,10 +360,11 @@ toolTable:
       mise: {tool: "npm:opencode-ai", options: {allow_builds: [opencode-ai]}}
       needsNode: [linux, darwin, android, windows]   # oh-my-opencode-slim 用 npx 跑
       rules:
+        # 查證(#348):官方只出 macOS、Windows、Linux 版;npm 的 opencode-ai 寫了 os: darwin、linux、win32,
+        # Termux 的 Node 是 process.platform = android,npm 不裝
         - when: [android]
           state: unsupported
-          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
-          issue: 348
+          reason: 官方沒有 Android 版，npm 版限定 macOS、Linux、Windows，Termux 的 npm 拒裝
     ffmpeg:
       docs: https://ffmpeg.org/download.html
       checked: 2026-11-20
@@ -401,7 +399,6 @@ toolTable:
         - when: [non-debian]
           state: unsupported
           reason: snapserver 走 apt，只能裝在 Debian 系
-          issue: 348
         - when: [noroot]
           state: unsupported
           reason: 沒有 root 用不了 apt，官方只出 .deb
@@ -430,7 +427,6 @@ toolTable:
         - when: [non-debian]
           state: unsupported
           reason: snapclient 走 apt，只能裝在 Debian 系
-          issue: 348
         - when: [noroot]
           state: unsupported
           reason: 沒有 root 用不了 apt，官方只出 .deb
@@ -461,18 +457,21 @@ toolTable:
       mise: {tool: codegraph}         # aqua:colbymchenry/codegraph
       needsNode: [linux, darwin, android]
       rules:
+        # 查證(#348):README 只支援 Windows、macOS、Linux;npm 版沒有 postinstall、裝得上,但 shim 執行時
+        # 找 codegraph-android-<arch>,registry 沒有就去 release 下載,release(v1.6.3)也沒有
         - when: [android]
           state: unsupported
-          reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
-          issue: 348
+          reason: 官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有
     # Windows 的 Chrome 本身就能 --headless(#327)。用 Google 一般 installer 的 Google.Chrome.EXE:
-    # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份
+    # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份。
+    # macOS 走 brew 的 google-chrome cask(#348);從官網裝過的,brew 會因 /Applications 已經有而略過(同 tailscale)
     headless-chrome:
       docs: https://developer.chrome.com/docs/chromium/headless
       checked: 2026-11-20
       cmd: google-chrome
-      install: {linux: [deb], windows: [winget]}
+      install: {linux: [deb], darwin: [cask], windows: [winget]}
       deb: {url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb}
+      cask: [google-chrome]
       winget: [Google.Chrome.EXE]
       setup: install-headless-chrome
       deps:
@@ -480,10 +479,6 @@ toolTable:
           install: {linux: [apt]}
           apt: [fonts-noto-cjk, fonts-noto-color-emoji]
       rules:
-        - when: [darwin]
-          state: unsupported
-          reason: 這裡裝的是 Google 給 Linux 的 .deb
-          issue: 348
         - when: [android]
           state: unsupported
           reason: 原生 Termux 裝不了 Google 的 .deb
@@ -496,7 +491,6 @@ toolTable:
         - when: [non-debian]
           state: unsupported
           reason: .deb 只能裝在 Debian 系
-          issue: 348
         - when: [noroot]
           state: unsupported
           reason: Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt

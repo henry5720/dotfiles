@@ -93,6 +93,11 @@ mise install
 if ($LASTEXITCODE -ne 0) {
     Write-Host (T 'bWlzZSBpbnN0YWxsIOacieW3peWFt+aykuijneWlvSzkuYvlvozoh6rlt7Hot5E6bWlzZSBpbnN0YWxs')
 }
+
+mise prune --yes
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T 'bWlzZSBwcnVuZSDmspLot5Hlrows5Y+W5raI5Yu+6YG455qE5bel5YW35Y+v6IO96YKE55WZ6JGXIHNoaW0s5LmL5b6M6Ieq5bex6LeROm1pc2UgcHJ1bmU=')
+}
 exit 0
 
 ### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
