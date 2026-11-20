@@ -122,10 +122,11 @@ mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。�
 | | 手動 `uv tool install` | mise |
 |---|---|---|
 | 執行檔 | `%USERPROFILE%\.local\bin\windows-mcp.exe`（uv 的[執行檔目錄](https://docs.astral.sh/uv/reference/storage/#executable-directory)，複製過去的） | shim `%LOCALAPPDATA%\mise\shims\windows-mcp.exe` |
-| 本體 | `%APPDATA%\uv\data\tools\windows-mcp` | `%LOCALAPPDATA%\mise\installs\pipx-windows-mcp\<版本>`（目錄名照 Linux 上 mise 2026.10.25 實測，Windows 待實機確認） |
+| 本體 | `%APPDATA%\uv\data\tools\windows-mcp` | `%LOCALAPPDATA%\mise\installs\pipx-windows-mcp\<版本>\bin\windows-mcp.exe`（2026-11-20 henry-desktop 實測，0.8.9） |
 
-PowerShell profile 把 `.local\bin` 排在 mise 的 shims 前面，打 `windows-mcp` 會先找到舊的那份，而它不會跟著 `mise up` 更新。
-所以舊的要刪：
+載入 profile 的 PowerShell 把 mise 的 shims 排在 `.local\bin` 前面，打 `windows-mcp` 拿到的是 mise 那份；
+不載入 profile 的（`pwsh -NoProfile`、別的程式只帶系統與使用者 PATH 起的行程）沒有 shims，會先找到舊的那份，
+而它不會跟著 `mise up` 更新（2026-11-20 henry-desktop 實測）。所以舊的要刪：
 
 ```powershell
 uv tool uninstall windows-mcp
