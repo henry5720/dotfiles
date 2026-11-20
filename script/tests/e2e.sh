@@ -868,8 +868,8 @@ scenario_ubuntu() {
     "grep -q '（不建議：網路借 Android' <<<$(printf '%q' "$(menu_choice tailscale "$proot")")"
   check "WSL 上就算 tools 裡有 headless-chrome,安裝腳本也渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_install-headless-chrome.sh.tmpl | tr -d '[:space:]')\" ]"
-  check "WSL 勾了 playwright-cli:安裝腳本渲染出 npm 安裝與 attach 提醒,語法對" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/wsl-pw.sh && sh -n /tmp/wsl-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/wsl-pw.sh && grep -q 'playwright-cli attach --extension' /tmp/wsl-pw.sh"
+  check "WSL 勾了 playwright-cli:安裝腳本渲染出 mise shims 與 attach 提醒,語法對(Linux 由 mise 的 npm backend 裝,#342)" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"playwright-cli\"],\"chezmoi\":{\"kernel\":{\"osrelease\":\"5.15.167.4-microsoft-standard-WSL2\"}}}' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/wsl-pw.sh && sh -n /tmp/wsl-pw.sh && grep -qF 'mise/shims' /tmp/wsl-pw.sh && ! grep -q 'npm install' /tmp/wsl-pw.sh && grep -q 'playwright-cli attach --extension' /tmp/wsl-pw.sh"
   local wsl_hc='{"tools":["headless-chrome","fzf"],"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   check "WSL 勾了 headless-chrome:略過腳本只記它與原因、彙整腳本(有 root 也)渲染出來,語法對" \
     "chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/rec.sh && sh -n /tmp/rec.sh && [ \"\$(grep -c '^skip_env ' /tmp/rec.sh)\" = 1 ] && grep -q \"^skip_env 'headless-chrome' '.*WSL\" /tmp/rec.sh && chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum.sh && sh -n /tmp/sum.sh && grep -q 這台裝不了 /tmp/sum.sh"
@@ -916,8 +916,8 @@ scenario_ubuntu() {
     check "非 Debian 系上 $f 渲染成空的(就算 tools 有勾)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$fedora_tools' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "非 Debian 系勾了 playwright-cli 照裝(npm,不要 apt,#349)" \
-    "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl | grep -q 'npm install -g @playwright/cli'"
+  check "非 Debian 系勾了 playwright-cli 照裝(mise 的 npm backend,不要 apt,#349、#342)" \
+    "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/fedora-pw.sh && grep -qF 'mise/shims' /tmp/fedora-pw.sh && ! grep -qE 'apt|npm install' /tmp/fedora-pw.sh"
   # jq、zsh 不走 mise:jq 要在 modify_ 之前就有,zsh 用 zsh-bin(spec US42)
   local fedora_zsh='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["zsh"]}'
   check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
@@ -1041,7 +1041,7 @@ scenario_ubuntu() {
   # 新開的 zsh 裡 node 是 mise 那份、~/.nvm 原地保留(取消勾選不解除安裝)、codegraph 與 playwright-cli 找得到
   bold "▶ 先裝 nvm 再 apply"
   check "先裝 nvm、Node 與 npm 全域的 codegraph,再勾 codegraph、playwright-cli apply:zsh 的 node 是 mise 的、~/.nvm 還在、兩個指令找得到" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice codegraph/playwright-cli)") > /tmp/nvm-first.toml && rm -rf /tmp/nvm-first /tmp/nvm-first.boltdb && mkdir /tmp/nvm-first && src=\$HOME/.local/share/chezmoi && export HOME=/tmp/nvm-first && curl -fsSL -o /tmp/nvm-install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh && PROFILE=/dev/null bash /tmp/nvm-install.sh >/dev/null && bash -c '. ~/.nvm/nvm.sh && nvm install --lts >/dev/null && npm install -g @colbymchenry/codegraph >/dev/null' && chezmoi --source \$src --config /tmp/nvm-first.toml --persistent-state /tmp/nvm-first.boltdb apply --no-tty && out=\$(zsh -i -c 'whence -p node; whence -p codegraph; whence -p playwright-cli; codegraph --version && playwright-cli --version' 2>&1); echo \"\$out\"; [ -s ~/.nvm/nvm.sh ] && grep -qx '/tmp/nvm-first/.local/share/mise/shims/node' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/codegraph' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/playwright-cli' <<<\"\$out\""
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice zsh/codegraph/playwright-cli)") > /tmp/nvm-first.toml && rm -rf /tmp/nvm-first /tmp/nvm-first.boltdb && mkdir /tmp/nvm-first && src=\$HOME/.local/share/chezmoi && export HOME=/tmp/nvm-first && curl -fsSL -o /tmp/nvm-install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh && PROFILE=/dev/null bash /tmp/nvm-install.sh >/dev/null && bash -c '. ~/.nvm/nvm.sh && nvm install --lts >/dev/null && npm install -g @colbymchenry/codegraph >/dev/null' && chezmoi --source \$src --config /tmp/nvm-first.toml --persistent-state /tmp/nvm-first.boltdb apply --no-tty && out=\$(zsh -i -c 'whence -p node; whence -p codegraph; whence -p playwright-cli; codegraph --version && playwright-cli --version' 2>&1); echo \"\$out\"; [ -s ~/.nvm/nvm.sh ] && grep -qx '/tmp/nvm-first/.local/share/mise/shims/node' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/codegraph' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/playwright-cli' <<<\"\$out\""
 
   # 基底只剩 git、curl、jq、python3;zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
@@ -1100,9 +1100,10 @@ scenario_ubuntu() {
     "$(printf "$use_is" minimal "$cfg") && grep -qxF '$LEAN_TOML' $cfg"
   check_tool fastfetch
   check "選精簡後 fastfetch 跑得起來" "~/.local/share/mise/shims/fastfetch --version"
-  for t in claude gh herdr codegraph tailscale; do check_tool "$t"; done
-  check "mise 裝的 btop 取消勾選後被 mise prune 拿掉,shim 也不在" \
-    "[ ! -e ~/.local/share/mise/shims/btop ] && ! ls ~/.local/share/mise/installs/btop >/dev/null 2>&1"
+  for t in claude gh herdr tailscale; do check_tool "$t"; done
+  # Linux 的 codegraph 也是 mise 裝的(npm backend,#342),跟 btop 一樣被 prune
+  check "mise 裝的 btop、codegraph 取消勾選後被 mise prune 拿掉,shim 也不在" \
+    "! ls -d ~/.local/share/mise/shims/btop ~/.local/share/mise/shims/codegraph ~/.local/share/mise/installs/btop ~/.local/share/mise/installs/npm-*codegraph* 2>/dev/null | grep -q ."
   check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
 }
 
