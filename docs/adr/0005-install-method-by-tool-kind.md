@@ -14,8 +14,9 @@ Windows 主機和 WSL 都要能完整使用 coding agent，用哪一邊由那台
 同一台電腦上的 Windows 和 WSL 是兩台機器，各有自己的 `~/.claude`、登入與對話紀錄，不共用；
 skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windows 沒開 Developer Mode 時是複製不是連結。
 
-「這個工具在這個環境走哪個裝法」要收進一張表，腳本只照表跑；表上沒有裝法的環境就是裝不了，
-`tool-env` 只留「不建議」和需要解釋給人看的原因。在那之前，Windows 的特例（node、herdr）還寫在 `mise-tools` 樣板裡。
+「這個工具在這個環境走哪個裝法」寫在選裝工具表 `home/.chezmoidata/tool-table.yaml`（spec #315）：每個 OS 一串依序試的裝法，
+腳本與清單只照裝法判斷 `tool-install` 的結果跑，沒有針對單一工具的特例；表上沒有裝法的環境就是裝不了，
+各工具的 `rules` 只留「不建議」和需要解釋給人看的原因。依序試只是把「apt 用不了才 mise」寫成表的形狀，分類照上表。
 
 ## Considered Options
 
@@ -44,4 +45,4 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
   mise 裝的那份 plugin 不用，等於裝兩份。所以 `install-wakatime.ps1` 直接把官方 release 解到那個位置，之後交給 plugin。
 - **Windows 的 codegraph 不用官方 `install.ps1`，走 mise。** 官方 `install.ps1` 只在 PATH 放 `codegraph.cmd`，
   skillshare 同步的 MCP 設定（`command: codegraph`）不經 shell 啟動，找不到 `.cmd`；mise 的 shim 是 `codegraph.exe`（#323）。
-  mise 裝的是官方 release 的 bundle、自帶 Node runtime，所以 Windows 勾 codegraph 不連帶裝 Node（`packages.yaml` 的 `nodeToolsSkip`）。
+  mise 裝的是官方 release 的 bundle、自帶 Node runtime，所以 Windows 勾 codegraph 不連帶裝 Node（表上 codegraph 的 `needsNode` 不列 windows）。

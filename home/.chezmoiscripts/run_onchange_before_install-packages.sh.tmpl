@@ -1,12 +1,12 @@
 {{- if or (includeTemplate "is-debian" .) (eq .chezmoi.os "android") -}}
 #!{{ lookPath "sh" }}
-# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
 # 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
-# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages,Debian 系看 ubuntu、Termux 看 termux);
-# 這台裝不了的勾了也不裝(.chezmoitemplates/tools-to-install)。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
 #
 # 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
-# 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
@@ -15,28 +15,33 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
+{{- /* 選裝工具的套件照裝法判斷(.chezmoitemplates/tool-install,#333)的 lists.apt、lists.pkg:勾了、這台裝得了、
+       裝法是 apt／pkg 的工具與依賴套件;誰走 apt、pkg 寫在 .chezmoidata/tool-table.yaml。
+       沒有 root 時 apt 用不了,判斷已經把選裝工具改到別的裝法(zsh 的 zsh-bin、vim 這類的 mise)或標裝不了;
+       只剩依賴套件(node 的 libatomic1,lists.aptNeedsRoot)照樣列:依賴裝不了不擋工具,執行時缺了才印手動指令。 */}}
+{{- $install := includeTemplate "tool-install" . | fromJson }}
 {{- $pkgs := .packages.ubuntu }}
-{{- $toolPkgs := .toolPackages.ubuntu }}
-{{- if eq .chezmoi.os "android" }}{{ $pkgs = .packages.termux }}{{ $toolPkgs = .toolPackages.termux }}{{ end }}
-{{- /* 沒有 root 時,miseTools 列的選裝工具改由 mise 裝到家目錄(run_onchange_after_install-mise),這裡不算缺 */}}
-{{- $mise := includeTemplate "use-mise" . }}
-{{- $installing := splitList " " (includeTemplate "tools-to-install" .) }}
-{{- range $tool, $tp := $toolPkgs }}
-{{-   if and (has $tool $installing) (not (and $mise (hasKey $.miseTools $tool))) }}{{ $pkgs = concat $pkgs $tp }}{{ end }}
+{{- $tool := concat $install.lists.apt $install.lists.aptNeedsRoot }}
+{{- /* Termux 的 Node(nodejs-lts)跟 nodejs、nodejs-current 互斥:不看 dpkg,執行時已經有 node 指令就不裝(下面另外判斷) */}}
+{{- $termuxNode := list }}
+{{- if eq .chezmoi.os "android" }}
+{{-   $pkgs = .packages.termux }}
+{{-   $node := $install.tools.node }}
+{{-   if and $node.install (eq $node.method "pkg") }}{{ $termuxNode = $node.packages }}{{ end }}
+{{-   $tool = list }}
+{{-   range $install.lists.pkg }}{{ if not (has . $termuxNode) }}{{ $tool = append $tool . }}{{ end }}{{ end }}
+{{- else if not (includeTemplate "has-root" .) }}
+{{- /* apt 用不了時 jq 改裝到家目錄(run_onchange_before_install-home-jq-zsh),這裡不算缺 */}}
+{{-   $pkgs = without $pkgs "jq" }}
 {{- end }}
-{{- /* 勾了要 Node 的工具(.chezmoitemplates/needs-node):Linux 加 nvm 的 Node 要的 libatomic.so.1;
-       Termux 的 Node 本身走 pkg(nodePackages.termux),下面另外判斷 */}}
-{{- $termuxNode := and (eq .chezmoi.os "android") (includeTemplate "needs-node" .) }}
-{{- if and (ne .chezmoi.os "android") (includeTemplate "needs-node" .) }}{{ $pkgs = concat $pkgs .nodePackages.ubuntu }}{{ end }}
-{{- /* apt 用不了時 jq、zsh 改裝到家目錄(run_onchange_before_install-home-jq-zsh),這裡不算缺 */}}
-{{- if $mise }}{{ $pkgs = without $pkgs "jq" "zsh" }}{{ end }}
+{{- $pkgs = concat $pkgs $tool }}
 for pkg in {{ $pkgs | uniq | join " " }}; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done
 {{- if $termuxNode }}
 # Termux 的 Node:nodejs-lts 跟 nodejs、nodejs-current 互斥,已經有 node 指令就不裝
-command -v node >/dev/null 2>&1 || missing="$missing {{ .nodePackages.termux | join " " }}"
+command -v node >/dev/null 2>&1 || missing="$missing {{ $termuxNode | join " " }}"
 {{- end }}
 [ -n "$missing" ] || exit 0
 

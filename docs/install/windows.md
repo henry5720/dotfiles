@@ -28,9 +28,8 @@ apply 時跑的腳本只有 `home/.chezmoiscripts/` 裡的 `.ps1`（sh 腳本不
 before  install-packages-windows.ps1   winget 裝 mise、pwsh 7、Windows Terminal，勾了 tailscale 也裝（已經裝了就跳過）
 （部署上面的檔案）
 after   install-agent-config.ps1       勾了 agent-config 才跑：官方 install.ps1 裝 skillshare，從 agent-config init、sync（已經有 %AppData%\skillshare\.git 就跳過）
-after   install-claude.ps1             勾了 claude 才跑：下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe 就跳過）
-after   install-codex.ps1              勾了 codex 才跑：下載官方 install.ps1 再執行（已經有 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-mise.ps1               mise install：裝 dotfiles.toml 清單上的 CLI
+after   install-official.ps1           勾了 claude、codex 才跑：照選裝工具表下載官方 install.ps1 再執行（已經有 .local\bin\claude.exe、%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe 就跳過）
 after   install-wakatime.ps1           勾了 wakatime 才跑：wakatime-cli 放到 .wakatime\（已經有就跳過），再為勾了的 claude、codex 裝 WakaTime plugin（已裝就跳過）
 after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
@@ -50,7 +49,7 @@ Terminal 的 `settings.json` 兩個值有一個不對時，那次 apply 會經�
 
 ## 裝了什麼、怎麼用
 
-CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseTools`），app 用 winget 裝，
+CLI 用 mise 裝、app 用 winget 裝（跟 Linux 寫在同一張選裝工具表 `home/.chezmoidata/tool-table.yaml`），
 官方有會自己更新的 installer 的（coding agent）走官方 installer（[ADR 0005](../adr/0005-install-method-by-tool-kind.md)）：
 
 | 工具 | 怎麼裝 | 什麼時候裝 | 常用 |
@@ -77,7 +76,7 @@ CLI 用 mise 裝（跟 Linux 共用 `home/.chezmoidata/packages.yaml` 的 `miseT
 | wakatime | 官方 release 的 zip 放到 `%USERPROFILE%\.wakatime\`（不走 mise）＋ 勾了的 agent 用官方的兩行指令裝 plugin（會一併列 Node LTS；marketplace 要 git，winget 裝 `Git.Git`，已經有就跳過、會跳 UAC） | 完整或自己勾 | 跟 Linux 一樣，見 [WakaTime](../ai-agent/wakatime.md)。plugin 只認 `.wakatime\wakatime-cli-windows-<arch>.exe`，之後由 plugin 自己更新；`wakatime-cli.exe` 是複製一份（Linux 是 symlink）。plugin 的 hook 用 PATH 上的 `node`（mise 的 shims，PowerShell profile 加進 PATH），從不讀 profile 的地方開 agent 可能找不到 node、送不出紀錄 |
 
 zsh、btop、code-server、earlyoom、
-snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoitemplates/tool-env`），要用就到 WSL 裝：
+snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata/tool-table.yaml`），要用就到 WSL 裝：
 工具本身沒有 Windows 版，或不適用 Windows（zsh：Windows 的 shell 是 PowerShell）。
 勾了也不會中斷 apply，最後列出略過了哪些。
 

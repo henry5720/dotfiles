@@ -3,7 +3,7 @@
 # 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
 # (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
 # 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
-#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoitemplates/tool-env)
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
 #   root-skipped  沒有 root 略過的步驟(skip_root)
 # 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
 # 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。

@@ -1,0 +1,366 @@
+# 環境 windows × 勾選 all
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell（裝不了：Windows 的 shell 是 PowerShell，補全、語法上色內建，跳目錄的 zoxide 每台 Windows 都裝）
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定 [mise]
+eza              彩色、帶圖示的 ls(ll、la、lt 用它) [mise]
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]
+bat              有語法上色的 cat [mise]
+ripgrep          rg:比 grep 快的全文搜尋 [mise]
+vim              終端機文字編輯器 [mise]
+fastfetch        終端機印出系統資訊 [mise]
+btop             終端機看 CPU、記憶體、行程（裝不了：btop 的 release 只有 Linux 版，改勾 bottom）
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用 [mise]
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux）
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login [mise]
+code-server      瀏覽器開的 VS Code（裝不了：code-server 官方不出 Windows 版，到 WSL 裝）
+tailscale        私人 VPN,連自己的機器 [winget]
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
+herdr            終端機多工,同時開多個 coding agent [mise]
+ttyd             把終端機開成網頁,share-shell 用 [mise]
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
+claude           Claude Code CLI [official]
+codex            Codex CLI [official]
+opencode         OpenCode CLI(會一併裝 Node) [mise]
+ffmpeg           影音轉檔、抽音軌與影格 [mise]
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [mise]
+node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 playwright-cli、opencode、wakatime 也會自動裝） [mise]
+codegraph        程式碼索引給 agent 查(mise 裝官方 release) [mise]
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [winget]
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node) [mise]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+
+## init 存下的設定
+[data]
+    codeServerPassword = "x"
+    codexLbApiKey = "x"
+    context7ApiKey = ""
+    wakatimeApiKey = ""
+    machineUse = "custom"
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+[interpreters.ps1]
+    command = "powershell"
+    args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+
+## 要裝
+starship eza fzf bat ripgrep vim fastfetch bottom gh tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg snapclient node codegraph headless-chrome playwright-cli agent-config
+
+## 略過(裝不了)
+zsh btop earlyoom code-server snapserver
+
+## 套件清單
+apt/pkg: 
+brew: 
+brew cask: 
+winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.Chrome.EXE Microsoft.VCRedist.2015+.x64 Tailscale.Tailscale
+
+## mise 清單
+# chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
+# 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+[tools]
+"zoxide" = "latest"
+"bat" = "latest"
+"bottom" = "latest"
+"poppler" = "latest"
+"cloudflared" = "latest"
+"codegraph" = "latest"
+"eza" = "latest"
+"fastfetch" = "latest"
+"ffmpeg" = "latest"
+"fzf" = "latest"
+"gh" = "latest"
+"herdr" = "latest"
+"node" = "lts"
+"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+"npm:@playwright/cli" = "latest"
+"ripgrep" = "latest"
+"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
+"starship" = "latest"
+"ttyd" = "latest"
+"vim" = "latest"
+
+## 渲染成空的腳本
+
+## 會跑的腳本
+.chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
+.chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+
+### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$dir = Join-Path $env:APPDATA 'skillshare'
+$remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/henry5720/agent-config.git' }
+$ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
+$manual = "skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets; skillshare install -g; skillshare sync --all"
+
+if (Test-Path (Join-Path $dir '.git')) {
+    Write-Host ((T 'YWdlbnQtY29uZmlnIOW3suWuieijnSh7MH0pLOi3s+mBjuOAguabtOaWsDpza2lsbHNoYXJlIHB1bGw7IHNraWxsc2hhcmUgc3luYyAtLWFsbA==') -f $dir)
+    exit 0
+}
+
+$env:Path = $env:Path + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host (T 'c2tpbGxzaGFyZSDopoEgZ2l0LOmAmeWPsOaJvuS4jeWIsOOAgndpbmdldCBpbnN0YWxsIC0taWQgR2l0LkdpdCAtLWV4YWN0IOS5i+W+jCzplovmlrDnmoQgc2hlbGwg6LeROg==')
+    Write-Host "  $manual"
+    exit 0
+}
+
+if (-not (Test-Path $ss)) {
+    $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1' -OutFile $installer -UseBasicParsing -ErrorAction Stop
+        $global:LASTEXITCODE = 0
+        & $installer
+        $code = $LASTEXITCODE
+    } catch {
+        Write-Host $_
+        $code = 1
+    } finally {
+        Remove-Item -Force $installer -ErrorAction SilentlyContinue
+    }
+    if (-not (Test-Path $ss)) {
+        Write-Host ((T 'c2tpbGxzaGFyZSDmspLoo53lpb0s5LmL5b6M6Ieq5bex6LeROmlybSB7MH0gfCBpZXgs5YaN6ZaL5paw55qEIHNoZWxsIOi3kTo=') -f 'https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1')
+        Write-Host "  $manual"
+        exit 0
+    }
+}
+
+if (-not (Test-Path (Join-Path $dir 'config.yaml'))) {
+    Write-Host ((T '5om+5LiN5YiwIHswfSzmspLmnIkgaW5pdA==') -f (Join-Path $dir 'config.yaml'))
+    exit 0
+}
+function Invoke-Skillshare {
+    & $ss @args
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ((T 'c2tpbGxzaGFyZSB7MH0g5aSx5pWXLOS5i+W+jOiHquW3sei3kTo=') -f $args[0])
+        Write-Host "  $manual"
+        exit 0
+    }
+}
+Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets
+Invoke-Skillshare install -g
+Invoke-Skillshare sync --all
+exit 0
+
+### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+# mise list (~/.config/mise/conf.d/dotfiles.toml):
+#   "zoxide" = "latest"
+#   "bat" = "latest"
+#   "bottom" = "latest"
+#   "poppler" = "latest"
+#   "cloudflared" = "latest"
+#   "codegraph" = "latest"
+#   "eza" = "latest"
+#   "fastfetch" = "latest"
+#   "ffmpeg" = "latest"
+#   "fzf" = "latest"
+#   "gh" = "latest"
+#   "herdr" = "latest"
+#   "node" = "lts"
+#   "npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+#   "npm:@playwright/cli" = "latest"
+#   "ripgrep" = "latest"
+#   "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
+#   "starship" = "latest"
+#   "ttyd" = "latest"
+#   "vim" = "latest"
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+
+if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
+    Write-Host (T '5om+5LiN5YiwIG1pc2UsQ0xJIOW3peWFt+aykuijneOAguWFiCB3aW5nZXQgaW5zdGFsbCAtLWlkIGpkeC5taXNlIC0tZXhhY3Qs6ZaL5paw55qEIFBvd2VyU2hlbGwg5YaNIGNoZXptb2kgYXBwbHk=')
+    exit 0
+}
+
+mise install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T 'bWlzZSBpbnN0YWxsIOacieW3peWFt+aykuijneWlvSzkuYvlvozoh6rlt7Hot5E6bWlzZSBpbnN0YWxs')
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+
+# claude
+if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
+    Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'claude')
+} else {
+    $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri 'https://claude.ai/install.ps1' -OutFile $installer -UseBasicParsing -ErrorAction Stop
+        $global:LASTEXITCODE = 0
+        & $installer
+        $code = $LASTEXITCODE
+    } catch {
+        Write-Host $_
+        $code = 1
+    } finally {
+        Remove-Item -Force $installer -ErrorAction SilentlyContinue
+    }
+    if ($code -ne 0) {
+        Write-Host ((T 'ezB9IOaykuijneWlvSzkuYvlvozoh6rlt7Hot5E6aXJtIHsxfSB8IGlleA==') -f 'claude', 'https://claude.ai/install.ps1')
+    }
+}
+
+# codex
+if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')) {
+    Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'codex')
+} else {
+    $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri 'https://chatgpt.com/codex/install.ps1' -OutFile $installer -UseBasicParsing -ErrorAction Stop
+        $env:CODEX_NON_INTERACTIVE = '1'
+        $global:LASTEXITCODE = 0
+        & $installer
+        $code = $LASTEXITCODE
+    } catch {
+        Write-Host $_
+        $code = 1
+    } finally {
+        Remove-Item -Force $installer -ErrorAction SilentlyContinue
+    }
+    if ($code -ne 0) {
+        Write-Host ((T 'ezB9IOaykuijneWlvSzkuYvlvozoh6rlt7Hot5E6aXJtIHsxfSB8IGlleA==') -f 'codex', 'https://chatgpt.com/codex/install.ps1')
+    }
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$dir = Join-Path $HOME '.wakatime'
+$bin = Join-Path $dir 'wakatime-cli-windows-amd64.exe'
+if (Test-Path $bin) {
+    Write-Host (T 'd2FrYXRpbWUtY2xpIOW3suWuieijnSzot7PpgY4=')
+} else {
+    $url = 'https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-windows-amd64.zip'
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName())
+    try {
+        New-Item -ItemType Directory -Force $tmp | Out-Null
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $url -OutFile (Join-Path $tmp 'wakatime.zip') -UseBasicParsing -ErrorAction Stop
+        Expand-Archive -Path (Join-Path $tmp 'wakatime.zip') -DestinationPath $tmp -Force -ErrorAction Stop
+        New-Item -ItemType Directory -Force $dir | Out-Null
+        Copy-Item -Path (Join-Path $tmp 'wakatime-cli-windows-amd64.exe') -Destination $bin -ErrorAction Stop
+    } catch {
+        Write-Host $_
+        Write-Host ((T 'd2FrYXRpbWUtY2xpIOaykuijneWlvSzkuYvlvozoh6rlt7HkuIvovIkgezB9IOino+mWi+WIsCB7MX0=') -f $url, $dir)
+    } finally {
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    }
+}
+$alias = Join-Path $dir 'wakatime-cli.exe'
+if ((Test-Path $bin) -and -not (Test-Path $alias)) {
+    Copy-Item -Path $bin -Destination $alias -ErrorAction SilentlyContinue
+}
+
+$env:Path = $env:Path + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+function Find-Agent([string]$name, [string]$official) {
+    $c = Get-Command $name -ErrorAction SilentlyContinue
+    if ($c) { return $c.Source }
+    return $official
+}
+function Get-PluginList([string]$exe) {
+    try { return (& $exe plugin list --json | Out-String | ConvertFrom-Json) } catch { return $null }
+}
+
+$claude = Find-Agent 'claude' (Join-Path $HOME '.local\bin\claude.exe')
+if (-not (Test-Path $claude)) {
+    Write-Host (T '5om+5LiN5YiwIGNsYXVkZSzot7PpgY4gQ2xhdWRlIENvZGUg55qEIFdha2FUaW1lIHBsdWdpbg==')
+} elseif (@(Get-PluginList $claude | Where-Object { $_.id -eq 'claude-code-wakatime@wakatime' }).Count -gt 0) {
+    Write-Host (T 'Q2xhdWRlIENvZGUg55qEIFdha2FUaW1lIHBsdWdpbiDlt7Llronoo50s6Lez6YGO')
+} else {
+    & $claude plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git
+    & $claude plugin install claude-code-wakatime@wakatime
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host (T 'Q2xhdWRlIENvZGUg55qEIFdha2FUaW1lIHBsdWdpbiDmspLoo53lpb0s5LmL5b6M6Ieq5bex6LeROmNsYXVkZSBwbHVnaW4gbWFya2V0cGxhY2UgYWRkIGh0dHBzOi8vZ2l0aHViLmNvbS93YWthdGltZS9jbGF1ZGUtY29kZS13YWthdGltZS5naXQ7IGNsYXVkZSBwbHVnaW4gaW5zdGFsbCBjbGF1ZGUtY29kZS13YWthdGltZUB3YWthdGltZQ==')
+    }
+}
+
+$codex = Find-Agent 'codex' (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')
+if (-not (Test-Path $codex)) {
+    Write-Host (T '5om+5LiN5YiwIGNvZGV4LOi3s+mBjiBDb2RleCBDTEkg55qEIFdha2FUaW1lIHBsdWdpbg==')
+} elseif (@((Get-PluginList $codex).installed | Where-Object { $_.pluginId -eq 'codex-cli-wakatime@wakatime' }).Count -gt 0) {
+    Write-Host (T 'Q29kZXggQ0xJIOeahCBXYWthVGltZSBwbHVnaW4g5bey5a6J6KOdLOi3s+mBjg==')
+} else {
+    & $codex plugin marketplace add wakatime/codex-cli-wakatime
+    & $codex plugin add codex-cli-wakatime@wakatime
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host (T 'Q29kZXggQ0xJIOeahCBXYWthVGltZSBwbHVnaW4g5rKS6KOd5aW9LOS5i+W+jOiHquW3sei3kTpjb2RleCBwbHVnaW4gbWFya2V0cGxhY2UgYWRkIHdha2F0aW1lL2NvZGV4LWNsaS13YWthdGltZTsgY29kZXggcGx1Z2luIGFkZCBjb2RleC1jbGktd2FrYXRpbWVAd2FrYXRpbWU=')
+    }
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
+# hash: c1e3e346a20d9b5e3cd603d12508e33085eab792cefa69dc9d49f1ac968873b6
+# pinned: ccdd9c9ad735375336af488e0f6a196826af1149c016d5efb1b949ff683869bf
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
+if (-not (Test-Path (Join-Path $env:APPDATA 'skillshare\.git')) -or -not (Test-Path $ss)) {
+    Write-Host (T 'YWdlbnQtY29uZmlnIOmChOaykuijneWlvSzot7PpgY4gc2tpbGxzaGFyZSBzeW5j')
+    exit 0
+}
+& $ss sync --all
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T 'c2tpbGxzaGFyZSBzeW5jIC0tYWxsIOWkseaVlyzkuYvlvozoh6rlt7Hlho3ot5HkuIDmrKE=')
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+Write-Host ''
+Write-Host (T 'PT0g6YCZ5Y+w6KOd5LiN5LqGLOS7peS4i+mBuOijneW3peWFt+W3sueVpemBjijlhbbppJjnhafluLjoo53lpb076KaB5pS55Yu+6YG45omTIHRvb2xzKTo=')
+Write-Host (T 'LSB6c2g6V2luZG93cyDnmoQgc2hlbGwg5pivIFBvd2VyU2hlbGzvvIzoo5zlhajjgIHoqp7ms5XkuIroibLlhaflu7rvvIzot7Pnm67pjITnmoQgem94aWRlIOavj+WPsCBXaW5kb3dzIOmDveijnQ==')
+Write-Host (T 'LSBidG9wOmJ0b3Ag55qEIHJlbGVhc2Ug5Y+q5pyJIExpbnV4IOeJiO+8jOaUueWLviBib3R0b20=')
+Write-Host (T 'LSBlYXJseW9vbTplYXJseW9vbSDoiIfoqJjmhrbpq5TjgIFDUFUg55qE5L+d6K236YO96Z2gIExpbnV4IOeahCBzeXN0ZW1k77yM5Y+q6KOd5ZyoIExpbnV4')
+Write-Host (T 'LSBjb2RlLXNlcnZlcjpjb2RlLXNlcnZlciDlrpjmlrnkuI3lh7ogV2luZG93cyDniYjvvIzliLAgV1NMIOijnQ==')
+Write-Host (T 'LSBzbmFwc2VydmVyOnNuYXBzZXJ2ZXIg5rKS5pyJIFdpbmRvd3Mg54mI77yM5pyX6K6A5pyN5YuZ5pS+6LeRIGFnZW50IOeahCBMaW51eCDkuLvmqZ8=')
+exit 0
+
+### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$ids = @(
+    'jdx.mise',
+    'Microsoft.PowerShell',
+    'Microsoft.WindowsTerminal',
+    'Git.Git',
+    'Google.Chrome.EXE',
+    'Microsoft.VCRedist.2015+.x64',
+    'Tailscale.Tailscale'
+)
+
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Host ((T '5om+5LiN5YiwIHdpbmdldCzmspLoo506ezB944CC5b6eIE1pY3Jvc29mdCBTdG9yZSDoo53jgIzmh4nnlKjnqIvlvI/lronoo53nqIvlvI/jgI0oQXBwIEluc3RhbGxlcinlvozlho0gY2hlem1vaSBhcHBseQ==') -f ($ids -join ', '))
+    exit 0
+}
+
+foreach ($id in $ids) {
+    winget list --id $id --exact --accept-source-agreements *> $null
+    if ($LASTEXITCODE -eq 0) { continue }
+    winget install --id $id --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ((T 'd2luZ2V0IOaykuijneWlvSB7MH0s5LmL5b6M6Ieq5bex6LeROndpbmdldCBpbnN0YWxsIC0taWQgezB9IC0tZXhhY3Q=') -f $id)
+    }
+}
+exit 0

@@ -1,0 +1,120 @@
+# 環境 windows × 勾選 node
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell（裝不了：Windows 的 shell 是 PowerShell，補全、語法上色內建，跳目錄的 zoxide 每台 Windows 都裝）
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定 [mise]
+eza              彩色、帶圖示的 ls(ll、la、lt 用它) [mise]
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]
+bat              有語法上色的 cat [mise]
+ripgrep          rg:比 grep 快的全文搜尋 [mise]
+vim              終端機文字編輯器 [mise]
+fastfetch        終端機印出系統資訊 [mise]
+btop             終端機看 CPU、記憶體、行程（裝不了：btop 的 release 只有 Linux 版，改勾 bottom）
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用 [mise]
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux）
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login [mise]
+code-server      瀏覽器開的 VS Code（裝不了：code-server 官方不出 Windows 版，到 WSL 裝）
+tailscale        私人 VPN,連自己的機器 [winget]
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
+herdr            終端機多工,同時開多個 coding agent [mise]
+ttyd             把終端機開成網頁,share-shell 用 [mise]
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
+claude           Claude Code CLI [official]
+codex            Codex CLI [official]
+opencode         OpenCode CLI(會一併裝 Node) [mise]
+ffmpeg           影音轉檔、抽音軌與影格 [mise]
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [mise]
+node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 playwright-cli、opencode、wakatime 也會自動裝） [mise]
+codegraph        程式碼索引給 agent 查(mise 裝官方 release) [mise]
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [winget]
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node) [mise]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+
+## init 存下的設定
+[data]
+    machineUse = "custom"
+    tools = ["node"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+[interpreters.ps1]
+    command = "powershell"
+    args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+
+## 要裝
+node
+
+## 略過(裝不了)
+
+
+## 套件清單
+apt/pkg: 
+brew: 
+brew cask: 
+winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
+
+## mise 清單
+# chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
+# 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+[tools]
+"zoxide" = "latest"
+"node" = "lts"
+
+## 渲染成空的腳本
+.chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
+.chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
+
+## 會跑的腳本
+.chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+
+### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+# mise list (~/.config/mise/conf.d/dotfiles.toml):
+#   "zoxide" = "latest"
+#   "node" = "lts"
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+
+if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
+    Write-Host (T '5om+5LiN5YiwIG1pc2UsQ0xJIOW3peWFt+aykuijneOAguWFiCB3aW5nZXQgaW5zdGFsbCAtLWlkIGpkeC5taXNlIC0tZXhhY3Qs6ZaL5paw55qEIFBvd2VyU2hlbGwg5YaNIGNoZXptb2kgYXBwbHk=')
+    exit 0
+}
+
+mise install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T 'bWlzZSBpbnN0YWxsIOacieW3peWFt+aykuijneWlvSzkuYvlvozoh6rlt7Hot5E6bWlzZSBpbnN0YWxs')
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$ids = @(
+    'jdx.mise',
+    'Microsoft.PowerShell',
+    'Microsoft.WindowsTerminal'
+)
+
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Write-Host ((T '5om+5LiN5YiwIHdpbmdldCzmspLoo506ezB944CC5b6eIE1pY3Jvc29mdCBTdG9yZSDoo53jgIzmh4nnlKjnqIvlvI/lronoo53nqIvlvI/jgI0oQXBwIEluc3RhbGxlcinlvozlho0gY2hlem1vaSBhcHBseQ==') -f ($ids -join ', '))
+    exit 0
+}
+
+foreach ($id in $ids) {
+    winget list --id $id --exact --accept-source-agreements *> $null
+    if ($LASTEXITCODE -eq 0) { continue }
+    winget install --id $id --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ((T 'd2luZ2V0IOaykuijneWlvSB7MH0s5LmL5b6M6Ieq5bex6LeROndpbmdldCBpbnN0YWxsIC0taWQgezB9IC0tZXhhY3Q=') -f $id)
+    }
+}
+exit 0

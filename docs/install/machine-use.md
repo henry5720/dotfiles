@@ -26,12 +26,17 @@
 - `node` 裝 nvm 與 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
 - `starship` 是 zsh、bash 共用的提示列，跟 `zsh` 分開勾：只要 zsh 外掛、不要提示列，或用 bash 配 starship 都行；沒勾就是 shell 預設的提示列。以前存自訂、勾了 `zsh` 的 config（當時 zsh 附帶 p10k），下次 `chezmoi init` 自動補勾 `starship`。
 
+選單每一項的說明後面標這台會走的裝法（#335），例如
+`fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]`。裝法有 `apt`、`pkg`、`brew`、`cask`、`winget`、`mise`、
+`official`（官方 installer）、`script`（這個 repo 自己的腳本）、`deb`、`system`（沿用系統已經有的）、`builtin`（OS 內建），
+分類見 [ADR 0005](../adr/0005-install-method-by-tool-kind.md)；同一個工具在不同機器可能不同，例如 vim 有 root 走 `apt`、沒有 root 走 `system` 或 `mise`。
+
 選項清單與每一項的說明在 [`home/.chezmoitemplates/tool-menu`](../../home/.chezmoitemplates/tool-menu)，
 用途的預設組合在 [`home/.chezmoi.toml.tmpl`](../../home/.chezmoi.toml.tmpl) 的 `$lean`。
 
 ## 環境：不建議、裝不了
 
-選單每台都列全部工具。這台環境不建議或裝不了的，說明後面標原因，例如
+選單每台都列全部工具。這台環境不建議或裝不了的，說明後面標原因（不建議的照樣先標裝法），裝不了的不標裝法，例如
 `headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）`：
 
 | 狀態 | 預設組合 | 勾了 |
@@ -47,10 +52,12 @@ WSL 的 `snapserver`（抓不到自己的 tailnet IP）；proot Ubuntu 的 `snap
 `agent-config`、`codegraph`（沒有 Termux 版，coding agent 到同一台平板的 proot Ubuntu 用）。
 `snapserver` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、非 Debian 系都裝不了。
 `snapclient` 在非 Debian 系 Linux 裝不了（Windows 由 mise 裝官方 release 的 zip）。
+沒有 root 的 Debian 系，只能走 apt 或 .deb 的 `earlyoom`、`snapclient`、`snapserver`、`headless-chrome` 也標裝不了。
 `earlyoom` 只裝在有 systemd 的 Debian 系 Linux：Windows、macOS、原生 Termux、proot Ubuntu、WSL（記憶體由 `.wslconfig` 管）、非 Debian 系都裝不了。
 Windows 主機裝不了的只剩 `zsh`（Windows 的 shell 是 PowerShell）、`btop`（沒有 Windows 版，改勾 `bottom`）、`earlyoom`、`snapserver`（要 systemd）、`code-server`（官方不出 Windows 版）；其他照 [ADR 0005](../adr/0005-install-method-by-tool-kind.md) 的裝法裝（見[Windows 主機](windows.md#裝了什麼怎麼用)）。
 macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個工具在哪個環境是什麼狀態、原因怎麼寫，只在
-[`home/.chezmoitemplates/tool-env`](../../home/.chezmoitemplates/tool-env)；選單標註、預設組合、略過彙整都從那裡拿。
+[`home/.chezmoidata/tool-table.yaml`](../../home/.chezmoidata/tool-table.yaml) 各工具的 `rules`；
+選單標註、預設組合、略過彙整都讀裝法判斷 `home/.chezmoitemplates/tool-install` 照表算出的結果。
 
 ## 憑證
 

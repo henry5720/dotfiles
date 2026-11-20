@@ -1,0 +1,428 @@
+# 環境 debian-noroot × 勾選 headless-chrome
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell [script]
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定 [mise]
+eza              彩色、帶圖示的 ls(ll、la、lt 用它) [mise]
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]
+bat              有語法上色的 cat [mise]
+ripgrep          rg:比 grep 快的全文搜尋 [mise]
+vim              終端機文字編輯器 [mise]
+fastfetch        終端機印出系統資訊 [mise]
+btop             終端機看 CPU、記憶體、行程 [mise]
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用 [mise]
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：要 root：要改系統服務的記憶體設定）
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login [mise]
+code-server      瀏覽器開的 VS Code [mise]
+tailscale        私人 VPN,連自己的機器 [script]
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
+herdr            終端機多工,同時開多個 coding agent [official]
+ttyd             把終端機開成網頁,share-shell 用 [mise]
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
+claude           Claude Code CLI [official]
+codex            Codex CLI [official]
+opencode         OpenCode CLI(會一併裝 Node) [official]
+ffmpeg           影音轉檔、抽音軌與影格 [mise]
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：沒有 root 用不了 apt，官方只出 .deb）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流（裝不了：沒有 root 用不了 apt，官方只出 .deb）
+node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node) [script]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+
+## init 存下的設定
+[data]
+    gitUserName = "e2e"
+    gitUserEmail = "e2e@example.com"
+    machineUse = "custom"
+    tools = ["headless-chrome"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+## 要裝
+
+
+## 略過(裝不了)
+headless-chrome
+
+## 套件清單
+apt/pkg: git curl python3
+brew: 
+brew cask: 
+winget: 
+
+## mise 清單
+
+
+## 渲染成空的腳本
+.chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
+.chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-official.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
+
+## 會跑的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+
+### .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+#!@BIN@/sh
+# 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
+# (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
+#   root-skipped  沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
+# 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
+# run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
+set -eu
+
+d="$HOME/.local/state/dotfiles"
+if [ -s "$d/env-skipped" ]; then
+  echo
+  echo '== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):'
+  cat "$d/env-skipped"
+fi
+rm -f "$d/env-skipped"
+if [ -s "$d/root-skipped" ]; then
+  echo
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  cat "$d/root-skipped"
+fi
+rm -f "$d/root-skipped"
+
+### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+#!/usr/bin/env python3
+# 一次性遷移:MCP 從 chezmoi 交給 skillshare(dotfiles #34)。
+#
+# 舊版 chezmoi 在三個 client 設定裡寫了 MCP 條目。skillshare 看到同名、不是它寫的條目
+# 會整批停下(existing entry is not managed),所以這支把舊條目拿掉,讓
+# `skillshare sync mcp -g` 可以直接寫。
+#
+# 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
+# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 docs/ai-agent/ai-agent-setup.md 的 MCP 那節。
+#
+# run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
+# 所有機器都遷移完(#37)就可以刪掉這支。
+import json
+import os
+import re
+import tomllib
+
+dest = "/home/snapshot"
+
+
+def write(path, text):
+    # 先寫暫存檔再換名:Claude Code 可能正在寫 ~/.claude.json,中途斷掉也不會留下半個檔。
+    tmp = path + ".chezmoi-tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+
+CHROME_ARGS = [
+    "-y",
+    "chrome-devtools-mcp@latest",
+    "--browser-url=http://127.0.0.1:9222",
+    "--no-usage-statistics",
+    "--no-performance-crux",
+]
+CODEGRAPH_ARGS = ["serve", "--mcp"]
+
+
+def is_legacy_codex(name, table):
+    if name == "chrome-devtools":
+        return table == {"command": "npx", "args": CHROME_ARGS, "enabled": True, "startup_timeout_sec": 60}
+    if name == "codegraph":
+        return table == {"command": "codegraph", "args": CODEGRAPH_ARGS, "enabled": True}
+    if name == "context7":
+        # key 是本機的值,只看形狀。
+        base = {k: v for k, v in table.items() if k != "http_headers"}
+        headers = table.get("http_headers", {})
+        return base == {"url": "https://mcp.context7.com/mcp", "enabled": True} and set(headers) <= {"CONTEXT7_API_KEY"}
+    return False
+
+
+LEGACY_JSON = {
+    ".claude.json": ("mcpServers", {
+        "chrome-devtools": {"type": "stdio", "command": "npx", "args": CHROME_ARGS, "env": {}},
+    }),
+    ".config/opencode/opencode.json": ("mcp", {
+        "chrome-devtools": {"enabled": True, "type": "local", "command": ["npx"] + CHROME_ARGS},
+        "codegraph": {"enabled": True, "type": "local", "command": ["codegraph"] + CODEGRAPH_ARGS},
+    }),
+}
+
+
+def clean_json(rel, section, legacy):
+    path = os.path.join(dest, rel)
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    data = json.loads(text)
+    servers = data.get(section, {})
+    removed = [name for name, value in legacy.items() if servers.get(name) == value]
+    if not removed:
+        return
+    for name in removed:
+        del servers[name]
+    out = json.dumps(data, indent=2, ensure_ascii=False)
+    # 保留原本結尾有沒有換行(Claude Code 寫的 ~/.claude.json 沒有)。
+    if text.endswith("\n"):
+        out += "\n"
+    write(path, out)
+    print(f"{rel}: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+def clean_codex():
+    path = os.path.join(dest, ".codex/config.toml")
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    servers = tomllib.loads(text).get("mcp_servers", {})
+    removed = [name for name, table in servers.items() if is_legacy_codex(name, table)]
+    if not removed:
+        return
+    # 舊版寫的是一般的 [mcp_servers.NAME] table(沒有子 table),刪到下一個 table 或
+    # 註解為止 —— 後面緊接的註解是下一段的橫幅(例如停用 skill 那段),不能一起刪。
+    header = re.compile(r"^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
+    out, dropping = [], False
+    for line in text.splitlines(keepends=True):
+        match = header.match(line)
+        if match:
+            dropping = match.group(1) in {f"mcp_servers.{name}" for name in removed}
+        elif dropping and line.lstrip().startswith("#"):
+            dropping = False
+            # 橫幅前面那個空行跟著被刪的 table 走了,補回來(codex 的 modify_ 也會這樣排)。
+            if out and out[-1].strip():
+                out.append("\n")
+        if not dropping:
+            out.append(line)
+    result = "".join(out).rstrip("\n") + "\n"
+    # 文字比對只認得不加引號的 header;沒刪到的(例如 [mcp_servers."x"])就不算。
+    left = tomllib.loads(result).get("mcp_servers", {})
+    removed = [name for name in removed if name not in left]
+    if not removed:
+        return
+    write(path, result)
+    print(f".codex/config.toml: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+for rel, (section, legacy) in LEGACY_JSON.items():
+    clean_json(rel, section, legacy)
+clean_codex()
+
+### .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+#!@BIN@/sh
+# 沒有 root 又沒有 ssh 的機器(例:TeamSync 工作區)把 openssh-client 解到家目錄。不分用途、不在選單上。
+# 有 root 的機器渲染成空的(要 ssh 就用系統套件);非 Debian 系沒有 apt-get download,也渲染成空的。
+# 做法:apt 用私有目錄抓清單和 .deb(不用 root、不碰系統的 apt),dpkg -x 解到 ~/.local/opt/openssh,
+# ssh、ssh-keygen、scp 在 ~/.local/bin 各包一層 LD_LIBRARY_PATH(krb5 等相依函式庫也解在那裡)。
+set -eu
+
+opt=$HOME/.local/opt/openssh
+bin=$HOME/.local/bin
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <手動怎麼做>
+  echo "略過 $1(沒有 root)。手動:$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+# 哪一步失敗都不讓 apply 失敗(沒有 root 時整個 apply 照樣 exit 0):清掉半套、記進略過彙整、結束。
+give_up() {  # give_up <原因>
+  rm -rf "$opt"
+  rm -f "$bin/ssh" "$bin/ssh-keygen" "$bin/scp"
+  skip_root ssh "$1,沒有補裝 ssh。請有 root 的人跑 sudo apt-get install -y openssh-client"
+  exit 0
+}
+
+# 1. 已經有 ssh 就不動:系統本來就有,或上次解好的那份還能跑
+if [ -x "$bin/ssh" ] && "$bin/ssh" -V >/dev/null 2>&1; then
+  echo "ssh 已經在 ~/.local/bin,跳過"
+  exit 0
+fi
+if p=$(command -v ssh) && [ "$p" != "$bin/ssh" ]; then
+  echo "已經有 ssh($p),跳過"
+  exit 0
+fi
+
+# 2. 私有的 apt 清單與快取,放暫存目錄,用完就刪(清單約 50M)
+echo "沒有 ssh 也沒有 root:下載 openssh-client 解到 ~/.local/opt/openssh"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/lists/partial" "$tmp/cache/archives/partial"
+apt_user() { apt-get -o Dir::State::Lists="$tmp/lists" -o Dir::Cache="$tmp/cache" -o Debug::NoLocking=1 "$@"; }
+# 成功時不印:docker 映像的 apt 清理 hook 會對系統快取目錄報 Permission denied,不影響結果
+if ! out=$(apt_user update 2>&1); then
+  printf '%s\n' "$out"
+  give_up "apt-get update 失敗(套件來源連不上?)"
+fi
+
+# 3. 要抓哪些套件:模擬安裝(不用 root),列出系統還沒有的相依(krb5 那幾個常常缺)
+pkgs=$(apt_user -s install --no-install-recommends openssh-client 2>/dev/null | sed -n 's/^Inst \([^ ]*\) .*/\1/p') || :
+[ -n "$pkgs" ] || give_up "apt 找不到 openssh-client"
+# shellcheck disable=SC2086 # 套件名要分開成多個參數
+(cd "$tmp" && apt_user download $pkgs) || give_up "apt-get download 失敗"
+
+# 4. 解到 ~/.local/opt/openssh(先清掉上次留下的半套)
+rm -rf "$opt"
+mkdir -p "$opt"
+for f in "$tmp"/*.deb; do
+  dpkg -x "$f" "$opt" || give_up "dpkg -x 解不開 $(basename "$f")"
+done
+
+# 5. wrapper:函式庫目錄 = 解出來的檔案裡有 .so 的目錄。
+#    scp 預設呼叫 /usr/bin/ssh,這台沒有,用 -S 指到 wrapper
+libs=$(find "$opt" -name '*.so*' -exec dirname {} \; | sort -u | paste -sd:)
+mkdir -p "$bin"
+for c in ssh ssh-keygen scp; do
+  extra=""
+  [ "$c" = scp ] && extra="-S $bin/ssh "
+  cat > "$bin/$c" <<EOF
+#!/bin/sh
+# chezmoi 的 install-ssh-client 產生:沒有 root 時解到 ~/.local/opt/openssh 的 openssh-client
+LD_LIBRARY_PATH=$libs\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH} exec $opt/usr/bin/$c $extra"\$@"
+EOF
+  chmod 755 "$bin/$c"
+done
+
+# 6. 確認真的能跑(缺函式庫時 ssh -V 會失敗):跑不起來就拿掉 wrapper,免得 PATH 上有一支壞的 ssh
+"$bin/ssh" -V || give_up "解出來的 ssh 跑不起來(缺函式庫?)"
+
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+#!@BIN@/sh
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <手動怎麼做>
+  echo "略過 $1(沒有 root)。手動:$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_env 'headless-chrome' 'Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt'
+
+### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+#!@BIN@/sh
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)把 jq 與 zsh 裝到家目錄。
+# 其他機器渲染成空的:有 root 的 Debian 系、Termux 由 install-packages 用 apt／pkg 裝,macOS 走 brew。
+# 這兩個不交給 mise:jq 要在 modify_ 之前就有(mise 是 after_ 才裝);zsh 用 zsh-bin,不用 conda 版
+# (會帶 CONDA_PREFIX,以前 p10k 因此一直多顯示 anaconda)。
+#
+# 名字帶 before_:在 modify_ 腳本(要 jq)之前跑;排在 install-packages 前面,
+# 沒有 root 的 Debian 系那支就不再把 jq、zsh 算成缺的套件。
+# 系統已經有的不裝;用到 jq 的腳本找不到它時會把 ~/.local/bin 加進 PATH(.chezmoitemplates/sh-jq-path)。
+set -eu
+bin=$HOME/.local/bin
+
+# 1. jq:jqlang/jq 官方有靜態 binary,放 ~/.local/bin。沒有它 modify_ 會失敗,所以裝不起來就讓 apply 停下來,
+#    下次 apply 重試(腳本失敗不會記成跑過)。
+if command -v jq >/dev/null 2>&1 || [ -x "$bin/jq" ]; then
+  :
+else
+  case "$(uname -m)" in
+    x86_64) jq_asset=amd64 ;;
+    aarch64 | arm64) jq_asset=arm64 ;;
+    *) echo "jq 沒有 $(uname -m) 的官方 binary,請自己裝 jq 再 chezmoi apply" >&2; exit 1 ;;
+  esac
+  mkdir -p "$bin"
+  if curl -fsSL -o "$bin/.jq.tmp" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$jq_asset" &&
+    chmod 755 "$bin/.jq.tmp" && mv -f "$bin/.jq.tmp" "$bin/jq"; then
+    echo "jq 從 GitHub release 裝到 ~/.local/bin"
+  else
+    rm -f "$bin/.jq.tmp"
+    echo "jq 下載失敗;modify_ 腳本要它,這次 apply 停在這裡,網路好了再 chezmoi apply" >&2
+    exit 1
+  fi
+fi
+
+### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+#!@BIN@/sh
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
+#
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
+missing=""
+for pkg in git curl python3; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才裝
+echo "安裝缺少的套件:$missing"
+
+# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印手動指令,apply 繼續。
+# jq、zsh 不在這裡(第 1 步已經排除),由 run_onchange_before_install-home-jq-zsh 裝到家目錄。
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <手動怎麼做>
+  echo "略過 $1(沒有 root)。手動:$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_root 系統套件 "缺$missing,請有 root 的人跑 sudo apt-get install -y$missing"

@@ -215,16 +215,17 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
 
-選單上每一項後面都有一句說明，清單和說明在
+選單上每一項後面都有一句說明和這台會走的裝法（例如 `[apt]`、`[mise]`），清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
-WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。
+WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`、`playwright-cli`；沒有 root 的機器裝不了 `headless-chrome`。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
 `snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 走 mise 裝官方 release 的 zip；非 Debian 系裝不了，proot Ubuntu 標不建議。
-macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（清單在 `home/.chezmoidata/packages.yaml` 的 darwin 欄），
-herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
-原生 Termux 有勾的工具走 `pkg`（清單在同一份檔案的 termux 欄，Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。
+macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`，herdr、Claude Code、Codex、OpenCode、skillshare、wakatime-cli 照原本的官方 installer。
+原生 Termux 有勾的工具走 `pkg`（Node 是 `nodejs-lts`），coding agent 這類裝不了的到 proot Ubuntu 裝。
+每個工具在每個環境走哪個裝法、套件名是什麼，寫在選裝工具表
+[`home/.chezmoidata/tool-table.yaml`](../home/.chezmoidata/tool-table.yaml)；`packages.yaml` 只放跟勾選無關的基本套件。
 
 勾了 zsh 和 starship 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + starship 提示列。原生 Termux 到這裡就結束了。
 

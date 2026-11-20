@@ -292,7 +292,7 @@ render_cmd() {
 declare -A TOOL_CHECK=(
   # zsh 整組:套件 + 外掛 clone + .zshrc;預設 shell、提示列等細項在 check_zsh_env
   [zsh]="command -v zsh && [ -f ~/.zshrc ] && git -C ~/.config/zsh/zsh-autosuggestions rev-parse --is-inside-work-tree"
-  # Linux 由 mise 裝(miseTools 的 always;這裡的 bash -l 沒有 shims,直接找 shim);Termux 走 pkg。設定檔跟著勾選部署
+  # Linux 由 mise 裝(選裝工具表上 linux 只寫 mise;這裡的 bash -l 沒有 shims,直接找 shim);Termux 走 pkg。設定檔跟著勾選部署
   [starship]="{ ~/.local/share/mise/shims/starship --version || starship --version; } && [ -f ~/.config/starship.toml ]"
   # 同上:Linux 由 mise 裝,Termux 走 pkg
   [eza]="[ -x ~/.local/share/mise/shims/eza ] || command -v eza"
@@ -309,7 +309,7 @@ declare -A TOOL_CHECK=(
   [node]=". ~/.nvm/nvm.sh && node --version"
   [code-server]="command -v code-server"
   [tailscale]="command -v tailscale"
-  # Linux 由 mise 裝(miseTools 的 always)
+  # Linux 由 mise 裝(選裝工具表上 linux 只寫 mise)
   [cloudflared]="{ [ -x ~/.local/share/mise/shims/cloudflared ] && ~/.local/share/mise/shims/cloudflared --version; } || cloudflared --version"
   [herdr]="command -v herdr"
   [ttyd]="[ -x ~/.local/share/mise/shims/ttyd ] || command -v ttyd"
@@ -320,7 +320,7 @@ declare -A TOOL_CHECK=(
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
-  # 與它跑 edge-tts 用的 uv(mise 裝,miseTools 的 snapserver;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
+  # 與它跑 edge-tts 用的 uv(mise 裝,選裝工具表上 snapserver 的依賴套件;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
@@ -374,7 +374,7 @@ ANDROID_ENV='{"chezmoi":{"os":"android"}}'
 TERMUX_LEAN=$(grep -oE '"[a-z-]+"' <<<"$LEAN_TOML" | tr -d '"' | paste -sd/)
 TERMUX_TOML=$LEAN_TOML
 
-# 有 root 的 Ubuntu 也由 mise 裝的選裝工具(miseTools 的 always,#233),這裡列第一次 init 有勾的那幾個的指令名。
+# 有 root 的 Ubuntu 也由 mise 裝的選裝工具(選裝工具表上 linux 只寫 mise,#233),這裡列第一次 init 有勾的那幾個的指令名。
 CLI_TOOLS=(eza fzf bat rg starship btop btm fastfetch)
 SHIMS='~/.local/share/mise/shims'
 
@@ -462,7 +462,7 @@ check_personal_chrome_attach_dry_run() {
 
 # 朗讀串流服務(#290)。容器的 PID 1 不是 systemd、也沒有 systemctl:user service 起不來,
 # 改成直接用部署的設定跑 snapserver,看三個 port 綁哪裡(容器裡 tailscale 沒登入,設定綁 127.0.0.1;
-# 綁 tailnet IP 由 test_tool_env 用假的 tailscale 驗)。/proc/net/tcp 的位址是十六進位:
+# 綁 tailnet IP 由 test_tool_status 用假的 tailscale 驗)。/proc/net/tcp 的位址是十六進位:
 # 0100007F = 127.0.0.1;port 06A8 = 1704(串流)、06A9 = 1705(控制)、06F4 = 1780(網頁);狀態 0A = LISTEN。
 check_snapserver() {
   check "snapserver 套件自帶的系統服務已停用(multi-user.target.wants 沒有它)" \
@@ -515,7 +515,7 @@ scenario_ubuntu() {
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入
   check_tool node
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
-  # uv 是 snapserver 帶的(照 miseTools 的工具名排序,在 starship 前面)
+  # uv 是 snapserver 的依賴套件(清單照選裝工具表的工具名排序、依賴接在工具後面,在 starship 前面)
   check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
     "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
@@ -811,7 +811,7 @@ scenario_ubuntu() {
     "[ \"\$(chezmoi --config /tmp/android-all.toml --override-data '$android' --destination /tmp/android-home --persistent-state /tmp/android.boltdb apply --dry-run --verbose --no-tty 2>&1 | grep -oE '^diff --git a/($TOOL_SCRIPT_RE|\\.chezmoiscripts/install-node)' | sed 's|.*/||' | sort -u | paste -sd' ')\" = install-wakatime ]"
 
   # 選單每台列全部工具(#272)。WSL 不在 WSL 裝 Linux Chrome(查原因到遠端主機做,#260)、Google 只出 amd64 的 .deb:
-  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoitemplates/tool-env),預設組合不勾,勾了照存、apply 時略過。
+  # headless Chrome、playwright-cli 照列,後面標「裝不了」與原因(.chezmoidata/tool-table.yaml),預設組合不勾,勾了照存、apply 時略過。
   # 用 --override-data 蓋 kernel.osrelease 模擬 WSL、arch 模擬 ARM;--config 指向不存在的檔,
   # promptMultichoiceOnce 才會真的問。用 --promptMultichoice 指定勾哪項:選單文字對不上會報 invalid choice。
   bold "▶ (渲染)WSL、ARM 選單照列 headless Chrome、playwright-cli,標裝不了"
@@ -883,8 +883,9 @@ scenario_ubuntu() {
     "rm -rf /tmp/nopath && mkdir /tmp/nopath && for c in chezmoi id sh sudo vim; do ln -s \"\$(command -v \$c)\" /tmp/nopath/\$c; done && PATH=/tmp/nopath chezmoi execute-template --override-data '$fedora_mise' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/fedora-mise.toml && cat /tmp/fedora-mise.toml && grep -qx '\"ffmpeg\" = \"latest\"' /tmp/fedora-mise.toml && grep -qx '\"btop\" = \"latest\"' /tmp/fedora-mise.toml && ! grep -q vim /tmp/fedora-mise.toml && chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_after_install-mise.sh.tmpl | grep -q 'mise\" install'"
   check "有 root 的 Ubuntu:只勾 conda 的(ffmpeg)忽略 ~/.config/mise,勾了 always 的(fzf)不忽略;非 Debian 系不忽略" \
     "! chezmoi execute-template --override-data '$fedora_mise' < $tmpl/.chezmoiignore | grep -qx .config/mise && chezmoi execute-template --override-data '{\"tools\":[\"ffmpeg\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise && ! chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $tmpl/.chezmoiignore | grep -qx .config/mise"
-  check "有 root 的 Ubuntu:系統已經有 vim,always 的工具照樣列(mise 清單不看 lookPath)" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"],\"miseTools\":{\"vim\":{\"tool\":\"vim\",\"cmd\":\"vim\",\"always\":true},\"fzf\":{\"tool\":\"fzf\",\"cmd\":\"fzf\",\"always\":true}}}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -qx '\"vim\" = \"latest\"'"
+  # 選裝工具表(tool-table.yaml)上 linux 只寫 mise 的(fzf)不看系統;vim 有 root 走 apt(#333 起清單照表產生)
+  check "有 root 的 Ubuntu:系統已經有 vim,只寫 mise 的工具照樣列(mise 清單不看 lookPath)、vim 走 apt 不列" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"vim\",\"fzf\"]}' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl > /tmp/root-mise.toml && cat /tmp/root-mise.toml && grep -qx '\"fzf\" = \"latest\"' /tmp/root-mise.toml && ! grep -q vim /tmp/root-mise.toml"
   local fedora_tools='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["gh","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-headless-chrome \
@@ -917,7 +918,7 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
-  check "macOS 的選單 tailscale 沒有標註" "grep -qx 'tailscale *私人 VPN,連自己的機器' <<<$(printf '%q' "$(menu_labels "$mac")")"
+  check "macOS 的選單 tailscale 沒有標註、標裝法 cask" "grep -qx 'tailscale *私人 VPN,連自己的機器 \\[cask\\]' <<<$(printf '%q' "$(menu_labels "$mac")")"
   for t in headless-chrome playwright-cli; do
     label=$(menu_choice "$t" "$mac")
     check "macOS 的選單列 $t、標裝不了,勾了照存" \
@@ -933,7 +934,7 @@ scenario_ubuntu() {
   local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-mise \
-           run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
+           run_onchange_after_install-official run_onchange_after_install-headless-chrome \
            run_onchange_after_npm-install-playwright-cli run_onchange_after_install-tailscale; do
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
@@ -1007,7 +1008,7 @@ scenario_ubuntu() {
   check "只勾 codegraph:在空的 HOME 照順序跑兩支腳本,exit 0、codegraph 能跑" \
     "chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_install-node.sh.tmpl > /tmp/cg-1.sh && chezmoi execute-template --override-data '$only_cg' < $scripts/run_onchange_after_npm-install-codegraph.sh.tmpl > /tmp/cg-2.sh && rm -rf /tmp/only-cg && mkdir /tmp/only-cg && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin sh -c 'sh /tmp/cg-1.sh && sh /tmp/cg-2.sh' && env -i HOME=/tmp/only-cg PATH=/usr/local/bin:/usr/bin:/bin bash -c '. ~/.nvm/nvm.sh && codegraph --version'"
 
-  # 基底只剩 git、curl、jq、python3;zsh、vim 走 toolPackages,eza 等走下載腳本,都是勾了才有。
+  # 基底只剩 git、curl、jq、python3;zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
   local none='{"tools":[]}'
   # 前面「套件清單加一個套件」在 yaml 的 ubuntu 清單加了 tree,所以這裡是四項 + tree
@@ -1090,7 +1091,7 @@ DOCKERFILE
 }
 
 # Termux 基底:git curl openssh,加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,
-# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(toolPackages.termux)。
+# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(選裝工具表)。
 TERMUX_BASE=(git curl openssh jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
@@ -1252,7 +1253,7 @@ SKIP_HEADER='== 沒有 root,以下步驟已略過'
 
 # 每個情境都一樣的部分:全新家目錄跑 README 的安裝指令,看 exit code、家目錄外的檔案、略過彙整。
 # 情境就是用途(精簡、完整),跟免回答安裝那一行一樣只答用途、選單直接 Enter(--promptDefaults),
-# 所以 config 存的是用途。完整 = 選單上全部(這個容器是 amd64、不是 WSL,沒有不建議或裝不了的)。
+# 所以 config 存的是用途。完整 = 選單上全部扣掉這台裝不了的(這個容器是 amd64、不是 WSL;沒有 root 時走 apt、.deb 的裝不了,#332)。
 noroot_init() {  # noroot_init <用途>
   bold "▶ $1:沒有 root 跑 README 的安裝指令"
   step "沒有 sudo(command -v sudo 失敗)" "! command -v sudo"
@@ -1424,7 +1425,12 @@ noroot_tailscale_checks() {
 }
 
 noroot_full_checks() {
-  for s in tailscale headless-chrome "nvm 與 Node" codegraph playwright-cli 系統套件; do
+  # 沒有 root 時只能走 apt、.deb 的 earlyoom、snapserver、snapclient、headless-chrome 標裝不了(#332),完整不勾,
+  # 所以也沒有「這台裝不了」那段;略過彙整只剩要 root 的步驟
+  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome" \
+    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome)\"' <<<\"\$t\" && grep -q '\"playwright-cli\"' <<<\"\$t\""
+  check "沒有「這台裝不了」那段" "! grep -q '以下選裝工具已略過' ~/e2e-init.log"
+  for s in tailscale "nvm 與 Node" codegraph playwright-cli 系統套件; do
     check_skipped "$s"
   done
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
@@ -1438,8 +1444,6 @@ noroot_full_checks() {
   check_mise pdftoppm -v
   check_mise_skips_system_vim
   check "zsh 會把 mise 的 shims 加進 PATH" "grep -q 'mise/shims' ~/.zshrc"
-  check "headless-chrome 的說明寫了缺系統函式庫" \
-    "sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -F -- '- headless-chrome:' | grep -q '系統函式庫'"
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client

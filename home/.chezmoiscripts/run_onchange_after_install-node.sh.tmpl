@@ -1,7 +1,9 @@
-{{- /* 原生 Termux 不走 nvm:Node 由套件腳本用 pkg 裝(packages.yaml 的 nodePackages.termux) */ -}}
-{{- if and (includeTemplate "needs-node" .) (ne .chezmoi.os "android") -}}
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):node 要裝(勾了 node,或勾了表上 needsNode 有這個 OS 的工具)
+       而且走 nvm(script)。原生 Termux 走 pkg、Windows 走 mise,不跑這支 */ -}}
+{{- $node := (includeTemplate "tool-install" . | fromJson).tools.node -}}
+{{- if and $node.install (eq $node.method "script") -}}
 #!{{ lookPath "sh" }}
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
+# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
 # codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
 # 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
 # dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),

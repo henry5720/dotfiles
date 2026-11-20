@@ -2,7 +2,8 @@
 #!{{ lookPath "sh" }}
 # macOS 的系統套件:照 chezmoi 官方「Install packages declaratively」的 brew bundle 範例
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/),
-# 把 .chezmoidata/packages.yaml 的 darwin 欄(基底 + tools 有勾的 toolPackages)交給 brew bundle。
+# 把 .chezmoidata/packages.yaml 的 darwin 欄(基本套件),加上選裝工具表
+# (.chezmoidata/tool-table.yaml)裡 tools 有勾、這台走 brew 的,交給 brew bundle。
 # 其他 OS 渲染成空的,chezmoi 不跑;Linux／Termux 是 install-packages 那支。
 #
 # 跟官方範例不同的地方:
@@ -25,18 +26,11 @@ command -v brew >/dev/null 2>&1 || {
 }
 
 # 2. 裝 formula
-{{- /* toolPackages.darwin 的值是 formula 清單,或分 brews、casks 的 map(app 走 cask,例如 tailscale) */}}
-{{- $brews := .packages.darwin.brews }}
-{{- $casks := .packages.darwin.casks }}
-{{- $installing := splitList " " (includeTemplate "tools-to-install" .) }}
-{{- range $tool, $tp := .toolPackages.darwin }}
-{{-   if has $tool $installing }}
-{{-     if kindIs "map" $tp }}
-{{-       $brews = concat $brews (get $tp "brews" | default list) }}
-{{-       $casks = concat $casks (get $tp "casks" | default list) }}
-{{-     else }}{{ $brews = concat $brews $tp }}{{ end }}
-{{-   end }}
-{{- end }}
+{{- /* 選裝工具照裝法判斷(.chezmoitemplates/tool-install,#333):formula 是 lists.brew、app 是 lists.cask(例如 tailscale);
+       誰走哪個寫在 .chezmoidata/tool-table.yaml */}}
+{{- $install := includeTemplate "tool-install" . | fromJson }}
+{{- $brews := concat .packages.darwin.brews $install.lists.brew }}
+{{- $casks := concat .packages.darwin.casks $install.lists.cask }}
 brew bundle --file=/dev/stdin <<EOF
 {{ range $brews | uniq -}}
 brew {{ . | quote }}

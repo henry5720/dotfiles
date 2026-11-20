@@ -1,0 +1,260 @@
+# 環境 proot × 勾選 herdr
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell [apt]
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定 [mise]
+eza              彩色、帶圖示的 ls(ll、la、lt 用它) [mise]
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]
+bat              有語法上色的 cat [mise]
+ripgrep          rg:比 grep 快的全文搜尋 [mise]
+vim              終端機文字編輯器 [apt]
+fastfetch        終端機印出系統資訊 [mise]
+btop             終端機看 CPU、記憶體、行程 [mise]
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用 [mise]
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：平板上沒有 systemd，保護不了保留服務與常駐服務）
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login [script]
+code-server      瀏覽器開的 VS Code [official]
+tailscale        私人 VPN,連自己的機器 [official]（不建議：網路借 Android 那份 Tailscale app，再裝一份會變成 tailnet 上兩個節點）
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
+herdr            終端機多工,同時開多個 coding agent [official]
+ttyd             把終端機開成網頁,share-shell 用 [mise]
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
+claude           Claude Code CLI [official]
+codex            Codex CLI [official]
+opencode         OpenCode CLI(會一併裝 Node) [official]
+ffmpeg           影音轉檔、抽音軌與影格 [apt]
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]（不建議：proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app）
+node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+
+## init 存下的設定
+[data]
+    gitUserName = "e2e"
+    gitUserEmail = "e2e@example.com"
+    machineUse = "custom"
+    tools = ["herdr"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+## 要裝
+herdr
+
+## 略過(裝不了)
+
+
+## 套件清單
+apt/pkg: git curl jq python3
+brew: 
+brew cask: 
+winget: 
+
+## mise 清單
+
+
+## 渲染成空的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+.chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
+.chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
+
+## 會跑的腳本
+.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+.chezmoiscripts/run_onchange_after_install-official.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+
+### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+#!/usr/bin/env python3
+# 一次性遷移:MCP 從 chezmoi 交給 skillshare(dotfiles #34)。
+#
+# 舊版 chezmoi 在三個 client 設定裡寫了 MCP 條目。skillshare 看到同名、不是它寫的條目
+# 會整批停下(existing entry is not managed),所以這支把舊條目拿掉,讓
+# `skillshare sync mcp -g` 可以直接寫。
+#
+# 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
+# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 docs/ai-agent/ai-agent-setup.md 的 MCP 那節。
+#
+# run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
+# 所有機器都遷移完(#37)就可以刪掉這支。
+import json
+import os
+import re
+import tomllib
+
+dest = "/home/snapshot"
+
+
+def write(path, text):
+    # 先寫暫存檔再換名:Claude Code 可能正在寫 ~/.claude.json,中途斷掉也不會留下半個檔。
+    tmp = path + ".chezmoi-tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+
+CHROME_ARGS = [
+    "-y",
+    "chrome-devtools-mcp@latest",
+    "--browser-url=http://127.0.0.1:9222",
+    "--no-usage-statistics",
+    "--no-performance-crux",
+]
+CODEGRAPH_ARGS = ["serve", "--mcp"]
+
+
+def is_legacy_codex(name, table):
+    if name == "chrome-devtools":
+        return table == {"command": "npx", "args": CHROME_ARGS, "enabled": True, "startup_timeout_sec": 60}
+    if name == "codegraph":
+        return table == {"command": "codegraph", "args": CODEGRAPH_ARGS, "enabled": True}
+    if name == "context7":
+        # key 是本機的值,只看形狀。
+        base = {k: v for k, v in table.items() if k != "http_headers"}
+        headers = table.get("http_headers", {})
+        return base == {"url": "https://mcp.context7.com/mcp", "enabled": True} and set(headers) <= {"CONTEXT7_API_KEY"}
+    return False
+
+
+LEGACY_JSON = {
+    ".claude.json": ("mcpServers", {
+        "chrome-devtools": {"type": "stdio", "command": "npx", "args": CHROME_ARGS, "env": {}},
+    }),
+    ".config/opencode/opencode.json": ("mcp", {
+        "chrome-devtools": {"enabled": True, "type": "local", "command": ["npx"] + CHROME_ARGS},
+        "codegraph": {"enabled": True, "type": "local", "command": ["codegraph"] + CODEGRAPH_ARGS},
+    }),
+}
+
+
+def clean_json(rel, section, legacy):
+    path = os.path.join(dest, rel)
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    data = json.loads(text)
+    servers = data.get(section, {})
+    removed = [name for name, value in legacy.items() if servers.get(name) == value]
+    if not removed:
+        return
+    for name in removed:
+        del servers[name]
+    out = json.dumps(data, indent=2, ensure_ascii=False)
+    # 保留原本結尾有沒有換行(Claude Code 寫的 ~/.claude.json 沒有)。
+    if text.endswith("\n"):
+        out += "\n"
+    write(path, out)
+    print(f"{rel}: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+def clean_codex():
+    path = os.path.join(dest, ".codex/config.toml")
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    servers = tomllib.loads(text).get("mcp_servers", {})
+    removed = [name for name, table in servers.items() if is_legacy_codex(name, table)]
+    if not removed:
+        return
+    # 舊版寫的是一般的 [mcp_servers.NAME] table(沒有子 table),刪到下一個 table 或
+    # 註解為止 —— 後面緊接的註解是下一段的橫幅(例如停用 skill 那段),不能一起刪。
+    header = re.compile(r"^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
+    out, dropping = [], False
+    for line in text.splitlines(keepends=True):
+        match = header.match(line)
+        if match:
+            dropping = match.group(1) in {f"mcp_servers.{name}" for name in removed}
+        elif dropping and line.lstrip().startswith("#"):
+            dropping = False
+            # 橫幅前面那個空行跟著被刪的 table 走了,補回來(codex 的 modify_ 也會這樣排)。
+            if out and out[-1].strip():
+                out.append("\n")
+        if not dropping:
+            out.append(line)
+    result = "".join(out).rstrip("\n") + "\n"
+    # 文字比對只認得不加引號的 header;沒刪到的(例如 [mcp_servers."x"])就不算。
+    left = tomllib.loads(result).get("mcp_servers", {})
+    removed = [name for name in removed if name not in left]
+    if not removed:
+        return
+    write(path, result)
+    print(f".codex/config.toml: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+for rel, (section, legacy) in LEGACY_JSON.items():
+    clean_json(rel, section, legacy)
+clean_codex()
+
+### .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
+#!@BIN@/sh
+# 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
+set -eu
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# herdr
+if command -v herdr >/dev/null 2>&1; then
+  echo "herdr 已安裝,跳過"
+else
+  curl -fsSL -o "$tmp/herdr.sh" https://herdr.dev/install.sh
+  sh "$tmp/herdr.sh"
+fi
+
+### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+#!@BIN@/sh
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
+#
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
+missing=""
+for pkg in git curl jq python3; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才裝
+echo "安裝缺少的套件:$missing"
+
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+# 不設 noninteractive,tzdata 這類套件會卡在設定選單。sudo 會清掉環境變數,所以用 env 帶進去。
+apt_get() { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get "$@"; }
+
+# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
+apt_get update
+# shellcheck disable=SC2086 # 要拆成多個參數
+apt_get install -y $missing

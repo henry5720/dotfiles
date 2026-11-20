@@ -214,7 +214,7 @@ def run(cmd, label=None, **kwargs):
 
 
 def which(name):
-    # hook 的 PATH 不一定有 ~/.local/bin 與 mise 的 shims(uv 由 mise 裝,見 .chezmoidata/packages.yaml 的 miseTools)
+    # hook 的 PATH 不一定有 ~/.local/bin 與 mise 的 shims(uv 由 mise 裝,見 .chezmoidata/tool-table.yaml 的 snapserver)
     home = Path.home()
     extra = os.pathsep.join(str(home / d) for d in (".local/bin", ".local/share/mise/shims"))
     return shutil.which(name) or shutil.which(name, path=extra) or name

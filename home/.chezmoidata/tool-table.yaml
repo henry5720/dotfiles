@@ -1,0 +1,546 @@
+# 選裝工具表(spec #315、#331):每個選裝工具在每個環境怎麼裝(裝法,ADR 0005)、要哪些依賴套件、
+# 不建議與裝不了的原因、官方安裝文件。這段註解就是這張表的文件。
+#
+# 判斷照表算:.chezmoitemplates/tool-install 輸入這張表、這台的環境、勾選(.tools),輸出每個工具走哪個裝法
+# 或裝不了加原因(輸出格式寫在那個樣板開頭)。結果不存檔,每次渲染都重算。
+# 讀法:apply 時的樣板可以直接用 .toolTable;config 樣板(chezmoi init)直接讀不到 data 目錄,
+# 要 include ".chezmoidata/tool-table.yaml" | fromYaml(chezmoi 2.74.1 實測)。tool-install 兩種都接。
+#
+# 照它跑的:選單標註、預設組合、略過彙整(#332)、apt／pkg／brew／winget 與 mise 的清單(#333)、官方 installer
+# (install-official,#334)、留在自己腳本的工具要不要跑(setup、script、deb,#336)。packages.yaml 只剩跟勾選無關的基本套件。
+# 加一個走既有裝法的工具:這裡加一筆 + tool-menu 加說明(.chezmoi.toml.tmpl 選單上方的註解)。
+#
+# ===============================================================
+# 1. 欄位
+# ===============================================================
+# toolTable.tools.<工具>(工具名 = 選單 tool-menu 上的名字,兩邊一一對應,測試擋):
+#   docs: 官方安裝文件網址          checked: 上次對過的日期(YYYY-MM-DD)
+#   cmd: 裝完的指令名(system 裝法看它;沒寫 = 工具名)
+#   install: 每個 OS(linux、darwin、android、windows)一串依序試的裝法,用第一個這台能用的。
+#            沒寫這個 OS、或一個都用不了 = 裝不了。
+#   各裝法要的資料,欄位名就是裝法名:
+#     apt、pkg、brew、cask、winget: 套件名清單(apt 套件、pkg 套件、brew formula、brew cask、winget id)
+#     mise: {tool: mise 的工具名或 backend 寫法, version: 沒寫 = latest, options: mise 的工具選項(asset_pattern、allow_builds…)}
+#     official: 官方 installer。sh(linux、darwin)、ps1(windows)各一份:
+#               {url, shell: 跑 sh 版用的 shell(bash 或 sh), env: 跑之前設的環境變數, args: 參數,
+#                installed: 已經裝了就跳過的判斷(cmds 是指令名、paths 是檔案位置;ps1 的 paths 是 PowerShell 運算式)}
+#               sh 的 env 值放進雙引號($HOME 這類會展開),ps1 的 env 值照字面。
+#               沒有 setup 的工具由 run_onchange_after_install-official(sh、ps1 各一支,#334)照這裡跑。
+#               needs: 這個 installer 另外要的環境條件(見 3.,例如 tailscale 要 root)
+#     script: 這個工具自己的腳本用別的方式裝(zsh-bin、nvm、npm、官方 apt 源、release 解壓縮…)。
+#             {name: 腳本(.chezmoiscripts 底下的檔名,不含 run_ 前綴與副檔名), needs: 環境條件}
+#     deb: 下載 .deb 裝。{url}
+#   setup: 裝完還要設定、留在自己腳本的工具(spec #315「留在自己腳本的」):腳本名。
+#          有這欄的工具,通用的官方 installer 腳本不碰它,由這支自己裝與設定。
+#   deps: 依賴套件,不上選單:<名字>: {cmd, install, 各裝法的資料},格式同上。工具裝得了才算它的依賴。
+#   needsNode: 要 Node 的 OS(勾了就連帶裝 Node,見 node 那筆;那個 OS 的裝法自帶 Node 的不列)。
+#   rules: 不建議、裝不了的規則與給人看的原因,由上往下比,第一條 when 對到這台的就是它:
+#            - when: [<環境>…]        對到任一個就算(環境見 2.)
+#              state: discouraged 或 unsupported
+#              reason: 原因
+#              issue: 原因是「還沒寫裝法」時,追蹤的 issue 編號(現在是 #348)。只放在拿掉規則也一個裝法都用不了的
+#                     環境:補了裝法,規則就該拿掉,不然它會一直擋著(#309 的 herdr,測試擋)
+#          unsupported 不管有沒有裝法都算裝不了(例如 WSL 不裝 Linux 的 Chrome);discouraged 照樣算裝法,只是標原因。
+#          原因只在要解釋時才寫(spec #315):沒有這個 OS 的裝法、也沒有規則對到 → 原因固定是「沒有這個環境的裝法」,
+#          不用寫規則;有這個 OS 的裝法卻一個都用不了(例如只有 apt、這台沒有 root)要寫規則說為什麼,判斷不照缺的條件組(#335,測試擋)。
+#          原因寫給勾選的人看,怎麼寫照 ADR 0004 的代價那段;沒有 root 的原因只寫事實、不教人怎麼做(#315 2026-11-20 的決定,
+#          通則要不要跟著改在 #339)。字元限制照 ADR 0004:不能有半形 /、'、=(測試擋),用全形標點。
+#
+# ===============================================================
+# 2. 環境(rules 的 when)
+# ===============================================================
+#   linux、darwin、android、windows  .chezmoi.os
+#   wsl         is-wsl
+#   non-amd64   linux 且 .chezmoi.arch 不是 amd64
+#   non-debian  linux 且不是 Debian 系(is-debian)
+#   proot       平板上的 proot Ubuntu(is-proot)
+#   noroot      linux 且沒有 root(has-root)。要 root 的裝法用不了;只有這種裝法的工具要寫規則
+#               (例:earlyoom、snapclient、snapserver、headless-chrome)
+#
+# ===============================================================
+# 3. 裝法能不能用(toolTable.methods)
+# ===============================================================
+# 每個裝法要的環境條件寫在 methods.<裝法>.needs:root(has-root)、debian(is-debian)、amd64(.chezmoi.arch)。
+# 另外三個不只看環境:
+#   system   這台已經有 cmd 這個指令(lookPath,排除 mise 自己的目錄 ~/.local/share/mise:
+#            裝過一次之後 PATH 上的 shim 不算,不然下次渲染就把自己裝的那份從清單拿掉)
+#   official 表上有這個 OS 的網址(linux、darwin 看 sh,windows 看 ps1),再加 official.needs
+#   script   再加 script.needs
+# builtin = OS 內建、一定有(macOS 的 zsh、vim),不用裝。
+toolTable:
+  methods:
+    apt: {needs: [debian, root]}
+    deb: {needs: [debian, amd64, root]}
+    pkg: {}
+    brew: {}
+    cask: {}
+    winget: {}
+    mise: {}
+    builtin: {}
+    system: {}
+    official: {}
+    script: {}
+
+  tools:
+    # ---------------------------------------------------------------
+    # shell 體驗
+    # ---------------------------------------------------------------
+    # 沒有 root 或非 Debian 系:install-home-jq-zsh 用 zsh-bin 裝到 ~/.local;改預設 shell 是 set-default-shell
+    zsh:
+      docs: https://github.com/romkatv/zsh-bin
+      checked: 2026-11-20
+      install: {linux: [apt, script], darwin: [builtin], android: [pkg]}
+      apt: [zsh]
+      pkg: [zsh]
+      script: {name: install-home-jq-zsh}
+      rules:
+        - when: [windows]
+          state: unsupported
+          reason: Windows 的 shell 是 PowerShell，補全、語法上色內建，跳目錄的 zoxide 每台 Windows 都裝
+    starship:
+      docs: https://starship.rs/guide/
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: starship}          # aqua:starship/starship
+      brew: [starship]
+      pkg: [starship]
+    eza:
+      docs: https://github.com/eza-community/eza/blob/main/INSTALL.md
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: eza}               # aqua:eza-community/eza
+      brew: [eza]
+      pkg: [eza]
+    # Ubuntu 24.04 的 apt 版太舊(0.44 沒有 fzf --zsh,#231),單一執行檔一律 mise
+    fzf:
+      docs: https://github.com/junegunn/fzf#installation
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: fzf}               # aqua:junegunn/fzf
+      brew: [fzf]
+      pkg: [fzf]
+    # apt 版的指令叫 batcat
+    bat:
+      docs: https://github.com/sharkdp/bat#installation
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: bat}               # aqua:sharkdp/bat
+      brew: [bat]
+      pkg: [bat]
+    ripgrep:
+      docs: https://github.com/BurntSushi/ripgrep#installation
+      checked: 2026-11-20
+      cmd: rg
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: ripgrep}           # aqua:BurntSushi/ripgrep
+      brew: [ripgrep]
+      pkg: [ripgrep]
+    # 有 root 走 apt(unattended-upgrades 補安全更新);沒有 root 沿用系統那份,都沒有才 mise(conda,整套函式庫裝進家目錄)
+    vim:
+      docs: https://www.vim.org/download.php
+      checked: 2026-11-20
+      install: {linux: [apt, system, mise], darwin: [builtin], android: [pkg], windows: [mise]}
+      apt: [vim]
+      pkg: [vim]
+      mise: {tool: vim}               # conda:vim
+    # Ubuntu 24.04 的套件庫沒有 fastfetch
+    fastfetch:
+      docs: https://github.com/fastfetch-cli/fastfetch#installation
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: fastfetch}         # aqua:fastfetch-cli/fastfetch
+      brew: [fastfetch]
+      pkg: [fastfetch]
+
+    # ---------------------------------------------------------------
+    # 系統監控
+    # ---------------------------------------------------------------
+    btop:
+      docs: https://github.com/aristocratos/btop#installation
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew]}
+      mise: {tool: btop}              # aqua:aristocratos/btop
+      brew: [btop]
+      rules:
+        - when: [windows]
+          state: unsupported
+          reason: btop 的 release 只有 Linux 版，改勾 bottom
+        - when: [android]
+          state: unsupported
+          reason: Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程
+    # 指令叫 btm(#325)。termux-packages 沒有(打包請求 termux/termux-packages#8565 還開著)
+    bottom:
+      docs: https://github.com/ClementTsang/bottom#installation
+      checked: 2026-11-20
+      cmd: btm
+      install: {linux: [mise], darwin: [brew], windows: [mise]}
+      mise: {tool: bottom}            # aqua:ClementTsang/bottom
+      brew: [bottom]
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: termux-packages 沒有 bottom，到 proot Ubuntu 裝
+          issue: 348
+    # #298:保護保留服務與常駐服務的 systemd drop-in 由 install-earlyoom 寫進 /etc(數字在 earlyoom.yaml)
+    earlyoom:
+      docs: https://github.com/rfjakob/earlyoom#installation
+      checked: 2026-11-20
+      install: {linux: [apt]}
+      apt: [earlyoom]
+      setup: install-earlyoom
+      rules:
+        - when: [windows, darwin]
+          state: unsupported
+          reason: earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux
+        - when: [android, proot]
+          state: unsupported
+          reason: 平板上沒有 systemd，保護不了保留服務與常駐服務
+        - when: [wsl]
+          state: unsupported
+          reason: WSL 的記憶體上限由 Windows 的 .wslconfig 管，卡住時從 Windows 跑 wsl --shutdown
+        - when: [non-debian]
+          state: unsupported
+          reason: earlyoom 走 apt，只能裝在 Debian 系
+          issue: 348
+        - when: [noroot]
+          state: unsupported
+          reason: 要 root：要改系統服務的記憶體設定
+
+    # ---------------------------------------------------------------
+    # 開發與遠端
+    # ---------------------------------------------------------------
+    # 有 root 的 Debian 系:install-gh 加 GitHub 的官方 apt 源(apt upgrade 會更新);其他 Linux 沿用系統那份,都沒有才 mise
+    gh:
+      docs: https://github.com/cli/cli#installation
+      checked: 2026-11-20
+      install: {linux: [script, system, mise], darwin: [brew], android: [pkg], windows: [mise]}
+      script: {name: install-gh, needs: [debian, root]}
+      mise: {tool: gh}                # aqua:cli/cli
+      brew: [gh]
+      pkg: [gh]
+    # 有 root 的 Debian 系用官方 installer(裝 .deb;docs/remote-access/code-server.md 的 systemd user unit 靠它);
+    # 設定檔由 chezmoi 部署(dot_config/private_code-server)
+    code-server:
+      docs: https://coder.com/docs/code-server/install
+      checked: 2026-11-20
+      install: {linux: [official, system, mise], darwin: [brew]}
+      official:
+        needs: [debian, root]
+        sh: {url: https://code-server.dev/install.sh, shell: sh, installed: {cmds: [code-server]}}
+      mise: {tool: "github:coder/code-server"}   # registry 沒有,短名會模糊比對到不相干的工具
+      brew: [code-server]
+      rules:
+        - when: [windows]
+          state: unsupported
+          reason: code-server 官方不出 Windows 版，到 WSL 裝
+        - when: [android]
+          state: unsupported
+          reason: termux-packages 沒有，到 proot Ubuntu 裝
+          issue: 348
+    # 有 root:官方 installer,install-tailscale 再開服務;沒有 root:同一支腳本裝 userspace 的 static tarball
+    tailscale:
+      docs: https://tailscale.com/kb/1347/installation
+      checked: 2026-11-20
+      install: {linux: [official, script], darwin: [cask], windows: [winget]}
+      official:
+        needs: [root]
+        sh: {url: https://tailscale.com/install.sh, shell: sh, installed: {cmds: [tailscale]}}
+      script: {name: install-tailscale}
+      setup: install-tailscale
+      cask: [tailscale-app]           # 官方 app(含選單列與 tailscaled);formula 的 tailscale 只有 CLI 與 daemon
+      winget: [Tailscale.Tailscale]
+      rules:
+        - when: [wsl]
+          state: discouraged
+          reason: 網路借 Windows 那份 Tailscale（mirrored），再裝一份會變成 tailnet 上兩個節點
+        - when: [proot]
+          state: discouraged
+          reason: 網路借 Android 那份 Tailscale app，再裝一份會變成 tailnet 上兩個節點
+        - when: [android]
+          state: unsupported
+          reason: 原生 Termux 裝 Tailscale 的 Android app
+    # 官方也有 apt 源,但 GitHub release 就是單一執行檔:照 #231 走 mise
+    cloudflared:
+      docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: cloudflared}       # aqua:cloudflare/cloudflared
+      brew: [cloudflared]
+      pkg: [cloudflared]
+    # Windows 走 mise(#309,herdr 的 README 把 mise 列為裝法之一);之後用 herdr update 更新
+    herdr:
+      docs: https://github.com/herdrdev/herdr
+      checked: 2026-11-20
+      install: {linux: [official], darwin: [official], windows: [mise]}
+      official:
+        sh: {url: https://herdr.dev/install.sh, shell: sh, installed: {cmds: [herdr]}}
+      mise: {tool: herdr}
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+          issue: 348
+    ttyd:
+      docs: https://github.com/tsl0922/ttyd#installation
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: ttyd}              # aqua:tsl0922/ttyd
+      brew: [ttyd]
+      pkg: [ttyd]
+
+    # ---------------------------------------------------------------
+    # coding agent 與它們的工具
+    # ---------------------------------------------------------------
+    # install-wakatime 把官方 release 解到 ~/.wakatime(WakaTime plugin 只認那個位置,#324),再為有勾的 agent 裝 plugin。
+    # Termux 用 linux 的 release。plugin 從 git clone marketplace,Windows 要系統的 git
+    wakatime:
+      docs: https://github.com/wakatime/wakatime-cli
+      checked: 2026-11-20
+      cmd: wakatime-cli
+      install: {linux: [script], darwin: [script], android: [script], windows: [script]}
+      script: {name: install-wakatime}
+      setup: install-wakatime
+      needsNode: [linux, darwin, android, windows]   # Claude Code、Codex 的 WakaTime plugin 用 node 跑 hook
+      deps:
+        git:
+          install: {windows: [winget]}
+          winget: [Git.Git]
+    # Claude Code 的 Read tool 讀 PDF 固定呼叫 pdftoppm,沒裝會直接報錯
+    claude:
+      docs: https://code.claude.com/docs/en/setup
+      checked: 2026-11-20
+      install: {linux: [official], darwin: [official], windows: [official]}
+      official:
+        sh: {url: https://claude.ai/install.sh, shell: bash, installed: {cmds: [claude], paths: ["$HOME/.local/bin/claude"]}}
+        ps1: {url: https://claude.ai/install.ps1, installed: {paths: ["Join-Path $HOME '.local\\bin\\claude.exe'"]}}
+      deps:
+        poppler:
+          cmd: pdftoppm
+          install: {linux: [apt, system, mise], darwin: [brew], windows: [mise]}
+          apt: [poppler-utils]
+          brew: [poppler]
+          mise: {tool: poppler}       # conda:poppler,有 win-64 的 build
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+          issue: 348
+    # CODEX_NON_INTERACTIVE=1:有終端機時 installer 會問「Start Codex now?」,apply 會停在那裡
+    codex:
+      docs: https://learn.chatgpt.com/docs/codex/cli
+      checked: 2026-11-20
+      install: {linux: [official], darwin: [official], windows: [official]}
+      official:
+        sh:
+          url: https://chatgpt.com/codex/install.sh
+          shell: bash
+          # PATH 先放 ~/.local/bin:installer 看到它已經在 PATH 上,就不會往 ~/.zshrc 追加 PATH
+          # (chezmoi 管的 .zshrc 本來就有,被追加之後 chezmoi diff／verify 會一直有差異)。
+          # CODEX_NON_INTERACTIVE:有終端機時 installer 會從 /dev/tty 問「Start Codex now?」,apply 會停在那裡
+          env: {CODEX_NON_INTERACTIVE: "1", PATH: "$HOME/.local/bin:$PATH"}
+          installed: {cmds: [codex], paths: ["$HOME/.local/bin/codex"]}
+        ps1:
+          url: https://chatgpt.com/codex/install.ps1
+          env: {CODEX_NON_INTERACTIVE: "1"}
+          installed: {paths: ["Join-Path $env:LOCALAPPDATA 'Programs\\OpenAI\\Codex\\bin\\codex.exe'"]}
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+          issue: 348
+    # Windows 沒有 install.ps1,走 mise 的 npm backend(#318):opencode-ai 是 OpenCode 1,跟 Linux 同一個大版本;
+    # allow_builds 放行它自己的 postinstall,不然 bin\opencode.exe 是佔位檔
+    opencode:
+      docs: https://opencode.ai/docs/
+      checked: 2026-11-20
+      install: {linux: [official], darwin: [official], windows: [mise]}
+      official:
+        sh:
+          url: https://opencode.ai/install
+          shell: bash
+          args: [--no-modify-path]   # 不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
+          installed: {cmds: [opencode], paths: ["$HOME/.opencode/bin/opencode"]}
+      mise: {tool: "npm:opencode-ai", options: {allow_builds: [opencode-ai]}}
+      needsNode: [linux, darwin, android, windows]   # oh-my-opencode-slim 用 npx 跑
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: 官方 installer 沒有原生 Termux 版，到 proot Ubuntu 裝
+          issue: 348
+    ffmpeg:
+      docs: https://ffmpeg.org/download.html
+      checked: 2026-11-20
+      install: {linux: [apt, system, mise], darwin: [brew], android: [pkg], windows: [mise]}
+      apt: [ffmpeg]
+      brew: [ffmpeg]
+      pkg: [ffmpeg]
+      mise: {tool: ffmpeg}            # conda:ffmpeg
+    # 朗讀串流服務(#290)。install-snapserver 停用套件附的系統服務,改用 voice-out 開關的 user service。
+    # ffmpeg 給 voice-out-speak 把 TTS 的 mp3 解成 PCM;TTS 的 edge-tts 用 uv tool run 跑
+    snapserver:
+      docs: https://github.com/badaix/snapcast/blob/develop/doc/install.md
+      checked: 2026-11-20
+      install: {linux: [apt]}
+      apt: [snapserver]
+      setup: install-snapserver
+      deps:
+        ffmpeg:
+          install: {linux: [apt, system, mise]}
+          apt: [ffmpeg]
+          mise: {tool: ffmpeg}
+        uv:
+          install: {linux: [mise]}
+          mise: {tool: uv}            # aqua:astral-sh/uv
+      rules:
+        - when: [windows]
+          state: unsupported
+          reason: snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機
+        - when: [darwin, android, proot]
+          state: unsupported
+          reason: voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機
+        - when: [non-debian]
+          state: unsupported
+          reason: snapserver 走 apt，只能裝在 Debian 系
+          issue: 348
+        - when: [noroot]
+          state: unsupported
+          reason: 沒有 root 用不了 apt，官方只出 .deb
+        - when: [wsl]
+          state: discouraged
+          reason: WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機
+    # 收聽朗讀串流(#292)。install-snapclient 停用套件附、開機自動啟動的系統服務。
+    # Windows(#326):mise registry 沒有 Snapcast,github backend 點名官方 release 的 zip;filter_bins 只讓
+    # snapclient.exe 上 PATH(壓縮檔根目錄還有 vc_redist.x64.exe)。它要的 VC++ runtime 由 winget 裝(會跳 UAC)
+    snapclient:
+      docs: https://github.com/badaix/snapcast/blob/develop/doc/install.md
+      checked: 2026-11-20
+      install: {linux: [apt], darwin: [brew], android: [pkg], windows: [mise]}
+      apt: [snapclient]
+      brew: [snapcast]                # formula 叫 snapcast,snapclient 與 snapserver 都在裡面
+      pkg: [snapcast-client]          # 依賴 pulseaudio
+      mise:
+        tool: "github:badaix/snapcast"
+        options: {asset_pattern: snapclient_win64.zip, filter_bins: snapclient.exe}
+      setup: install-snapclient
+      deps:
+        vcredist:
+          install: {windows: [winget]}
+          winget: [Microsoft.VCRedist.2015+.x64]
+      rules:
+        - when: [non-debian]
+          state: unsupported
+          reason: snapclient 走 apt，只能裝在 Debian 系
+          issue: 348
+        - when: [noroot]
+          state: unsupported
+          reason: 沒有 root 用不了 apt，官方只出 .deb
+        - when: [proot]
+          state: discouraged
+          reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app
+    # Linux、macOS 用 nvm(install-node);Termux 的 nvm binary 跑不起來,用 pkg 的 LTS;Windows 沒有 nvm,用 mise。
+    # 勾了 needsNode 的工具也會連帶裝。libatomic:nvm 的 Node 官方 binary 要 libatomic.so.1
+    # (缺的話在執行時由 node-runnable 判斷,不在這裡)
+    node:
+      docs: https://github.com/nvm-sh/nvm#installing-and-updating
+      checked: 2026-11-20
+      install: {linux: [script], darwin: [script], android: [pkg], windows: [mise]}
+      script: {name: install-node}
+      pkg: [nodejs-lts]               # 跟 nodejs、nodejs-current 互斥:已經有 node 指令就不裝
+      mise: {tool: node, version: lts}
+      deps:
+        libatomic:
+          install: {linux: [apt]}
+          apt: [libatomic1]
+    # Windows 走 mise 的 aqua backend(#323):release 的 bundle 自帶 Node runtime,不用連帶裝 Node;
+    # 官方 install.ps1 只放 codegraph.cmd,MCP 設定不經 shell 找不到
+    codegraph:
+      docs: https://github.com/colbymchenry/codegraph
+      checked: 2026-11-20
+      install: {linux: [script], darwin: [script], windows: [mise]}
+      script: {name: npm-install-codegraph}
+      mise: {tool: codegraph}         # aqua:colbymchenry/codegraph
+      needsNode: [linux, darwin, android]
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: codegraph 沒出 Android 的執行檔，到 proot Ubuntu 裝
+          issue: 348
+    # Windows 的 Chrome 本身就能 --headless(#327)。用 Google 一般 installer 的 Google.Chrome.EXE:
+    # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份
+    headless-chrome:
+      docs: https://developer.chrome.com/docs/chromium/headless
+      checked: 2026-11-20
+      cmd: google-chrome
+      install: {linux: [deb], windows: [winget]}
+      deb: {url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb}
+      winget: [Google.Chrome.EXE]
+      setup: install-headless-chrome
+      deps:
+        fonts:                        # 沒這兩個字型,中文和 emoji 截圖全是方框
+          install: {linux: [apt]}
+          apt: [fonts-noto-cjk, fonts-noto-color-emoji]
+      rules:
+        - when: [darwin]
+          state: unsupported
+          reason: 這裡裝的是 Google 給 Linux 的 .deb
+          issue: 348
+        - when: [android]
+          state: unsupported
+          reason: 原生 Termux 裝不了 Google 的 .deb
+        - when: [wsl]
+          state: unsupported
+          reason: WSL 不裝 Linux 的 Chrome，查原因到遠端主機做
+        - when: [non-amd64]
+          state: unsupported
+          reason: Google 只出 amd64 的 .deb
+        - when: [non-debian]
+          state: unsupported
+          reason: .deb 只能裝在 Debian 系
+          issue: 348
+        - when: [noroot]
+          state: unsupported
+          reason: Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt
+    # Linux:npm-install-playwright-cli(最低版本、ffmpeg 留在那支);Windows 沒有 nvm,走 mise 的 npm backend(#327)
+    playwright-cli:
+      docs: https://github.com/microsoft/playwright-cli
+      checked: 2026-11-20
+      install: {linux: [script], windows: [mise]}
+      script: {name: npm-install-playwright-cli}
+      mise: {tool: "npm:@playwright/cli"}
+      setup: npm-install-playwright-cli
+      needsNode: [linux, darwin, android, windows]
+      # 下面兩條沿用 #315 之前就有的「跟 headless-chrome 綁在一起」;它可以 attach 遠端瀏覽器(#260),
+      # 該看自己的裝法,拆掉見 #349。沒有 root 的 Debian 系刻意不綁(#315)
+      rules:
+        - when: [darwin]
+          state: unsupported
+          reason: 它用 headless-chrome，這台裝不了 headless-chrome
+          issue: 348
+        - when: [android, wsl, non-amd64, non-debian]
+          state: unsupported
+          reason: 它用 headless-chrome，這台裝不了 headless-chrome
+    # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。
+    # skillshare init 從 remote clone 要系統的 git(#321),Windows 基底沒裝
+    agent-config:
+      docs: https://skillshare.runkids.cc/docs/
+      checked: 2026-11-20
+      cmd: skillshare
+      install: {linux: [official], darwin: [official], windows: [official]}
+      official:
+        sh:
+          url: https://raw.githubusercontent.com/runkids/skillshare/main/install.sh
+          shell: sh
+          env: {INSTALL_DIR: "$HOME/.local/bin"}
+          installed: {paths: ["$HOME/.local/bin/skillshare"]}
+        ps1:
+          url: https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1
+          installed: {paths: ["Join-Path $env:LOCALAPPDATA 'Programs\\skillshare\\skillshare.exe'"]}
+      setup: install-agent-config
+      deps:
+        git:
+          install: {windows: [winget]}
+          winget: [Git.Git]
+      rules:
+        - when: [android]
+          state: unsupported
+          reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝

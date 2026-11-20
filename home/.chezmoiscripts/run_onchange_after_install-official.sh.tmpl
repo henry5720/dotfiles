@@ -1,0 +1,43 @@
+{{- /* 只做安裝的官方 installer,Linux、macOS 這支照選裝工具表跑(#334,spec #315;Windows 那支是 install-official.ps1)。
+       跑哪些:.chezmoitemplates/tool-install 算出要裝、裝法是 official、沒有 setup 的工具
+       (現在是 claude、code-server、codex、herdr、opencode),照工具名排。一個都沒有就渲染成空的,chezmoi 不跑。
+       網址、shell、env、args、已安裝的判斷都在表的 official.sh;換網址只改表。
+       有 setup 的(tailscale、agent-config…)裝完還要設定,留在自己的腳本。
+       檔名排在 install-node 之後(opencode 的 oh-my-opencode-slim 要 npx)、install-wakatime 之前
+       (wakatime 要幫已經裝好的 claude、codex、code-server 裝 plugin)。
+
+       1. 已經有就不重裝:PATH 上有那個指令,或表上的檔案在(chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin)
+       2. 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝。
+          set -eu:下載或 installer 失敗就整支失敗、apply 停下來報錯,跟以前一工具一支時一樣
+       各工具 installer 自己的細節(code-server 設定檔、opencode 的 --no-modify-path…)寫在表那一筆旁邊。 */ -}}
+{{- $install := includeTemplate "tool-install" . | fromJson -}}
+{{- $run := list -}}
+{{- /* 只看 OS 一次:official 的 sh、ps1 由 OS 決定(tool-install-pick),另一個 OS 渲染成空的 */ -}}
+{{- if ne .chezmoi.os "windows" -}}
+{{-   range $name, $t := $install.tools -}}
+{{-     if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) }}{{ $run = append $run $name }}{{ end -}}
+{{-   end -}}
+{{- end -}}
+{{- if $run -}}
+#!{{ lookPath "sh" }}
+# 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
+set -eu
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+{{- range $name := $run }}
+{{-   $o := (get $install.tools $name).official }}
+{{-   $checks := list }}
+{{-   range (dig "installed" "cmds" list $o) }}{{ $checks = append $checks (printf "command -v %s >/dev/null 2>&1" .) }}{{ end }}
+{{-   range (dig "installed" "paths" list $o) }}{{ $checks = append $checks (printf "[ -x \"%s\" ]" .) }}{{ end }}
+{{-   $env := list }}
+{{-   range $k, $v := (get $o "env" | default dict) }}{{ $env = append $env (printf "%s=\"%s\" " $k $v) }}{{ end }}
+
+# {{ $name }}
+if {{ join " || " $checks }}; then
+  echo "{{ $name }} 已安裝,跳過"
+else
+  curl -fsSL -o "$tmp/{{ $name }}.sh" {{ $o.url }}
+  {{ join "" $env }}{{ $o.shell }} "$tmp/{{ $name }}.sh"{{ range (get $o "args" | default list) }} {{ . }}{{ end }}
+fi
+{{- end }}
+{{ end -}}
