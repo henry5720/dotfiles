@@ -210,7 +210,9 @@ jobs:
           $p = Start-Process pwsh -ArgumentList '-NoProfile', '-c', 'playwright-cli -s=t open https://example.com' -NoNewWindow -PassThru `
             -RedirectStandardOutput "$env:RUNNER_TEMP\pw-open.log" -RedirectStandardError "$env:RUNNER_TEMP\pw-open.err.log"
           if (-not $p.WaitForExit(120000)) { 'playwright-cli open 兩分鐘沒結束'; exit 1 }
-          Get-Content "$env:RUNNER_TEMP\pw-open.log"
+          "open exit $($p.ExitCode)"
+          Get-Content "$env:RUNNER_TEMP\pw-open.log", "$env:RUNNER_TEMP\pw-open.err.log"
+          pwsh -c 'playwright-cli list' 2>&1
           try { $snap = pwsh -c 'playwright-cli -s=t snapshot' 2>&1 | Out-String; $snap }
           finally { pwsh -c 'playwright-cli -s=t close' }
           if (-not ($snap | Select-String -SimpleMatch 'Example Domain')) { 'snapshot 讀不到 Example Domain'; exit 1 }
