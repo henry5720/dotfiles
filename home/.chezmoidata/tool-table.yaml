@@ -545,3 +545,17 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝
+    # 讓 agent 操作 Windows 桌面的 MCP server(#343),WSL 的 agent 經 agent-config 的 windows-mcp-stdio 叫用 Windows 這份。
+    # PyPI 套件:mise 的 pipx backend(新文件叫 pypi:,pipx: 是同一個 backend 的別名)有 uv 就用 uv tool install,
+    # 清單裡有 uv 時先裝 uv(https://mise.jdx.dev/dev-tools/backends/pypi.html),所以 needsUv 一定要列;
+    # 沒有 uv 時 mise 改要 pipx 而失敗。要的 Python 由 uv 自己下載。
+    windows-mcp:
+      docs: https://github.com/CursorTouch/Windows-MCP
+      checked: 2026-11-20
+      install: {windows: [mise]}
+      mise: {tool: "pipx:windows-mcp"}
+      needsUv: [windows]
+      rules:
+        - when: [linux, darwin, android]
+          state: unsupported
+          reason: windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份

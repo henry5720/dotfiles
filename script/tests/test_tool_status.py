@@ -105,18 +105,18 @@ class ToolStatusTest(unittest.TestCase):
                 self.assertEqual([l.split(" ")[0] for l in out.splitlines()], names)
 
     def test_annotations_per_environment(self):
-        # 哪幾項帶標註、標的是哪一種(原因文字由上一個測試與 e2e 對)
+        # 哪幾項帶標註、標的是哪一種(原因文字由上一個測試與 e2e 對)。windows-mcp 只在 Windows 主機裝(#343)
         expected = {
-            "ubuntu": ({}, {}),
+            "ubuntu": ({}, {"windows-mcp": "裝不了"}),
             "wsl": (WSL, {"headless-chrome": "裝不了", "tailscale": "不建議",
-                           "snapserver": "不建議", "earlyoom": "裝不了"}),
+                           "snapserver": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
             "proot": (PROOT, {"headless-chrome": "裝不了", "tailscale": "不建議",
-                               "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了"}),
-            "arm": (ARM, {"headless-chrome": "裝不了"}),
+                               "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
+            "arm": (ARM, {"headless-chrome": "裝不了", "windows-mcp": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "snapserver": "裝不了",
-                                "snapclient": "裝不了", "earlyoom": "裝不了"}),
+                                "snapclient": "裝不了", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
             "mac": (MAC, {"snapserver": "裝不了",
-                          "earlyoom": "裝不了"}),
+                          "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
             with self.subTest(env=name):
@@ -133,13 +133,13 @@ class ToolStatusTest(unittest.TestCase):
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
         for name, env, dropped in (("wsl", WSL, {"headless-chrome", "tailscale", "snapserver",
-                                                 "earlyoom"}),
+                                                 "earlyoom", "windows-mcp"}),
                                    ("proot", PROOT, {"headless-chrome", "tailscale", "snapserver",
-                                                     "snapclient", "earlyoom"}),
-                                   ("arm", ARM, {"headless-chrome"}),
+                                                     "snapclient", "earlyoom", "windows-mcp"}),
+                                   ("arm", ARM, {"headless-chrome", "windows-mcp"}),
                                    ("fedora", FEDORA, {"headless-chrome", "snapserver", "snapclient",
-                                                       "earlyoom"}),
-                                   ("mac", MAC, {"snapserver", "earlyoom"})):
+                                                       "earlyoom", "windows-mcp"}),
+                                   ("mac", MAC, {"snapserver", "earlyoom", "windows-mcp"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -399,7 +399,7 @@ exit 0
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
                                "claude", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
-                               "earlyoom", "bottom"})
+                               "earlyoom", "bottom", "windows-mcp"})
 
     def test_android_codex_is_pkg(self):
         # #348:Termux 的 codex 走 termux-packages 的 codex,不跑官方 installer;設定目錄 ~/.codex 跟著部署

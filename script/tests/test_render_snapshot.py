@@ -70,7 +70,8 @@ ENVS = {
 # 勾選組合:用途的預設組合,加全部勾、各別勾跨裝法或有依賴的工具
 # ===============================================================
 SINGLES = ["snapserver", "snapclient", "headless-chrome", "playwright-cli", "claude", "codex", "opencode",
-           "herdr", "node", "uv", "codegraph", "tailscale", "agent-config", "wakatime"]
+           "herdr", "node", "uv", "codegraph", "tailscale", "agent-config", "wakatime",
+           "windows-mcp"]
 SELECTIONS = ["full", "minimal", "all", *SINGLES]
 
 

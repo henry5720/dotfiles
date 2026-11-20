@@ -31,6 +31,7 @@ codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：WSL 不裝 Linux 的 Chrome，查原因到遠端主機做）
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
+windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
 
 ## init 存下的設定
 [data]

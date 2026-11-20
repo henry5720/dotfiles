@@ -65,11 +65,12 @@ WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
 # 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
-# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝),加 mise 裝的 runtime uv(#341)
+# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝),加 mise 裝的 runtime uv(#341),
+# 加 mise 的 pipx backend 裝的 windows-mcp(#343)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "uv", "herdr", "bottom", "snapclient", "tailscale",
                 "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
-                "wakatime"}
+                "wakatime", "windows-mcp"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -271,6 +272,17 @@ class WindowsDeployTest(unittest.TestCase):
         # wakatime-cli 不進 mise:plugin 只認 ~/.wakatime 底下官方位置那支
         self.assertEqual(self.mise_list(["wakatime"]), {"zoxide", "node"})
         self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["wakatime"]).strip(), "")
+
+    def test_windows_mcp_installs_with_mise_pipx_and_uv(self):
+        # #343:windows-mcp 是 PyPI 套件,mise 的 pipx backend 有 uv 就用 uv tool install,uv 在同一份清單時先裝 uv
+        # (https://mise.jdx.dev/dev-tools/backends/pypi.html)。沒勾 uv 也要列 uv,不然 mise 找不到 uv 會改要 pipx 而失敗
+        self.assertEqual(self.mise_list(["windows-mcp"]), {"zoxide", "pipx:windows-mcp", "uv"})
+        self.assertEqual(self.render(SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["windows-mcp"]).strip(), "")
+        linux = self.chezmoi("linux", "execute-template",
+                             (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
+                             data={"tools": ["windows-mcp"]})
+        self.assertNotIn("windows-mcp", linux)
+        self.assertNotIn('"uv"', linux)
 
     def test_windows_node_installs_lts_with_mise(self):
         # mise 在 Windows 裝得了 Node:勾了 node 就列 LTS,不再算略過

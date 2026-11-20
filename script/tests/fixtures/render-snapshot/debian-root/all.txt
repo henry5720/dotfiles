@@ -31,6 +31,7 @@ codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [deb]
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
+windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
 
 ## init 存下的設定
 [data]
@@ -41,7 +42,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "custom"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -52,7 +53,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
 zsh starship eza fzf bat ripgrep vim fastfetch btop bottom earlyoom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapserver snapclient node codegraph headless-chrome playwright-cli agent-config
 
 ## 略過(裝不了)
-
+windows-mcp
 
 ## 套件清單
 apt/pkg: git curl jq python3 poppler-utils earlyoom ffmpeg fonts-noto-cjk fonts-noto-color-emoji libatomic1 snapclient snapserver vim zsh
@@ -78,16 +79,15 @@ winget:
 "uv" = "latest"
 
 ## 渲染成空的腳本
-.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
-.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
 ## 會跑的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
@@ -103,8 +103,35 @@ winget:
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+
+### .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+#!@BIN@/sh
+# 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
+# (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
+#   root-skipped  沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
+# 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
+# run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
+set -eu
+
+d="$HOME/.local/state/dotfiles"
+if [ -s "$d/env-skipped" ]; then
+  echo
+  echo '== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):'
+  cat "$d/env-skipped"
+fi
+rm -f "$d/env-skipped"
+if [ -s "$d/root-skipped" ]; then
+  echo
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
+  cat "$d/root-skipped"
+fi
+rm -f "$d/root-skipped"
 
 ### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 #!/usr/bin/env python3
@@ -816,6 +843,33 @@ playwright-cli 找不到本機 Chrome($chrome):open 會失敗,但可以接遠端
 $local_hint
 EOF
 fi
+
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+#!@BIN@/sh
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_env 'windows-mcp' 'windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份'
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 #!@BIN@/sh

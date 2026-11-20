@@ -272,6 +272,8 @@ TOOLS_FIRST=zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/btop/bottom/earlyoom/
 # 各用途的預設組合(獨立的期望值,不從 config 樣板抄)。完整 = 選單上全部,從 tool-menu 讀。
 LEAN_TOML='    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]'
 FULL_TOOLS=$(grep -E '^[a-z]' "$REPO/home/.chezmoitemplates/tool-menu" | cut -d' ' -f1 | paste -sd/)
+# Linux、macOS 的完整:windows-mcp 只裝在 Windows 主機(#343),每台非 Windows 都裝不了、完整不勾
+LINUX_FULL=${FULL_TOOLS/\/windows-mcp/}
 toml_list() {  # toml_list a/b/c → config 裡 tools 那一行
   local t out=()
   for t in ${1//\// }; do out+=("\"$t\""); done
@@ -735,16 +737,16 @@ scenario_ubuntu() {
   check "精簡的機器選裝腳本一支都不跑(tailscale 不在精簡裡)" \
     "chezmoi --config /tmp/lean.toml --destination /tmp/lean-home --persistent-state /tmp/lean.boltdb apply --dry-run --verbose --no-tty > /tmp/lean-dry 2>&1 && ! grep -E '^diff --git a/$TOOL_SCRIPT_RE' /tmp/lean-dry"
   check "選完整、選單不改:存完整,tools 是選單上全部" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)") > /tmp/full.toml && $(printf "$use_is" full /tmp/full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/full.toml"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)") > /tmp/full.toml && $(printf "$use_is" full /tmp/full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/full.toml"
   check "完整的預設組合有 node,精簡沒有" "grep -q '\"node\"' /tmp/full.toml && ! grep -q '\"node\"' /tmp/lean.toml"
   check "完整的預設組合有 cloudflared、tailscale、btop,精簡沒有" \
     "for t in cloudflared tailscale btop; do grep -q \"\\\"\$t\\\"\" /tmp/full.toml && ! grep -q \"\\\"\$t\\\"\" /tmp/lean.toml || exit 1; done"
-  local full_no_ttyd=${FULL_TOOLS/\/ttyd\///}
+  local full_no_ttyd=${LINUX_FULL/\/ttyd\///}
   check "選完整後取消 ttyd:存自訂加 tools 清單" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice full)" --promptMultichoice "$(menu_choice "$full_no_ttyd")") > /tmp/full-ttyd.toml && $(printf "$use_is" custom /tmp/full-ttyd.toml) && grep -qxF '$(toml_list "$full_no_ttyd")' /tmp/full-ttyd.toml"
   check "選精簡後多勾 gh:存自訂" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice minimal)" --promptMultichoice "$(menu_choice zsh/starship/eza/fzf/bat/ripgrep/vim/fastfetch/gh)") > /tmp/lean-gh.toml && $(printf "$use_is" custom /tmp/lean-gh.toml) && grep -q '\"gh\"' /tmp/lean-gh.toml"
-  local full_filtered=${FULL_TOOLS/\/headless-chrome\///}
+  local full_filtered=${LINUX_FULL/\/headless-chrome\///}
   # WSL 的網路借 Windows 那份 Tailscale(#273):tailscale 不建議,完整也不勾;snapserver 抓不到 tailnet IP(#290),同樣不建議
   local full_wsl=${full_filtered/\/tailscale\///}
   full_wsl=${full_wsl/\/snapserver\///}
@@ -775,14 +777,14 @@ scenario_ubuntu() {
     "cp /tmp/lean.toml /tmp/lean-prompt.toml && chezmoi --config /tmp/lean-prompt.toml init --prompt --no-tty --promptDefaults </dev/null && $(printf "$use_is" minimal /tmp/lean-prompt.toml) && grep -qxF '$LEAN_TOML' /tmp/lean-prompt.toml"
   # 精簡沒問過憑證,改成完整就要問(給 SECRET_FLAGS)
   check "存精簡的機器在 tools 改選完整:選單預設帶完整的組合" \
-    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice full)") </dev/null && $(printf "$use_is" full /tmp/lean-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/lean-full.toml"
+    "cp /tmp/lean.toml /tmp/lean-full.toml && chezmoi --config /tmp/lean-full.toml init --prompt --no-tty --promptDefaults $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice full)") </dev/null && $(printf "$use_is" full /tmp/lean-full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/lean-full.toml"
   check "只有 tools(有 toolsSchema)、沒有用途的舊 config:init 不問、存自訂、tools 不變" \
     "sed '/^    machineUse = /d' $cfg > /tmp/no-use.toml && ! grep -q machineUse /tmp/no-use.toml && chezmoi --config /tmp/no-use.toml init --no-tty </dev/null && $(printf "$use_is" custom /tmp/no-use.toml) && [ \"\$(grep '^    tools = ' /tmp/no-use.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
   # #222 以前 machineUse 存中文:init(不帶 --prompt)換成代號,勾選不變
   check "存「精簡」的舊 config:init 後存 minimal、tools 是精簡那九項" \
     "sed 's/^    machineUse = .*/    machineUse = \"精簡\"/' /tmp/lean.toml > /tmp/legacy-lean.toml && chezmoi --config /tmp/legacy-lean.toml init --no-tty </dev/null && $(printf "$use_is" minimal /tmp/legacy-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/legacy-lean.toml"
   check "存「完整」的舊 config:init 後存 full、tools 是選單上全部" \
-    "sed 's/^    machineUse = .*/    machineUse = \"完整\"/' /tmp/full.toml > /tmp/legacy-full.toml && chezmoi --config /tmp/legacy-full.toml init --no-tty </dev/null && $(printf "$use_is" full /tmp/legacy-full.toml) && grep -qxF '$(toml_list "$FULL_TOOLS")' /tmp/legacy-full.toml"
+    "sed 's/^    machineUse = .*/    machineUse = \"完整\"/' /tmp/full.toml > /tmp/legacy-full.toml && chezmoi --config /tmp/legacy-full.toml init --no-tty </dev/null && $(printf "$use_is" full /tmp/legacy-full.toml) && grep -qxF '$(toml_list "$LINUX_FULL")' /tmp/legacy-full.toml"
   check "存「自訂」的舊 config:init 後存 custom、tools 不變" \
     "sed 's/^    machineUse = .*/    machineUse = \"自訂\"/' $cfg > /tmp/legacy-custom.toml && chezmoi --config /tmp/legacy-custom.toml init --no-tty </dev/null && $(printf "$use_is" custom /tmp/legacy-custom.toml) && [ \"\$(grep '^    tools = ' /tmp/legacy-custom.toml)\" = \"\$(grep '^    tools = ' $cfg)\" ]"
 
@@ -854,7 +856,7 @@ scenario_ubuntu() {
     check "$ov 的選單列 playwright-cli、沒有標註,勾了照存" \
       "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$ov' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list playwright-cli)'"
   done
-  check "(對照)非 WSL 的 amd64 選單沒有任何標註" "! grep -qE '（(裝不了|不建議)：' <<<$(printf '%q' "$(menu_labels)")"
+  check "(對照)非 WSL 的 amd64 選單除了只裝在 Windows 主機的 windows-mcp,沒有任何標註" "! grep -v '^windows-mcp ' <<<$(printf '%q' "$(menu_labels)") | grep -qE '（(裝不了|不建議)：'"
   label=$(menu_choice tailscale "$wsl")
   check "WSL 的選單 tailscale 標不建議,勾了照存" \
     "grep -q '（不建議：網路借 Windows' <<<$(printf '%q' "$label") && chezmoi --config /tmp/fresh-env.toml execute-template --init --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$label") < $tmpl/.chezmoi.toml.tmpl | grep -qxF '$(toml_list tailscale)'"
@@ -884,7 +886,7 @@ scenario_ubuntu() {
   bold "▶ (渲染)非 Debian 系 Linux 照樣出用途選單、apt 腳本渲染成空的、選裝工具改走 mise"
   local fedora='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}}}'
   # snapserver 走 apt(#290),非 Debian 系同樣裝不了
-  local fedora_full=${FULL_TOOLS/\/headless-chrome\///}
+  local fedora_full=${LINUX_FULL/\/headless-chrome\///}
   fedora_full=${fedora_full/\/snapserver\///}
   # snapclient 也走 apt(#292)
   fedora_full=${fedora_full/\/snapclient\///}
@@ -933,7 +935,7 @@ scenario_ubuntu() {
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
   # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 npm(#349)
-  local mac_full=${FULL_TOOLS/\/snapserver\///}
+  local mac_full=${LINUX_FULL/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
   check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom)" \

@@ -35,3 +35,4 @@ codegraph 程式碼索引給 agent 查({{ if eq .chezmoi.os "windows" }}mise 裝
 headless-chrome 沒有畫面的 Chrome,給 agent 開網頁
 playwright-cli agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)
 agent-config skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv)
+windows-mcp 讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)

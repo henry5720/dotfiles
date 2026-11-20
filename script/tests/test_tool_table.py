@@ -520,6 +520,22 @@ class ToolTableTest(unittest.TestCase):
         self.assertFalse(self.resolved["android", "agent-config"]["needsUv"])
         self.assertFalse(self.resolved["debian-noroot", "snapserver"]["needsUv"])
 
+    def test_windows_mcp_only_on_windows_and_brings_uv(self):
+        # #343(獨立的期望值):Windows 走 mise(pipx backend,要 uv),連帶裝 uv;其他環境裝不了,原因寫只在 Windows 有用
+        win = self.resolved["windows", "windows-mcp"]
+        self.assertEqual((win["tools"]["windows-mcp"]["state"], win["tools"]["windows-mcp"]["method"]), ("ok", "mise"))
+        self.assertTrue(win["needsUv"])
+        self.assertEqual(self.snap["windows", "windows-mcp"]["installing"], ["windows-mcp", "uv"])
+        for env in ENVS:
+            if env == "windows":
+                continue
+            with self.subTest(env=env):
+                res = self.resolved[env, "windows-mcp"]
+                self.assertEqual(res["tools"]["windows-mcp"]["state"], "unsupported")
+                self.assertIn("Windows", res["tools"]["windows-mcp"]["reason"])
+                self.assertNotEqual(res["tools"]["windows-mcp"]["reason"], NO_METHOD)
+                self.assertFalse(res["needsUv"])
+
     def test_system_command_is_reused_without_root_like_mise_tools(self):
         # 快照的 PATH 什麼都找不到,system 裝法另外驗:沒有 root 的 Debian 系、系統已經有 vim
         with tempfile.TemporaryDirectory() as tmp:

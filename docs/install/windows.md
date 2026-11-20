@@ -71,6 +71,7 @@ CLI 用 mise 裝、app 用 winget 裝（跟 Linux 寫在同一張選裝工具表
 | opencode | mise（npm backend 的 `opencode-ai`，會一併列 Node LTS） | 完整或自己勾 | OpenCode 沒有 Windows 的 `install.ps1`，官方文件列了 npm 與 mise；`opencode-ai` 是 OpenCode 1，跟 Linux 那份同一個大版本。它的 postinstall 才會放上真的 `opencode.exe`，清單用 `allow_builds` 放行（mise 預設不跑）；在放行之前裝過的，`opencode --version` 會說 postinstall 沒跑，`mise install -f npm:opencode-ai` 重裝一次。更新跑 `mise upgrade`（`opencode upgrade` 認不出 mise 裝的）。設定見上面的部署表；commit 指引、MCP 要勾 agent-config |
 | codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見下面〈codegraph〉 |
 | agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
+| windows-mcp | mise（pipx backend 的 `windows-mcp`，用 uv 裝，會一併列 uv；要的 Python 由 uv 下載） | 完整或自己勾 | 讓 agent 操作這台的桌面。不直接打指令，WSL 的 agent 經 agent-config 的 MCP 設定叫用；見下面〈windows-mcp〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 | codex | 官方 [`install.ps1`](https://learn.chatgpt.com/docs/codex/cli)（Windows 分頁） | 完整或自己勾 | 裝到 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`（本體在 `%USERPROFILE%\.codex\packages\standalone`），installer 自己把它加進使用者 PATH；更新打 `codex update`，開 `codex` 時有新版也會問要不要更新（兩者都是重跑官方 install.ps1）；第一次打 `codex` 照瀏覽器登入。設定檔還沒部署（#314 第 2 步），跟 WSL 那份各自獨立 |
 | wakatime | 官方 release 的 zip 放到 `%USERPROFILE%\.wakatime\`（不走 mise）＋ 勾了的 agent 用官方的兩行指令裝 plugin（會一併列 Node LTS；marketplace 要 git，winget 裝 `Git.Git`，已經有就跳過、會跳 UAC） | 完整或自己勾 | 跟 Linux 一樣，見 [WakaTime](../ai-agent/wakatime.md)。plugin 只認 `.wakatime\wakatime-cli-windows-<arch>.exe`，之後由 plugin 自己更新；`wakatime-cli.exe` 是複製一份（Linux 是 symlink）。plugin 的 hook 用 PATH 上的 `node`（mise 的 shims，PowerShell profile 加進 PATH），從不讀 profile 的地方開 agent 可能找不到 node、送不出紀錄 |
@@ -107,6 +108,31 @@ mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋
 
 同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
 Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
+
+### windows-mcp
+
+PyPI 上的 `windows-mcp` 由 mise 的 pipx backend 裝（#343）。mise 有 uv 就用 `uv tool install`，清單裡有 uv 時先裝 uv
+（[mise 的 pypi backend 文件](https://mise.jdx.dev/dev-tools/backends/pypi.html)），所以勾它會一併列 uv；
+套件要 Python 3.14 以上，uv 找不到就自己下載（[uv 的 Python 文件](https://docs.astral.sh/uv/concepts/python-versions/)）。
+更新跑 `mise up`。
+
+mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。以前照 agent-config 的 windows-mcp skill 手動
+`uv tool install windows-mcp` 過的機器，勾了之後會有兩份：
+
+| | 手動 `uv tool install` | mise |
+|---|---|---|
+| 執行檔 | `%USERPROFILE%\.local\bin\windows-mcp.exe`（uv 的[執行檔目錄](https://docs.astral.sh/uv/reference/storage/#executable-directory)，複製過去的） | shim `%LOCALAPPDATA%\mise\shims\windows-mcp.exe` |
+| 本體 | `%APPDATA%\uv\data\tools\windows-mcp` | `%LOCALAPPDATA%\mise\installs\pipx-windows-mcp\<版本>`（目錄名照 Linux 上 mise 2026.10.25 實測，Windows 待實機確認） |
+
+PowerShell profile 把 `.local\bin` 排在 mise 的 shims 前面，打 `windows-mcp` 會先找到舊的那份，而它不會跟著 `mise up` 更新。
+所以舊的要刪：
+
+```powershell
+uv tool uninstall windows-mcp
+(Get-Command windows-mcp).Source   # 新開的 PowerShell 裡跑,要印出 mise 的 shims 那份
+```
+
+當初照 skill 用 winget 裝的 uv（`astral-sh.uv`）也還在，跟 mise 的 uv 兩份並存；只用 mise 那份就 `winget uninstall --id astral-sh.uv`。
 
 ### agent-config（skillshare）
 
