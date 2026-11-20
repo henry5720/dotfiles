@@ -135,6 +135,7 @@ SECRET_FLAGS=(
   --promptString 'code-server 密碼=e2e'
   --promptString 'codex-lb API key=e2e'
   --promptString 'Context7 API key（可留空）='
+  --promptString 'Graphify API key（可留空）='
   --promptString 'WakaTime API key（可留空）='
 )
 GIT_FLAGS=(

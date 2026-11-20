@@ -24,7 +24,7 @@ LEAN = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 SECRETS = ["--promptString", "git user.name=e2e", "--promptString", "git user.email=e2e@example.com",
            "--promptString", "code-server 密碼=x", "--promptString", "codex-lb API key=x",
-           "--promptString", "Context7 API key（可留空）=", "--promptString", "WakaTime API key（可留空）="]
+           "--promptString", "Context7 API key（可留空）=", "--promptString", "Graphify API key（可留空）=", "--promptString", "WakaTime API key（可留空）="]
 
 WSL = {"chezmoi": {"kernel": {"osrelease": "5.15.167.4-microsoft-standard-WSL2"}}}
 ARM = {"chezmoi": {"arch": "arm64"}}

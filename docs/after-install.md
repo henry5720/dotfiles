@@ -45,7 +45,7 @@
 |---|---|---|
 | `wakatimeApiKey` | `~/.wakatime.cfg`（留空就不部署） | — |
 | `codexLbApiKey` | `~/.codex/config.toml`、`~/.config/opencode/opencode.json` | — |
-| `context7ApiKey` | `~/.config/zsh/env.zsh`（留空或沒勾 zsh 就不部署） | 開新的 zsh |
+| `context7ApiKey`、`graphifyApiKey` | `~/.config/zsh/env.zsh`（兩個都留空或沒勾 zsh 就不部署） | 開新的 zsh |
 | `codeServerPassword` | `~/.config/code-server/config.yaml`（沒勾 code-server 就不部署） | 重啟 code-server |
 | `gitUserName`、`gitUserEmail` | `~/.gitconfig` | — |
 

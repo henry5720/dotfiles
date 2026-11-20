@@ -94,7 +94,7 @@ macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個�
 |---|---|
 | code-server | `code-server 密碼` |
 | codex 或 opencode | `codex-lb API key` |
-| agent-config | `Context7 API key`（可留空） |
+| agent-config | `Context7 API key`、`Graphify API key`（都可留空） |
 | wakatime | `WakaTime API key`（可留空） |
 
 沒勾的不問、也不寫進 config；之後勾了，`tools` 會在那時問。取消勾選不刪存過的值。
