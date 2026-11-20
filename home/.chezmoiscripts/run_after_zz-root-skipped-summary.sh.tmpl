@@ -19,7 +19,7 @@ fi
 rm -f "$d/env-skipped"
 if [ -s "$d/root-skipped" ]; then
   echo
-  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
   cat "$d/root-skipped"
 fi
 rm -f "$d/root-skipped"

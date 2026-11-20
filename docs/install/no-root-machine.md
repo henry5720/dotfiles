@@ -39,30 +39,31 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | bash 切 zsh | 不 `chsh`：`~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間），互動式 bash 一啟動就 `exec zsh`；`bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh |
 | `~/.profile` | 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時補一個：把 `~/.local/bin` 加進 PATH、source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去 |
 | `TERM` | 沒設時 `.zshrc` 補成 `xterm-256color` |
-| ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 請有 root 的人裝 |
+| ssh client | 系統沒有 `ssh`（例：TeamSync 工作區）時，apt 不用 root 把 openssh-client 解到 `~/.local/opt/openssh`，`ssh`、`ssh-keygen`、`scp` 放在 `~/.local/bin`。系統已經有 `ssh` 就不補。只做 Debian 系；其他 Linux 沒有 `ssh` 就不補，ssh 要從系統套件裝 |
 | 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
 
 只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
-勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。管理員裝過 snapserver、snapclient 的話，
-套件自帶、開機自動啟動的系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)）。
+勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。系統已經裝了 snapserver、snapclient 的話，
+套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](../remote-access/voice-out.md)）。
 
 不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd、cloudflared 本來就由 mise 裝（#233），
 Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
 
 ### 略過彙整怎麼看
 
-要 root 的步驟不會讓 apply 失敗：每一步印一行「略過什麼、手動怎麼做」，apply 最後在
+要 root 的步驟不會讓 apply 失敗：每一步印一行「略過什麼」，接著寫缺什麼、為什麼要 root、對應的指令，apply 最後在
 `== 沒有 root,以下步驟已略過` 底下再彙整一次，整個 apply 照樣 exit 0。
+訊息只寫事實，不叫你去找誰：有 root 就照指令跑，沒有的話怎麼補（例如把 `.deb` 解到家目錄）由你決定。
 
-| 彙整裡的項目 | 要做什麼 |
+| 彙整裡的項目 | 寫了什麼 |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install` |
+| 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 缺哪些套件與 apt 的指令 `sudo apt-get install -y …` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
-| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
-| ssh | 解不開 openssh-client 時才有，請有 root 的人裝 |
+| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過；寫缺它、Node 官方 binary 需要它，與 `sudo apt-get install -y libatomic1` |
+| ssh | 解不開 openssh-client 時才有；寫哪一步失敗，與 `sudo apt-get install -y openssh-client` |
 
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
 

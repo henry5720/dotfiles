@@ -23,7 +23,7 @@
          裝完還要設定(開服務、裝 plugin、寫 /etc)才另寫一支 .chezmoiscripts/run_onchange_after_install-<工具>.sh.tmpl,
          表上寫 setup;要不要跑看判斷結果((includeTemplate "tool-install" . | fromJson).tools.<工具> 的 install 與 method,
          見 install-snapclient),不自己判斷環境。執行時才知道的條件(缺 libatomic、要 root 的步驟)才在腳本裡判斷,
-         用 sh-skip 的 skip_root 印「略過＋手動方式」、exit 0。
+         用 sh-skip 的 skip_root 印「略過什麼＋缺什麼、為什麼要 root、指令」、exit 0。
          3. 要不要放進精簡:改下面的 $lean。
          4. 存自訂的機器不會自己勾上,打 `tools` 勾它才會裝;存完整的跑 `chezmoi init` 就會帶進來。 */ -}}
 {{- /* 以前在基底、拆成選裝工具的六項。舊 config(沒有 toolsSchema)升級時自動算進已勾,
