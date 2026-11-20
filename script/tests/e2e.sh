@@ -926,19 +926,18 @@ scenario_ubuntu() {
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
-  # snapserver 靠 systemd user service(#290),macOS 裝不了
-  local mac_full=${FULL_TOOLS/\/headless-chrome\///}
-  mac_full=${mac_full/\/snapserver\///}
+  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 npm(#349)
+  local mac_full=${FULL_TOOLS/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、playwright-cli,沒有 headless-chrome、snapserver、earlyoom)" \
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
   check "macOS 的選單 tailscale 沒有標註、標裝法 cask" "grep -qx 'tailscale *私人 VPN,連自己的機器 \\[cask\\]' <<<$(printf '%q' "$(menu_labels "$mac")")"
-  label=$(menu_choice headless-chrome "$mac")
-  check "macOS 的選單列 headless-chrome、標裝不了,勾了照存" \
-    "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list headless-chrome)'"
+  label=$(menu_choice snapserver "$mac")
+  check "macOS 的選單列 snapserver、標裝不了,勾了照存" \
+    "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list snapserver)'"
   local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr","cloudflared","tailscale"]}'
   check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,app 另外 brew install --cask、失敗不中斷,語法對" \
     "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"cloudflared\" brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ] && ! grep -q '^cask ' /tmp/brew.sh && [ \"\$(grep -E '^brew install --cask ' /tmp/brew.sh)\" = 'brew install --cask \"tailscale-app\" ||' ]"
@@ -946,7 +945,7 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Termux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
-  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
+  local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop","snapserver"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-mise \
            run_onchange_after_install-official run_onchange_after_install-headless-chrome \
@@ -956,8 +955,8 @@ scenario_ubuntu() {
   done
   check "macOS 勾了 playwright-cli:跟 Linux 同一支 npm 安裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
     "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
-  check "macOS 勾了裝不了的(headless-chrome):略過腳本只列這一項(tailscale 走 cask、playwright-cli 照裝),彙整腳本渲染出來" \
-    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'headless-chrome' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
+  check "macOS 勾了裝不了的(snapserver):略過腳本只列這一項(tailscale、headless-chrome 走 cask,playwright-cli 照裝),彙整腳本渲染出來" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'snapserver' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \
     "chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka-mac.sh && sh -n /tmp/waka-mac.sh && grep -qx 'asset=darwin-\$asset' /tmp/waka-mac.sh"
   check "macOS 部署 tools 指令" \
