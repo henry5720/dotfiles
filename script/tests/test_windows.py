@@ -489,7 +489,7 @@ class WindowsDeployTest(unittest.TestCase):
                             (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
                             (SCRIPTS / "run_onchange_after_install-codex.ps1.tmpl", ["codex"]),
                             (SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl", ["wakatime", "claude", "codex"]),
-                                                        (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
+                            (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
                             (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
@@ -555,6 +555,16 @@ class WindowsDeployTest(unittest.TestCase):
         out = self.init("full")
         self.assertIn('\n    machineUse = "full"\n', out)
         self.assertEqual(set(self.tools_of(out)), WINDOWS_FULL)
+
+    def test_windows_codegraph_menu_says_bundle_without_node(self):
+        # Windows 的 codegraph 是 mise 裝自帶 Node 的 release bundle(#323):選單不能說 npm 裝、一併裝 Node,
+        # node 那項也不能說勾了 codegraph 會自動裝
+        labels = self.labels()
+        codegraph = next(l for l in labels if l.startswith("codegraph "))
+        self.assertNotIn("npm", codegraph)
+        self.assertNotIn("Node", codegraph)
+        node = next(l for l in labels if l.startswith("node "))
+        self.assertNotIn("codegraph", node)
 
     def test_windows_menu_lists_every_tool_and_marks_the_rest(self):
         labels = self.labels()
