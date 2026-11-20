@@ -71,21 +71,21 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 "bottom" = "latest"
 "poppler" = "latest"
 "cloudflared" = "latest"
+"codegraph" = "latest"
 "eza" = "latest"
 "fastfetch" = "latest"
 "ffmpeg" = "latest"
 "fzf" = "latest"
 "gh" = "latest"
+"herdr" = "latest"
+"node" = "lts"
+"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+"npm:@playwright/cli" = "latest"
 "ripgrep" = "latest"
+"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
 "starship" = "latest"
 "ttyd" = "latest"
 "vim" = "latest"
-"node" = "lts"
-"herdr" = "latest"
-"github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
-"npm:@playwright/cli" = "latest"
-"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
-"codegraph" = "latest"
 
 ## 渲染成空的腳本
 
@@ -163,21 +163,21 @@ exit 0
 #   "bottom" = "latest"
 #   "poppler" = "latest"
 #   "cloudflared" = "latest"
+#   "codegraph" = "latest"
 #   "eza" = "latest"
 #   "fastfetch" = "latest"
 #   "ffmpeg" = "latest"
 #   "fzf" = "latest"
 #   "gh" = "latest"
+#   "herdr" = "latest"
+#   "node" = "lts"
+#   "npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+#   "npm:@playwright/cli" = "latest"
 #   "ripgrep" = "latest"
+#   "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
 #   "starship" = "latest"
 #   "ttyd" = "latest"
 #   "vim" = "latest"
-#   "node" = "lts"
-#   "herdr" = "latest"
-#   "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
-#   "npm:@playwright/cli" = "latest"
-#   "npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
-#   "codegraph" = "latest"
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')

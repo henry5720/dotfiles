@@ -25,18 +25,11 @@ command -v brew >/dev/null 2>&1 || {
 }
 
 # 2. 裝 formula
-{{- /* toolPackages.darwin 的值是 formula 清單,或分 brews、casks 的 map(app 走 cask,例如 tailscale) */}}
-{{- $brews := .packages.darwin.brews }}
-{{- $casks := .packages.darwin.casks }}
-{{- $installing := splitList " " (includeTemplate "tools-to-install" .) }}
-{{- range $tool, $tp := .toolPackages.darwin }}
-{{-   if has $tool $installing }}
-{{-     if kindIs "map" $tp }}
-{{-       $brews = concat $brews (get $tp "brews" | default list) }}
-{{-       $casks = concat $casks (get $tp "casks" | default list) }}
-{{-     else }}{{ $brews = concat $brews $tp }}{{ end }}
-{{-   end }}
-{{- end }}
+{{- /* 選裝工具照裝法判斷(.chezmoitemplates/tool-install,#333):formula 是 lists.brew、app 是 lists.cask(例如 tailscale);
+       誰走哪個寫在 .chezmoidata/tool-table.yaml。上面渲染出來的說明還寫 toolPackages,等 #336 刪掉那欄時一起改 */}}
+{{- $install := includeTemplate "tool-install" . | fromJson }}
+{{- $brews := concat .packages.darwin.brews $install.lists.brew }}
+{{- $casks := concat .packages.darwin.casks $install.lists.cask }}
 brew bundle --file=/dev/stdin <<EOF
 {{ range $brews | uniq -}}
 brew {{ . | quote }}

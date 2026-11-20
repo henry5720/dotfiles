@@ -20,6 +20,8 @@
            deps.<依賴套件>  install 為 true 時才算:{state: ok 或 unsupported, reason, method, 裝法的資料}
          lists      照上面彙整的清單,給各套件管理員用:要裝的工具與它們用得了的依賴,照工具名排、依賴接在工具後面、去掉重複:
                     apt、pkg、brew、cask、winget 是套件名;mise 是 {tool, version, options}
+                    aptNeedsRoot:依賴套件裝不了、但只差 root(這個 OS 的裝法有 apt、這台是 Debian 系)時它的 apt 套件名。
+                    依賴裝不了不擋工具(例如 node 的 libatomic1,#315 的決定):套件腳本照樣列,執行時缺了才印手動指令(skip_root)
        例:debian-root 勾 claude → tools.claude = {state: ok, method: official, official: {kind: sh, url: https://claude.ai/install.sh, …},
            deps: {poppler: {state: ok, method: apt, packages: [poppler-utils]}}, …},lists.apt = [poppler-utils] */ -}}
 {{- $t := index . "toolTable" -}}
@@ -74,7 +76,7 @@
 {{- $_ := set $node "install" $needsNode -}}
 
 {{- /* 4. 要裝的工具:算依賴、彙整清單 */ -}}
-{{- $lists := dict "apt" list "pkg" list "brew" list "cask" list "winget" list "mise" list -}}
+{{- $lists := dict "apt" list "pkg" list "brew" list "cask" list "winget" list "mise" list "aptNeedsRoot" list -}}
 {{- range $name, $spec := $t.tools -}}
 {{-   $entry := get $tools $name -}}
 {{-   if not $entry.install }}{{ continue }}{{ end -}}
@@ -85,6 +87,9 @@
 {{-     $_ := set $d "state" (ternary "ok" "unsupported" (ne $d.method "")) -}}
 {{-     $_ := set $deps $dep $d -}}
 {{-     if $d.method }}{{ $picked = append $picked $d }}{{ end -}}
+{{-     if and (not $d.method) (hasKey $have "debian") (has "apt" (dig "install" $os list $dspec)) -}}
+{{-       $_ := set $lists "aptNeedsRoot" (concat (get $lists "aptNeedsRoot") (get $dspec "apt") | uniq) -}}
+{{-     end -}}
 {{-   end -}}
 {{-   $_ := set $entry "deps" $deps -}}
 {{-   range $picked -}}

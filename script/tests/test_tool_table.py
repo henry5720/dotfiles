@@ -92,11 +92,9 @@ SCRIPT_METHODS = {
 
 # 刻意的差異(spec #315「行為改變」與它的推論):判斷已經照新規則算,消費端還照舊,等那張 ticket 切過去。
 # (環境, 比的項目, 工具或套件) → 說明。比的項目:installing、apt、mise、script:<腳本>
-# #332 起選單、預設組合、略過讀判斷,沒有 root 的 earlyoom、snapclient、snapserver、headless-chrome 經 tools-to-install
-# 一起不裝了,剩下的是依賴套件:
+# 套件清單與 mise 清單從 #333 起照判斷產生;選單、預設組合、略過從 #332 起讀判斷,
+# 沒有 root 的 earlyoom、snapclient、snapserver、headless-chrome 經 tools-to-install 一起不裝了。現在沒有差異。
 KNOWN = {
-    ("debian-noroot", "apt", "libatomic1"): "#333:沒有 root 時 apt 用不了,依賴套件不列進 apt 清單"
-                                            "(缺 libatomic 維持在執行時判斷,#315 2026-11-20 決定)",
 }
 
 
@@ -208,7 +206,8 @@ class ToolTableTest(unittest.TestCase):
                 want = set(snap["apt/pkg"]) - set(self.base["termux"]) | set(snap.get("pkg(node)", []))
                 diffs += self.compare(env, "pkg", want, set(lists["pkg"]))
             else:
-                diffs += self.compare(env, "apt", set(snap["apt/pkg"]) - set(self.base["ubuntu"]), set(lists["apt"]))
+                diffs += self.compare(env, "apt", set(snap["apt/pkg"]) - set(self.base["ubuntu"]),
+                                      set(lists["apt"]) | set(lists["aptNeedsRoot"]))
             diffs += self.compare(env, "brew", set(snap["brew"]) - set(self.base["darwin"]["brews"]),
                                   set(lists["brew"]))
             diffs += self.compare(env, "cask", set(snap["brew cask"]), set(lists["cask"]))
@@ -241,6 +240,77 @@ class ToolTableTest(unittest.TestCase):
             if self.snap[env, sel]["zsh-bin"] != (entry["install"] and entry["method"] == "script"):
                 diffs.append(f"{env}/{sel} zsh-bin:判斷 zsh 走 {entry['method']}")
         self.assertFalse(diffs, "\n".join(diffs))
+
+    # ===============================================================
+    # #333:清單只從判斷結果來,而且順序照判斷(基本套件在前)
+    # ===============================================================
+    def test_rendered_lists_are_base_then_resolver_lists_in_order(self):
+        diffs = []
+        for (env, sel), res in self.resolved.items():
+            snap, lists, b = self.snap[env, sel]["packages"], res["lists"], self.base
+            node = res["tools"]["node"]
+            if env == "android":
+                termux_node = node["packages"] if node["install"] and node["method"] == "pkg" else []
+                want = {"apt/pkg": b["termux"] + [p for p in lists["pkg"] if p not in termux_node]}
+                if termux_node:
+                    want["pkg(node)"] = termux_node
+            elif env in ("darwin", "windows", "non-debian"):
+                want = {"apt/pkg": []}
+            else:
+                base = b["ubuntu"] if env != "debian-noroot" else [p for p in b["ubuntu"] if p != "jq"]
+                want = {"apt/pkg": base + lists["apt"] + lists["aptNeedsRoot"]}
+            want["brew"] = b["darwin"]["brews"] + lists["brew"] if env == "darwin" else []
+            want["brew cask"] = b["darwin"]["casks"] + lists["cask"] if env == "darwin" else []
+            want["winget"] = list(dict.fromkeys(b["windows"]["winget"] + lists["winget"])) if env == "windows" else []
+            got = {k: v for k, v in snap.items() if k}
+            want = {k: list(dict.fromkeys(v)) for k, v in want.items()}
+            if got != want:
+                diffs.append(f"{env}/{sel}: 快照 {got} ≠ 判斷 {want}")
+        self.assertFalse(diffs, "\n".join(diffs))
+
+    def test_rendered_mise_list_is_resolver_list_in_order(self):
+        diffs = []
+        for (env, sel), res in self.resolved.items():
+            text = path_of(env, sel).read_text(encoding="utf-8")
+            body = sections(text)["mise 清單"]
+            got = body[body.index("[tools]") + 1:] if "[tools]" in body else []
+            got = [l for l in got if l]
+            want = [mise_line(e) for e in res["lists"]["mise"]]
+            if env == "windows":
+                want = [f'"{t}" = "latest"' for t in self.base["windows"]["mise"]] + want
+            if got != want:
+                diffs.append(f"{env}/{sel}: 快照 {got} ≠ 判斷 {want}")
+        self.assertFalse(diffs, "\n".join(diffs))
+
+    def test_mise_template_names_no_tool(self):
+        # mise 清單樣板沒有針對單一工具的判斷(spec #315):表上的工具名一個都不出現
+        text = (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8")
+        code = re.sub(r"\{\{-? /\*.*?\*/ -?\}\}", "", text, flags=re.S)
+        for name in self.table["tools"]:
+            with self.subTest(tool=name):
+                self.assertNotIn(f'"{name}"', code)
+
+    def test_debian_noroot_snapserver_follows_table(self):
+        # 盤點的 bug(#333):沒有 root 的 Debian 勾 snapserver,snapserver 與 ffmpeg 的 apt 套件被默默拿掉,
+        # 卻照裝 uv、照跑 install-snapserver。改成照表:snapserver 走 apt 裝不了,它的依賴與腳本都不動
+        snap = self.snap["debian-noroot", "snapserver"]
+        self.assertEqual(self.resolved["debian-noroot", "snapserver"]["tools"]["snapserver"]["state"], "unsupported")
+        self.assertEqual(snap["packages"]["apt/pkg"], ["git", "curl", "python3"])
+        self.assertEqual(snap["mise"], set())
+        self.assertFalse(snap["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
+        # 有 root 照舊:apt 裝 snapserver、ffmpeg,mise 裝 uv,跑 install-snapserver
+        root = self.snap["debian-root", "snapserver"]
+        self.assertEqual(root["packages"]["apt/pkg"], ["git", "curl", "jq", "python3", "snapserver", "ffmpeg"])
+        self.assertEqual(root["mise"], {'"uv" = "latest"'})
+        self.assertTrue(root["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
+
+    def test_libatomic_stays_in_apt_list_without_root(self):
+        # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
+        for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full"):
+            with self.subTest(sel=sel):
+                self.assertEqual(self.snap["debian-noroot", sel]["packages"]["apt/pkg"][-1], "libatomic1")
+        self.assertNotIn("earlyoom", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
+        self.assertNotIn("snapclient", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
 
     def test_needs_node_matches_rendered_node(self):
         # Node 有沒有被連帶裝:Linux、macOS 看 install-node、Termux 看 pkg 的 nodejs-lts、Windows 看 mise 的 node
