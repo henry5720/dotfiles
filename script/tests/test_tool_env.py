@@ -168,7 +168,7 @@ class ToolEnvTest(unittest.TestCase):
     def test_discouraged_is_labelled_unticked_and_still_installed(self):
         # WSL 的網路借 Windows 那份 Tailscale:選單標不建議、完整不勾,勾了照裝、不記略過
         labels = self.chezmoi(WSL, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
-        self.assertIn("tailscale        私人 VPN,連自己的機器（不建議：網路借 Windows 那份 Tailscale（mirrored），"
+        self.assertIn("tailscale        私人 VPN,連自己的機器 [official]（不建議：網路借 Windows 那份 Tailscale（mirrored），"
                       "再裝一份會變成 tailnet 上兩個節點）", labels.splitlines())
         installing = self.chezmoi(WSL, "execute-template", data={"tools": ["tailscale"]},
                                   stdin='{{ includeTemplate "tools-to-install" . }}').stdout
@@ -284,7 +284,7 @@ exit 0
 
     def test_cloudflared_is_in_full_not_lean_and_installed_by_mise_or_brew(self):
         labels = self.chezmoi({}, "execute-template", stdin='{{ includeTemplate "tool-menu-labels" . }}').stdout
-        self.assertIn("cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人", labels.splitlines())
+        self.assertIn("cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]", labels.splitlines())
         self.assertIn('"cloudflared"', self.init({}, "full").stdout)
         self.assertNotIn('"cloudflared"', self.init({}, "minimal").stdout)
         mise = self.render({}, "home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["cloudflared"])

@@ -40,8 +40,8 @@
 #              reason: 原因
 #              issue: 原因是「還沒寫裝法」時,追蹤的 issue 編號
 #          unsupported 不管有沒有裝法都算裝不了(例如 WSL 不裝 Linux 的 Chrome);discouraged 照樣算裝法,只是標原因。
-#          沒有規則對到、裝法又一個都用不了時,原因由判斷照第一個裝法缺的條件組出來(見 3. 的 reason)。
-#          原因寫給勾選的人看:為什麼不行、要的話怎麼辦。字元限制照 ADR 0004:不能有半形 /、'、=(測試擋),用全形標點。
+#          裝法一個都用不了的環境一定要有一條規則寫原因,判斷不自己組(#335,測試擋)。
+#          原因寫給勾選的人看,只寫事實(#315 2026-11-20 的決定)。字元限制照 ADR 0004:不能有半形 /、'、=(測試擋),用全形標點。
 #
 # ===============================================================
 # 2. 環境(rules 的 when)
@@ -51,13 +51,13 @@
 #   non-amd64   linux 且 .chezmoi.arch 不是 amd64
 #   non-debian  linux 且不是 Debian 系(is-debian)
 #   proot       平板上的 proot Ubuntu(is-proot)
-#   noroot      linux 且沒有 root(has-root)。不寫規則時,要 root 的裝法照樣算用不了、原因由判斷組;
-#               要寫得更清楚才加規則(例:earlyoom、snapclient)
+#   noroot      linux 且沒有 root(has-root)。要 root 的裝法用不了;只有這種裝法的工具要寫規則
+#               (例:earlyoom、snapclient、snapserver、headless-chrome)
 #
 # ===============================================================
-# 3. 裝法能不能用(toolTable.methods、toolTable.needs)
+# 3. 裝法能不能用(toolTable.methods)
 # ===============================================================
-# 每個裝法要的環境條件寫在 methods.<裝法>.needs;條件的意思與缺了時的原因寫在 needs。
+# 每個裝法要的環境條件寫在 methods.<裝法>.needs:root(has-root)、debian(is-debian)、amd64(.chezmoi.arch)。
 # 另外三個不只看環境:
 #   system   這台已經有 cmd 這個指令(lookPath,排除 mise 自己的目錄 ~/.local/share/mise:
 #            裝過一次之後 PATH 上的 shim 不算,不然下次渲染就把自己裝的那份從清單拿掉)
@@ -77,13 +77,6 @@ toolTable:
     system: {}
     official: {}
     script: {}
-  needs:
-    root:
-      reason: 這台沒有 root
-    debian:
-      reason: 只能裝在 Debian 系
-    amd64:
-      reason: 只有 amd64 版
 
   tools:
     # ---------------------------------------------------------------
@@ -406,6 +399,9 @@ toolTable:
           state: unsupported
           reason: snapserver 走 apt，只能裝在 Debian 系
           issue: 315
+        - when: [noroot]
+          state: unsupported
+          reason: 沒有 root 用不了 apt，官方只出 .deb
         - when: [wsl]
           state: discouraged
           reason: WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機
@@ -498,6 +494,9 @@ toolTable:
           state: unsupported
           reason: .deb 只能裝在 Debian 系
           issue: 315
+        - when: [noroot]
+          state: unsupported
+          reason: Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt
     # Linux:npm-install-playwright-cli(最低版本、ffmpeg 留在那支);Windows 沒有 nvm,走 mise 的 npm backend(#327)
     playwright-cli:
       docs: https://github.com/microsoft/playwright-cli

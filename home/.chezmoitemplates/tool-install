@@ -17,7 +17,7 @@
              official  {kind: sh 或 ps1, url, shell, env, args, installed}
              script    自己那支腳本的名字                         deb  {url}
            setup     裝完還要設定的腳本名(表上沒寫就沒有這欄)
-           deps.<依賴套件>  install 為 true 時才算:{state: ok 或 unsupported, reason, method, 裝法的資料}
+           deps.<依賴套件>  install 為 true 時才算:{state: ok 或 unsupported, method, 裝法的資料}
          lists      照上面彙整的清單,給各套件管理員用:要裝的工具與它們用得了的依賴,照工具名排、依賴接在工具後面、去掉重複:
                     apt、pkg、brew、cask、winget 是套件名;mise 是 {tool, version, options}
                     aptNeedsRoot:依賴套件裝不了、但只差 root(這個 OS 的裝法有 apt、這台是 Debian 系)時它的 apt 套件名。
@@ -57,8 +57,7 @@
 {{-   $r := dict "method" "" -}}
 {{-   if ne $state "unsupported" -}}
 {{-     $r = includeTemplate "tool-install-pick" (merge (dict "name" $name "spec" $spec) $pickArgs) | fromJson -}}
-{{-     if not $r.method }}{{ $state = "unsupported" }}{{ $reason = $r.reason }}{{ end -}}
-{{-     $_ := unset $r "reason" -}}
+{{-     if not $r.method }}{{ $state = "unsupported" }}{{ $reason = "表上沒有寫這台的原因" }}{{ end -}}
 {{-   end -}}
 {{-   $entry := merge $r (dict "state" $state "label" (get $labels $state) "reason" $reason "ticked" (has $name $ticked)) -}}
 {{-   $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) -}}
