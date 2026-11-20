@@ -21,6 +21,7 @@
 {{-   end -}}
 {{- end -}}
 {{- if $run -}}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 {{- range $name := $run }}
 {{-   $o := (get $install.tools $name).official }}

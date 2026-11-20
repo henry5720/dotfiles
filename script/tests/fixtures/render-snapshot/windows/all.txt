@@ -99,6 +99,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
 
 ### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $dir = Join-Path $env:APPDATA 'skillshare'
@@ -178,6 +179,7 @@ exit 0
 #   "starship" = "latest"
 #   "ttyd" = "latest"
 #   "vim" = "latest"
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -194,6 +196,7 @@ if ($LASTEXITCODE -ne 0) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 
@@ -244,6 +247,7 @@ if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'
 exit 0
 
 ### .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $dir = Join-Path $HOME '.wakatime'
@@ -312,6 +316,7 @@ exit 0
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 # hash: c1e3e346a20d9b5e3cd603d12508e33085eab792cefa69dc9d49f1ac968873b6
 # pinned: ccdd9c9ad735375336af488e0f6a196826af1149c016d5efb1b949ff683869bf
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
@@ -326,6 +331,7 @@ if ($LASTEXITCODE -ne 0) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 Write-Host ''
@@ -338,6 +344,7 @@ Write-Host (T 'LSBzbmFwc2VydmVyOnNuYXBzZXJ2ZXIg5rKS5pyJIFdpbmRvd3Mg54mI77yM5pyX6
 exit 0
 
 ### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ids = @(

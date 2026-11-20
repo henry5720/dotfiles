@@ -7,6 +7,7 @@
 {{- $skipped := includeTemplate "tools-skipped" . -}}
 {{- if $skipped -}}
 {{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 Write-Host ''
 Write-Host (T '{{ includeTemplate "env-skipped-header" . | trim | b64enc }}')

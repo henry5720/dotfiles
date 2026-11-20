@@ -562,6 +562,15 @@ class WindowsDeployTest(unittest.TestCase):
                 self.assertTrue(out.strip())
                 self.assertTrue(out.isascii(), [l for l in out.splitlines() if not l.isascii()][:3])
 
+    def test_windows_ps1_scripts_drop_pwsh7_module_paths_first(self):
+        # chezmoi 從 pwsh 7 跑時,5.1 繼承 pwsh 7 的 PSModulePath,Get-FileHash、Expand-Archive 載不到(#345,
+        # Windows runner 實測)。每支 .ps1 第一行可執行的程式就要把它們拿掉
+        for path in sorted(SCRIPTS.glob("*.ps1.tmpl")):
+            with self.subTest(path=path.name):
+                out = self.render(path, sorted(WINDOWS_FULL) + ["code-server", "zsh"])
+                code = [l for l in out.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+                self.assertIn("$env:PSModulePath", code[0])
+
     def test_windows_tools_command_reprompts_and_applies(self):
         out = self.render("home/dot_local/bin/tools.ps1.tmpl", [])
         self.assertIn("chezmoi init --prompt @args", out)

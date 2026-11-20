@@ -78,6 +78,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
 #   "zoxide" = "latest"
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -94,6 +95,7 @@ if ($LASTEXITCODE -ne 0) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 Write-Host ''
@@ -102,6 +104,7 @@ Write-Host (T 'LSBzbmFwc2VydmVyOnNuYXBzZXJ2ZXIg5rKS5pyJIFdpbmRvd3Mg54mI77yM5pyX6
 exit 0
 
 ### .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
 $ids = @(

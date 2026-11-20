@@ -19,6 +19,7 @@
        代價是不會自動重試,要照印出來的指令自己跑。 */ -}}
 {{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 {{- $url := "https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1" -}}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 $dir = Join-Path $env:APPDATA 'skillshare'
 $remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/henry5720/agent-config.git' }

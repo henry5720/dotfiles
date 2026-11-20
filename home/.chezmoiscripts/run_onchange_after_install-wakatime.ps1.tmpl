@@ -24,6 +24,7 @@
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- if has "wakatime" $installing -}}
 {{- $asset := printf "windows-%s" .chezmoi.arch -}}
+{{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 {{- if has .chezmoi.arch (list "amd64" "arm64") }}
 $dir = Join-Path $HOME '.wakatime'

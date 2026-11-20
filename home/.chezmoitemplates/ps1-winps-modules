@@ -1,0 +1,13 @@
+{{- /* Windows .ps1 腳本(.chezmoiscripts/*.ps1)第一行:把 pwsh 7 的模組路徑從 PSModulePath 拿掉(#345)。
+       腳本由 Windows PowerShell 5.1 跑(.chezmoi.toml.tmpl 的 interpreters.ps1)。chezmoi 是從 pwsh 7 叫起來的
+       (裝好之後 Windows Terminal 的預設分頁、`tools`)時,5.1 經過 chezmoi 這一層繼承了 pwsh 7 的 PSModulePath,
+       同名模組(Microsoft.PowerShell.Utility、Archive)會先找到 pwsh 7 那份、5.1 載不進來:
+       Get-FileHash 找不到(claude 的 install.ps1)、Expand-Archive 呼叫不存在的 ExtractToDirectory 多載
+       (skillshare 的 install.ps1、install-wakatime)。pwsh 7 直接開 5.1 時會自己拿掉,隔一個 process 就不會,
+       見 https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_psmodulepath
+       (「Starting Windows PowerShell from PowerShell 7」那節)。Windows runner 實測(#345)。
+       官方建議在啟動 5.1 前清掉這個變數,但 interpreters 只能設指令與參數,改在腳本開頭拿掉同樣那三個路徑:
+       pwsh 7 的使用者(Documents\PowerShell\Modules)、系統(Program Files\PowerShell\Modules)、$PSHOME
+       (Program Files\PowerShell\7\Modules,winget 裝的 MSIX 版在 WindowsApps\Microsoft.PowerShell_…)。
+       5.1 自己的路徑是 \WindowsPowerShell\,前面不是反斜線,對不到。 */ -}}
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'

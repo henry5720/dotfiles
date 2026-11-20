@@ -8,7 +8,7 @@
 #
 # chezmoi 從 pwsh 7 跑,不從 Windows PowerShell 5.1 跑:5.1 傳給原生程式的參數會吃掉內層雙引號、
 # 中文參數會卡住(--promptChoice 的 key 是中文提示文字)。.ps1 腳本照舊由 config 的 [interpreters.ps1] 用 5.1 跑,
-# 測的就是實機那條路。pwsh 先把 [Console]::OutputEncoding 設成 UTF-8,讀 chezmoi 印的中文才不會變 ?。
+# 測的就是實機那條路,也順便測到「從 pwsh 7 叫 chezmoi」(裝好之後的日常用法;.chezmoitemplates/ps1-winps-modules)。pwsh 先把 [Console]::OutputEncoding 設成 UTF-8,讀 chezmoi 印的中文才不會變 ?。
 #
 # runner 映像(https://github.com/actions/runner-images,images/windows)跟實機不一樣的地方:
 #   - UAC 關掉(scripts/build/Configure-BaseImage.ps1 的 Disable-UserAccessControl),machine scope 的 winget 不會停在 UAC
@@ -72,7 +72,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           "$env:LOCALAPPDATA\Microsoft\WinGet\Links" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
-      # 3. Runbook 第 5 步,加上不互動參數(跟 macos.yml、e2e 同一套)
+      # 3. runner 預裝的 Chrome 是企業版 MSI,winget id 是 Google.Chrome;選裝工具表的 headless-chrome 用官網 installer 的
+      #    Google.Chrome.EXE(tool-table.yaml 那筆的註解),winget list 對不到它、install 會報「已經裝了別的版本」(exit 3)。
+      #    先移掉,測的是沒有 Chrome 的新機器;「已經有官網裝的 Chrome 就跳過」留給實機(實機清單第 9 項)
+      - name: 移掉預裝的 Chrome
+        if: matrix.use == 'full'
+        run: |
+          winget uninstall --name 'Google Chrome' --exact --silent --disable-interactivity --accept-source-agreements
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # 4. Runbook 第 5 步,加上不互動參數(跟 macos.yml、e2e 同一套)
       - name: chezmoi init --apply
         run: |
           [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
@@ -105,7 +114,7 @@ jobs:
           $bad = Select-String -Path "$env:RUNNER_TEMP\init.log" -Encoding utf8 -Pattern 'FullyQualifiedErrorId', '沒裝好', '失敗,之後', '找不到 winget', '找不到 mise'
           if ($bad) { '腳本有錯:'; $bad; exit 1 }
 
-      # 4. 完整勾了 Windows 裝不了的,要在略過彙整裡看到(run_onchange_after_zz-env-skipped.ps1);
+      # 5. 完整勾了 Windows 裝不了的,要在略過彙整裡看到(run_onchange_after_zz-env-skipped.ps1);
       #    該略過哪些照這台渲染 tools-skipped,不寫死
       - name: 裝不了的有略過
         if: matrix.use == 'full'
@@ -123,7 +132,7 @@ jobs:
             if (-not ($summary | Where-Object { $_.StartsWith("- ${t}:") })) { Write-Error "略過彙整沒有 $t"; exit 1 }
           }
 
-      # 5. 實機清單第 1 項:檔案全部跟 source 一致,也沒有還沒跑過的腳本(run_onchange_ 失敗或沒跑會留在 status)。
+      # 6. 實機清單第 1 項:檔案全部跟 source 一致,也沒有還沒跑過的腳本(run_onchange_ 失敗或沒跑會留在 status)。
       #    Windows 的略過彙整是 run_onchange_,跑過就不在 status,不用像 macos.yml 排除它
       - name: chezmoi verify
         run: |
@@ -134,14 +143,14 @@ jobs:
           $pending = chezmoi status --include scripts
           if ($pending) { "還有腳本待跑:"; $pending; exit 1 }
 
-      # 6. 實機清單第 2 項:PowerShell 讀得到 chezmoi 部署的 profile
+      # 7. 實機清單第 2 項:PowerShell 讀得到 chezmoi 部署的 profile
       - name: Documents 是家目錄那份
         run: |
           $docs = [Environment]::GetFolderPath('MyDocuments')
           "MyDocuments = $docs"
           if ($docs -ne "$HOME\Documents") { exit 1 }
 
-      # 7. 實機清單第 8 項:勾的 app 在 winget list、勾的 CLI 在 mise ls。清單照這台渲染,不寫死
+      # 8. 實機清單第 8 項:勾的 app 在 winget list、勾的 CLI 在 mise ls。清單照這台渲染,不寫死
       - name: winget、mise 都裝好
         run: |
           [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
@@ -161,7 +170,7 @@ jobs:
           }
           if ($missing) { "沒裝好:"; $missing; exit 1 }
 
-      # 8. 實機清單第 3 項(不看畫面的部分)與第 10 項:開新的 shell。PATH 只留登錄檔那份(跟實機開新視窗一樣),
+      # 9. 實機清單第 3 項(不看畫面的部分)與第 10 項:開新的 shell。PATH 只留登錄檔那份(跟實機開新視窗一樣),
       #    profile 照常載入;pwsh -c 只印 hi(fastfetch 不跑、沒有紅字),勾了的 agent 兩個 shell 都印得出版本
       - name: 新的 pwsh、powershell
         run: |
@@ -184,7 +193,7 @@ jobs:
           }
           if ($fail) { exit 1 }
 
-      # 9. 實機清單第 9 項,與第 13 項不用開 agent 的部分(skillshare status)。勾了才測,精簡兩項都沒勾
+      # 10. 實機清單第 9 項,與第 13 項不用開 agent 的部分(skillshare status)。勾了才測,精簡兩項都沒勾
       - name: playwright-cli、skillshare
         if: matrix.use == 'full'
         run: |
@@ -195,7 +204,7 @@ jobs:
           & "$env:LOCALAPPDATA\Programs\skillshare\skillshare.exe" status
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      # 10. 實機清單第 11 項:再 apply 一次不重新下載。腳本 run_onchange_ 內容沒變就不跑(上面 status 已經是空的),
+      # 11. 實機清單第 11 項:再 apply 一次不重新下載。腳本 run_onchange_ 內容沒變就不跑(上面 status 已經是空的),
       #    這裡再看官方 installer、mise、winget 裝的東西修改時間沒變,diff 也沒有輸出
       - name: 第二次 apply 不重新下載
         run: |
