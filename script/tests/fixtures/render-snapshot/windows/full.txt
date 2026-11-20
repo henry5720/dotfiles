@@ -92,6 +92,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 "pipx:windows-mcp" = "latest"
 
 ## 渲染成空的腳本
+.chezmoiscripts/run_onchange_after_set-mcp-env.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
 
 ## 會跑的腳本

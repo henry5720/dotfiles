@@ -72,6 +72,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+.chezmoiscripts/run_onchange_after_set-mcp-env.ps1.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
 

@@ -45,7 +45,7 @@
 |---|---|---|
 | `wakatimeApiKey` | `~/.wakatime.cfg`（留空就不部署） | — |
 | `codexLbApiKey` | `~/.codex/config.toml`、`~/.config/opencode/opencode.json` | — |
-| `context7ApiKey`、`graphifyApiKey` | `~/.config/zsh/env.zsh`（兩個都留空或沒勾 zsh 就不部署） | 開新的 zsh |
+| `context7ApiKey`、`graphifyApiKey` | Linux：`~/.config/zsh/env.zsh`（兩個都留空或沒勾 zsh 就不部署）；Windows：使用者環境變數 `CONTEXT7_API_KEY`、`GRAPHIFY_API_KEY` | 開新的 zsh；Windows 重開 agent |
 | `codeServerPassword` | `~/.config/code-server/config.yaml`（沒勾 code-server 就不部署） | 重啟 code-server |
 | `gitUserName`、`gitUserEmail` | `~/.gitconfig` | — |
 
