@@ -14,17 +14,17 @@ Host github.com
 #   不寫短名:短名只有同一個 tailnet 的機器解析得到。公司 tailnet(tail29dcee)的機器分享給
 #     個人 tailnet 的 laptop 之後,laptop 上 lianghua 解析失敗、pos2-dev 解析到區網的同名機器(#307)。
 #   不寫 IP:機器重新註冊 tailscale 就換 IP,名稱不變。
-# henry-laptop 在個人 tailnet,只有個人 tailnet 的機器連得到,所以留短名;
-# 公司那邊連不到,要用時由 laptop 開 ssh -R。
+# henry-laptop、henry-desktop 在個人 tailnet(tail0fed08),只有個人 tailnet 的機器連得到;
+# 公司那邊(company-ec2)連不到,要用時由那台開 ssh -R。laptop 留短名。
 # Windows 端要跑 OpenSSH server,admin 金鑰必須放在
 #   C:\ProgramData\ssh\administrators_authorized_keys
 Host henry-laptop
     HostName henry-laptop
     User henry
 
-# 平常用的那台桌機,tailnet 裝置名 desktop-ifmbqh5
+# 平常用的那台桌機。公司 tailnet 的 desktop-ifmbqh5 是另一台,不是它
 Host henry-desktop
-    HostName desktop-ifmbqh5.tail29dcee.ts.net
+    HostName henry-desktop.tail0fed08.ts.net
     User henry
 
 # 量華的 Windows(DESKTOP-4P510DU),本機帳號 user
