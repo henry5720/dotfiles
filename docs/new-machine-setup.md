@@ -14,7 +14,7 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、bottom、code-server、headless Chrome、playwright-cli、coding agent、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu）；終端機字型、`authorized_keys` |
 | Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale、Chrome）用 winget 裝；claude、codex 與 agent-config 的 skillshare 走官方 install.ps1、opencode、codegraph 走 mise、wakatime 的 plugin 跟 Linux 同樣由 agent 裝；zsh、btop、code-server 這類沒有 Windows 裝法的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單，勾了 opencode 加它的設定、勾了 agent-config 加 skillshare 的設定、勾了 wakatime 加 `.wakatime.cfg`），只跑 `.ps1` 腳本；見[Windows 主機](install/windows.md) |
 
-機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟印出手動方式後略過，見[沒有 root 的機器](install/no-root-machine.md)。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟略過，印出缺什麼與對應的指令，見[沒有 root 的機器](install/no-root-machine.md)。
 
 ```text
 機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）

@@ -118,7 +118,7 @@ fi
 rm -f "$d/env-skipped"
 if [ -s "$d/root-skipped" ]; then
   echo
-  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
   cat "$d/root-skipped"
 fi
 rm -f "$d/root-skipped"
@@ -298,10 +298,11 @@ bin=$HOME/.local/bin
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
 }
@@ -315,7 +316,7 @@ skip_env() {  # skip_env <工具> <原因>
 give_up() {  # give_up <原因>
   rm -rf "$opt"
   rm -f "$bin/ssh" "$bin/ssh-keygen" "$bin/scp"
-  skip_root ssh "$1,沒有補裝 ssh。請有 root 的人跑 sudo apt-get install -y openssh-client"
+  skip_root ssh "$1,沒有補裝 ssh(系統的 openssh-client 裝到系統要 root);apt 的指令是 sudo apt-get install -y openssh-client"
   exit 0
 }
 
@@ -445,15 +446,16 @@ done
 # 2. 有缺才裝
 echo "安裝缺少的套件:$missing"
 
-# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印手動指令,apply 繼續。
+# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印缺哪些與 apt 的指令,apply 繼續。
 # jq、zsh 不在這裡(第 1 步已經排除),由 run_onchange_before_install-home-jq-zsh 裝到家目錄。
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
 }
@@ -463,4 +465,4 @@ skip_env() {  # skip_env <工具> <原因>
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }
 
-skip_root 系統套件 "缺$missing,請有 root 的人跑 sudo apt-get install -y$missing"
+skip_root 系統套件 "沒裝$missing(apt 裝到系統要 root);apt 的指令是 sudo apt-get install -y$missing"

@@ -432,7 +432,7 @@ class ToolTableTest(unittest.TestCase):
         self.assertTrue(root["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
 
     def test_libatomic_stays_in_apt_list_without_root(self):
-        # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
+        # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印缺什麼與指令
         # (playwright-cli 在沒有 root 的 Debian 系跟 headless-chrome 一樣裝不了,不連帶裝 node,不在這裡)
         for sel in ("node", "codegraph", "opencode", "wakatime", "full"):
             with self.subTest(sel=sel):
