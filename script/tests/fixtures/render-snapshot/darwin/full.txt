@@ -27,7 +27,7 @@ snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,v
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [brew]
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
-headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：這裡裝的是 Google 給 Linux 的 .deb）
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [cask]
 playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
 
@@ -40,7 +40,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "full"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "snapclient", "node", "codegraph", "agent-config"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "snapclient", "node", "codegraph", "headless-chrome", "agent-config"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -48,7 +48,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg snapclient node codegraph agent-config
+zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg snapclient node codegraph headless-chrome agent-config
 
 ## 略過(裝不了)
 
@@ -56,7 +56,7 @@ zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailsc
 ## 套件清單
 apt/pkg: 
 brew: jq bat bottom btop poppler cloudflared code-server eza fastfetch ffmpeg fzf gh ripgrep snapcast starship ttyd
-brew cask: tailscale-app
+brew cask: google-chrome tailscale-app
 winget: 
 
 ## mise 清單
@@ -498,6 +498,10 @@ brew "snapcast"
 brew "starship"
 brew "ttyd"
 EOF
+
+# 3. 裝 app:google-chrome
+brew install --cask "google-chrome" ||
+  echo "略過 google-chrome(brew 裝不起來,常見原因是 /Applications 已經有同一個 app,例如從官網或 App Store 裝過):要 brew 管就先刪掉那份再 chezmoi apply,不用就取消勾選"
 
 # 3. 裝 app:tailscale-app
 brew install --cask "tailscale-app" ||
