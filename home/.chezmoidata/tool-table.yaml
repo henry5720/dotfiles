@@ -500,25 +500,22 @@ toolTable:
         - when: [noroot]
           state: unsupported
           reason: Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt
-    # Linux:npm-install-playwright-cli(最低版本、ffmpeg 留在那支);Windows 沒有 nvm,走 mise 的 npm backend(#327)
+    # Linux、macOS:npm-install-playwright-cli(nvm 的 npm;最低版本、ffmpeg 留在那支);Windows 沒有 nvm,走 mise 的 npm backend(#327)。
+    # 不跟 headless-chrome 綁(#349):沒有本機 Chrome 也能 attach 使用者的 Chrome(插件)或 CDP 端點(#260),
+    # 所以 WSL、ARM、非 Debian 系、沒有 root 照裝。Playwright 官方支援見 https://playwright.dev/docs/intro
     playwright-cli:
       docs: https://github.com/microsoft/playwright-cli
       checked: 2026-11-20
-      install: {linux: [script], windows: [mise]}
+      install: {linux: [script], darwin: [script], windows: [mise]}
       script: {name: npm-install-playwright-cli}
       mise: {tool: "npm:@playwright/cli"}
       setup: npm-install-playwright-cli
       needsNode: [linux, darwin, android, windows]
-      # 下面兩條沿用 #315 之前就有的「跟 headless-chrome 綁在一起」;它可以 attach 遠端瀏覽器(#260),
-      # 該看自己的裝法,拆掉見 #349。沒有 root 的 Debian 系刻意不綁(#315)
       rules:
-        - when: [darwin]
+        # playwright-core 的 computeDefaultCacheDirectory 只認 linux、darwin、win32(termux-docker 實測,#349)
+        - when: [android]
           state: unsupported
-          reason: 它用 headless-chrome，這台裝不了 headless-chrome
-          issue: 348
-        - when: [android, wsl, non-amd64, non-debian]
-          state: unsupported
-          reason: 它用 headless-chrome，這台裝不了 headless-chrome
+          reason: Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android
     # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。
     # skillshare init 從 remote clone 要系統的 git(#321),Windows 基底沒裝
     agent-config:

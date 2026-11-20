@@ -108,14 +108,14 @@ class ToolStatusTest(unittest.TestCase):
         # 哪幾項帶標註、標的是哪一種(原因文字由上一個測試與 e2e 對)
         expected = {
             "ubuntu": ({}, {}),
-            "wsl": (WSL, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
+            "wsl": (WSL, {"headless-chrome": "裝不了", "tailscale": "不建議",
                            "snapserver": "不建議", "earlyoom": "裝不了"}),
-            "proot": (PROOT, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "tailscale": "不建議",
+            "proot": (PROOT, {"headless-chrome": "裝不了", "tailscale": "不建議",
                                "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了"}),
-            "arm": (ARM, {"headless-chrome": "裝不了", "playwright-cli": "裝不了"}),
-            "fedora": (FEDORA, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了",
+            "arm": (ARM, {"headless-chrome": "裝不了"}),
+            "fedora": (FEDORA, {"headless-chrome": "裝不了", "snapserver": "裝不了",
                                 "snapclient": "裝不了", "earlyoom": "裝不了"}),
-            "mac": (MAC, {"headless-chrome": "裝不了", "playwright-cli": "裝不了", "snapserver": "裝不了",
+            "mac": (MAC, {"headless-chrome": "裝不了", "snapserver": "裝不了",
                           "earlyoom": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
@@ -132,14 +132,14 @@ class ToolStatusTest(unittest.TestCase):
     # 預設組合扣掉不建議與裝不了的;沒改勾選照樣存用途
     # ===============================================================
     def test_full_skips_unsupported_and_stays_full(self):
-        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "playwright-cli", "tailscale", "snapserver",
+        for name, env, dropped in (("wsl", WSL, {"headless-chrome", "tailscale", "snapserver",
                                                  "earlyoom"}),
-                                   ("proot", PROOT, {"headless-chrome", "playwright-cli", "tailscale", "snapserver",
+                                   ("proot", PROOT, {"headless-chrome", "tailscale", "snapserver",
                                                      "snapclient", "earlyoom"}),
-                                   ("arm", ARM, {"headless-chrome", "playwright-cli"}),
-                                   ("fedora", FEDORA, {"headless-chrome", "playwright-cli", "snapserver", "snapclient",
+                                   ("arm", ARM, {"headless-chrome"}),
+                                   ("fedora", FEDORA, {"headless-chrome", "snapserver", "snapclient",
                                                        "earlyoom"}),
-                                   ("mac", MAC, {"headless-chrome", "playwright-cli", "snapserver", "earlyoom"})):
+                                   ("mac", MAC, {"headless-chrome", "snapserver", "earlyoom"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -245,8 +245,8 @@ exit 0
         cases = (
             ("wsl", WSL, "headless-chrome", "run_onchange_after_install-headless-chrome.sh.tmpl",
              "WSL 不裝 Linux 的 Chrome，查原因到遠端主機做"),
-            ("wsl", WSL, "playwright-cli", "run_onchange_after_npm-install-playwright-cli.sh.tmpl",
-             "它用 headless-chrome，這台裝不了 headless-chrome"),
+            ("android", ANDROID, "playwright-cli", "run_onchange_after_npm-install-playwright-cli.sh.tmpl",
+             "Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android"),
             ("arm", ARM, "headless-chrome", "run_onchange_after_install-headless-chrome.sh.tmpl",
              "Google 只出 amd64 的 .deb"),
         )
@@ -265,6 +265,32 @@ exit 0
         self.assertNotEqual(self.render({}, f"{SCRIPTS}/run_onchange_after_install-headless-chrome.sh.tmpl",
                                         ["headless-chrome"]).strip(), "")
         self.assertEqual(self.render({}, f"{SCRIPTS}/{RECORDER}", ["headless-chrome"]).strip(), "")
+        # #349:headless-chrome 裝不了的這幾台,playwright-cli 照裝(attach 遠端瀏覽器)
+        for name, env in (("wsl", WSL), ("arm", ARM), ("fedora", FEDORA), ("mac", MAC)):
+            with self.subTest(env=name):
+                self.assertNotEqual(self.render(env, f"{SCRIPTS}/run_onchange_after_npm-install-playwright-cli.sh.tmpl",
+                                                ["playwright-cli"]).strip(), "")
+                self.assertEqual(self.render(env, f"{SCRIPTS}/{RECORDER}", ["playwright-cli"]).strip(), "")
+
+    def test_playwright_cli_without_local_chrome_points_to_attach(self):
+        # #349:沒有本機 Chrome 不擋安裝(exit 0),提醒改用 attach 接遠端瀏覽器。macOS 照 Playwright 找 chrome
+        # channel 的位置(/Applications/Google Chrome.app),跑測試的主機沒有那支,所以一定走到提醒。
+        # playwright-cli、npm 換成假的:已經 ≥ 下限就不重裝,install-browser 什麼都不做
+        bin_dir = self.dir / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "playwright-cli").write_text('#!/bin/sh\n[ "$1" = --version ] && echo 9.9.9\nexit 0\n')
+        (bin_dir / "npm").write_text("#!/bin/sh\nexit 0\n")
+        for f in bin_dir.iterdir():
+            f.chmod(0o755)
+        script = self.render(MAC, f"{SCRIPTS}/run_onchange_after_npm-install-playwright-cli.sh.tmpl", ["playwright-cli"])
+        self.assertIn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", script)
+        path = self.dir / "pw.sh"
+        path.write_text(script, encoding="utf-8")
+        run = subprocess.run(["sh", str(path)], capture_output=True, text=True,
+                             env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(self.dir)})
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("playwright-cli attach --extension", run.stderr)
+        self.assertIn("playwright-cli attach --cdp=", run.stderr)
 
     def test_wsl_skips_headless_chrome_fonts(self):
         pkgs = self.render(WSL, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["headless-chrome", "vim"])

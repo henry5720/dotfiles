@@ -215,12 +215,28 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(self.status["debian-root"]["tools"]["snapclient"]["state"], "ok")
         self.assertEqual(self.status["android"]["tools"]["snapclient"]["state"], "ok")
 
-    def test_playwright_cli_keeps_installing_without_root(self):
-        # 沒有 root 的 Debian 系:headless-chrome 裝不了,playwright-cli 照裝(npm,不要 root;可以 attach
-        # 遠端瀏覽器,#260)。其他環境還沿用舊 tool-env「它用 headless-chrome」那條,拆掉見 #349
-        res = self.status["debian-noroot"]["tools"]
-        self.assertEqual(res["headless-chrome"]["state"], "unsupported")
-        self.assertNotEqual(res["playwright-cli"]["state"], "unsupported")
+    def test_playwright_cli_follows_its_own_install_not_headless_chrome(self):
+        # #349:playwright-cli 看自己的裝法(npm,要 Node),不跟 headless-chrome 綁:沒有本機 Chrome 也能
+        # attach 遠端瀏覽器(#260)。Playwright 官方支援 WSL、macOS、arm64、非 Debian 系的 Linux 照 npm 裝
+        # (fedora:42 容器實測 attach --cdp,見 #349 留言)。期望值照那份盤點,不從表推
+        want = {"debian-root": "script", "debian-noroot": "script", "wsl": "script", "arm": "script",
+                "non-debian": "script", "proot": "script", "darwin": "script", "windows": "mise"}
+        for env, method in want.items():
+            with self.subTest(env=env):
+                res = self.status[env]["tools"]
+                self.assertEqual((res["playwright-cli"]["state"], res["playwright-cli"]["method"]), ("ok", method))
+        # 這幾台 headless-chrome 照樣裝不了:兩者真的拆開了
+        for env in ("debian-noroot", "wsl", "arm", "non-debian", "darwin"):
+            with self.subTest(env=env, tool="headless-chrome"):
+                self.assertEqual(self.status[env]["tools"]["headless-chrome"]["state"], "unsupported")
+
+    def test_playwright_cli_on_native_termux_says_playwright_rejects_android(self):
+        # 原生 Termux 的 Node 平台是 android,playwright-core 只認 linux、darwin、win32,連 --version 都丟
+        # Unsupported platform(termux-docker 實測,#349 留言)。原因寫這個事實,不寫 headless-chrome
+        res = self.status["android"]["tools"]["playwright-cli"]
+        self.assertEqual((res["state"], res["reason"]),
+                         ("unsupported", "Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 "
+                                         "Unsupported platform：android"))
 
     def test_noroot_skip_summary_prints_the_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -433,8 +449,7 @@ class ToolTableTest(unittest.TestCase):
 
     def test_libatomic_stays_in_apt_list_without_root(self):
         # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
-        # (playwright-cli 在沒有 root 的 Debian 系跟 headless-chrome 一樣裝不了,不連帶裝 node,不在這裡)
-        for sel in ("node", "codegraph", "opencode", "wakatime", "full"):
+        for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full"):
             with self.subTest(sel=sel):
                 self.assertEqual(self.snap["debian-noroot", sel]["packages"]["apt/pkg"][-1], "libatomic1")
         self.assertNotIn("earlyoom", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
@@ -494,7 +509,7 @@ class ToolTableTest(unittest.TestCase):
 
     def test_not_written_yet_reasons_carry_an_issue(self):
         # 盤點(#315)找到「裝不了」其實是「還沒寫裝法」的(獨立的期望值,照盤點筆記列)
-        not_yet = {("headless-chrome", "darwin"), ("headless-chrome", "non-debian"), ("playwright-cli", "darwin"),
+        not_yet = {("headless-chrome", "darwin"), ("headless-chrome", "non-debian"),
                    ("snapserver", "non-debian"), ("snapclient", "non-debian"), ("earlyoom", "non-debian"),
                    ("code-server", "android"), ("bottom", "android"), ("codegraph", "android"),
                    ("claude", "android"), ("codex", "android"), ("opencode", "android"), ("herdr", "android")}
