@@ -34,8 +34,6 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
   `AGENTS.md` 則由 chezmoi 的 `symlink_AGENTS.md.tmpl` 連到 agent-config 的同一份全域指令檔；不另外放同名 skill，
   避免 loader collision。個人 OMO 設定沿用公司 preset 的
   roles/council，只把 provider 前綴改成 `openai/`；schema 固定 3.0.3，`autoUpdate` 與公司一致開啟。
-- 唯一的 skill 差異：兩個個人入口都停用 `company-imagegen-fallback`（Codex 在
-  `personal.config.toml` 的 `[[skills.config]]`，OpenCode 在 route 的 `permission.skill`）。
 - 其餘 argv、cwd、project/native loader 語意照原樣。provider 相關的環境變數**不會**被清掉，
   wrapper 只拿掉 `OPENCODE_*` 那幾個 route 變數（`opencode-personal auth login` 時）。
 

@@ -125,7 +125,7 @@ fi
 rm -f "$d/env-skipped"
 if [ -s "$d/root-skipped" ]; then
   echo
-  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。要補就照手動方式做,或請有 root 的人處理:"
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
   cat "$d/root-skipped"
 fi
 rm -f "$d/root-skipped"
@@ -360,13 +360,13 @@ echo "gh 已安裝。登入:gh auth login"
 #!@BIN@/sh
 # Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
 # conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。誰走 mise 見 .chezmoidata/tool-table.yaml。
-# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
+# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支跑 mise install 與 mise prune。
 # 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
 # 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它排在系統目錄前面
 # (apt 可能有同名的舊版,例如 fzf 0.44);bash 的 starship 那段直接找 shim(modify_dot_bashrc.tmpl)。
 #
-# run_onchange_:下面這份清單沒變就不重跑;重跑時 mise 只裝缺的,已裝的不重新下載。
+# run_onchange_:下面這份清單沒變就不重跑(prune 也只在清單變了才跑);重跑時 mise 只裝缺的,已裝的不重新下載。
 # 清單:
 #   "bat" = "latest"
 #   "bottom" = "latest"
@@ -381,7 +381,7 @@ echo "gh 已安裝。登入:gh auth login"
 #
 # 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
 # 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
-# 移除:mise uninstall <工具>;連 mise 一起清掉:mise implode。
+# 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
 set -eu
 
 # 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
@@ -398,6 +398,15 @@ fi
 # 2. 照清單裝(順便建 shims)
 if ! "$mise" install; then
   echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+fi
+
+# 3. 刪掉沒有設定檔要的版本:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報
+#    No version is set for shim(#330)。mise 記著載入過的設定檔(~/.local/state/mise/tracked-configs),
+#    自己 mise use -g 的(~/.config/mise/config.toml)與專案 mise.toml 要的版本都留著;
+#    只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
+#    install 失敗也照跑:清單照樣是新的那份
+if ! "$mise" prune --yes; then
+  echo "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:$mise prune"
 fi
 
 ### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
@@ -675,10 +684,11 @@ set -eu
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
 }

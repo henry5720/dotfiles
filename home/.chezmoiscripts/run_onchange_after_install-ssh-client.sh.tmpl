@@ -13,7 +13,7 @@ bin=$HOME/.local/bin
 give_up() {  # give_up <原因>
   rm -rf "$opt"
   rm -f "$bin/ssh" "$bin/ssh-keygen" "$bin/scp"
-  skip_root ssh "$1,沒有補裝 ssh。請有 root 的人跑 sudo apt-get install -y openssh-client"
+  skip_root ssh "$1,沒有補裝 ssh(系統的 openssh-client 裝到系統要 root);apt 的指令是 sudo apt-get install -y openssh-client"
   exit 0
 }
 

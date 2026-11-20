@@ -240,6 +240,38 @@ class RenderSnapshotTest(unittest.TestCase):
         self.assertIn("## 略過(裝不了)\nheadless-chrome\n", g["wsl", "headless-chrome"])
         self.assertIn("headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：", g["wsl", "full"])
 
+    # ===============================================================
+    # 沒有 root 的略過訊息只寫事實(#339):略過什麼、缺什麼、為什麼要 root、對應的指令,不叫人去找 root
+    # ===============================================================
+    def assert_facts_only(self, text, where):
+        for bad in ("有 root 的人", "請管理員", "要他停", "手動方式"):
+            self.assertNotIn(bad, text, f"{where}:略過訊息只寫事實,不要「{bad}」")
+
+    def test_no_root_skip_messages_state_facts_and_command(self):
+        all_cells = "\n".join(t for (env, _), t in self.got.items() if env == "debian-noroot")
+        calls = re.findall(r"^[ \t]*skip_root .*$", all_cells, re.M)
+        self.assertTrue(calls)
+        self.assert_facts_only("\n".join(calls), "skip_root 呼叫")
+        header = re.findall(r"^[ \t]*echo \"== 沒有 root.*$", all_cells, re.M)
+        self.assertTrue(header)
+        self.assert_facts_only("\n".join(header), "略過彙整標題")
+        # 獨立的期望值:要 apt 的三項都附上 apt 的指令
+        for what, cmd in (("系統套件", "sudo apt-get install -y"), ("\"nvm 與 Node\"", "sudo apt-get install -y libatomic1"),
+                          ("ssh", "sudo apt-get install -y openssh-client")):
+            with self.subTest(what=what):
+                self.assertTrue([c for c in calls if f"skip_root {what} " in c and cmd in c], calls)
+
+    def test_no_root_disable_system_service_states_facts(self):
+        # 沒有 root 的格子不裝 snapserver,這支分支快照裡看不到,單獨渲染
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Renderer(tmp).run(ENVS["debian-noroot"], "execute-template",
+                                    '{{ includeTemplate "sh-disable-system-service" (dict "root" . "service" "snapserver"'
+                                    ' "done" "x" "why" "它監聽所有網卡") }}')
+        call = re.findall(r"^[ \t]*skip_root .*$", out, re.M)
+        self.assertEqual(len(call), 1, out)
+        self.assert_facts_only(call[0], "停用系統服務")
+        self.assertIn("sudo systemctl disable --now snapserver", call[0])
+
 
 if __name__ == "__main__":
     unittest.main()
