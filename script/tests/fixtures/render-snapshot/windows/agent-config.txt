@@ -23,13 +23,14 @@ claude           Claude Code CLI [official]
 codex            Codex CLI [official]
 opencode         OpenCode CLI(會一併裝 Node) [mise]
 ffmpeg           影音轉檔、抽音軌與影格 [mise]
+uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [mise]
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 playwright-cli、opencode、wakatime 也會自動裝） [mise]
 codegraph        程式碼索引給 agent 查(mise 裝官方 release) [mise]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [winget]
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [mise]
-agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 
 ## init 存下的設定
 [data]
@@ -47,7 +48,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
 
 ## 要裝
-agent-config
+agent-config uv
 
 ## 略過(裝不了)
 
@@ -64,6 +65,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git
 # 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
 [tools]
 "zoxide" = "latest"
+"uv" = "latest"
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
@@ -138,6 +140,7 @@ exit 0
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
 #   "zoxide" = "latest"
+#   "uv" = "latest"
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 

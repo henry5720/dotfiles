@@ -9,7 +9,7 @@
 shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom
 入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
-agent 輔助      codegraph  headless-chrome  playwright-cli  node
+agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv
 其他            ffmpeg  snapserver  snapclient  wakatime  earlyoom
 自寫指令        tools  ai-profile  share-shell  personal-chrome-attach
                 codegraph-setup-repo  voice-out  voice-out-speak
@@ -70,6 +70,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 | headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
 | playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
 | node | nvm＋Node LTS，給要 Node 的工具 | `node -v` | [nvm](https://github.com/nvm-sh/nvm) | |
+| uv | Python 套件與專案管理，要的 Python 由 uv 自己下載；勾 snapserver、agent-config 會連帶裝 | `uv run <腳本>`、`uv tool run <工具>` | [uv](https://docs.astral.sh/uv/) | |
 
 ## 其他
 

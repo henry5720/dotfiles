@@ -23,13 +23,14 @@ claude           Claude Code CLI [official]
 codex            Codex CLI [official]
 opencode         OpenCode CLI(會一併裝 Node) [official]
 ffmpeg           影音轉檔、抽音軌與影格 [apt]
+uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv) [apt]
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
-agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 
 ## init 存下的設定
 [data]
@@ -44,7 +45,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-snapserver
+snapserver uv
 
 ## 略過(裝不了)
 
@@ -260,7 +261,7 @@ fi
 #!@BIN@/sh
 # 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
 # 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml 的依賴套件);
-# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(同一張表),edge-tts 不另裝。
+# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 是 runtime,勾 snapserver 就連帶裝(表上的 needsUv),edge-tts 不另裝。
 # 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
 # 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
 # 步驟在共用樣板 sh-disable-system-service。

@@ -6,6 +6,7 @@
 |---|---|---|
 | 廠商有自己的 installer，而且會自己更新 | 官方 installer（Linux、macOS 是 `install.sh`，Windows 是 `install.ps1`） | claude、codex；Linux、macOS 的 herdr |
 | GitHub release 的單一執行檔 | mise | eza、fzf、bat、ripgrep、starship、gh；Windows 的 herdr |
+| runtime（別的選裝工具要靠它跑、也能單獨勾，見 `GLOSSARY.md`） | mise | node、uv |
 | 要動系統的：服務、GUI app、函式庫多的 | 系統的套件管理員（apt、winget） | tailscale、Windows Terminal；有 root 的 Linux 上的 vim、ffmpeg |
 | 例外 | Termux 一律 pkg、macOS 一律 brew | |
 

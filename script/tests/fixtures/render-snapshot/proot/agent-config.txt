@@ -23,13 +23,14 @@ claude           Claude Code CLI [official]
 codex            Codex CLI [official]
 opencode         OpenCode CLI(會一併裝 Node) [official]
 ffmpeg           影音轉檔、抽音軌與影格 [apt]
+uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]（不建議：proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app）
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
-agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 
 ## init 存下的設定
 [data]
@@ -45,7 +46,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-agent-config
+agent-config uv
 
 ## 略過(裝不了)
 
@@ -57,7 +58,11 @@ brew cask:
 winget: 
 
 ## mise 清單
-
+# chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
+# 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+[tools]
+"uv" = "latest"
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
@@ -66,7 +71,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
@@ -85,6 +89,7 @@ winget:
 ## 會跑的腳本
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
@@ -250,6 +255,50 @@ fi
 "$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets
 "$ss" install -g
 "$ss" sync --all
+
+### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+#!@BIN@/sh
+# Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。誰走 mise 見 .chezmoidata/tool-table.yaml。
+# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支跑 mise install 與 mise prune。
+# 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
+# (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
+# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它排在系統目錄前面
+# (apt 可能有同名的舊版,例如 fzf 0.44);bash 的 starship 那段直接找 shim(modify_dot_bashrc.tmpl)。
+#
+# run_onchange_:下面這份清單沒變就不重跑(prune 也只在清單變了才跑);重跑時 mise 只裝缺的,已裝的不重新下載。
+# 清單:
+#   "uv" = "latest"
+#
+# 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
+# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
+set -eu
+
+# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
+mise=$(command -v mise || echo "$HOME/.local/bin/mise")
+if [ ! -x "$mise" ]; then
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://mise.run
+  sh "$tmp/install.sh"
+  mise="$HOME/.local/bin/mise"
+fi
+
+# 2. 照清單裝(順便建 shims)
+if ! "$mise" install; then
+  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+fi
+
+# 3. 刪掉沒有設定檔要的版本:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報
+#    No version is set for shim(#330)。mise 記著載入過的設定檔(~/.local/state/mise/tracked-configs),
+#    自己 mise use -g 的(~/.config/mise/config.toml)與專案 mise.toml 要的版本都留著;
+#    只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
+#    install 失敗也照跑:清單照樣是新的那份
+if ! "$mise" prune --yes; then
+  echo "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:$mise prune"
+fi
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 #!@BIN@/sh

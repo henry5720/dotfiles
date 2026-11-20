@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parents[2]
 RESOLVE = '{{ includeTemplate "tool-install" . }}'
 MENU = '{{ includeTemplate "tool-menu-labels" . }}'
 TABLE = '{{ include ".chezmoidata/tool-table.yaml" | fromYaml | toJson }}'
-NO_METHOD = "沒有這個環境的裝法"  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
+NO_METHOD = "沒有這個環境的裝法"
+RUNTIMES = {"needsNode": "node", "needsUv": "uv"}  # 表上「要這個 runtime 的 OS」欄 → runtime(#341)  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
 
 
 def table():
@@ -466,6 +467,58 @@ class ToolTableTest(unittest.TestCase):
                 env, snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False))
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsNode"], want)
+
+    def test_needs_uv_matches_rendered_uv(self):
+        # uv 有沒有裝(勾了或被連帶):Linux、Windows 看 mise 的 uv、macOS 看 brew、Termux 看 pkg
+        for (env, sel), res in self.resolved.items():
+            snap = self.snap[env, sel]
+            want = {"darwin": "uv" in snap["packages"]["brew"],
+                    "android": "uv" in snap["packages"]["apt/pkg"]}.get(env, '"uv" = "latest"' in snap["mise"])
+            with self.subTest(env=env, sel=sel):
+                self.assertEqual(res["needsUv"], want)
+                self.assertEqual(res["tools"]["uv"]["install"], want)
+
+    # ===============================================================
+    # runtime(#341):別的選裝工具要靠它才跑得起來、也能單獨勾。node、uv
+    # ===============================================================
+    def test_runtime_fields_list_oses(self):
+        # needsNode、needsUv 同一種格式:非空、不重複的 OS 清單;只有這兩欄,對到的 runtime 在表上
+        for name, tool in self.table["tools"].items():
+            for field in (k for k in tool if k.startswith("needs")):
+                with self.subTest(tool=name, field=field):
+                    self.assertIn(field, RUNTIMES)
+                    self.assertIn(RUNTIMES[field], self.table["tools"])
+                    self.assertNotEqual(name, RUNTIMES[field])
+                    oses = tool[field]
+                    self.assertIsInstance(oses, list)
+                    self.assertTrue(oses)
+                    self.assertEqual(len(oses), len(set(oses)))
+                    self.assertLessEqual(set(oses), {"linux", "darwin", "android", "windows"})
+
+    def test_uv_is_a_runtime_on_the_menu(self):
+        # #341(獨立的期望值):uv 能單獨勾,走 mise(macOS brew、Termux pkg,ADR 0005 的例外);
+        # 不再是 snapserver 的依賴套件,改由 snapserver、agent-config 的 needsUv 連帶裝
+        want = {"debian-root": "mise", "debian-noroot": "mise", "wsl": "mise", "arm": "mise", "non-debian": "mise",
+                "proot": "mise", "darwin": "brew", "android": "pkg", "windows": "mise"}
+        for env, method in want.items():
+            with self.subTest(env=env):
+                uv = self.resolved[env, "uv"]
+                self.assertEqual((uv["tools"]["uv"]["state"], uv["tools"]["uv"]["method"]), ("ok", method))
+                self.assertTrue(uv["needsUv"])
+                self.assertEqual(self.snap[env, "uv"]["installing"], ["uv"])
+                self.assertFalse(self.resolved[env, "minimal"]["needsUv"])
+                self.assertNotIn("uv", self.snap[env, "minimal"]["tools"])
+        self.assertNotIn("uv", self.table["tools"]["snapserver"].get("deps", {}))
+        for env, sel in [("debian-root", "snapserver"), ("debian-root", "agent-config"), ("darwin", "agent-config"),
+                         ("windows", "agent-config")]:
+            with self.subTest(env=env, sel=sel):
+                res = self.resolved[env, sel]
+                self.assertFalse(res["tools"]["uv"]["ticked"])
+                self.assertTrue(res["needsUv"])
+                self.assertEqual(self.snap[env, sel]["installing"][-1], "uv")
+        # 裝不了的工具不連帶:原生 Termux 的 agent-config、沒有 root 的 snapserver
+        self.assertFalse(self.resolved["android", "agent-config"]["needsUv"])
+        self.assertFalse(self.resolved["debian-noroot", "snapserver"]["needsUv"])
 
     def test_system_command_is_reused_without_root_like_mise_tools(self):
         # 快照的 PATH 什麼都找不到,system 裝法另外驗:沒有 root 的 Debian 系、系統已經有 vim
