@@ -1,0 +1,835 @@
+# 環境 arm × 勾選 full
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定
+eza              彩色、帶圖示的 ls(ll、la、lt 用它)
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案
+bat              有語法上色的 cat
+ripgrep          rg:比 grep 快的全文搜尋
+vim              終端機文字編輯器
+fastfetch        終端機印出系統資訊
+btop             終端機看 CPU、記憶體、行程
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login
+code-server      瀏覽器開的 VS Code
+tailscale        私人 VPN,連自己的機器
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人
+herdr            終端機多工,同時開多個 coding agent
+ttyd             把終端機開成網頁,share-shell 用
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node)
+claude           Claude Code CLI
+codex            Codex CLI
+opencode         OpenCode CLI(會一併裝 Node)
+ffmpeg           影音轉檔、抽音軌與影格
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流
+node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo)
+
+## init 存下的設定
+[data]
+    codeServerPassword = "x"
+    codexLbApiKey = "x"
+    context7ApiKey = ""
+    wakatimeApiKey = ""
+    gitUserName = "e2e"
+    gitUserEmail = "e2e@example.com"
+    machineUse = "full"
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "snapserver", "snapclient", "node", "codegraph", "agent-config"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+## 要裝
+zsh starship eza fzf bat ripgrep vim fastfetch btop bottom earlyoom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg snapserver snapclient node codegraph agent-config
+
+## 略過(裝不了)
+
+
+## 套件清單
+apt/pkg: git curl jq python3 poppler-utils earlyoom ffmpeg snapclient snapserver vim zsh libatomic1
+brew: 
+brew cask: 
+winget: 
+
+## mise 清單
+# chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
+# 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
+# 怎麼挑的見 home/.chezmoidata/packages.yaml 的 miseTools;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+[tools]
+"bat" = "latest"
+"bottom" = "latest"
+"btop" = "latest"
+"cloudflared" = "latest"
+"eza" = "latest"
+"fastfetch" = "latest"
+"fzf" = "latest"
+"ripgrep" = "latest"
+"uv" = "latest"
+"starship" = "latest"
+"ttyd" = "latest"
+
+## 渲染成空的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+.chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
+
+## 會跑的腳本
+.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+.chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-claude.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-code-server.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-codex.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-opencode.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+
+### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
+#!/usr/bin/env python3
+# 一次性遷移:MCP 從 chezmoi 交給 skillshare(dotfiles #34)。
+#
+# 舊版 chezmoi 在三個 client 設定裡寫了 MCP 條目。skillshare 看到同名、不是它寫的條目
+# 會整批停下(existing entry is not managed),所以這支把舊條目拿掉,讓
+# `skillshare sync mcp -g` 可以直接寫。
+#
+# 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
+# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 docs/ai-agent/ai-agent-setup.md 的 MCP 那節。
+#
+# run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
+# 所有機器都遷移完(#37)就可以刪掉這支。
+import json
+import os
+import re
+import tomllib
+
+dest = "/home/snapshot"
+
+
+def write(path, text):
+    # 先寫暫存檔再換名:Claude Code 可能正在寫 ~/.claude.json,中途斷掉也不會留下半個檔。
+    tmp = path + ".chezmoi-tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+
+CHROME_ARGS = [
+    "-y",
+    "chrome-devtools-mcp@latest",
+    "--browser-url=http://127.0.0.1:9222",
+    "--no-usage-statistics",
+    "--no-performance-crux",
+]
+CODEGRAPH_ARGS = ["serve", "--mcp"]
+
+
+def is_legacy_codex(name, table):
+    if name == "chrome-devtools":
+        return table == {"command": "npx", "args": CHROME_ARGS, "enabled": True, "startup_timeout_sec": 60}
+    if name == "codegraph":
+        return table == {"command": "codegraph", "args": CODEGRAPH_ARGS, "enabled": True}
+    if name == "context7":
+        # key 是本機的值,只看形狀。
+        base = {k: v for k, v in table.items() if k != "http_headers"}
+        headers = table.get("http_headers", {})
+        return base == {"url": "https://mcp.context7.com/mcp", "enabled": True} and set(headers) <= {"CONTEXT7_API_KEY"}
+    return False
+
+
+LEGACY_JSON = {
+    ".claude.json": ("mcpServers", {
+        "chrome-devtools": {"type": "stdio", "command": "npx", "args": CHROME_ARGS, "env": {}},
+    }),
+    ".config/opencode/opencode.json": ("mcp", {
+        "chrome-devtools": {"enabled": True, "type": "local", "command": ["npx"] + CHROME_ARGS},
+        "codegraph": {"enabled": True, "type": "local", "command": ["codegraph"] + CODEGRAPH_ARGS},
+    }),
+}
+
+
+def clean_json(rel, section, legacy):
+    path = os.path.join(dest, rel)
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    data = json.loads(text)
+    servers = data.get(section, {})
+    removed = [name for name, value in legacy.items() if servers.get(name) == value]
+    if not removed:
+        return
+    for name in removed:
+        del servers[name]
+    out = json.dumps(data, indent=2, ensure_ascii=False)
+    # 保留原本結尾有沒有換行(Claude Code 寫的 ~/.claude.json 沒有)。
+    if text.endswith("\n"):
+        out += "\n"
+    write(path, out)
+    print(f"{rel}: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+def clean_codex():
+    path = os.path.join(dest, ".codex/config.toml")
+    if not os.path.exists(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    servers = tomllib.loads(text).get("mcp_servers", {})
+    removed = [name for name, table in servers.items() if is_legacy_codex(name, table)]
+    if not removed:
+        return
+    # 舊版寫的是一般的 [mcp_servers.NAME] table(沒有子 table),刪到下一個 table 或
+    # 註解為止 —— 後面緊接的註解是下一段的橫幅(例如停用 skill 那段),不能一起刪。
+    header = re.compile(r"^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
+    out, dropping = [], False
+    for line in text.splitlines(keepends=True):
+        match = header.match(line)
+        if match:
+            dropping = match.group(1) in {f"mcp_servers.{name}" for name in removed}
+        elif dropping and line.lstrip().startswith("#"):
+            dropping = False
+            # 橫幅前面那個空行跟著被刪的 table 走了,補回來(codex 的 modify_ 也會這樣排)。
+            if out and out[-1].strip():
+                out.append("\n")
+        if not dropping:
+            out.append(line)
+    result = "".join(out).rstrip("\n") + "\n"
+    # 文字比對只認得不加引號的 header;沒刪到的(例如 [mcp_servers."x"])就不算。
+    left = tomllib.loads(result).get("mcp_servers", {})
+    removed = [name for name in removed if name not in left]
+    if not removed:
+        return
+    write(path, result)
+    print(f".codex/config.toml: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
+
+
+for rel, (section, legacy) in LEGACY_JSON.items():
+    clean_json(rel, section, legacy)
+clean_codex()
+
+### .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 zsh 的一部分:把預設 shell 換成 zsh。沒勾 zsh 就渲染成空的,chezmoi 不跑。
+# zsh 由 run_onchange_before_install-packages 先裝好。
+# 沒有 root(.chezmoitemplates/has-root)或非 Debian 系 Linux 渲染成空的:zsh 是 zsh-bin 裝到家目錄的
+# (run_onchange_before_install-home-jq-zsh),不在 /etc/shells,不 chsh,改由 ~/.bashrc 在互動式 bash
+# 啟動時 exec zsh(home/modify_dot_bashrc.tmpl)。
+# run_once_:跑成功一次就不再跑;已經是 zsh 的機器直接結束,不叫 sudo。
+set -eu
+zsh_path=$(command -v zsh)
+
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+
+# 比 readlink -f 後的路徑:merged /usr 的機器上 /bin/zsh 和 /usr/bin/zsh 是同一個,不用再 chsh。
+current=$(getent passwd "$(id -un)" | cut -d: -f7)
+[ "$(readlink -f "$current")" = "$(readlink -f "$zsh_path")" ] && exit 0
+echo "預設 shell 換成 $zsh_path"
+$SUDO chsh -s "$zsh_path" "$(id -un)"
+
+### .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 agent-config(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# skillshare 把 agent-config repo 的 skills 裝進有勾的 Claude／Codex(targets),MCP 寫進三個 client。
+# 指令檔(CLAUDE.md／AGENTS.md、commit 指引)由 config.yaml 的 extras 段連到 ~/.config/skillshare/instructions/,
+# 最後的 sync --all 會一起建好。
+#
+# 是 after_:要等 ~/.config/skillshare/config.yaml(dot_config/skillshare/modify_config.yaml.tmpl)先部署,
+# init 才會直接從 remote 拉。chezmoi 的 after_ 腳本一定在所有檔案部署完之後才跑。
+# remote 走 HTTPS:agent-config 是公開 repo,新機器還沒放 SSH key 也 clone 得下來;
+# push 由 ~/.gitconfig 的 pushInsteadOf 改走 SSH。
+# AGENT_CONFIG_REMOTE 只給測試換成本機 repo 用(script/tests/e2e.sh)。
+set -eu
+
+dir=$HOME/.config/skillshare
+remote=${AGENT_CONFIG_REMOTE:-https://github.com/henry5720/agent-config.git}
+
+# 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
+if [ -d "$dir/.git" ]; then
+  echo "agent-config 已安裝($dir),跳過。更新:skillshare pull && skillshare sync --all"
+  exit 0
+fi
+
+# 2. 裝 skillshare
+ss=$HOME/.local/bin/skillshare
+if [ ! -x "$ss" ]; then
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh
+  INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"
+fi
+
+# 3. 從 remote init,再把 skills 與 MCP 裝進各個 client。
+#    單講 sync 只同步 skills;pull/install 也不會同步 MCP 與 extras(指令檔),所以最後要 sync --all。
+#    targets 由 config.yaml 決定(照勾的 client 產生,見 .chezmoitemplates/skillshare-pinned):
+#    config 已經在時 init 不會照 --targets 加,這裡明講 --no-targets。
+[ -f "$dir/config.yaml" ] || { echo "找不到 $dir/config.yaml" >&2; exit 1; }
+"$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets
+"$ss" install -g
+"$ss" sync --all
+
+### .chezmoiscripts/run_onchange_after_install-claude.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 Claude Code(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 官方 native installer,裝到 ~/.local/bin/claude,之後自己會更新。
+set -eu
+
+# 1. 已經有就不重裝。chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案
+if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+  echo "Claude Code 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 安裝。先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://claude.ai/install.sh
+bash "$tmp/install.sh"
+
+### .chezmoiscripts/run_onchange_after_install-code-server.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 code-server(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# macOS 走 brew(install-packages-darwin);apt 用不了的 Linux(沒有 root,或非 Debian 系)改由 mise 裝
+# (run_onchange_after_install-mise)。這兩種都渲染成空的。
+# 設定檔由 chezmoi 部署(dot_config/private_code-server);臨時用直接跑 code-server,
+# 要常駐見 docs/remote-access/code-server.md。
+set -eu
+
+if command -v code-server >/dev/null 2>&1; then
+  echo "code-server 已安裝,跳過"
+  exit 0
+fi
+# 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://code-server.dev/install.sh
+sh "$tmp/install.sh"
+
+### .chezmoiscripts/run_onchange_after_install-codex.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 Codex CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+set -eu
+
+# 1. 已經有就不重裝。chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案
+if command -v codex >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; then
+  echo "Codex 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 安裝。~/.local/bin 已經在 PATH 上,installer 就不會往 ~/.zshrc 追加 PATH
+#    (chezmoi 管的 .zshrc 本來就有,被追加之後 chezmoi diff/verify 會一直有差異)
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+#    CODEX_NON_INTERACTIVE=1:有終端機時 installer 會從 /dev/tty 問「Start Codex now?」,apply 會停在那裡等人回答
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://chatgpt.com/codex/install.sh
+CODEX_NON_INTERACTIVE=1 PATH="$HOME/.local/bin:$PATH" bash "$tmp/install.sh"
+
+### .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 這支把 .chezmoidata/earlyoom.yaml 的數字寫進 /etc;數字一改,渲染結果跟著變,下次 apply 重跑。
+# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/install/earlyoom.md:
+#   保留服務  各 unit 的 drop-in:MemoryMin=infinity、CPUWeight;earlyoom --avoid
+#   常駐服務  system.slice 的 drop-in:MemoryLow、CPUWeight,另設 MemoryMin 讓保留服務拿得到保底量
+#   工作程序  不設限
+# 只做 daemon-reload:cgroup 的設定在 reload 後套到跑著的 unit,不重啟 ssh、tailscaled、docker、herdr。
+set -eu
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+
+dir=/etc/systemd/system
+name=50-earlyoom.conf
+units='ssh.service tailscaled.service tailscaled-.service snap.amazon-ssm-agent.amazon-ssm-agent.service systemd-journald.service dbus.service'
+
+# 1. 從清單拿掉的 unit:收掉它的 drop-in
+for f in "$dir"/*.d/"$name"; do
+  [ -e "$f" ] || continue
+  unit=$(basename "$(dirname "$f")" .d)
+  case " system.slice $units " in
+    *" $unit "*) ;;
+    *) $SUDO rm -f "$f"; echo "移除 $unit 的 earlyoom drop-in(已不在保留服務清單)";;
+  esac
+done
+
+# 2. 常駐服務:system.slice 整層;保留服務的保底量也掛在這裡(cgroup 子層的保護不超過上層)
+$SUDO mkdir -p "$dir/system.slice.d"
+printf '[Slice]\nMemoryMin=%s\nMemoryLow=%s\nCPUWeight=%s\n' \
+  '512M' '15%' '1000' \
+  | $SUDO tee "$dir/system.slice.d/$name" >/dev/null
+
+# 3. 保留服務:每個 unit 各一份 drop-in。這台沒有的 unit 放了也不生效
+for unit in $units; do
+  $SUDO mkdir -p "$dir/$unit.d"
+  printf '[Service]\nMemoryMin=infinity\nCPUWeight=%s\n' '1000' \
+    | $SUDO tee "$dir/$unit.d/$name" >/dev/null
+done
+
+# 4. earlyoom 的門檻與避開清單(套件的 earlyoom.service 用 EnvironmentFile 讀它)
+printf '# chezmoi 管理(.chezmoidata/earlyoom.yaml),改那份再 chezmoi apply\nEARLYOOM_ARGS="%s"\n' \
+  '-r 3600 -m 5 -s 10 --avoid ^(sshd.*|tailscaled|amazon-ssm-agen|ssm-agent-worke|systemd.*|dbus-daemon|dockerd|containerd|herdr)$' | $SUDO tee /etc/default/earlyoom >/dev/null
+
+# 5. 生效:容器裡 systemd 沒在跑,設定留著、開機後生效
+if [ ! -d /run/systemd/system ]; then
+  echo "systemd 沒在跑,earlyoom 的門檻、保留服務與常駐服務的保護設定已寫入,開機後生效"
+  exit 0
+fi
+$SUDO systemctl daemon-reload
+if command -v earlyoom >/dev/null 2>&1; then
+  $SUDO systemctl enable earlyoom.service
+  $SUDO systemctl restart earlyoom.service
+  echo "earlyoom 已啟用。砍了誰:journalctl -u earlyoom"
+else
+  echo "earlyoom 沒裝起來(apt 失敗?),只套了保留服務與常駐服務的保護設定"
+fi
+
+### .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 gh(選單見 .chezmoi.toml.tmpl)。沒勾、不是 Debian 系、或沒有 root 就渲染成空的,chezmoi 不跑;
+# 後兩種改由 mise 裝到家目錄(run_onchange_after_install-mise)。
+#
+# daily-worklog、slack-list 兩支 skill 會叫 gh(見 agent-config 的 SKILL.md)。
+# 走 GitHub 官方 apt 源,不用 Ubuntu 套件庫:那版太舊,GitHub 停掉 Projects (classic) 後
+# gh pr edit / gh issue view 會直接報棄用錯誤(cli/cli#12320)。
+# 步驟照官方 docs/install_linux.md(cli/cli)。另加 pin:Ubuntu 26.04 的 apt 會優先挑
+# amd64v3 變體的 Ubuntu 版,即使官方源的版本號比較新。
+set -eu
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+# 不設 noninteractive,tzdata 這類套件會卡在設定選單。sudo 會清掉環境變數,所以用 env 帶進去。
+apt_get() { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get "$@"; }
+
+key=/etc/apt/keyrings/githubcli-archive-keyring.gpg
+list=/etc/apt/sources.list.d/github-cli.list
+pin=/etc/apt/preferences.d/github-cli
+
+# 1. 已經是官方源那版就不重裝。看套件的 Maintainer:官方源是 GitHub,Ubuntu 版是 Ubuntu Developers。
+#    不看 pin 檔:照官方文件手動裝的機器沒有 pin,會被當成沒裝、重加一次 apt 來源
+if [ "$(dpkg-query -W -f='${Maintainer}' gh 2>/dev/null)" = GitHub ]; then
+  echo "gh 已安裝(官方 apt 源),跳過"
+  exit 0
+fi
+
+# 2. 加 apt 來源與 pin
+#    key 先下載到暫存檔:接 pipe 的話 curl 失敗會被吞掉,留下空的 keyring
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/keyring.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+$SUDO mkdir -p -m 755 /etc/apt/keyrings
+$SUDO install -m 644 "$tmp/keyring.gpg" "$key"
+echo "deb [arch=$(dpkg --print-architecture) signed-by=$key] https://cli.github.com/packages stable main" \
+  | $SUDO tee "$list" >/dev/null
+printf 'Package: gh\nPin: origin cli.github.com\nPin-Priority: 600\n' | $SUDO tee "$pin" >/dev/null
+
+# 3. 安裝
+apt_get update
+apt_get install -y gh
+echo "gh 已安裝。登入:gh auth login"
+
+### .chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 herdr(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 官方 installer 裝到 ~/.local/bin;之後用 herdr update 更新。
+set -eu
+
+if command -v herdr >/dev/null 2>&1; then
+  echo "herdr 已安裝,跳過"
+  exit 0
+fi
+# 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://herdr.dev/install.sh
+sh "$tmp/install.sh"
+
+### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+#!@BIN@/sh
+# Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。怎麼挑的見 .chezmoidata/packages.yaml 的 miseTools。
+# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。
+# 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
+# (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
+# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它排在系統目錄前面
+# (apt 可能有同名的舊版,例如 fzf 0.44);bash 的 starship 那段直接找 shim(modify_dot_bashrc.tmpl)。
+#
+# run_onchange_:下面這份清單沒變就不重跑;重跑時 mise 只裝缺的,已裝的不重新下載。
+# 清單:
+#   "bat" = "latest"
+#   "bottom" = "latest"
+#   "btop" = "latest"
+#   "cloudflared" = "latest"
+#   "eza" = "latest"
+#   "fastfetch" = "latest"
+#   "fzf" = "latest"
+#   "ripgrep" = "latest"
+#   "uv" = "latest"
+#   "starship" = "latest"
+#   "ttyd" = "latest"
+#
+# 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
+# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 移除:mise uninstall <工具>;連 mise 一起清掉:mise implode。
+set -eu
+
+# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
+mise=$(command -v mise || echo "$HOME/.local/bin/mise")
+if [ ! -x "$mise" ]; then
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://mise.run
+  sh "$tmp/install.sh"
+  mise="$HOME/.local/bin/mise"
+fi
+
+# 2. 照清單裝(順便建 shims)
+if ! "$mise" install; then
+  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+fi
+
+### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/packages.yaml 的 nodeTools:
+# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
+# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
+# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
+# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
+set -eu
+
+# 1. 已經有就不重裝
+if [ -d "$HOME/.nvm" ]; then
+  echo "nvm 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
+PROFILE=/dev/null bash "$tmp/install.sh"
+bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
+
+### .chezmoiscripts/run_onchange_after_install-opencode.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 OpenCode(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+set -eu
+
+# 1. 已經有就不重裝
+if command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ]; then
+  echo "OpenCode 已安裝,跳過"
+  exit 0
+fi
+
+# 2. 安裝。--no-modify-path:不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
+#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+curl -fsSL -o "$tmp/install.sh" https://opencode.ai/install
+bash "$tmp/install.sh" --no-modify-path
+
+### .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 snapclient(選單見 .chezmoi.toml.tmpl,#292)。只有 Debian 系要跑:沒勾、這台裝不了(tool-env),
+# 或是 Termux(pkg 的 snapcast-client 沒有系統服務)、macOS(brew 不自動起服務)就渲染成空的,chezmoi 不跑。
+# 套件本身由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages)。
+# 這支只做一件事:停用並關掉 apt 套件自帶的系統服務 —— 它開機自動啟動、用 _snapclient 帳號直接開 ALSA,
+# 靠 mDNS 找伺服器(過不了 tailnet,區網裡有別的 snapserver 反而會自己連上去),還會跟桌面的音效伺服器搶裝置。
+# 要聽時自己跑 snapclient --host <tailnet IP>,要常駐用 user service(docs/remote-access/voice-out.md)。
+# 步驟在共用樣板 sh-disable-system-service。
+set -eu
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+
+# 1. 沒裝起來就沒有服務可停
+if ! command -v snapclient >/dev/null 2>&1; then
+  echo "snapclient 沒裝起來,跳過停用系統服務"
+  exit 0
+fi
+
+# 2. 停用
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl disable snapclient.service
+elif command -v deb-systemd-helper >/dev/null 2>&1; then
+  $SUDO deb-systemd-helper disable snapclient.service
+fi
+
+# 3. 關掉
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl stop snapclient.service
+fi
+echo "snapclient 的系統服務已停用。收聽朗讀:snapclient --host <tailnet IP>"
+
+### .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(tool-env)就渲染成空的,chezmoi 不跑。
+# 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/packages.yaml 的 toolPackages);
+# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(miseTools),edge-tts 不另裝。
+# 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
+# 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
+# 步驟在共用樣板 sh-disable-system-service。
+# apt 裝完時 postinst 會先把系統服務起來,到這支跑完之前那幾秒是開著的;雲端主機外面還有 security group 擋。
+set -eu
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+
+# 1. 沒裝起來就沒有服務可停
+if ! command -v snapserver >/dev/null 2>&1; then
+  echo "snapserver 沒裝起來,跳過停用系統服務"
+  exit 0
+fi
+
+# 2. 停用
+if command -v systemctl >/dev/null 2>&1; then
+  $SUDO systemctl disable snapserver.service
+elif command -v deb-systemd-helper >/dev/null 2>&1; then
+  $SUDO deb-systemd-helper disable snapserver.service
+fi
+
+# 3. 關掉
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl stop snapserver.service
+fi
+echo "snapserver 的系統服務已停用。開關朗讀服務:voice-out on、voice-out off"
+
+### .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/packages.yaml)。
+# 不會執行 tailscale up,登入與設定自己來。
+set -eu
+
+# 1. 系統層的 tailscaled 已經在跑(例如管理員裝好的機器)就整段跳過:不裝、不 enable、不走 userspace,
+#    所以不需要 root。
+# 系統層的 tailscaled 是不是已經在跑(例如管理員裝好的機器):tailscale status 的 BackendState 是 Running,
+# 或 systemd 的 tailscaled 是 active。install-tailscale 在執行時用它;.chezmoitemplates/tailscale-userspace
+# 在渲染時用同一段判斷。
+tailscale_running() {
+  { command -v tailscale >/dev/null 2>&1 &&
+    tailscale status --json 2>/dev/null | grep -Eq '"BackendState": *"Running"'; } ||
+    { command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tailscaled 2>/dev/null; }
+}
+
+if tailscale_running; then
+  echo "系統層的 tailscaled 已經在跑,跳過"
+  exit 0
+fi
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+
+# 2. 裝(官方 installer 會加 apt 來源)。~/.local/bin 那份是沒有 root 時裝的 userspace 版,不算:
+#    它沒有系統的 tailscaled unit,下面 systemctl enable 會失敗
+if p=$(command -v tailscale) && [ "$p" != "$HOME/.local/bin/tailscale" ]; then
+  echo "tailscale 已安裝,跳過安裝"
+else
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://tailscale.com/install.sh
+  sh "$tmp/install.sh"
+fi
+
+# 3. 開機自動啟動 tailscaled。PID 1 不是 systemd(沒開 systemd 的 WSL、容器)就跳過,不算失敗
+if [ -d /run/systemd/system ]; then
+  $SUDO systemctl enable --now tailscaled
+else
+  echo "PID 1 不是 systemd,已安裝但未啟動 tailscaled;WSL 請在 /etc/wsl.conf 開 systemd 後再 apply 一次或手動啟動"
+fi
+echo "不會執行 tailscale up;請自行登入與設定。"
+
+### .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 WakaTime(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+# 裝 wakatime-cli;API key 由 private_dot_wakatime.cfg.tmpl 部署。
+# 不裝 zsh 外掛:WakaTime 官方 https://wakatime.com/terminal 明講別用 terminal plugin,
+# 時間改由各 agent／編輯器的官方 plugin 觸發 wakatime-cli 來記(舊 clone 的清法見 .chezmoiremove)。
+# 同時勾了 claude、codex、code-server 的機器再裝那邊的官方 WakaTime plugin／擴充(第 3 段起)。放在這支、不另開腳本:
+# 勾選組合一變,這支渲染出來的內容就變,run_onchange 會重跑,舊機器補勾也會裝到;
+# 而且照檔名順序,install-claude 等腳本已經先跑完。
+# wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。zip 用基底的 python3 解(python3 -m zipfile),不用 unzip。
+#
+# wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-<os>-<arch>
+# (os 是 linux 或 darwin;Termux 用 linux 版),
+# 再 symlink 成 ~/.wakatime/wakatime-cli。各 agent／編輯器的 WakaTime plugin 預設找這支、
+# 還會自己更新它,已經有了就不重抓。
+set -eu
+# apt 用不了的機器,jq 可能是 run_onchange_before_install-home-jq-zsh 抓到 ~/.local/bin 的,
+# 而 chezmoi 跑腳本時的 PATH 不一定有它:找不到 jq 就把 ~/.local/bin 加進 PATH。
+command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
+
+# 架構不支援就印訊息、exit 0 跳過:不讓整個 apply 失敗。架構一律用 uname -m 判斷。
+skip_arch() { echo "$1 不支援架構 $(uname -m),跳過"; exit 0; }
+
+# 1. wakatime-cli。Apple Silicon 的 uname -m 是 arm64,不是 aarch64
+case "$(uname -m)" in
+  x86_64) asset=amd64 ;;
+  aarch64 | arm64) asset=arm64 ;;
+  *) skip_arch wakatime-cli ;;
+esac
+asset=linux-$asset
+dir="$HOME/.wakatime"
+bin="$dir/wakatime-cli-$asset"
+if [ -x "$bin" ]; then
+  echo "wakatime-cli 已安裝,跳過"
+else
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/wakatime.zip" \
+    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip"
+  python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp"
+  mkdir -p "$dir"
+  install -m 755 "$tmp/wakatime-cli-$asset" "$bin"
+fi
+ln -sfn "$bin" "$dir/wakatime-cli"
+
+# 2. 舊版放在 ~/.local/bin/wakatime-cli,刪掉,只留官方位置那支
+if [ -f "$HOME/.local/bin/wakatime-cli" ] && [ ! -L "$HOME/.local/bin/wakatime-cli" ]; then
+  rm -f "$HOME/.local/bin/wakatime-cli"
+fi
+
+# 3. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
+#    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
+#    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 nvm,見 .chezmoitemplates/needs-node;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
+#    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
+#    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
+claude=$(command -v claude || echo "$HOME/.local/bin/claude")
+if [ ! -x "$claude" ]; then
+  echo "找不到 claude,跳過 Claude Code 的 WakaTime plugin"
+elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-code-wakatime@wakatime")' >/dev/null; then
+  echo "Claude Code 的 WakaTime plugin 已安裝,跳過"
+else
+  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null
+  "$claude" plugin install claude-code-wakatime@wakatime </dev/null
+fi
+
+# 4. Codex CLI 的 WakaTime plugin:照 wakatime/codex-cli-wakatime README 的兩行指令裝。
+#    codex 會把 [marketplaces.wakatime]、[plugins."codex-cli-wakatime@wakatime"] 寫進
+#    ~/.codex/config.toml;modify_private_config.toml.tmpl 原樣保留別人的 table,不會被 apply 蓋掉。
+#    plugin 一樣用 ~/.wakatime 的 wakatime-cli 與 ~/.wakatime.cfg,hook 也用 node 跑。
+codex=$(command -v codex || echo "$HOME/.local/bin/codex")
+if [ ! -x "$codex" ]; then
+  echo "找不到 codex,跳過 Codex CLI 的 WakaTime plugin"
+elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginId == "codex-cli-wakatime@wakatime")' >/dev/null; then
+  echo "Codex CLI 的 WakaTime plugin 已安裝,跳過"
+else
+  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null
+  "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
+fi
+
+# 5. code-server 的 WakaTime 擴充:code-server FAQ 的 --install-extension,預設從 Open VSX 抓
+#    WakaTime.vscode-wakatime。擴充跑在 server 端,用這台的 ~/.wakatime/wakatime-cli 與 ~/.wakatime.cfg。
+#    code-server 不在 PATH 的話(非 apt 安裝)找 installer 的 standalone 位置,再找 mise 的 shim
+#    (apt 用不了的機器由 run_onchange_after_install-mise 裝,排在這支前面)。
+cs=$(command -v code-server || echo "$HOME/.local/bin/code-server")
+[ -x "$cs" ] || cs="$HOME/.local/share/mise/shims/code-server"
+if [ ! -x "$cs" ]; then
+  echo "找不到 code-server,跳過 code-server 的 WakaTime 擴充"
+elif "$cs" --list-extensions </dev/null | grep -qix 'wakatime.vscode-wakatime'; then
+  echo "code-server 的 WakaTime plugin 已安裝,跳過"
+else
+  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null
+fi
+
+### .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
+#!@BIN@/sh
+# 選裝工具 codegraph CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
+#
+# 檔名刻意不叫 install-codegraph:chezmoi 依檔名字母順序跑腳本,它要 npm,
+# 必須排在 install-node 之後(勾了 codegraph 就會一併裝 nvm),第一次 apply 才裝得起來。
+set -eu
+
+# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
+if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
+  set +u; . "$NVM_DIR/nvm.sh"; set -u
+fi
+
+# 2. 已經有就不重裝
+if command -v codegraph >/dev/null 2>&1; then
+  echo "codegraph 已安裝,跳過"
+  exit 0
+fi
+
+# 3. 安裝
+command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
+npm install -g @colbymchenry/codegraph
+
+### .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
+#!@BIN@/sh
+# config.yaml 釘的 targets、extras 兩段(.chezmoitemplates/skillshare-pinned,照勾的 client 產生)
+# 或 modify_config.yaml.tmpl 本身改了,就讓 skillshare 照新的設定重新同步。
+# 只有 config.yaml 換掉不會動到各 client 那份:新勾的 client 要 sync 才拿到 skills、MCP,
+# 指令檔要 sync extras 才會建、改、拆連結;有這支,勾選或「改連到哪」只要 chezmoi apply 一步。
+# hash: bf6a245c354145ae5d84fdd6eabfe14f8514fa065a41b1cf7424d84ebd980323
+# pinned: a8e3e3cbd7c2f314bcba5058e218a21fc35579af32c7c7a4abd65917a17f31bb
+#
+# 新機器上 install-agent-config(字母序在前)的 sync --all 已經做過,這裡再跑一次無害。
+set -eu
+
+ss=$HOME/.local/bin/skillshare
+if [ ! -d "$HOME/.config/skillshare/.git" ] || [ ! -x "$ss" ]; then
+  echo "agent-config 還沒裝好,跳過 skillshare sync"
+  exit 0
+fi
+"$ss" sync --all
+
+### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+#!@BIN@/sh
+# 裝 .chezmoidata/packages.yaml 列的系統套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
+# 另外加上 tools 有勾、直接走 apt／pkg 的選裝工具(toolPackages,Debian 系看 ubuntu、Termux 看 termux);
+# 這台裝不了的勾了也不裝(.chezmoitemplates/tools-to-install)。
+#
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 裝到家目錄,vim、btop 這類 miseTools 有列的選裝工具改由 mise 裝,都不算在缺的裡面。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
+missing=""
+for pkg in git curl jq python3 poppler-utils earlyoom ffmpeg snapclient snapserver vim zsh libatomic1; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才裝
+echo "安裝缺少的套件:$missing"
+
+# root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。
+if [ "$(id -u)" = 0 ]; then SUDO=; else SUDO=sudo; fi
+# 不設 noninteractive,tzdata 這類套件會卡在設定選單。sudo 會清掉環境變數,所以用 env 帶進去。
+apt_get() { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get "$@"; }
+
+# 只 install 不 upgrade:apply 不該在沒預期的時候升級整台機器,安全更新交給 unattended-upgrades。
+apt_get update
+# shellcheck disable=SC2086 # 要拆成多個參數
+apt_get install -y $missing
