@@ -26,10 +26,10 @@ ffmpeg           影音轉檔、抽音軌與影格 [mise]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：沒有 root 用不了 apt，官方只出 .deb）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流（裝不了：沒有 root 用不了 apt，官方只出 .deb）
-node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
-codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
+node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）（裝不了：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
-playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
 
@@ -46,13 +46,13 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     codexModel = ""
 
 ## 要裝
-node
+
 
 ## 略過(裝不了)
-
+node
 
 ## 套件清單
-apt/pkg: git curl python3 libatomic1
+apt/pkg: git curl python3
 brew: 
 brew cask: 
 winget: 
@@ -68,6 +68,7 @@ winget:
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
@@ -75,7 +76,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
-.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
@@ -84,8 +84,8 @@ winget:
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
@@ -236,50 +236,6 @@ for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
 
-### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
-# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
-# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
-# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
-# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
-set -eu
-
-# 1. 已經有就不重裝
-if [ -d "$HOME/.nvm" ]; then
-  echo "nvm 已安裝,跳過"
-  exit 0
-fi
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
-#              (#339;可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
-  echo "略過 $1(沒有 root):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root "nvm 與 Node" "這台沒有系統函式庫 libatomic.so.1(Node 官方 binary 需要它,Debian 系的套件是 libatomic1,裝到系統要 root);apt 的指令是 sudo apt-get install -y libatomic1。有了 libatomic.so.1,下一次 chezmoi apply 會自己補裝"
-exit 0
-# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
-#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
-PROFILE=/dev/null bash "$tmp/install.sh"
-bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
-
 ### .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 #!@BIN@/sh
 # 沒有 root 又沒有 ssh 的機器(例:TeamSync 工作區)把 openssh-client 解到家目錄。不分用途、不在選單上。
@@ -368,6 +324,33 @@ done
 # 6. 確認真的能跑(缺函式庫時 ssh -V 會失敗):跑不起來就拿掉 wrapper,免得 PATH 上有一支壞的 ssh
 "$bin/ssh" -V || give_up "解出來的 ssh 跑不起來(缺函式庫?)"
 
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+#!@BIN@/sh
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_env 'node' 'Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有'
+
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
 # apt 用不了的 Linux(沒有 root,或非 Debian 系)把 jq 與 zsh 裝到家目錄。
@@ -419,7 +402,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3 libatomic1; do
+for pkg in git curl python3; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

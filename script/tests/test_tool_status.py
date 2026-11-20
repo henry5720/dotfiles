@@ -783,9 +783,11 @@ exec "$cmd" "$@"
                     self.assertIn(f"（{mark}：", line)
 
     def test_codegraph_still_brings_node_on_linux(self):
-        # Windows 的 codegraph 不要 Node(#323),Linux 照舊靠 nvm 的 npm 裝,install-node 不能變成空的
-        out = self.render({}, f"{SCRIPTS}/run_onchange_after_install-node.sh.tmpl", ["codegraph"])
-        self.assertNotEqual(out.strip(), "")
+        # Windows 的 codegraph 不要 Node(#323);Linux 走 mise 的 npm backend,要 mise 一併裝 Node(#342)
+        mise = '{{ includeTemplate "mise-tools" . }}'
+        lines = self.chezmoi({}, "execute-template", data={"tools": ["codegraph"]}, stdin=mise).stdout.splitlines()
+        self.assertIn('"node" = "lts"', lines)
+        self.assertIn('"npm:@colbymchenry/codegraph" = "latest"', lines)
 
     def test_bottom_installs_with_mise_on_linux_and_brew_on_mac(self):
         # GitHub release 的單一執行檔:有沒有 root、是不是 Debian 系都由 mise 裝

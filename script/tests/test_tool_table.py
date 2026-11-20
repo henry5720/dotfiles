@@ -85,7 +85,8 @@ SCRIPT_METHODS = {
     "run_onchange_after_install-headless-chrome.sh.tmpl": ("headless-chrome", {"deb"}),
     "run_onchange_after_install-node.sh.tmpl": ("node", {"script"}),
     "run_onchange_after_npm-install-codegraph.sh.tmpl": ("codegraph", {"script"}),
-    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"script"}),
+    # Linux 的 playwright-cli 走 mise(#342),這支照樣跑:它也是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
+    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"script", "mise"}),
     "run_onchange_after_install-tailscale.sh.tmpl": ("tailscale", {"official", "script"}),
     **{f"run_onchange_after_install-{t}.sh.tmpl": (t, {"apt"}) for t in ("snapserver", "snapclient", "earlyoom")},
     **{f"run_onchange_after_install-wakatime.{ext}.tmpl": ("wakatime", {"script"}) for ext in ("sh", "ps1")},
@@ -203,7 +204,9 @@ class ToolTableTest(unittest.TestCase):
 
     def test_skipped_is_ticked_and_unsupported(self):
         for (env, sel), res in self.resolved.items():
-            want = sorted(n for n, t in res["tools"].items() if t["ticked"] and t["state"] == "unsupported")
+            # 連帶要 Node、node 卻裝不了時,沒勾 node 也列(#342)
+            want = sorted(n for n, t in res["tools"].items()
+                          if (t["ticked"] or t.get("wanted")) and t["state"] == "unsupported")
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(sorted(self.snap[env, sel]["skipped"]), want)
 
@@ -222,8 +225,9 @@ class ToolTableTest(unittest.TestCase):
         # #349:playwright-cli 看自己的裝法(npm,要 Node),不跟 headless-chrome 綁:沒有本機 Chrome 也能
         # attach 遠端瀏覽器(#260)。Playwright 官方支援 WSL、macOS、arm64、非 Debian 系的 Linux 照 npm 裝
         # (fedora:42 容器實測 attach --cdp,見 #349 留言)。期望值照那份盤點,不從表推
-        want = {"debian-root": "script", "debian-noroot": "script", "wsl": "script", "arm": "script",
-                "non-debian": "script", "proot": "script", "darwin": "script", "windows": "mise"}
+        # Linux 從 #342 起走 mise 的 npm backend;沒有 libatomic 的格子(快照裡的 debian-noroot、non-debian)
+        # Node 跑不起來,見 test_node_skipped_without_libatomic
+        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "script", "windows": "mise"}
         for env, method in want.items():
             with self.subTest(env=env):
                 res = self.status[env]["tools"]
@@ -450,23 +454,61 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(root["mise"], {'"uv" = "latest"'})
         self.assertTrue(root["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
 
-    def test_libatomic_stays_in_apt_list_without_root(self):
-        # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
-        for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full"):
-            with self.subTest(sel=sel):
-                self.assertEqual(self.snap["debian-noroot", sel]["packages"]["apt/pkg"][-1], "libatomic1")
-        self.assertNotIn("earlyoom", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
-        self.assertNotIn("snapclient", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
+    def test_node_skipped_without_libatomic(self):
+        # #342:Linux 的 Node 由 mise 裝,mise 裝完會跑 node -v,沒有 libatomic.so.1 就失敗。快照裡只有 Debian 系有 root
+        # 算有 libatomic(test_render_snapshot 開頭):其他 Linux 格子 node 與走 npm backend 的工具裝不了,原因寫事實。
+        # 只勾了 opencode、wakatime(連帶要 Node)時 node 也列進略過,照舊在 apply 最後印出來
+        node = "Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有"
+        for env in ("debian-noroot", "non-debian"):
+            tools = self.status[env]["tools"]
+            with self.subTest(env=env):
+                self.assertIn("no-libatomic", self.status[env]["env"])
+                self.assertEqual((tools["node"]["state"], tools["node"]["reason"]), ("unsupported", node))
+                for name in ("codegraph", "playwright-cli"):
+                    self.assertEqual((tools[name]["state"], tools[name]["reason"]), ("unsupported", "要 Node：" + node))
+                for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full", "all"):
+                    snap = self.snap[env, sel]
+                    self.assertFalse([m for m in snap["mise"] if m.startswith(('"node"', '"npm:'))], (sel, snap["mise"]))
+                    self.assertNotIn("libatomic1", snap["packages"]["apt/pkg"])
+                for sel in ("opencode", "wakatime"):
+                    self.assertIn("node", self.snap[env, sel]["skipped"], sel)
+        for env in ("debian-root", "wsl", "arm", "proot"):
+            with self.subTest(env=env):
+                self.assertNotIn("no-libatomic", self.status[env]["env"])
+                self.assertEqual(self.status[env]["tools"]["node"]["method"], "mise")
 
     def test_needs_node_matches_rendered_node(self):
-        # Node 有沒有被連帶裝:Linux、macOS 看 install-node、Termux 看 pkg 的 nodejs-lts、Windows 看 mise 的 node
+        # Node 有沒有被連帶裝:macOS 看 install-node(nvm)、Termux 看 pkg 的 nodejs-lts、Linux 與 Windows 看 mise 的 node(#342)
         for (env, sel), res in self.resolved.items():
             snap = self.snap[env, sel]
             want = {"android": bool(snap["packages"].get("pkg(node)")),
-                    "windows": '"node" = "lts"' in snap["mise"]}.get(
-                env, snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False))
+                    "darwin": snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False)}.get(
+                env, '"node" = "lts"' in snap["mise"])
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsNode"], want)
+
+    def test_linux_node_and_npm_tools_go_through_mise(self):
+        # #342:Linux 的 Node、codegraph、playwright-cli 由 mise 裝(npm backend),不再跑 nvm 與 npm install -g
+        scripts = ("run_onchange_after_install-node.sh.tmpl", "run_onchange_after_npm-install-codegraph.sh.tmpl")
+        for env in ("debian-root", "wsl", "arm", "proot"):
+            for sel, want in (("node", {'"node" = "lts"'}),
+                              ("codegraph", {'"node" = "lts"', '"npm:@colbymchenry/codegraph" = "latest"'}),
+                              ("playwright-cli", {'"node" = "lts"', '"npm:@playwright/cli" = "latest"'})):
+                snap = self.snap[env, sel]
+                with self.subTest(env=env, sel=sel):
+                    self.assertLessEqual(want, snap["mise"])
+                    for s in scripts:
+                        self.assertFalse(snap["scripts"].get(s, False), s)
+        # playwright-cli 的設定腳本照跑(ffmpeg、找不到本機 Chrome 的提醒),但不用 npm 裝
+        text = path_of("debian-root", "playwright-cli").read_text(encoding="utf-8")
+        body = text.partition("### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl")[2]
+        body = body.partition("\n### ")[0]
+        self.assertIn("install-browser ffmpeg", body)
+        self.assertNotIn("npm install", body)
+        self.assertNotIn("nvm", body)
+        # Windows 的 codegraph 照舊走 aqua(自帶 Node runtime,#323),macOS 照舊 nvm(#340 Out of Scope)
+        self.assertIn('"codegraph" = "latest"', self.snap["windows", "codegraph"]["mise"])
+        self.assertTrue(self.snap["darwin", "codegraph"]["scripts"]["run_onchange_after_install-node.sh.tmpl"])
 
     def test_needs_uv_matches_rendered_uv(self):
         # uv 有沒有裝(勾了或被連帶):Linux、Windows 看 mise 的 uv、macOS 看 brew、Termux 看 pkg

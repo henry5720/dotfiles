@@ -40,7 +40,7 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
   mise 官方只說 registry 優先用預先編好的執行檔。照種類分是把這兩者和 #231、#233 合起來的說法。
 - **Windows 上的 zsh、btop、earlyoom、snapserver、code-server 仍然裝不了。** 「完整支援」指 coding agent 本體、設定、skill、MCP、codegraph、wakatime。
   playwright-cli、headless-chrome 後來補上（#327）：Chrome 是 GUI app 走 winget（`Google.Chrome.EXE`），playwright-cli 是 npm 套件，
-  Windows 沒有 nvm、Node 已經由 mise 裝，就跟著走 mise 的 npm backend。
+  Node 由 mise 裝，就跟著走 mise 的 npm backend（Linux 從 #342 起同樣如此）。
 - **Windows 的 wakatime-cli 不走 mise。** 照上表它是單一執行檔、該走 mise，但 Claude Code、Codex 的 WakaTime plugin
   只認 `%USERPROFILE%\.wakatime\wakatime-cli-windows-<arch>.exe` 那支，還會自己更新它（#324）；
   mise 裝的那份 plugin 不用，等於裝兩份。所以 `install-wakatime.ps1` 直接把官方 release 解到那個位置，之後交給 plugin。

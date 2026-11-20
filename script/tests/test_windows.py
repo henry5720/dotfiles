@@ -232,12 +232,12 @@ class WindowsDeployTest(unittest.TestCase):
 
     def test_windows_playwright_cli_installs_with_mise_npm_and_node(self):
         # #327:官方裝法是 npm 全域套件,Windows 走 mise 的 npm backend;它要 Node,沒勾 node 也列 LTS。
-        # Linux 照舊 npm-install-playwright-cli(nvm 的 npm),不進 mise 清單
+        # Linux 從 #342 起也走 mise 的 npm backend
         self.assertEqual(self.mise_list(["playwright-cli"]), {"zoxide", "npm:@playwright/cli", "node"})
         linux = self.chezmoi("linux", "execute-template",
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["playwright-cli"]})
-        self.assertNotIn("playwright", linux)
+        self.assertEqual(set(linux.split()), {'"node"', '"npm:@playwright/cli"', '"lts"', '"latest"', "="})
 
     def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
         # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
@@ -260,12 +260,12 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
         # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),
         # 所以不連帶列 Node LTS;shim 是 codegraph.exe,MCP 設定的 command: codegraph 找得到。
-        # Linux 照舊 npm-install-codegraph(nvm 的 npm),不進 mise 清單
+        # Linux 從 #342 起走 mise 的 npm backend(不是 aqua),連帶列 Node LTS
         self.assertEqual(self.mise_list(["codegraph"]), {"zoxide", "codegraph"})
         linux = self.chezmoi("linux", "execute-template",
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["codegraph"]})
-        self.assertNotIn("codegraph", linux)
+        self.assertEqual(linux.split(), ['"npm:@colbymchenry/codegraph"', "=", '"latest"', '"node"', "=", '"lts"'])
 
     def test_windows_wakatime_brings_node_lts_for_plugin_hooks(self):
         # #324:Claude Code、Codex 的 WakaTime plugin 用 PATH 上的 node 跑 hook,Windows 的 Node 由 mise 的 LTS 提供;

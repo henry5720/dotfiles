@@ -21,13 +21,14 @@
 #   各裝法要的資料,欄位名就是裝法名:
 #     apt、pkg、brew、cask、winget: 套件名清單(apt 套件、pkg 套件、brew formula、brew cask、winget id)
 #     mise: {tool: mise 的工具名或 backend 寫法, version: 沒寫 = latest, options: mise 的工具選項(asset_pattern、allow_builds…)}
+#           各 OS 不同時照 OS 分:{linux: {tool…}, windows: {tool…}}(例:codegraph)
 #     official: 官方 installer。sh(linux、darwin)、ps1(windows)各一份:
 #               {url, shell: 跑 sh 版用的 shell(bash 或 sh), env: 跑之前設的環境變數, args: 參數,
 #                installed: 已經裝了就跳過的判斷(cmds 是指令名、paths 是檔案位置;ps1 的 paths 是 PowerShell 運算式)}
 #               sh 的 env 值放進雙引號($HOME 這類會展開),ps1 的 env 值照字面。
 #               沒有 setup 的工具由 run_onchange_after_install-official(sh、ps1 各一支,#334)照這裡跑。
 #               needs: 這個 installer 另外要的環境條件(見 3.,例如 tailscale 要 root)
-#     script: 這個工具自己的腳本用別的方式裝(zsh-bin、nvm、npm、官方 apt 源、release 解壓縮…)。
+#     script: 這個工具自己的腳本用別的方式裝(zsh-bin、macOS 的 nvm 與 npm、官方 apt 源、release 解壓縮…)。
 #             {name: 腳本(.chezmoiscripts 底下的檔名,不含 run_ 前綴與副檔名), needs: 環境條件}
 #     deb: 下載 .deb 裝。{url}
 #   setup: 裝完還要設定、留在自己腳本的工具(spec #315「留在自己腳本的」):腳本名。
@@ -58,6 +59,8 @@
 #   proot       平板上的 proot Ubuntu(is-proot)
 #   noroot      linux 且沒有 root(has-root)。要 root 的裝法用不了;只有這種裝法的工具要寫規則
 #               (例:earlyoom、snapclient、snapserver、headless-chrome)
+#   no-libatomic linux 且 Node 官方 binary 跑不起來(node-runnable:沒有系統的 libatomic.so.1)。mise 裝完 node 會跑 node -v,
+#               跑不起來就裝失敗,所以 node 與走 npm backend 的工具寫規則標裝不了(#342)
 #
 # ===============================================================
 # 3. 裝法能不能用(toolTable.methods)
@@ -433,13 +436,14 @@ toolTable:
         - when: [proot]
           state: discouraged
           reason: proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app
-    # Linux、macOS 用 nvm(install-node);Termux 的 nvm binary 跑不起來,用 pkg 的 LTS;Windows 沒有 nvm,用 mise。
-    # 勾了 needsNode 的工具也會連帶裝。libatomic:nvm 的 Node 官方 binary 要 libatomic.so.1
-    # (缺的話在執行時由 node-runnable 判斷,不在這裡)
+    # runtime(#340):Linux、Windows 用 mise 裝 Node LTS(#342 前 Linux 走 nvm,已經有的 ~/.nvm 原地保留、不再載入);
+    # macOS 照舊 nvm(install-node,#340 Out of Scope);Termux 的官方 binary 跑不起來,用 pkg 的 LTS。
+    # 勾了 needsNode 的工具也會連帶裝。libatomic:Node 官方 binary 要 libatomic.so.1,沒有就是 no-libatomic 環境
+    # mise 的 node:https://mise.jdx.dev/lang/node.html
     node:
-      docs: https://github.com/nvm-sh/nvm#installing-and-updating
+      docs: https://mise.jdx.dev/lang/node.html
       checked: 2026-11-20
-      install: {linux: [script], darwin: [script], android: [pkg], windows: [mise]}
+      install: {linux: [mise], darwin: [script], android: [pkg], windows: [mise]}
       script: {name: install-node}
       pkg: [nodejs-lts]               # 跟 nodejs、nodejs-current 互斥:已經有 node 指令就不裝
       mise: {tool: node, version: lts}
@@ -447,6 +451,10 @@ toolTable:
         libatomic:
           install: {linux: [apt]}
           apt: [libatomic1]
+      rules:
+        - when: [no-libatomic]
+          state: unsupported
+          reason: Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
     # runtime(#341):Python 交給 uv,uv 自己下載專案要的 Python;系統 python3 只給 chezmoi 腳本。
     # Linux、Windows 走 mise(單一執行檔,ADR 0005),macOS、Termux 照例外走 brew、pkg。勾了 needsUv 的工具也會連帶裝
     uv:
@@ -457,13 +465,16 @@ toolTable:
       brew: [uv]
       pkg: [uv]
     # Windows 走 mise 的 aqua backend(#323):release 的 bundle 自帶 Node runtime,不用連帶裝 Node;
-    # 官方 install.ps1 只放 codegraph.cmd,MCP 設定不經 shell 找不到
+    # 官方 install.ps1 只放 codegraph.cmd,MCP 設定不經 shell 找不到。
+    # Linux 走 mise 的 npm backend、連帶 mise 的 Node(#342,https://mise.jdx.dev/dev-tools/backends/npm.html);macOS 照舊 nvm 的 npm
     codegraph:
       docs: https://github.com/colbymchenry/codegraph
       checked: 2026-11-20
-      install: {linux: [script], darwin: [script], windows: [mise]}
+      install: {linux: [mise], darwin: [script], windows: [mise]}
       script: {name: npm-install-codegraph}
-      mise: {tool: codegraph}         # aqua:colbymchenry/codegraph
+      mise:
+        linux: {tool: "npm:@colbymchenry/codegraph"}
+        windows: {tool: codegraph}    # aqua:colbymchenry/codegraph
       needsNode: [linux, darwin, android]
       rules:
         # 查證(#348):README 只支援 Windows、macOS、Linux;npm 版沒有 postinstall、裝得上,但 shim 執行時
@@ -471,6 +482,9 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有
+        - when: [no-libatomic]
+          state: unsupported
+          reason: 要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
     # Windows 的 Chrome 本身就能 --headless(#327)。用 Google 一般 installer 的 Google.Chrome.EXE:
     # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份。
     # macOS 走 brew 的 google-chrome cask(#348);從官網裝過的,brew 會因 /Applications 已經有而略過(同 tailscale)
@@ -503,13 +517,14 @@ toolTable:
         - when: [noroot]
           state: unsupported
           reason: Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt
-    # Linux、macOS:npm-install-playwright-cli(nvm 的 npm;最低版本、ffmpeg 留在那支);Windows 沒有 nvm,走 mise 的 npm backend(#327)。
+    # Linux、Windows 走 mise 的 npm backend(#327、#342);macOS 照舊 nvm 的 npm(npm-install-playwright-cli)。
+    # 那支同時是 Linux、macOS 的設定腳本(最低版本、ffmpeg、沒有本機 Chrome 的提醒)。
     # 不跟 headless-chrome 綁(#349):沒有本機 Chrome 也能 attach 使用者的 Chrome(插件)或 CDP 端點(#260),
     # 所以 WSL、ARM、非 Debian 系、沒有 root 照裝。Playwright 官方支援見 https://playwright.dev/docs/intro
     playwright-cli:
       docs: https://github.com/microsoft/playwright-cli
       checked: 2026-11-20
-      install: {linux: [script], darwin: [script], windows: [mise]}
+      install: {linux: [mise], darwin: [script], windows: [mise]}
       script: {name: npm-install-playwright-cli}
       mise: {tool: "npm:@playwright/cli"}
       setup: npm-install-playwright-cli
@@ -519,6 +534,9 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android
+        - when: [no-libatomic]
+          state: unsupported
+          reason: 要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
     # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。
     # skillshare init 從 remote clone 要系統的 git(#321),Windows 基底沒裝
     agent-config:

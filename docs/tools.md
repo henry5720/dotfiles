@@ -69,7 +69,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 | codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#codegraph) |
 | headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
 | playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
-| node | nvm＋Node LTS，給要 Node 的工具 | `node -v` | [nvm](https://github.com/nvm-sh/nvm) | |
+| node | Node LTS（Linux、Windows 用 mise，macOS 用 nvm，Termux 用 pkg），給要 Node 的工具 | `node -v` | [mise 的 Node](https://mise.jdx.dev/lang/node.html) | [從 nvm 換到 mise](install/machine-use.md#從-nvm-換到-mise) |
 | uv | Python 套件與專案管理，要的 Python 由 uv 自己下載；勾 snapserver、agent-config 會連帶裝 | `uv run <腳本>`、`uv tool run <工具>` | [uv](https://docs.astral.sh/uv/) | |
 | windows-mcp | 讓 agent 操作 Windows 桌面（截圖、點擊、打字）的 MCP server，只裝在 Windows 主機，會連帶裝 uv | 不直接用 | [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) | [Windows 主機](install/windows.md#windows-mcp) |
 

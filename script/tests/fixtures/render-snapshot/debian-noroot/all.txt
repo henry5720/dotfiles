@@ -26,10 +26,10 @@ ffmpeg           影音轉檔、抽音軌與影格 [mise]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：沒有 root 用不了 apt，官方只出 .deb）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流（裝不了：沒有 root 用不了 apt，官方只出 .deb）
-node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
-codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
+node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）（裝不了：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
-playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
 
@@ -50,13 +50,13 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     codexModel = ""
 
 ## 要裝
-zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv node codegraph playwright-cli agent-config
+zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv agent-config
 
 ## 略過(裝不了)
-earlyoom snapserver snapclient headless-chrome windows-mcp
+earlyoom snapserver snapclient node codegraph headless-chrome playwright-cli windows-mcp
 
 ## 套件清單
-apt/pkg: git curl python3 libatomic1
+apt/pkg: git curl python3
 brew: 
 brew cask: 
 winget: 
@@ -89,8 +89,11 @@ winget:
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
@@ -100,13 +103,10 @@ winget:
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
-.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
-.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
@@ -359,50 +359,6 @@ fi
 if ! "$mise" prune --yes; then
   echo "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:$mise prune"
 fi
-
-### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
-# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
-# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
-# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
-# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
-set -eu
-
-# 1. 已經有就不重裝
-if [ -d "$HOME/.nvm" ]; then
-  echo "nvm 已安裝,跳過"
-  exit 0
-fi
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
-#              (#339;可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
-  echo "略過 $1(沒有 root):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root "nvm 與 Node" "這台沒有系統函式庫 libatomic.so.1(Node 官方 binary 需要它,Debian 系的套件是 libatomic1,裝到系統要 root);apt 的指令是 sudo apt-get install -y libatomic1。有了 libatomic.so.1,下一次 chezmoi apply 會自己補裝"
-exit 0
-# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
-#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
-PROFILE=/dev/null bash "$tmp/install.sh"
-bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
 
 ### .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 #!@BIN@/sh
@@ -678,7 +634,7 @@ fi
 
 # 3. Claude Code 的 WakaTime plugin:照 wakatime/claude-code-wakatime README 的兩行指令裝。
 #    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
-#    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 nvm,見 .chezmoidata/tool-table.yaml 的 needsNode;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
+#    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 Node,見 .chezmoidata/tool-table.yaml 的 needsNode;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
 #    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
 claude=$(command -v claude || echo "$HOME/.local/bin/claude")
@@ -719,122 +675,6 @@ else
   "$cs" --install-extension WakaTime.vscode-wakatime </dev/null
 fi
 
-### .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 codegraph CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-#
-# 檔名刻意不叫 install-codegraph:chezmoi 依檔名字母順序跑腳本,它要 npm,
-# 必須排在 install-node 之後(勾了 codegraph 就會一併裝 nvm),第一次 apply 才裝得起來。
-set -eu
-
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
-
-# 2. 已經有就不重裝
-if command -v codegraph >/dev/null 2>&1; then
-  echo "codegraph 已安裝,跳過"
-  exit 0
-fi
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
-#              (#339;可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
-  echo "略過 $1(沒有 root):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root "codegraph" "要 Node,跟著上面「nvm 與 Node」那項"
-exit 0
-# 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-npm install -g @colbymchenry/codegraph
-
-### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# agent 操作瀏覽器用它(ADR 0001)。open 開的是本機的 Chrome(Linux 是 headless-chrome 裝的
-# /opt/google/chrome/chrome,macOS 是 /Applications 的 Google Chrome),沒有那支就報錯,不會自己下載;
-# 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
-#
-# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-node 之後。
-set -eu
-
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
-
-# 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
-#    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
-min=0.1.23
-version_ok() {
-  v=$(playwright-cli --version 2>/dev/null) || return 1
-  [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
-}
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
-#              (#339;可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
-  echo "略過 $1(沒有 root):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root "playwright-cli" "要 Node,跟著上面「nvm 與 Node」那項"
-exit 0
-# 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-if version_ok; then
-  echo "playwright-cli $(playwright-cli --version) 已 ≥ $min,不重裝"
-else
-  npm install -g @playwright/cli@latest
-  version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
-fi
-
-# 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
-#    用 CLI 自己的 install-browser 裝(等同 playwright 官方的 `playwright install ffmpeg`),下載到
-#    ~/.cache/ms-playwright、不用 root;已經有就不重下載。
-playwright-cli install-browser ffmpeg
-
-# 5. 沒有本機 Chrome 只提醒,不算失敗:open 會失敗,attach 遠端瀏覽器照樣能用。路徑是 Playwright 的 chrome channel 找的那支
-chrome=/opt/google/chrome/chrome
-local_hint="要在這台開就勾 headless-chrome(Debian 系 amd64、有 root)"
-if [ ! -x "$chrome" ]; then
-  cat >&2 <<EOF
-playwright-cli 找不到本機 Chrome($chrome):open 會失敗,但可以接遠端瀏覽器:
-  playwright-cli attach --extension       接使用者 Chrome 上的 Playwright 插件
-  playwright-cli attach --cdp=<CDP 網址>  接開著 remote debugging 的 Chrome
-$local_hint
-EOF
-fi
-
 ### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 #!@BIN@/sh
 # 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
@@ -863,7 +703,10 @@ skip_env() {  # skip_env <工具> <原因>
 skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'
 skip_env 'snapserver' '沒有 root 用不了 apt，官方只出 .deb'
 skip_env 'snapclient' '沒有 root 用不了 apt，官方只出 .deb'
+skip_env 'node' 'Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有'
+skip_env 'codegraph' '要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有'
 skip_env 'headless-chrome' 'Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt'
+skip_env 'playwright-cli' '要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有'
 skip_env 'windows-mcp' 'windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份'
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
@@ -949,7 +792,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3 libatomic1; do
+for pkg in git curl python3; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

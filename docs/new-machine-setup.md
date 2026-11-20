@@ -261,7 +261,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 
 chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
 installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
-bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 nvm）：
+bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 Node）：
 
 ```bash
 npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-subagents=no --companion=no
@@ -318,7 +318,7 @@ skillshare plugin add https://github.com/DietrichGebert/ponytail.git --plugin po
 已經用 `claude plugin install` 裝過的，上面那行會直接收編、不重裝。
 
 裝完在 Claude 裡跑 `/claude-hud:setup` 寫 `statusLine`。它會把 node 的**絕對路徑**寫進去
-（nvm 就是 `~/.nvm/versions/node/<版本>/bin/node`），之後 nvm 換版本、刪掉舊版，HUD 就會消失，
+（Linux 的 mise 是 `~/.local/share/mise/installs/node/<版本>/bin/node`，macOS 的 nvm 是 `~/.nvm/versions/node/<版本>/bin/node`），之後 Node 換版本、刪掉舊版，HUD 就會消失，
 重跑 `/claude-hud:setup` 即可。顯示偏好 `~/.claude/plugins/claude-hud/config.json` 由 chezmoi
 放好，用 `/claude-hud:configure` 改過之後要 `chezmoi re-add` 收回來。
 
