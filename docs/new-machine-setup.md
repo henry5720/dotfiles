@@ -157,12 +157,27 @@ ssh-keygen -t ed25519 -C "<這台的名字>" -f ~/.ssh/id_ed25519
 cat ~/.ssh/id_ed25519.pub
 ```
 
+Windows（PowerShell）：
+
+```powershell
+New-Item -ItemType Directory -Force $HOME\.ssh | Out-Null
+ssh-keygen -t ed25519 -C "<這台的名字>" -f $HOME\.ssh\id_ed25519
+Get-Content $HOME\.ssh\id_ed25519.pub
+```
+
 把印出的那行公鑰加到這台要連的地方：
 
 - GitHub 的 [SSH keys](https://github.com/settings/keys)，Title 也填這台的名字。`ssh -T git@github.com`
   回 `successfully authenticated` 就對了。
-- 要連的主機的 `~/.ssh/authorized_keys`；Windows 的系統管理員帳號放
-  `C:\ProgramData\ssh\administrators_authorized_keys`。
+- 要連的主機，放哪看那台的 OS 和帳號：
+
+  | 被連的主機 | 放哪 |
+  |---|---|
+  | Linux、macOS、Termux | `~/.ssh/authorized_keys` |
+  | Windows，管理員帳號 | `C:\ProgramData\ssh\administrators_authorized_keys`；權限要收成只有 Administrators、SYSTEM，不然 sshd 不讀（[`icacls` 那行](remote-access/sshd.md#windows)） |
+  | Windows，一般帳號 | `C:\Users\<使用者>\.ssh\authorized_keys` |
+
+  其他情況（沒有 root 的 Linux、怎麼開 sshd）見[開 sshd](remote-access/sshd.md)。
 
 這台不用了或私鑰外洩：到 GitHub 和那些主機刪掉這台名字的那一行，別台不受影響。
 
