@@ -31,6 +31,11 @@ on:
       - '.github/workflows/windows.yml'
   workflow_dispatch:
 
+# 同一個 PR 又 push 時取消還在跑的舊一輪,只跑最新的(公開 repo 的標準 runner 不計費,這是為了省時間)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
