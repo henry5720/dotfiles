@@ -1,5 +1,5 @@
 {{- /* Windows 主機的 CLI 工具交給 mise 裝:清單是 .chezmoitemplates/mise-tools(zoxide 加上裝法判斷算出走 mise 的),
-       由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支只跑 mise install。Linux 那支是 install-mise.sh。
+       由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支跑 mise install 與 mise prune。Linux 那支是 install-mise.sh。
        只部署到 Windows(.chezmoiignore:Windows 段放行 .chezmoiscripts/*.ps1,其他 OS 排除)。
        套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本;清單寫在下面的註解裡,清單變了才重跑。
        由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII(見 install-packages-windows.ps1)。
@@ -10,7 +10,11 @@
        3. mise install(順便建 shims;PowerShell profile 把 %LOCALAPPDATA%\mise\shims 加進 PATH)。
           要打 GitHub API(aqua backend;未登入每小時 60 次),被限流時設 GITHUB_TOKEN 再 apply。
           裝失敗只印一行、exit 0:不然 apply 中止。代價是不會自動重試,要自己跑 mise install。
-       移除:mise uninstall <工具>;連 mise 一起清掉:mise implode、winget uninstall jdx.mise。 */ -}}
+       4. mise prune:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報 No version is set for shim(#330)。
+          清單變了才跑(run_onchange_)。自己 mise use -g 的與專案 mise.toml 要的版本都留著
+          (mise 記著載入過的設定檔),只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
+          install 失敗也照跑;prune 失敗只印一行、exit 0。
+       連 mise 一起清掉:mise implode、winget uninstall jdx.mise。 */ -}}
 {{- $list := includeTemplate "mise-tools" . -}}
 {{- if $list -}}
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
@@ -26,6 +30,11 @@ if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
 mise install
 if ($LASTEXITCODE -ne 0) {
     Write-Host (T '{{ "mise install 有工具沒裝好,之後自己跑:mise install" | b64enc }}')
+}
+
+mise prune --yes
+if ($LASTEXITCODE -ne 0) {
+    Write-Host (T '{{ "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:mise prune" | b64enc }}')
 }
 exit 0
 {{ end -}}

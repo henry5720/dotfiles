@@ -667,6 +667,20 @@ scenario_ubuntu() {
     "[ -f ~/.codex/config.toml ] && [ -e ~/.codex/AGENTS.md ] && [ -e ~/.agents/skills/e2e-hello ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
+  # mise 只把工具從清單拿掉的話 shim 還在,打指令報 No version is set for shim(#330):install-mise 跑完 install 再 prune
+  bold "▶ 取消勾選 bottom(mise 管的工具)"
+  step "自己 mise use -g 一個清單外的工具(jq)" "~/.local/bin/mise use -g jq@latest && [ -x $SHIMS/jq ]"
+  step "config 的 tools 拿掉 bottom" \
+    "sed -i 's/, \"bottom\"//' ~/.config/chezmoi/chezmoi.toml && ! grep -q '\"bottom\"' ~/.config/chezmoi/chezmoi.toml"
+  check "mise 清單變了:install-mise 待跑" "chezmoi status | grep -qE '^.?R.*install-mise'"
+  check "apply exit 0" "chezmoi apply --no-tty"
+  check "btm 的 shim 與安裝都清掉了" "[ ! -e $SHIMS/btm ] && [ ! -e ~/.local/share/mise/installs/bottom ]"
+  check "zsh 打 btm 是找不到指令,不是 mise 的 No version 錯誤" \
+    "out=\$(zsh -i -c btm 2>&1); echo \"\$out\" | tail -n 3; ! grep -q 'No version is set' <<<\"\$out\" && grep -q 'command not found: btm' <<<\"\$out\""
+  check "自己 mise use -g 的 jq 留著、其他 mise 工具照常" "$SHIMS/jq --version && $SHIMS/fzf --version && $SHIMS/btop --version"
+  check "清單沒變:install-mise 不再待跑(不會再 prune)" "! chezmoi status | grep -q install-mise"
+  check "chezmoi verify 通過" "chezmoi verify"
+
   bold "▶ 套件清單加一個套件"
   step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
   check "套件腳本待跑(chezmoi status 有 R)" "chezmoi status | grep -E '^.?R.*install-packages'"
