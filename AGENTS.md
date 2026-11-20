@@ -96,23 +96,30 @@ config 樣板的 windows 分支)時:
 
 1. 跑 `python3 -m unittest script/tests/test_windows.py`(上面的 discover 也會跑到),它在 Linux 上驗
    Windows 的選單、預設組合、部署哪些檔與腳本、渲染出什麼(腳本只渲染、不執行)
-2. PR 的 `## 驗證` 段逐項列出下面的實機清單,全部勾完才 merge。能在 Windows 上下指令就自己跑
+2. 改到 `home/` 的 PR 會自動跑 `.github/workflows/windows.yml`:在 Windows runner 上照 Runbook 從零
+   `init --apply`(精簡、完整各一次),再跑下表「CI」欄標 ✅ 的項目,用 `gh pr checks` 看結果。
+   ◐ 是 CI 只驗了一部分,剩下的那半還要實機
+3. PR 的 `## 驗證` 段逐項列出下表 CI 沒標 ✅ 的實機項目,全部勾完才 merge。能在 Windows 上下指令就自己跑
 
-| # | 時機 | 在 Windows 上做 | 預期 |
-|---|---|---|---|
-| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 沒有輸出 |
-| 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` |
-| 3 | 每次 | 開 `pwsh`、`powershell`;再跑 `pwsh -c 'echo hi'` | 開 shell 印 fastfetch、提示列是 starship、沒有紅字、有 `z`;`pwsh -c` 只印 `hi` |
-| 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` |
-| 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 |
-| 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
-| 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 |
-| 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 |
-| 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` |
-| 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 |
-| 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 |
-| 12 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 |
-| 13 | 改到 agent-config | `skillshare status`;在 agent 裡打 `/` 與看 MCP 清單 | targets 已同步、指令檔到位;看得到 skill 與 MCP |
+runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner 的家目錄是全新的(沒有使用者自己的設定檔、
+手寫的 `$PROFILE`、「文件」沒被 OneDrive 接管)、UAC 關著、Developer Mode 開著、pwsh 7 與 Git 與 Chrome 預裝、
+是 Windows Server 不是 Windows 11、沒有 WSL2 的 VM、沒有桌面可以看。
+
+| # | 時機 | 在 Windows 上做 | 預期 | CI |
+|---|---|---|---|---|
+| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 沒有輸出 | ✅ |
+| 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` | ✅ |
+| 3 | 每次 | 開 `pwsh`、`powershell`;再跑 `pwsh -c 'echo hi'` | 開 shell 印 fastfetch、提示列是 starship、沒有紅字、有 `z`;`pwsh -c` 只印 `hi` | ◐ 只驗 `-c` 只印 `hi`、找得到 starship |
+| 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` | |
+| 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 | |
+| 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 | |
+| 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 | ◐ 只驗不互動的 init |
+| 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 | ✅ |
+| 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` | ✅ |
+| 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 | ✅ |
+| 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 | ✅ |
+| 12 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 | |
+| 13 | 改到 agent-config | `skillshare status`;在 agent 裡打 `/` 與看 MCP 清單 | targets 已同步、指令檔到位;看得到 skill 與 MCP | ◐ 只驗 `skillshare status` |
 
 互動登入、實際開一個 agent session 要人做,agent 不代做。
 
