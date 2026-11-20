@@ -11,6 +11,7 @@
            label     不建議、裝不了(state 是 ok 時空字串)        reason  原因(ok 時空字串;表上沒有這個 OS 的裝法、也沒有規則對到時是「沒有這個環境的裝法」)
            ticked    有沒有勾                                     install 要不要裝:勾了(或 node 被連帶)而且不是 unsupported
            method    這台走的裝法(apt、pkg、brew、cask、winget、mise、builtin、system、official、script、deb);裝不了時空字串
+           wanted    (只有 node 有)勾了 node,或被要 Node 的工具連帶;裝不了時略過彙整照樣列出(tools-skipped)
            再加那個裝法的資料(只有用到的那一項):
              packages  apt、pkg、brew、cask、winget 的套件名清單
              mise      {tool, version, options}(version 預設 latest,options 預設 {})
@@ -38,6 +39,7 @@
 {{-   if includeTemplate "is-debian" . }}{{ $_ := set $have "debian" true }}{{ else }}{{ $envs = append $envs "non-debian" }}{{ end -}}
 {{-   if includeTemplate "is-proot" . }}{{ $envs = append $envs "proot" }}{{ end -}}
 {{-   if includeTemplate "has-root" . }}{{ $_ := set $have "root" true }}{{ else }}{{ $envs = append $envs "noroot" }}{{ end -}}
+{{-   if not (includeTemplate "node-runnable" .) }}{{ $envs = append $envs "no-libatomic" }}{{ end -}}
 {{- end -}}
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
 {{- $labels := dict "ok" "" "discouraged" "不建議" "unsupported" "裝不了" -}}
@@ -79,6 +81,7 @@
 {{- end -}}
 {{- $needsNode := and $wantNode (ne $node.state "unsupported") -}}
 {{- $_ := set $node "install" $needsNode -}}
+{{- $_ := set $node "wanted" $wantNode -}}
 
 {{- /* 4. 要裝的工具:算依賴、彙整清單 */ -}}
 {{- $lists := dict "apt" list "pkg" list "brew" list "cask" list "winget" list "mise" list "aptNeedsRoot" list -}}

@@ -54,10 +54,13 @@ export OPENCODE_ENABLE_EXA=1
 # 用 append:同名工具讓上面那些使用者自己裝的版本優先,不被 snap 蓋掉。
 export PATH="$PATH:/snap/bin"
 
-# 載入 NVM(node / npm,以及 npm -g 裝的工具,例如 codegraph)
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+# node、npm:Linux 由 mise 裝,經上面的 shims 找得到(#342)。以前 nvm 裝的 ~/.nvm 原地保留、不再載入,可以手動刪。
+# macOS 照舊走 nvm(#340 Out of Scope),只在 macOS 載入
+if [[ $OSTYPE == darwin* && -s $HOME/.nvm/nvm.sh ]]; then
+  export NVM_DIR="$HOME/.nvm"
+  \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+fi
 
 # 上面各處都往 PATH 加 ~/.local/bin,login shell 的 .profile 也加過一次:去掉重複的。
 typeset -U path PATH

@@ -22,7 +22,7 @@ config 樣板（`chezmoi init`）直接讀不到 data 目錄的值，但 `includ
 
 Windows 主機也出用途與選單、也跑安裝腳本（#275）：CLI 用 mise、app 用 winget（都寫在選裝工具表，跟 Linux 同一筆），
 腳本寫成 `.ps1`，`.chezmoiignore` 的 Windows 段只放行 `.chezmoiscripts/*.ps1`，sh 腳本照舊不會到 Windows。
-Windows 上 mise 裝得了的都可裝（`node` 也由 mise 裝 LTS，Linux 那邊是 nvm；herdr 也是，#309；playwright-cli 走 mise 的 npm backend、headless-chrome 用 winget 裝 Chrome，#327），
+Windows 上 mise 裝得了的都可裝（`node` 也由 mise 裝 LTS，Linux 從 #342 起也是；herdr 也是，#309；playwright-cli 走 mise 的 npm backend、headless-chrome 用 winget 裝 Chrome，#327），
 claude、codex 與 agent-config 的 skillshare 走官方 `install.ps1`（#316、#317、#321），opencode 走 mise 的 npm backend（#318），codegraph 走 mise 的 aqua backend（#323），
 wakatime 把官方 release 的 wakatime-cli 放到 plugin 找的位置、為勾了的 agent 裝 plugin（#324），其他沒有 Windows 裝法的標裝不了：
 工具本身沒有 Windows 版（code-server、mise 的 btop），或是要 systemd 的系統服務（earlyoom、snapserver）。zsh 則是 Windows 的 shell 換成 PowerShell。

@@ -61,7 +61,7 @@ CLI 用 mise 裝、app 用 winget 裝（跟 Linux 寫在同一張選裝工具表
 | zoxide | mise | 每台 | 跳常去的目錄：`z <目錄名片段>`。等於 Linux 上 zsh 外掛的跳目錄，Windows 的 shell 一定是 PowerShell，不用勾 |
 | starship、fastfetch、eza、fzf、bat、ripgrep、vim | mise | 精簡、完整 | starship 是提示列（跟 Linux 同一份設定）；fastfetch 在互動開的 shell 印系統資訊，`pwsh -c`、ssh 執行指令不印 |
 | gh、cloudflared、ttyd、ffmpeg | mise | 完整或自己勾 | |
-| node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 用 nvm 裝，Windows 改用 mise |
+| node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 也用 mise |
 | herdr | mise | 完整或自己勾 | 終端機多工，不搭 coding agent 也能用：`herdr` 開、`ctrl+b q` 離開、再打 `herdr` 接回去 |
 | bottom | mise | 完整或自己勾 | 資源監控：`btm` 開、`q` 離開。btop 在 Windows 裝不了（release 只有 Linux 版），改用它 |
 | snapclient | mise（官方 release 的 zip）＋ winget（VC++ runtime） | 完整或自己勾 | 收聽朗讀串流：`snapclient --host <tailnet IP>`；VC++ runtime 會跳 UAC。見 [voice-out](../remote-access/voice-out.md#windows) |

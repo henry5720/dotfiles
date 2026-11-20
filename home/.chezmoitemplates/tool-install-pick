@@ -30,6 +30,7 @@
 {{-     $_ := set $out "packages" (get $spec $m) -}}
 {{-   else if eq $m "mise" -}}
 {{-     $mise := get $spec "mise" -}}
+{{-     if not (hasKey $mise "tool") }}{{ $mise = get $mise $os }}{{ end -}}{{- /* 各 OS 不同時照 OS 分(表的「1. 欄位」) */ -}}
 {{-     $_ := set $out "mise" (dict "tool" $mise.tool "version" (dig "version" "latest" $mise) "options" (dig "options" dict $mise)) -}}
 {{-   else if eq $m "official" -}}
 {{-     $_ := set $out "official" (merge (dict "kind" $kind) (dig "official" $kind dict $spec)) -}}

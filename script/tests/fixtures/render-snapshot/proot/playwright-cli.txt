@@ -25,10 +25,10 @@ opencode         OpenCode CLI(會一併裝 Node) [official]
 ffmpeg           影音轉檔、抽音軌與影格 [apt]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]（不建議：proot 沒有音效裝置，在同一台平板的原生 Termux 勾，或用 Snapcast app）
-node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
-codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
+node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [mise]
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [mise]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Google 只出 amd64 的 .deb）
-playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [mise]
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
 
 ## init 存下的設定
@@ -56,7 +56,12 @@ brew cask:
 winget: 
 
 ## mise 清單
-
+# chezmoi 照選裝工具的勾選產生(home/dot_config/mise/conf.d/dotfiles.toml.tmpl),別直接改,下次 apply 會蓋掉。
+# 自己要加的工具用 `mise use -g <工具>`,寫在 ~/.config/mise/config.toml,不會跟這份打架。
+# 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
+[tools]
+"node" = "lts"
+"npm:@playwright/cli" = "latest"
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
@@ -66,7 +71,7 @@ winget:
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
@@ -83,7 +88,7 @@ winget:
 
 ## 會跑的腳本
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
@@ -208,28 +213,50 @@ for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
 
-### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
+### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
-# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
-# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
-# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
-# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
+# Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。誰走 mise 見 .chezmoidata/tool-table.yaml。
+# 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支跑 mise install 與 mise prune。
+# 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
+# (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
+# 指令經 shims(~/.local/share/mise/shims)找得到,dot_zshrc 把它排在系統目錄前面
+# (apt 可能有同名的舊版,例如 fzf 0.44);bash 的 starship 那段直接找 shim(modify_dot_bashrc.tmpl)。
+#
+# run_onchange_:下面這份清單沒變就不重跑(prune 也只在清單變了才跑);重跑時 mise 只裝缺的,已裝的不重新下載。
+# 清單:
+#   "node" = "lts"
+#   "npm:@playwright/cli" = "latest"
+#
+# 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
+# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
 set -eu
 
-# 1. 已經有就不重裝
-if [ -d "$HOME/.nvm" ]; then
-  echo "nvm 已安裝,跳過"
-  exit 0
+# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
+mise=$(command -v mise || echo "$HOME/.local/bin/mise")
+if [ ! -x "$mise" ]; then
+  # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL -o "$tmp/install.sh" https://mise.run
+  sh "$tmp/install.sh"
+  mise="$HOME/.local/bin/mise"
 fi
 
-# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
-#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
-PROFILE=/dev/null bash "$tmp/install.sh"
-bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
+# 2. 照清單裝(順便建 shims)
+if ! "$mise" install; then
+  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+fi
+
+# 3. 刪掉沒有設定檔要的版本:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報
+#    No version is set for shim(#330)。mise 記著載入過的設定檔(~/.local/state/mise/tracked-configs),
+#    自己 mise use -g 的(~/.config/mise/config.toml)與專案 mise.toml 要的版本都留著;
+#    只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
+#    install 失敗也照跑:清單照樣是新的那份
+if ! "$mise" prune --yes; then
+  echo "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:$mise prune"
+fi
 
 ### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 #!@BIN@/sh
@@ -238,14 +265,11 @@ bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
 # /opt/google/chrome/chrome,macOS 是 /Applications 的 Google Chrome),沒有那支就報錯,不會自己下載;
 # 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
 #
-# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-node 之後。
+# 檔名刻意不叫 install-playwright-cli:要排在 install-mise(Linux)、install-node(macOS)之後。
 set -eu
 
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
+# 1. mise 的 shims(chezmoi 跑腳本時不會讀 .zshrc)。install-mise 已經照清單裝好 npm:@playwright/cli
+export PATH="$HOME/.local/share/mise/shims:$PATH"
 
 # 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
 #    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
@@ -255,13 +279,10 @@ version_ok() {
   [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
 }
 
-# 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-if version_ok; then
-  echo "playwright-cli $(playwright-cli --version) 已 ≥ $min,不重裝"
-else
-  npm install -g @playwright/cli@latest
-  version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
+# 3. 確認版本。latest 低於下限或沒裝好就只印一行、exit 0,同 install-mise:apply 不中止
+if ! version_ok; then
+  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:mise install" >&2
+  exit 0
 fi
 
 # 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。

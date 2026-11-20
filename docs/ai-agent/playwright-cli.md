@@ -4,8 +4,8 @@ agent 要點、填表、跑流程、截圖時用 `playwright-cli`;查原因(慢�
 分工見 [ADR 0001](../adr/0001-browser-tools-drive-vs-debug.md)。
 
 ```text
-選裝工具 playwright-cli ── Linux、macOS:npm install -g @playwright/cli(會一併裝 nvm)
-        │                  Windows:mise 的 npm:@playwright/cli(會一併列 Node LTS)
+選裝工具 playwright-cli ── Linux、Windows:mise 的 npm:@playwright/cli(會一併列 Node LTS)
+        │                  macOS:npm install -g @playwright/cli(會一併裝 nvm)
         ├─ open ───→ 本機 Chrome:Linux 是 /opt/google/chrome/chrome ←── 選裝工具 headless-chrome 裝的那支
         │                         macOS 是 /Applications 的 Google Chrome(自己裝)
         │                         Windows 是一般的 chrome.exe ←────── headless-chrome 用 winget 確保有
@@ -23,4 +23,4 @@ attach 的指令與連法見[瀏覽器](../remote-access/browser.md)。
 | 為什麼不讓它自己抓 | `playwright-cli install-browser` 不給參數會把 chromium、firefox、webkit 全抓下來,系統函式庫還要另外 apt |
 | skill 在哪 | `playwright-cli install --skills` 那份由 agent-config 用 skillshare 發 |
 | Windows 上找哪支 Chrome | 預設的 `chrome` channel 依序找 `%LOCALAPPDATA%`、`%ProgramFiles%`、`%ProgramFiles(x86)%` 底下的 `Google\Chrome\Application\chrome.exe`([playwright 原始碼](https://github.com/microsoft/playwright/blob/28c4b2e0ad892723c17c0b8d280207c1da670998/packages/playwright-core/src/server/registry/index.ts#L822-L829)),每次開用臨時的 user-data-dir,跟日常 profile、開著 9222 的獨立 profile 不衝突 |
-| 換過 node 版本後不見了 | npm 全域套件綁在當下的 node 版本,`nvm use` 換版本後重跑 `npm i -g @playwright/cli` |
+| 換過 node 版本後不見了 | 只有 macOS 會:npm 全域套件綁在當下的 node 版本,`nvm use` 換版本後重跑 `npm i -g @playwright/cli`。Linux、Windows 由 mise 的 npm backend 裝,不綁 node 版本 |

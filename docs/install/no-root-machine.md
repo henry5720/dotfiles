@@ -49,6 +49,10 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。系統已經裝了 snapserver、snapclient 的話，
 套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](../remote-access/voice-out.md)）。
 
+系統沒有 `libatomic.so.1`（Debian 系的套件是 `libatomic1`）時，Node 官方 binary 跑不起來：`node` 和要它才能跑的
+`codegraph`、`playwright-cli` 同樣標「裝不了」、完整不勾。只勾了 `opencode`、`wakatime` 這類連帶要 Node 的工具時，它們照裝，
+`node` 列在「這台裝不了」底下。之後系統有了 `libatomic.so.1`，下一次 `chezmoi apply` 就由 mise 補裝 Node（勾了的工具照常裝）。
+
 不用 root 的工具照常裝好，跟有 root 時一樣：eza、fzf、bat、ripgrep、starship、btop、fastfetch、ttyd、cloudflared 本來就由 mise 裝（#233），
 Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官方 installer。
 
@@ -62,7 +66,6 @@ Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官
 |---|---|
 | 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 缺哪些套件與 apt 的指令 `sudo apt-get install -y …` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
-| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過；寫缺它、Node 官方 binary 需要它，與 `sudo apt-get install -y libatomic1` |
 | ssh | 解不開 openssh-client 時才有；寫哪一步失敗，與 `sudo apt-get install -y openssh-client` |
 
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。
