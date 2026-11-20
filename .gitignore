@@ -18,7 +18,7 @@
 *.p12
 id_rsa*
 id_ed25519*
-# 這個 repo 實際用的私鑰檔名(home/private_dot_ssh/private_config 所有 Host 的 IdentityFile),沒有副檔名
+# 舊的共用私鑰檔名(沒有副檔名),個人電腦改名前還在
 henry5720
 
 # ===============================================================

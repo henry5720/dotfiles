@@ -94,38 +94,29 @@ chezmoi 整段跳過、直接用系統那份，有沒有 root 都一樣、不會
 `~/.ssh/config` 走 tailnet 的 Host（`company-ec2`、`lianghua` 這些）會多一行 `ProxyCommand ~/.local/bin/tailscale --socket=… nc %h %p`，
 登入之後 `ssh company-ec2` 就經 tailnet 連過去，`HostName` 的 MagicDNS 名稱也由 tailscaled 解析。走公網的 Host（`company-ec2-public`、`github.com`）不變。
 
-## 3. 例子：連已配置主機的專用 key（一次性）
+## 3. 讓這台連得到已配置主機（一次性）
 
-以 company-ec2 為例。
+`<目標 Host>` 是 ssh config 裡已配置主機的 Host，關了密碼登入、也沒開 Tailscale SSH。
 
-company-ec2 關了密碼登入，也沒開 Tailscale SSH，這台要一把 key。不要把 `henry5720` 或 AWS 發的 pem
-複製過來：產一把這台專用的，外洩或不用了只要在 company-ec2 刪一行。
+1. 這台還沒有 `~/.ssh/id_ed25519` 就照[新機器設定 2.2](../new-machine-setup.md#22可選放-ssh-key)放。
 
-1. 在這台產 key。檔名用 `~/.ssh/company-henry.pem`：ssh config 的 `company-ec2` 寫死這個 IdentityFile。
-   這把是這台自己的 key，跟其他機器上同名的 AWS pem 不是同一把：
+2. 在已經連得上目標的機器，把這台的公鑰加進目標的 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
 
    ```bash
-   ssh-keygen -t ed25519 -N '' -C "teamsync-ws $(date +%F)" -f ~/.ssh/company-henry.pem
-   cat ~/.ssh/company-henry.pem.pub
+   ssh <目標 Host> 'cat >> ~/.ssh/authorized_keys'
+   # 貼上一行:from="100.64.0.0/10" <~/.ssh/id_ed25519.pub 的內容>,換行後 Ctrl-D
    ```
 
-2. 在已經連得上 company-ec2 的機器，把那行公鑰加進 `authorized_keys`，前面加 `from=` 限定只能從 tailnet 連：
-
-   ```bash
-   ssh company-ec2 'cat >> ~/.ssh/authorized_keys'
-   # 貼上一行:from="100.64.0.0/10" <第 1 步印出的公鑰>,換行後 Ctrl-D
-   ```
-
-3. 第一次連線核對主機指紋：在同一台已經連得上的機器跑下面這行，記下指紋；回這台 `ssh company-ec2`，
+3. 第一次連線核對主機指紋：在同一台已經連得上的機器跑下面這行（目標是 Linux），記下指紋；回這台 `ssh <目標 Host>`，
    問 `Are you sure you want to continue connecting` 時，畫面上的指紋一樣才打 `yes`：
 
    ```bash
-   ssh company-ec2 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+   ssh <目標 Host> 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
    ```
 
    沒勾 zsh 的機器先 `export TERM=xterm-256color` 再連：bash 沒有 export `TERM`，遠端 zsh 的行編輯會壞（字元重複）。
 
-4. 撤銷：在 company-ec2 跑 `sed -i '/teamsync-ws/d' ~/.ssh/authorized_keys`。
+4. 撤銷：在目標跑 `sed -i '/<這台的名字>/d' ~/.ssh/authorized_keys`。
 
 ## 字型（可選）
 

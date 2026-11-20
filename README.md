@@ -127,7 +127,7 @@ docs/                           說明（見上面的文件索引）
 
 ### fork 前要改什麼
 
-- [ ] 安裝指令與 ssh config（`home/private_dot_ssh/private_config.tmpl`）寫死 `henry5720` 帳號和 `~/.ssh/henry5720` 這把 key
+- [ ] 安裝指令 `chezmoi init --apply henry5720` 裡的 GitHub 帳號
 - [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
 - [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
 - [ ] ssh config 裡的 Tailscale 主機與平板
