@@ -6,8 +6,9 @@
 # 讀法:apply 時的樣板可以直接用 .toolTable;config 樣板(chezmoi init)直接讀不到 data 目錄,
 # 要 include ".chezmoidata/tool-table.yaml" | fromYaml(chezmoi 2.74.1 實測)。tool-install 兩種都接。
 #
-# 選單標註、預設組合、略過彙整讀判斷結果(#332);套件清單、mise 清單、腳本還照舊看 packages.yaml 的
-# toolPackages／miseTools 與各自的腳本,script/tests/test_tool_table.py 比對兩邊算出的一樣,之後的 ticket(#333～#336)逐一改讀。
+# 照它跑的:選單標註、預設組合、略過彙整(#332)、官方 installer(install-official,#334)。套件清單、mise 清單、
+# 其他腳本照舊看 packages.yaml 的 toolPackages／miseTools 與各自的腳本,script/tests/test_tool_table.py 比對兩邊算出的一樣,
+# 之後的 ticket(#333、#335、#336)逐一改讀。
 #
 # ===============================================================
 # 1. 欄位
@@ -23,6 +24,8 @@
 #     official: 官方 installer。sh(linux、darwin)、ps1(windows)各一份:
 #               {url, shell: 跑 sh 版用的 shell(bash 或 sh), env: 跑之前設的環境變數, args: 參數,
 #                installed: 已經裝了就跳過的判斷(cmds 是指令名、paths 是檔案位置;ps1 的 paths 是 PowerShell 運算式)}
+#               sh 的 env 值放進雙引號($HOME 這類會展開),ps1 的 env 值照字面。
+#               沒有 setup 的工具由 run_onchange_after_install-official(sh、ps1 各一支,#334)照這裡跑。
 #               needs: 這個 installer 另外要的環境條件(見 3.,例如 tailscale 要 root)
 #     script: 這個工具自己的腳本用別的方式裝(zsh-bin、nvm、npm、官方 apt 源、release 解壓縮…)。
 #             {name: 腳本(.chezmoiscripts 底下的檔名,不含 run_ 前綴與副檔名), needs: 環境條件}
@@ -219,7 +222,8 @@ toolTable:
       mise: {tool: gh}                # aqua:cli/cli
       brew: [gh]
       pkg: [gh]
-    # 有 root 的 Debian 系用官方 installer(裝 .deb;docs/remote-access/code-server.md 的 systemd user unit 靠它)
+    # 有 root 的 Debian 系用官方 installer(裝 .deb;docs/remote-access/code-server.md 的 systemd user unit 靠它);
+    # 設定檔由 chezmoi 部署(dot_config/private_code-server)
     code-server:
       docs: https://coder.com/docs/code-server/install
       checked: 2026-11-20
@@ -334,7 +338,10 @@ toolTable:
         sh:
           url: https://chatgpt.com/codex/install.sh
           shell: bash
-          env: {CODEX_NON_INTERACTIVE: "1"}
+          # PATH 先放 ~/.local/bin:installer 看到它已經在 PATH 上,就不會往 ~/.zshrc 追加 PATH
+          # (chezmoi 管的 .zshrc 本來就有,被追加之後 chezmoi diff／verify 會一直有差異)。
+          # CODEX_NON_INTERACTIVE:有終端機時 installer 會從 /dev/tty 問「Start Codex now?」,apply 會停在那裡
+          env: {CODEX_NON_INTERACTIVE: "1", PATH: "$HOME/.local/bin:$PATH"}
           installed: {cmds: [codex], paths: ["$HOME/.local/bin/codex"]}
         ps1:
           url: https://chatgpt.com/codex/install.ps1
@@ -355,7 +362,7 @@ toolTable:
         sh:
           url: https://opencode.ai/install
           shell: bash
-          args: [--no-modify-path]
+          args: [--no-modify-path]   # 不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
           installed: {cmds: [opencode], paths: ["$HOME/.opencode/bin/opencode"]}
       mise: {tool: "npm:opencode-ai", options: {allow_builds: [opencode-ai]}}
       needsNode: [linux, darwin, android, windows]   # oh-my-opencode-slim 用 npx 跑

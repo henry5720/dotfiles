@@ -330,11 +330,11 @@ exit 0
     def test_android_unsupported_tools_not_installed_but_recorded(self):
         scripts = {
             "tailscale": "run_onchange_after_install-tailscale.sh.tmpl",
-            "code-server": "run_onchange_after_install-code-server.sh.tmpl",
-            "claude": "run_onchange_after_install-claude.sh.tmpl",
-            "codex": "run_onchange_after_install-codex.sh.tmpl",
-            "opencode": "run_onchange_after_install-opencode.sh.tmpl",
-            "herdr": "run_onchange_after_install-herdr.sh.tmpl",
+            "code-server": "run_onchange_after_install-official.sh.tmpl",
+            "claude": "run_onchange_after_install-official.sh.tmpl",
+            "codex": "run_onchange_after_install-official.sh.tmpl",
+            "opencode": "run_onchange_after_install-official.sh.tmpl",
+            "herdr": "run_onchange_after_install-official.sh.tmpl",
             "agent-config": "run_onchange_after_install-agent-config.sh.tmpl",
             "codegraph": "run_onchange_after_npm-install-codegraph.sh.tmpl",
             "headless-chrome": "run_onchange_after_install-headless-chrome.sh.tmpl",

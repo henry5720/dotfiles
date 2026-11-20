@@ -3,7 +3,7 @@
        Linux 與 Windows 主機列:Termux 走 pkg、macOS 走 brew。
        Windows(#275):先列 packages.windows.mise(zoxide,不看勾選),再列有勾、在 miseTools 裡的
        (沒有 apt,不看 always;這台裝不了的不算)。node 勾了列 LTS(Linux 用 nvm 裝,不在 miseTools)。
-       herdr 勾了也列(#309):Linux、macOS 走官方 installer(install-herdr),放進 miseTools 的話
+       herdr 勾了也列(#309):Linux、macOS 走官方 installer(install-official),放進 miseTools 的話
        沒有 apt 的 Linux 會兩邊各裝一份,所以只寫在 Windows 這段。
        snapclient 勾了也列(#326):Linux 走 apt。mise registry 沒有 Snapcast,用 github backend 點名官方 release 的
        snapclient_win64.zip;壓縮檔根目錄還有 vc_redist.x64.exe,filter_bins 只讓 snapclient.exe 上 PATH
@@ -16,7 +16,7 @@
        allow_builds 放行 opencode-ai 自己的 postinstall:mise 的 npm backend 預設不跑 lifecycle script
        (https://mise.jdx.dev/dev-tools/backends/npm.html),不跑的話 bin/opencode.exe 是印「postinstall script was
        not run」的佔位檔,真執行檔在平台套件 opencode-windows-x64 裡(henry-desktop 實測)。只點名它,不開 allow_builds = true。
-       Linux、macOS 照舊官方 installer(install-opencode)。
+       Linux、macOS 照舊官方 installer(install-official)。
        codegraph 勾了列 registry 的短名 codegraph(#323):指到 aqua:colbymchenry/codegraph,裝官方 release 的
        codegraph-win32-<arch>.zip(自帶 Node runtime,不要 mise 的 Node;packages.yaml 的 nodeToolsSkip)。
        不用官方 install.ps1:它只在 PATH 放 codegraph.cmd,mise 的 shim 是 codegraph.exe,

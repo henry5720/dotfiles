@@ -1,0 +1,39 @@
+{{- /* 只做安裝的官方 installer,Windows 這支照選裝工具表跑(#334,spec #315;Linux、macOS 那支是 install-official.sh)。
+       跑哪些:.chezmoitemplates/tool-install 算出要裝、裝法是 official、沒有 setup 的工具(現在是 claude #316、codex #317),
+       照工具名排。一個都沒有就渲染成空的,chezmoi 不跑。網址、env、已安裝的判斷都在表的 official.ps1;換網址只改表。
+       裝法照 ADR 0005。claude 裝到 %USERPROFILE%\.local\bin\claude.exe(PATH 由 PowerShell profile 加);
+       codex 的 installer 自己把 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin 加進使用者 PATH。移除見 docs/install/windows.md。
+       排在 install-wakatime.ps1 之前:wakatime 要幫已經裝好的 agent 裝 plugin。
+       由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
+
+       1. 已經裝過就跳過。只認表上官方裝的位置:PATH 上的同名指令可能是 mise、npm、winget 那份,認了就永遠裝不到官方版。
+          用 if/else 不用 exit:後面還有別的工具要跑
+       2. 下載官方腳本成檔案、在同一個 process 跑(.chezmoitemplates/ps1-official-installer),env 在跑之前設好
+          (codex 的 CODEX_NON_INTERACTIVE=1:installer 最後會 Read-Host 問「Start Codex now?」,apply 會停在那裡)。
+          官方腳本出錯是丟例外或 exit 非 0,兩種都接住
+       3. 裝失敗只印手動指令、繼續下一個,最後 exit 0:不然 apply 中止。代價是不會自動重試 */ -}}
+{{- $install := includeTemplate "tool-install" . | fromJson -}}
+{{- $run := list -}}
+{{- range $name, $t := $install.tools -}}
+{{-   if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) (eq $t.official.kind "ps1") }}{{ $run = append $run $name }}{{ end -}}
+{{- end -}}
+{{- if $run -}}
+{{ includeTemplate "ps1-text" . }}
+{{- range $name := $run }}
+{{-   $o := (get $install.tools $name).official }}
+{{-   $checks := list }}
+{{-   range $o.installed.paths }}{{ $checks = append $checks (printf "Test-Path (%s)" .) }}{{ end }}
+{{-   if gt (len $checks) 1 }}{{ $checks = list (printf "(%s)" (join ") -or (" $checks)) }}{{ end }}
+
+# {{ $name }}
+if ({{ first $checks }}) {
+    Write-Host ((T '{{ "{0} 已安裝,跳過" | b64enc }}') -f '{{ $name }}')
+} else {
+{{ includeTemplate "ps1-official-installer" (dict "url" $o.url "env" (get $o "env" | default dict)) | indent 4 }}
+    if ($code -ne 0) {
+        Write-Host ((T '{{ "{0} 沒裝好,之後自己跑:irm {1} | iex" | b64enc }}') -f '{{ $name }}', '{{ $o.url }}')
+    }
+}
+{{- end }}
+exit 0
+{{ end -}}

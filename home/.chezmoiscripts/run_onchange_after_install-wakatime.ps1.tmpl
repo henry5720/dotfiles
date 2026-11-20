@@ -9,7 +9,7 @@
           %USERPROFILE%\.wakatime\wakatime-cli-windows-<arch>.exe,還會自己更新它
           (claude-code-wakatime 的 src/dependencies.ts、codex-cli-wakatime 的 bin/codex-cli-wakatime.js 的 getCliLocation)。
           已經有就不重抓;沒有就下載官方 release 的 zip(根目錄就是那支 exe)、Expand-Archive 解開
-          (5.1 先開 TLS 1.2、-UseBasicParsing,同 install-claude.ps1)。
+          (5.1 先開 TLS 1.2、-UseBasicParsing,同 install-official.ps1)。
           wakatime-cli.exe 是複製一份,不是 symlink:codex 的 plugin 在 Windows 也是複製(ensureCliAlias),
           symlink 要 Developer Mode。只在沒有時複製,之後由 plugin 更新
        2. Claude Code 的 plugin:照 wakatime/claude-code-wakatime README 的兩行指令;plugin list --json 已經有就跳過。
