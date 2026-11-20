@@ -211,7 +211,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
 `~/.config/chezmoi/chezmoi.toml`，不是 git 內容。
 
-選單上每一項後面都有一句說明，清單和說明在
+選單上每一項後面都有一句說明和這台會走的裝法（例如 `[apt]`、`[mise]`），清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
 WSL、非 amd64 的機器裝不了 `headless-chrome`、`playwright-cli`；macOS 裝不了 `headless-chrome`、`playwright-cli`。

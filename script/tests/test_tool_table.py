@@ -133,17 +133,56 @@ class ToolTableTest(unittest.TestCase):
     # 選單標註、預設組合、略過彙整讀判斷(#332)
     # ===============================================================
     def test_menu_labels_come_from_resolver(self):
-        # 選單每一行:不建議、裝不了的後面標「（label：原因）」,跟判斷一致
+        # 選單每一行:裝得了的標這台的裝法「[裝法]」(#335),不建議、裝不了的後面標「（label：原因）」,跟判斷一致
         for env, res in self.status.items():
             for line in self.menus[env].splitlines():
                 name = line.split(" ")[0]
                 entry = res["tools"][name]
+                method = f" [{entry['method']}]" if entry["state"] != "unsupported" else ""
                 mark = f"（{entry['label']}：{entry['reason']}）" if entry["state"] != "ok" else ""
                 with self.subTest(env=env, tool=name):
-                    if mark:
-                        self.assertTrue(line.endswith(mark), line)
-                    else:
+                    self.assertTrue(line.endswith(method + mark), line)
+                    if not mark:
                         self.assertNotRegex(line, "（(不建議|裝不了)：")
+                    if not method:
+                        self.assertNotRegex(line, r" \[[a-z]+\]")
+
+    def test_menu_shows_this_machines_method(self):
+        # #335:說明後面標這台會走的裝法;不建議的照樣標裝法再標原因,裝不了的只標原因
+        def line(env, name):
+            return next(l for l in self.menus[env].splitlines() if l.split(" ")[0] == name)
+        self.assertEqual(line("debian-root", "fzf"), "fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [mise]")
+        self.assertEqual(line("debian-root", "earlyoom"),
+                         "earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU [apt]")
+        self.assertEqual(line("debian-root", "claude"), "claude           Claude Code CLI [official]")
+        self.assertEqual(line("windows", "tailscale"), "tailscale        私人 VPN,連自己的機器 [winget]")
+        self.assertEqual(line("darwin", "tailscale"), "tailscale        私人 VPN,連自己的機器 [cask]")
+        self.assertEqual(line("android", "gh"), "gh               GitHub CLI(官方 apt 源),裝完 gh auth login [pkg]")
+        self.assertEqual(line("wsl", "tailscale"), "tailscale        私人 VPN,連自己的機器 [official]（不建議：網路借 Windows "
+                         "那份 Tailscale（mirrored），再裝一份會變成 tailnet 上兩個節點）")
+        self.assertEqual(line("android", "claude"), "claude           Claude Code CLI（裝不了：官方 installer 沒有原生 "
+                         "Termux 版，到 proot Ubuntu 裝）")
+
+    def test_menu_has_no_multichoice_separators(self):
+        # ADR 0004:選單文字是 --promptMultichoice 的值,不能有半形 /、'、=
+        for env, menu in self.menus.items():
+            for line in menu.splitlines():
+                with self.subTest(env=env, line=line):
+                    self.assertFalse(set(line) & set("/'="))
+
+    def test_every_unsupported_reason_is_written_in_the_table(self):
+        # 原因只來自表上的 rules,不由判斷照缺的條件組(#335);沒有 root 的 headless-chrome、snapserver 也寫成規則
+        for env, res in self.status.items():
+            for name, entry in res["tools"].items():
+                if entry["state"] == "ok":
+                    continue
+                with self.subTest(env=env, tool=name):
+                    self.assertIn(entry["reason"], [r["reason"] for r in self.table["tools"][name].get("rules", [])])
+        tools = self.status["debian-noroot"]["tools"]
+        self.assertEqual({n: tools[n]["reason"] for n in ("headless-chrome", "snapserver")}, {
+            "headless-chrome": "Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt",
+            "snapserver": "沒有 root 用不了 apt，官方只出 .deb",
+        })
 
     def test_full_preset_is_menu_minus_discouraged_and_unsupported(self):
         for env, res in self.status.items():
@@ -404,7 +443,6 @@ class ToolTableTest(unittest.TestCase):
     def test_reasons_are_menu_safe(self):
         # ADR 0004:原因接在選單文字後面,半形 / 會被 e2e 的 --promptMultichoice 切開,' 弄壞略過腳本的引號
         reasons = [r["reason"] for t in self.table["tools"].values() for r in t.get("rules", [])]
-        reasons += [n["reason"] for n in self.table["needs"].values()]
         self.assertTrue(reasons)
         for reason in reasons:
             with self.subTest(reason=reason):

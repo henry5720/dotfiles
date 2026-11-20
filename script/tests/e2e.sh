@@ -918,7 +918,7 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
-  check "macOS 的選單 tailscale 沒有標註" "grep -qx 'tailscale *私人 VPN,連自己的機器' <<<$(printf '%q' "$(menu_labels "$mac")")"
+  check "macOS 的選單 tailscale 沒有標註、標裝法 cask" "grep -qx 'tailscale *私人 VPN,連自己的機器 \\[cask\\]' <<<$(printf '%q' "$(menu_labels "$mac")")"
   for t in headless-chrome playwright-cli; do
     label=$(menu_choice "$t" "$mac")
     check "macOS 的選單列 $t、標裝不了,勾了照存" \
