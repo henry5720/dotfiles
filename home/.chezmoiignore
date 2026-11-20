@@ -50,9 +50,9 @@
 !AppData/Roaming/skillshare
 !AppData/Roaming/skillshare/config.yaml
 {{ end -}}
-{{ if has "wakatime" $tools -}}
-# WakaTime 的 API key(#324):兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,跟 Linux 同一份;
-# 沒填 key 時樣板渲染成空的,chezmoi 不部署
+{{ if and (has "wakatime" $tools) (index . "wakatimeApiKey") -}}
+# WakaTime 的 API key(#324):兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,跟 Linux 同一份。
+# 沒填 key 就不放行:放行了又渲染成空的,chezmoi 會刪掉這台現有的 .wakatime.cfg
 !.wakatime.cfg
 {{ end -}}
 # 安裝腳本:winget 裝 app、mise 裝 CLI、最後列出略過的(.chezmoiscripts/*.ps1,只有 Windows 有)
@@ -133,6 +133,10 @@ AppData
 .local/bin/voice-out
 .local/bin/voice-out-speak
 {{ end }}
+
+# WakaTime 的 API key 沒填(或沒勾 wakatime、沒問過):不管 ~/.wakatime.cfg。
+# 管了又渲染成空的,chezmoi 會把現有的檔刪掉,自己放的 key 就不見了。
+{{ if not (index . "wakatimeApiKey") }}.wakatime.cfg{{ end }}
 
 # 沒有工具要交給 mise 的機器(Termux、macOS、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
 {{ if not (includeTemplate "mise-tools" .) }}.config/mise{{ end }}

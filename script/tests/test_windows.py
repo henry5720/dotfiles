@@ -125,11 +125,11 @@ class WindowsDeployTest(unittest.TestCase):
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
         opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
-        wakatime = {WAKATIME_CFG}
+        # .wakatime.cfg 要有 API key 才管(test_wakatime_cfg_managed_only_with_api_key),這裡沒帶 key
         for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
-                             (sorted(WINDOWS_FULL), opencode | skillshare | wakatime),
+                             (sorted(WINDOWS_FULL), opencode | skillshare),
                              (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
-                             (["agent-config"], skillshare), (["wakatime"], wakatime)):
+                             (["agent-config"], skillshare), (["wakatime"], set())):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
 
@@ -417,15 +417,20 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn(r"Join-Path $HOME '.local\bin\claude.exe'", out)
         self.assertIn(r"Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe'", out)
 
-    def test_windows_wakatime_cfg_only_with_api_key(self):
-        # 沒填 API key(或沒問過)時渲染成空的,chezmoi 不部署,apply 不失敗
-        target = str(self.home / WAKATIME_CFG)
-        self.assertEqual(self.chezmoi("windows", "cat", target, data={"tools": ["wakatime"]}).strip(), "")
-        self.assertEqual(self.chezmoi("windows", "cat", target,
-                                      data={"tools": ["wakatime"], "wakatimeApiKey": ""}).strip(), "")
-        self.assertIn("api_key = waka_fixture",
-                      self.chezmoi("windows", "cat", target,
-                                   data={"tools": ["wakatime"], "wakatimeApiKey": "waka_fixture"}))
+    def test_wakatime_cfg_managed_only_with_api_key(self):
+        # 沒填 API key(或沒問過)時 chezmoi 不管 ~/.wakatime.cfg。管了又渲染成空的,chezmoi 會把現有的檔刪掉:
+        # henry-desktop 第一次 init 時 key 留空,原本能用的 .wakatime.cfg 就這樣被刪(#324)。
+        # Linux 用同一份樣板,同樣要擋
+        for os_name in ("windows", "linux"):
+            for data in ({"tools": ["wakatime"]}, {"tools": ["wakatime"], "wakatimeApiKey": ""}):
+                with self.subTest(os=os_name, data=data):
+                    managed = set(self.chezmoi(os_name, "managed", data=data).split())
+                    self.assertNotIn(WAKATIME_CFG, managed)
+            with self.subTest(os=os_name, key="set"):
+                data = {"tools": ["wakatime"], "wakatimeApiKey": "waka_fixture"}
+                self.assertIn(WAKATIME_CFG, set(self.chezmoi(os_name, "managed", data=data).split()))
+                self.assertIn("api_key = waka_fixture",
+                              self.chezmoi(os_name, "cat", str(self.home / WAKATIME_CFG), data=data))
 
     # ===============================================================
     # agent-config:官方 install.ps1 裝 skillshare,init 後 sync(#321)
