@@ -75,9 +75,8 @@ def mise_line(entry):
 
 # 工具自己的腳本 → (工具, 哪些裝法會讓它渲染成非空)。只部署到它那個 OS(.ps1 只在 Windows,.sh 不在 Windows)
 SCRIPT_METHODS = {
-    **{f"run_onchange_after_install-{t}.{ext}.tmpl": (t, {"official"})
-       for t in ("claude", "codex") for ext in ("sh", "ps1")},
-    **{f"run_onchange_after_install-{t}.sh.tmpl": (t, {"official"}) for t in ("herdr", "opencode", "code-server")},
+    # claude、codex、herdr、opencode、code-server 的官方 installer 從 #334 起由 install-official 照判斷結果跑,
+    # 不再跟舊腳本比(test_official_installer.py 驗渲染結果跟以前各自那支一樣)
     "run_onchange_after_install-gh.sh.tmpl": ("gh", {"script"}),
     "run_onchange_after_install-headless-chrome.sh.tmpl": ("headless-chrome", {"deb"}),
     "run_onchange_after_install-node.sh.tmpl": ("node", {"script"}),

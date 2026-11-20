@@ -55,7 +55,7 @@ tailscale:
        coding agent 與它們的工具到同一台平板的 proot Ubuntu 用(Runbook 平板那節)。
        Windows 主機(#275):CLI 用 mise 裝(.chezmoidata/packages.yaml 的 miseTools,mise 在 Windows 有的才可裝),
        app 用 winget(toolPackages.windows),node、herdr、snapclient、playwright-cli 也由 mise 裝(mise-tools);
-       claude、codex 走官方 install.ps1(run_onchange_after_install-claude.ps1 #316、-codex.ps1 #317);opencode 沒有 install.ps1,走 mise(#318);
+       claude、codex 走官方 install.ps1(run_onchange_after_install-official.ps1,#316、#317、#334);opencode 沒有 install.ps1,走 mise(#318);
        agent-config 的 skillshare 也走官方 install.ps1(run_onchange_after_install-agent-config.ps1,#321)。
        codegraph 走 mise 的 aqua backend(release 的 bundle,自帶 Node runtime,#323)。
        wakatime 放 wakatime-cli 到官方位置、為有勾的 agent 裝 plugin(run_onchange_after_install-wakatime.ps1,#324)。

@@ -934,7 +934,7 @@ scenario_ubuntu() {
   local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
            run_onchange_after_install-gh run_onchange_after_install-mise \
-           run_onchange_after_install-code-server run_onchange_after_install-headless-chrome \
+           run_onchange_after_install-official run_onchange_after_install-headless-chrome \
            run_onchange_after_npm-install-playwright-cli run_onchange_after_install-tailscale; do
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"

@@ -63,16 +63,12 @@ winget:
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-claude.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-code-server.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-codex.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-herdr.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-opencode.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl

@@ -1,4 +1,4 @@
-{{- /* 下載官方 install.ps1 成暫存檔、在同一個 process 跑、刪掉暫存檔(install-claude、install-codex、
+{{- /* 下載官方 install.ps1 成暫存檔、在同一個 process 跑、刪掉暫存檔(install-official、
        install-agent-config 的 .ps1 共用;ADR 0005 的官方 installer)。跑完後 $code 是結果:0 成功,
        官方腳本 exit 非 0 就是那個值,丟例外(下載失敗、Write-Error 加 Stop、throw)算 1,例外訊息照印。
        用法(參數用 dict 傳;env 選填,跑 installer 前設好的環境變數):

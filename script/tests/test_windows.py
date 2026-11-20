@@ -36,9 +36,8 @@ OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-op
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
     ".chezmoiscripts/install-mise.ps1",
-    # 官方 install.ps1 裝的 coding agent(claude #316、codex #317);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
-    ".chezmoiscripts/install-claude.ps1",
-    ".chezmoiscripts/install-codex.ps1",
+    # 官方 install.ps1 裝的 coding agent(claude #316、codex #317,#334 併成一支照表跑);沒勾時渲染成空的,chezmoi 不跑,但仍是 managed
+    ".chezmoiscripts/install-official.ps1",
     # agent-config(#321):官方 install.ps1 裝 skillshare、init;config 釘的兩段變了就 sync
     ".chezmoiscripts/install-agent-config.ps1",
     ".chezmoiscripts/sync-skillshare.ps1",
@@ -335,14 +334,18 @@ class WindowsDeployTest(unittest.TestCase):
     # coding agent:官方 install.ps1(#316 claude、#317 codex)
     # ===============================================================
     def agent_script(self, tool):
-        return SCRIPTS / f"run_onchange_after_install-{tool}.ps1.tmpl"
+        # #334 起兩個 agent 同一支(install-official.ps1,照選裝工具表跑)
+        return SCRIPTS / "run_onchange_after_install-official.ps1.tmpl"
 
     def test_windows_agent_script_empty_when_not_ticked(self):
-        for tool in OFFICIAL_INSTALLERS:
+        for tools in ([], WINDOWS_LEAN):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.render(self.agent_script("claude"), tools).strip(), "")
+        # 只勾另一個:不跑這個的 installer
+        for tool, (url, _) in OFFICIAL_INSTALLERS.items():
             others = [t for t in OFFICIAL_INSTALLERS if t != tool]
-            for tools in ([], WINDOWS_LEAN, others):
-                with self.subTest(tool=tool, tools=tools):
-                    self.assertEqual(self.render(self.agent_script(tool), tools).strip(), "")
+            with self.subTest(tool=tool, tools=others):
+                self.assertNotIn(url, self.render(self.agent_script(tool), others))
 
     def test_windows_agent_script_downloads_official_installer_then_runs_it(self):
         for tool, (url, _) in OFFICIAL_INSTALLERS.items():
@@ -548,8 +551,7 @@ class WindowsDeployTest(unittest.TestCase):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
                             (SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", sorted(WINDOWS_FULL)),
-                            (SCRIPTS / "run_onchange_after_install-claude.ps1.tmpl", ["claude"]),
-                            (SCRIPTS / "run_onchange_after_install-codex.ps1.tmpl", ["codex"]),
+                            (SCRIPTS / "run_onchange_after_install-official.ps1.tmpl", ["claude", "codex"]),
                             (SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl", ["wakatime", "claude", "codex"]),
                             (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
                             (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),

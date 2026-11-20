@@ -235,7 +235,7 @@ class RenderSnapshotTest(unittest.TestCase):
         self.assertRegex(g["darwin", "full"], r'brew: .*\beza\b')
         self.assertRegex(g["windows", "tailscale"], r"winget: .*Tailscale\.Tailscale")
         self.assertIn('"npm:opencode-ai"', g["windows", "opencode"])
-        self.assertIn("### .chezmoiscripts/run_onchange_after_install-claude.sh.tmpl", g["debian-root", "claude"])
+        self.assertIn("### .chezmoiscripts/run_onchange_after_install-official.sh.tmpl", g["debian-root", "claude"])
         self.assertIn("## 略過(裝不了)\nheadless-chrome\n", g["wsl", "headless-chrome"])
         self.assertIn("headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：", g["wsl", "full"])
 
