@@ -1,6 +1,7 @@
 # 依機器種類排除。路徑是 target 名稱(去掉 dot_、run_once_after_ 這類前綴與 .tmpl)。
 # 腳本放在 .chezmoiscripts/,target 名稱要帶這層目錄,只寫檔名會擋不到。
 {{ if eq .chezmoi.os "windows" }}
+{{- $tools := splitList " " (includeTemplate "tools-to-install" .) }}
 # ===============================================================
 # 1. Windows:白名單,只部署下面 ! 放行的 target
 # ===============================================================
@@ -22,7 +23,7 @@
 !.ssh/config
 !.config
 !.config/starship.toml
-{{ if has "opencode" (splitList " " (includeTemplate "tools-to-install" .)) -}}
+{{ if has "opencode" $tools -}}
 # OpenCode 的設定(#318),勾了才部署。opencode.json 在 Windows 渲染成 modify-template(Linux 那份是 sh + jq)。
 # routes/personal 不放:給 opencode-personal(ai-profile,只有 Linux)用,裡面還有 symlink。
 !.config/opencode
@@ -42,18 +43,18 @@
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState
 !AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json
-{{ if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) }}
+{{ if has "agent-config" $tools -}}
 # skillshare 的 config.yaml(#321):Windows 讀 %AppData%\skillshare,勾了 agent-config 才放。
 # Linux 那份 .config/skillshare 不放行:Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%
 !AppData/Roaming
 !AppData/Roaming/skillshare
 !AppData/Roaming/skillshare/config.yaml
-{{ end }}
-{{ if has "wakatime" (splitList " " (includeTemplate "tools-to-install" .)) }}
+{{ end -}}
+{{ if has "wakatime" $tools -}}
 # WakaTime 的 API key(#324):兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,跟 Linux 同一份;
 # 沒填 key 時樣板渲染成空的,chezmoi 不部署
 !.wakatime.cfg
-{{ end }}
+{{ end -}}
 # 安裝腳本:winget 裝 app、mise 裝 CLI、最後列出略過的(.chezmoiscripts/*.ps1,只有 Windows 有)
 !.chezmoiscripts
 !.chezmoiscripts/*.ps1
