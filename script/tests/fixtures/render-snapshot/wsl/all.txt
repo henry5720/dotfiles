@@ -23,13 +23,14 @@ claude           Claude Code CLI [official]
 codex            Codex CLI [official]
 opencode         OpenCode CLI(會一併裝 Node) [official]
 ffmpeg           影音轉檔、抽音軌與影格 [apt]
+uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv) [apt]（不建議：WSL 借 Windows 那份 Tailscale，抓不到自己的 tailnet IP，服務只會綁 127.0.0.1；朗讀服務建議放雲端主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]
 node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [mise]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [mise]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：WSL 不裝 Linux 的 Chrome，查原因到遠端主機做）
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [mise]
-agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 
 ## init 存下的設定
 [data]
@@ -40,7 +41,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "custom"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -48,7 +49,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg snapserver snapclient node codegraph playwright-cli agent-config
+zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapserver snapclient node codegraph playwright-cli agent-config
 
 ## 略過(裝不了)
 earlyoom headless-chrome
@@ -75,9 +76,9 @@ winget:
 "node" = "lts"
 "npm:@playwright/cli" = "latest"
 "ripgrep" = "latest"
-"uv" = "latest"
 "starship" = "latest"
 "ttyd" = "latest"
+"uv" = "latest"
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
@@ -383,9 +384,9 @@ echo "gh 已安裝。登入:gh auth login"
 #   "node" = "lts"
 #   "npm:@playwright/cli" = "latest"
 #   "ripgrep" = "latest"
-#   "uv" = "latest"
 #   "starship" = "latest"
 #   "ttyd" = "latest"
+#   "uv" = "latest"
 #
 # 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
 # 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
@@ -500,7 +501,7 @@ echo "snapclient 的系統服務已停用。收聽朗讀:snapclient --host <tail
 #!@BIN@/sh
 # 選裝工具 snapserver(選單見 .chezmoi.toml.tmpl,#290)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
 # 套件本身(snapserver、ffmpeg)由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml 的依賴套件);
-# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 由 mise 裝(同一張表),edge-tts 不另裝。
+# 朗讀指令 voice-out-speak 跑 edge-tts 用的 uv 是 runtime,勾 snapserver 就連帶裝(表上的 needsUv),edge-tts 不另裝。
 # 這支只做一件事:停用並關掉套件自帶的系統服務 —— 它監聽所有網卡(0.0.0.0)、開機自動啟動。
 # 改用 voice-out 開關的 user service(~/.config/systemd/user/voice-out.service),只綁 tailnet IP。
 # 步驟在共用樣板 sh-disable-system-service。

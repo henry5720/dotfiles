@@ -65,9 +65,9 @@ WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # Windows 可裝的(獨立的期望值):mise 裝得到的 CLI(herdr #309、snapclient #326、playwright-cli #327 見 mise-tools),
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
 # 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
-# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝)
+# 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝),加 mise 裝的 runtime uv(#341)
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
-                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "herdr", "bottom", "snapclient", "tailscale",
+                "gh", "cloudflared", "ttyd", "ffmpeg", "node", "uv", "herdr", "bottom", "snapclient", "tailscale",
                 "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
                 "wakatime"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,

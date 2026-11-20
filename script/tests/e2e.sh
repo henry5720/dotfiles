@@ -320,10 +320,12 @@ declare -A TOOL_CHECK=(
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
-  # 與它跑 edge-tts 用的 uv(mise 裝,選裝工具表上 snapserver 的依賴套件;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
+  # 與它跑 edge-tts 用的 uv(runtime,勾 snapserver 就連帶由 mise 裝,表上的 needsUv;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
   [snapserver]="command -v snapserver && command -v ffmpeg && [ -x ~/.local/bin/voice-out ] && [ -x ~/.local/bin/voice-out-speak ] && ~/.local/share/mise/shims/uv --version && [ ! -e ~/.local/bin/edge-tts ]"
   # Linux 是 apt 的 snapclient(收到串流由 check_snapclient 驗),Termux 是 pkg 的 snapcast-client
   [snapclient]="snapclient --version"
+  # runtime(#341):Linux 由 mise 裝(要是 mise 那份,不是 ~/.local/bin 的官方 installer 版);Termux 的 pkg 版在 scenario_termux 另外驗
+  [uv]="[ -d ~/.local/share/mise/installs/uv ] && ~/.local/share/mise/shims/uv --version"
   # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻,與保護保留服務、常駐服務的 drop-in(#298)。
   # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(主題文件)
   [earlyoom]="command -v earlyoom && grep -q -- '--avoid' /etc/default/earlyoom && grep -qx 'MemoryMin=512M' /etc/systemd/system/system.slice.d/50-earlyoom.conf && grep -qx 'MemoryMin=infinity' /etc/systemd/system/ssh.service.d/50-earlyoom.conf"
@@ -514,10 +516,14 @@ scenario_ubuntu() {
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入(mise 的 Node LTS,沒有 nvm,#342)
   check_tool node
   check "Node 是 mise 裝的、沒有 ~/.nvm" "~/.local/bin/mise which node | grep -q '/.local/share/mise/installs/node/' && [ ! -e ~/.nvm ]"
+  # 選單沒勾 uv,勾了 snapserver、agent-config 就要自動帶入(#341);agent-config 的測試用 uv run 跑
+  check_tool uv
+  check "uv run 跑得起來(agent-config 的測試這樣跑)" \
+    "~/.local/share/mise/shims/uv run --no-project python -c 'print(\"e2e-ok\")' | grep -qx e2e-ok"
   # 有 root 也用 mise,但只裝單一執行檔的(#233);vim 這類 conda 的照 apt(上面 check_tool vim 是 apt 那支)。
-  # uv 是 snapserver 的依賴套件(清單照選裝工具表的工具名排序、依賴接在工具後面,在 starship 前面)
-  check "有 root:mise 清單是勾了的單一執行檔工具,沒有 vim" \
-    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared eza fastfetch fzf ripgrep uv starship' ]"
+  # 清單照選裝工具表的工具名排序;Linux 的 codegraph、playwright-cli 走 npm backend(#342),node、uv 是被連帶裝的 runtime
+  check "有 root:mise 清單是勾了的單一執行檔工具、npm backend 與連帶的 runtime,沒有 vim" \
+    "[ -x ~/.local/bin/mise ] && [ \"\$(grep -oE '^\"[^\"]+\"' ~/.config/mise/conf.d/dotfiles.toml | tr -d '\"' | paste -sd' ')\" = 'bat bottom btop cloudflared npm:@colbymchenry/codegraph eza fastfetch fzf node npm:@playwright/cli ripgrep starship uv' ]"
   check "有 root:vim、btop 的來源(vim 是 apt、btop 不是 apt)" \
     "dpkg-query -W -f='\${Status}' vim | grep -q 'install ok installed' && ! dpkg-query -W -f='\${Status}' btop 2>/dev/null | grep -q 'install ok installed'"
   check_no_tool ttyd
@@ -1023,6 +1029,9 @@ scenario_ubuntu() {
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice node)") > /tmp/only-node.toml && $(printf "$use_is" custom /tmp/only-node.toml) && grep -qxF '$(toml_list node)' /tmp/only-node.toml"
   check "只勾 node:在空的 HOME apply exit 0、node 是 mise 的、沒有 ~/.nvm" \
     "rm -rf /tmp/only-node /tmp/only-node.boltdb && mkdir /tmp/only-node && HOME=/tmp/only-node chezmoi --source ~/.local/share/chezmoi --config /tmp/only-node.toml --persistent-state /tmp/only-node.boltdb apply --no-tty && HOME=/tmp/only-node bash -c '~/.local/share/mise/shims/node --version && ~/.local/share/mise/shims/npm --version && [ ! -e ~/.nvm ]'"
+  # 只勾 uv(#341):runtime 能單獨勾,裝的是 mise 那份
+  check "只勾 uv:選單勾 uv 存 custom,在空的 HOME apply exit 0、uv 是 mise 裝的" \
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice uv)") > /tmp/only-uv.toml && grep -qxF '$(toml_list uv)' /tmp/only-uv.toml && rm -rf /tmp/only-uv /tmp/only-uv.boltdb && mkdir /tmp/only-uv && HOME=/tmp/only-uv chezmoi --source ~/.local/share/chezmoi --config /tmp/only-uv.toml --persistent-state /tmp/only-uv.boltdb apply --no-tty && [ -d /tmp/only-uv/.local/share/mise/installs/uv ] && HOME=/tmp/only-uv /tmp/only-uv/.local/share/mise/shims/uv --version"
   check "只勾 codegraph:在空的 HOME apply exit 0、codegraph 能跑" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice codegraph)") > /tmp/only-cg.toml && rm -rf /tmp/only-cg /tmp/only-cg.boltdb && mkdir /tmp/only-cg && HOME=/tmp/only-cg chezmoi --source ~/.local/share/chezmoi --config /tmp/only-cg.toml --persistent-state /tmp/only-cg.boltdb apply --no-tty && HOME=/tmp/only-cg bash -c '~/.local/share/mise/shims/codegraph --version'"
 
@@ -1203,10 +1212,10 @@ scenario_termux() {
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
   check "chezmoi verify 通過" "chezmoi verify"
 
-  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、wakatime、codex、cloudflared、snapclient),
+  # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、uv、wakatime、codex、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
-  bold "▶ tools 勾 gh、node、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
-  local picks=gh/node/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
+  bold "▶ tools 勾 gh、node、uv、wakatime、codex、cloudflared、snapclient 與裝不了的 claude、headless-chrome"
+  local picks=gh/node/uv/wakatime/claude/codex/headless-chrome/cloudflared/snapclient
   check "tools 選自訂、勾 $picks:exit 0" \
     "~/.local/bin/tools --no-tty $(printf '%q ' "${SECRET_FLAGS[@]}")--promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice "$picks" "$ANDROID_ENV")") </dev/null > ~/e2e-tools.log 2>&1; rc=\$?; tail -n 15 ~/e2e-tools.log; [ \$rc = 0 ]"
   check "config 存自訂、tools 照勾的存(含裝不了的)" \
@@ -1215,6 +1224,7 @@ scenario_termux() {
   # snapclient(#292):pkg 的 snapcast-client,出聲靠它依賴的 pulseaudio(容器沒有音效裝置,只驗能執行)
   check "snapclient 用 pkg 的 snapcast-client 裝好,pulseaudio 跟著裝" \
     "dpkg-query -W -f='\${Status}' snapcast-client | grep -q 'install ok installed' && command -v pulseaudio && snapclient --version"
+  check "uv 用 pkg 裝好(#341,Termux 照 ADR 0005 的例外)" "dpkg-query -W -f='\${Status}' uv | grep -q 'install ok installed' && uv --version"
   check "cloudflared 用 pkg 裝好" "dpkg-query -W -f='\${Status}' cloudflared | grep -q 'install ok installed' && cloudflared --version"
   # Node 走 pkg 的 nodejs-lts,不走 nvm(nvm 的官方 binary 在 Android 跑不起來)
   check "node 是 pkg 的 nodejs-lts、沒有 ~/.nvm" \
@@ -1476,7 +1486,7 @@ noroot_full_checks() {
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qE -- '^- (gh|fastfetch|code-server|cloudflared):'"
   # 勾的、走 apt 的選裝工具(vim 除外,系統已有)每一項經 shims 跑得起來;claude 的 poppler-utils 看 pdftoppm
-  for t in btop btm gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared; do check_mise "$t"; done
+  for t in btop btm gh fastfetch code-server eza fzf bat rg starship ttyd cloudflared uv; do check_mise "$t"; done
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim

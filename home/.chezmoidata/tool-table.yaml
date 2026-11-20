@@ -35,6 +35,8 @@
 #          有這欄的工具,通用的官方 installer 腳本不碰它,由這支自己裝與設定。
 #   deps: 依賴套件,不上選單:<名字>: {cmd, install, 各裝法的資料},格式同上。工具裝得了才算它的依賴。
 #   needsNode: 要 Node 的 OS(勾了就連帶裝 Node,見 node 那筆;那個 OS 的裝法自帶 Node 的不列)。
+#   needsUv: 要 uv 的 OS(勾了就連帶裝 uv,見 uv 那筆),格式同 needsNode。
+#            node、uv 是 runtime(GLOSSARY):別的工具要靠它才跑得起來、也能單獨勾。runtime 與這種欄位的對照在 tool-install。
 #   rules: 不建議、裝不了的規則與給人看的原因,由上往下比,第一條 when 對到這台的就是它:
 #            - when: [<環境>…]        對到任一個就算(環境見 2.)
 #              state: discouraged 或 unsupported
@@ -389,9 +391,7 @@ toolTable:
           install: {linux: [apt, system, mise]}
           apt: [ffmpeg]
           mise: {tool: ffmpeg}
-        uv:
-          install: {linux: [mise]}
-          mise: {tool: uv}            # aqua:astral-sh/uv
+      needsUv: [linux]                # voice-out-speak 用 uv tool run 跑 edge-tts
       rules:
         - when: [windows]
           state: unsupported
@@ -455,6 +455,15 @@ toolTable:
         - when: [no-libatomic]
           state: unsupported
           reason: Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
+    # runtime(#341):Python 交給 uv,uv 自己下載專案要的 Python;系統 python3 只給 chezmoi 腳本。
+    # Linux、Windows 走 mise(單一執行檔,ADR 0005),macOS、Termux 照例外走 brew、pkg。勾了 needsUv 的工具也會連帶裝
+    uv:
+      docs: https://docs.astral.sh/uv/getting-started/installation/
+      checked: 2026-11-20
+      install: {linux: [mise], darwin: [brew], android: [pkg], windows: [mise]}
+      mise: {tool: uv}                # aqua:astral-sh/uv
+      brew: [uv]
+      pkg: [uv]
     # Windows 走 mise 的 aqua backend(#323):release 的 bundle 自帶 Node runtime,不用連帶裝 Node;
     # 官方 install.ps1 只放 codegraph.cmd,MCP 設定不經 shell 找不到。
     # Linux 走 mise 的 npm backend、連帶 mise 的 Node(#342,https://mise.jdx.dev/dev-tools/backends/npm.html);macOS 照舊 nvm 的 npm
@@ -545,6 +554,7 @@ toolTable:
           url: https://raw.githubusercontent.com/runkids/skillshare/main/install.ps1
           installed: {paths: ["Join-Path $env:LOCALAPPDATA 'Programs\\skillshare\\skillshare.exe'"]}
       setup: install-agent-config
+      needsUv: [linux, darwin, windows]   # agent-config 的測試用 uv run 跑
       deps:
         git:
           install: {windows: [winget]}

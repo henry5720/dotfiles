@@ -1,10 +1,10 @@
 {{- /* 勾了、但這台裝不了的工具(裝法判斷 tool-install 的 unsupported),照 .tools 的順序空白分隔;沒有就是空字串。
-       沒勾 node、卻被要 Node 的工具連帶(tool-install 的 wanted)而 node 裝不了時,node 接在最後。
+       沒勾的 runtime 被要它的工具連帶(tool-install 的 wanted)、這台卻裝不了時(例:沒有 libatomic 的 node,#342),照名字接在最後。
        run_onchange_after_record-env-skipped 記進略過彙整,run_after_zz-root-skipped-summary 看它決定要不要渲染。 */ -}}
 {{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
 {{- $out := list -}}
 {{- range index . "tools" -}}
 {{-   if eq (dig . "state" "" $status) "unsupported" }}{{ $out = append $out . }}{{ end -}}
 {{- end -}}
-{{- if and $status.node.wanted (eq $status.node.state "unsupported") (not (has "node" $out)) }}{{ $out = append $out "node" }}{{ end -}}
+{{- range $name, $entry := $status }}{{ if and (get $entry "wanted") (eq $entry.state "unsupported") (not (has $name $out)) }}{{ $out = append $out $name }}{{ end }}{{ end -}}
 {{- $out | join " " -}}

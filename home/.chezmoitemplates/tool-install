@@ -6,12 +6,13 @@
        輸出:
          env        這台對到的環境(rules 的 when 用的那些,例如 ["linux", "wsl"];環境的定義在表的「2. 環境」)
          needsNode  要不要裝 Node:勾了 node,或勾了 needsNode 有這個 OS 的工具(都要這台裝得了)
+         needsUv    要不要裝 uv:同上,看 uv 與 needsUv
          tools.<工具>(表上每個工具都有,不管勾了沒,選單要全部):
            state     ok、discouraged(不建議,照裝)、unsupported(裝不了)
            label     不建議、裝不了(state 是 ok 時空字串)        reason  原因(ok 時空字串;表上沒有這個 OS 的裝法、也沒有規則對到時是「沒有這個環境的裝法」)
-           ticked    有沒有勾                                     install 要不要裝:勾了(或 node 被連帶)而且不是 unsupported
+           ticked    有沒有勾                                     install 要不要裝:勾了(或 runtime 被連帶)而且不是 unsupported
            method    這台走的裝法(apt、pkg、brew、cask、winget、mise、builtin、system、official、script、deb);裝不了時空字串
-           wanted    (只有 node 有)勾了 node,或被要 Node 的工具連帶;裝不了時略過彙整照樣列出(tools-skipped)
+           wanted    (只有 runtime 有)勾了它,或被要它的工具連帶;裝不了時略過彙整照樣列出(tools-skipped)
            再加那個裝法的資料(只有用到的那一項):
              packages  apt、pkg、brew、cask、winget 的套件名清單
              mise      {tool, version, options}(version 預設 latest,options 預設 {})
@@ -44,6 +45,8 @@
 {{- $own := joinPath .chezmoi.homeDir ".local/share/mise" -}}
 {{- $labels := dict "ok" "" "discouraged" "不建議" "unsupported" "裝不了" -}}
 {{- $pickArgs := dict "table" $t "os" $os "have" $have "own" $own -}}
+{{- /* runtime(GLOSSARY,#341)→ 表上「要它的 OS」那一欄,輸出也用這個名字。加 runtime 在這裡加一項 */ -}}
+{{- $runtimes := dict "node" "needsNode" "uv" "needsUv" -}}
 
 {{- /* 2. 每個工具:先比 rules(unsupported 就定了),再依序試裝法,一個都用不了也是裝不了 */ -}}
 {{- $tools := dict -}}
@@ -67,21 +70,24 @@
 {{-     end -}}
 {{-   end -}}
 {{-   $entry := merge $r (dict "state" $state "label" (get $labels $state) "reason" $reason "ticked" (has $name $ticked)) -}}
-{{- /*   node 要不要裝還要看別的工具,第 3 步才算 */ -}}
-{{-   if ne $name "node" }}{{ $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) }}{{ end -}}
+{{- /*   runtime 要不要裝還要看別的工具,第 3 步才算 */ -}}
+{{-   if not (hasKey $runtimes $name) }}{{ $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) }}{{ end -}}
 {{-   with get $spec "setup" }}{{ $_ := set $entry "setup" . }}{{ end -}}
 {{-   $_ := set $tools $name $entry -}}
 {{- end -}}
 
-{{- /* 3. Node:勾了 node,或要裝的工具裡有要 Node 的(needsNode 有這個 OS);node 本身要這台裝得了 */ -}}
-{{- $node := get $tools "node" -}}
-{{- $wantNode := $node.ticked -}}
-{{- range $name, $spec := $t.tools -}}
-{{-   if and (ne $name "node") (get $tools $name).install (has $os (get $spec "needsNode" | default list)) }}{{ $wantNode = true }}{{ end -}}
+{{- /* 3. runtime:勾了它,或要裝的工具裡有要它的(needsNode、needsUv 有這個 OS);runtime 本身要這台裝得了 */ -}}
+{{- $out := dict -}}
+{{- range $rt, $field := $runtimes -}}
+{{-   $entry := get $tools $rt -}}
+{{-   $want := $entry.ticked -}}
+{{-   range $name, $spec := $t.tools -}}
+{{-     if and (not (hasKey $runtimes $name)) (get $tools $name).install (has $os (get $spec $field | default list)) }}{{ $want = true }}{{ end -}}
+{{-   end -}}
+{{-   $_ := set $entry "install" (and $want (ne $entry.state "unsupported")) -}}
+{{-   $_ := set $entry "wanted" $want -}}
+{{-   $_ := set $out $field $entry.install -}}
 {{- end -}}
-{{- $needsNode := and $wantNode (ne $node.state "unsupported") -}}
-{{- $_ := set $node "install" $needsNode -}}
-{{- $_ := set $node "wanted" $wantNode -}}
 
 {{- /* 4. 要裝的工具:算依賴、彙整清單 */ -}}
 {{- $lists := dict "apt" list "pkg" list "brew" list "cask" list "winget" list "mise" list "aptNeedsRoot" list -}}
@@ -108,4 +114,4 @@
 {{-   end -}}
 {{- end -}}
 
-{{- dict "env" $envs "needsNode" $needsNode "tools" $tools "lists" $lists | toJson -}}
+{{- merge $out (dict "env" $envs "tools" $tools "lists" $lists) | toJson -}}
