@@ -1,12 +1,14 @@
-{{- /* 要裝的選裝工具:勾了的(.tools)扣掉這台裝不了的(tools-skipped),空白分隔。
-       選裝工具的腳本、套件清單一律看它,不直接看 .tools:裝不了的勾了就安靜不裝,交給略過彙整。
+{{- /* 要裝的選裝工具:裝法判斷(tool-install)裡 install 為 true 的,空白分隔。
+       = 勾了、這台裝得了的,加上被別的工具連帶裝的 node(needsNode)。勾選的照 .tools 的順序,連帶的 node 接在最後。
+       選裝工具的腳本、套件清單一律看它或判斷結果,不直接看 .tools:裝不了的勾了就安靜不裝,交給略過彙整。
        用法:{{ if has "<工具>" (splitList " " (includeTemplate "tools-to-install" .)) }}
        includeTemplate 只回傳字串,所以呼叫端要自己 splitList 切回清單才能用 has。
        設定檔:zsh、starship 這類每台都裝得了的照舊看 .tools;各 client 的設定目錄(.chezmoiignore 後段)看它,
        裝不了的 client 不部署設定。 */ -}}
-{{- $skipped := splitList " " (includeTemplate "tools-skipped" .) -}}
+{{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
 {{- $out := list -}}
 {{- range index . "tools" -}}
-{{-   if not (has . $skipped) }}{{ $out = append $out . }}{{ end -}}
+{{-   if dig . "install" false $status }}{{ $out = append $out . }}{{ end -}}
 {{- end -}}
+{{- if and $status.node.install (not (has "node" $out)) }}{{ $out = append $out "node" }}{{ end -}}
 {{- $out | join " " -}}

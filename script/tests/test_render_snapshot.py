@@ -10,7 +10,7 @@
 套件清單(apt／pkg、brew、winget,從渲染出來的腳本抽出)、mise 清單、這台會管的腳本裡渲染成非空的那些與內容
 (渲染成空的只列名字)。
 
-環境用 --override-data 模擬(同 test_tool_env.py、test_windows.py),在 Linux 上直接渲染,不用容器。
+環境用 --override-data 模擬(同 test_tool_status.py、test_windows.py),在 Linux 上直接渲染,不用容器。
 跟這台裝了什麼無關:
 - PATH 只放 sh、ls、awk(home-owner-guard 要後兩個,不然 output 失敗),所以樣板的 lookPath(sudo、tailscale、
   選裝工具表 system 裝法的系統指令)一律找不到;node-runnable 的 `ldconfig -p | grep` 沒有 grep,libatomic 一律算沒有
@@ -35,7 +35,7 @@ from pathlib import Path
 
 # 用檔案路徑跑(重新產生那行)時,sys.path 沒有這個目錄
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_tool_env import SECRETS, TOOLS_PROMPT, USE_PROMPT, merge  # noqa: E402
+from test_tool_status import SECRETS, TOOLS_PROMPT, USE_PROMPT, merge  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / "script/tests/fixtures/render-snapshot"

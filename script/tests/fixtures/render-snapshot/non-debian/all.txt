@@ -432,7 +432,7 @@ fi
 ### .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 #!@BIN@/sh
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/packages.yaml)。
+# 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/tool-table.yaml 的 tailscale)。
 # 不會執行 tailscale up,登入與設定自己來。
 set -eu
 

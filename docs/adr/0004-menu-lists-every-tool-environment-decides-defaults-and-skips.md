@@ -11,11 +11,12 @@
 
 「工具 × 環境 → 狀態＋原因」只寫在選裝工具表 `home/.chezmoidata/tool-table.yaml`（各工具的 `install` 與 `rules`，spec #315），
 由裝法判斷 `home/.chezmoitemplates/tool-install` 算出；選單標註、預設組合、略過彙整、選裝工具的腳本、套件清單
-與各 client 的設定目錄（`.chezmoiignore`）都照它的結果。表上沒有裝法的環境自動算裝不了。
+與各 client 的設定目錄（`.chezmoiignore`）都照它的結果。表上沒有這個 OS 的裝法、也沒有規則對到時自動算裝不了，
+原因固定是「沒有這個環境的裝法」；要解釋的（有裝法卻用不了、刻意不裝）才在表上寫規則。
 config 樣板（`chezmoi init`）直接讀不到 data 目錄的值，但 `include ".chezmoidata/tool-table.yaml" | fromYaml` 讀得到
 （chezmoi 2.74.1 實測，`chezmoi init` 也一樣），所以判斷在 init 時用 `include` 讀表，apply 時直接用 data。
 （#331 以前規則寫成 `.chezmoitemplates/` 底下的樣板，就是因為當時以為 init 讀不到 data 目錄。）
-選裝工具的腳本與各 client 的設定目錄看 `tools-to-install`（勾了的扣掉裝不了的），裝不了的勾了就不跑、不部署；
+選裝工具的腳本與各 client 的設定目錄看 `tools-to-install`（判斷結果裡要裝的：勾了、裝得了的，加上被連帶裝的 node），裝不了的勾了就不跑、不部署；
 略過由一支 `run_onchange_after_record-env-skipped` 統一記下，`run_after_zz-root-skipped-summary` 跟「沒有 root」分兩段列出。
 加一個環境限制只要在表上那個工具加一條規則，不用改各工具的腳本。
 
@@ -41,7 +42,8 @@ Windows 的略過彙整是一支 `zz-env-skipped.ps1`。
 
 ## 代價
 
-- **選單文字變長。** 原因接在說明後面，終端機窄時會折行。原因要短，寫「為什麼不行、要的話怎麼辦」。
+- **選單文字變長。** 原因接在說明後面，終端機窄時會折行。原因要短，寫「為什麼不行、要的話怎麼辦」；
+  例外是沒有 root 的原因只寫事實、不教人怎麼做（#315 2026-11-20 的決定，通則要不要跟著改在 #339）。
 - **原因文字有字元限制。** 不能有半形 `/`（e2e 的 `--promptMultichoice` 拿它分隔選項）、`'`（略過腳本用單引號包它）、`=`；
   `script/tests/test_tool_table.py` 會擋。
 - **e2e 要在主機上渲染選單文字。** 標註依環境而變，`script/tests/e2e.sh` 的 `menu_choice` 改用主機的 chezmoi 渲染

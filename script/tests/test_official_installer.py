@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """官方 installer 照選裝工具表跑(#334,spec #315):Linux、macOS 一支 sh,Windows 一支 ps1。
 
-只看渲染出來的腳本(--override-data 模擬環境,同 test_tool_env.py、test_windows.py),不看判斷樣板內部。
+只看渲染出來的腳本(--override-data 模擬環境,同 test_tool_status.py、test_windows.py),不看判斷樣板內部。
 期望值(網址、參數、跳過條件)是 #334 之前各自那支腳本寫的,獨立於表,不從表算。
 跟這台裝了什麼無關:PATH 只放 sh、ls、awk(同 test_render_snapshot.py),sudo、code-server 一律找不到。
 """

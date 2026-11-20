@@ -12,8 +12,11 @@
        各工具 installer 自己的細節(code-server 設定檔、opencode 的 --no-modify-path…)寫在表那一筆旁邊。 */ -}}
 {{- $install := includeTemplate "tool-install" . | fromJson -}}
 {{- $run := list -}}
-{{- range $name, $t := $install.tools -}}
-{{-   if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) (eq $t.official.kind "sh") }}{{ $run = append $run $name }}{{ end -}}
+{{- /* 只看 OS 一次:official 的 sh、ps1 由 OS 決定(tool-install-pick),另一個 OS 渲染成空的 */ -}}
+{{- if ne .chezmoi.os "windows" -}}
+{{-   range $name, $t := $install.tools -}}
+{{-     if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) }}{{ $run = append $run $name }}{{ end -}}
+{{-   end -}}
 {{- end -}}
 {{- if $run -}}
 #!{{ lookPath "sh" }}

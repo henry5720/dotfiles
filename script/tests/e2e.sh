@@ -462,7 +462,7 @@ check_personal_chrome_attach_dry_run() {
 
 # 朗讀串流服務(#290)。容器的 PID 1 不是 systemd、也沒有 systemctl:user service 起不來,
 # 改成直接用部署的設定跑 snapserver,看三個 port 綁哪裡(容器裡 tailscale 沒登入,設定綁 127.0.0.1;
-# 綁 tailnet IP 由 test_tool_env 用假的 tailscale 驗)。/proc/net/tcp 的位址是十六進位:
+# 綁 tailnet IP 由 test_tool_status 用假的 tailscale 驗)。/proc/net/tcp 的位址是十六進位:
 # 0100007F = 127.0.0.1;port 06A8 = 1704(串流)、06A9 = 1705(控制)、06F4 = 1780(網頁);狀態 0A = LISTEN。
 check_snapserver() {
   check "snapserver 套件自帶的系統服務已停用(multi-user.target.wants 沒有它)" \
@@ -1425,12 +1425,13 @@ noroot_tailscale_checks() {
 }
 
 noroot_full_checks() {
-  # 沒有 root 時只能走 apt、.deb 的 earlyoom、snapserver、snapclient、headless-chrome 標裝不了(#332),完整不勾,
+  # 沒有 root 時只能走 apt、.deb 的 earlyoom、snapserver、snapclient、headless-chrome 標裝不了(#332),
+  # 用 headless-chrome 的 playwright-cli 跟著裝不了(#315 review),完整不勾,
   # 所以也沒有「這台裝不了」那段;略過彙整只剩要 root 的步驟
-  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome" \
-    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome)\"' <<<\"\$t\" && grep -q '\"playwright-cli\"' <<<\"\$t\""
+  check "完整不勾沒有 root 裝不了的 earlyoom、snapserver、snapclient、headless-chrome、playwright-cli" \
+    "t=\$(grep '^    tools = ' ~/.config/chezmoi/chezmoi.toml); echo \"\$t\"; ! grep -qE '\"(earlyoom|snapserver|snapclient|headless-chrome|playwright-cli)\"' <<<\"\$t\""
   check "沒有「這台裝不了」那段" "! grep -q '以下選裝工具已略過' ~/e2e-init.log"
-  for s in tailscale "nvm 與 Node" codegraph playwright-cli 系統套件; do
+  for s in tailscale "nvm 與 Node" codegraph 系統套件; do
     check_skipped "$s"
   done
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
@@ -1448,7 +1449,7 @@ noroot_full_checks() {
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check_no_browser_wrappers
-  check_personal_chrome_attach yes
+  check_personal_chrome_attach no
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \

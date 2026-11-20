@@ -57,7 +57,7 @@ SCRIPTS = ROOT / "home/.chezmoiscripts"
 TERMINAL_SETTINGS = "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
 TERMINAL_FIXTURE = ROOT / "script/tests/fixtures/windows-terminal-settings.json"
 PS51_PROFILE_GUID = "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}"
-# 提示文字(要跟 config 樣板一字不差,同 test_tool_env.py)
+# 提示文字(要跟 config 樣板一字不差,同 test_tool_status.py)
 USE_PROMPT = "用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）"
 TOOLS_PROMPT = "選裝工具（空白鍵勾選、Enter 確定；用途選錯按 Ctrl+C 重來）"
 # Windows 的精簡:精簡扣掉裝不了的 zsh(PowerShell 是 Windows 的 shell)

@@ -19,12 +19,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_render_snapshot import ENVS, SELECTIONS, Renderer, path_of  # noqa: E402
-from test_tool_env import menu_tools  # noqa: E402
+from test_tool_status import menu_tools  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 RESOLVE = '{{ includeTemplate "tool-install" . }}'
 MENU = '{{ includeTemplate "tool-menu-labels" . }}'
 TABLE = '{{ include ".chezmoidata/tool-table.yaml" | fromYaml | toJson }}'
+NO_METHOD = "沒有這個環境的裝法"  # 表上沒有這個 OS 的裝法、也沒有規則對到時的原因
 
 
 def table():
@@ -170,14 +171,21 @@ class ToolTableTest(unittest.TestCase):
                 with self.subTest(env=env, line=line):
                     self.assertFalse(set(line) & set("/'="))
 
-    def test_every_unsupported_reason_is_written_in_the_table(self):
-        # 原因只來自表上的 rules,不由判斷照缺的條件組(#335);沒有 root 的 headless-chrome、snapserver 也寫成規則
+    def test_unsupported_reason_is_a_rule_or_no_method_for_this_os(self):
+        # 原因只在要解釋時才寫成規則(spec #315 user story 3、4):表上沒有這個 OS 的裝法、又沒有規則對到 →
+        # 固定的「沒有這個環境的裝法」;有這個 OS 的裝法卻一個都用不了,要寫規則說為什麼(不由判斷照缺的條件組,#335)。
+        # 沒有 root 的 headless-chrome、snapserver 也寫成規則
         for env, res in self.status.items():
+            os_name = ENVS[env]["chezmoi"]["os"]
             for name, entry in res["tools"].items():
                 if entry["state"] == "ok":
                     continue
+                written = [r["reason"] for r in self.table["tools"][name].get("rules", [])]
                 with self.subTest(env=env, tool=name):
-                    self.assertIn(entry["reason"], [r["reason"] for r in self.table["tools"][name].get("rules", [])])
+                    if os_name in self.table["tools"][name]["install"]:
+                        self.assertIn(entry["reason"], written)
+                    else:
+                        self.assertIn(entry["reason"], [*written, NO_METHOD])
         tools = self.status["debian-noroot"]["tools"]
         self.assertEqual({n: tools[n]["reason"] for n in ("headless-chrome", "snapserver")}, {
             "headless-chrome": "Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt",
@@ -207,6 +215,18 @@ class ToolTableTest(unittest.TestCase):
         self.assertEqual(self.status["debian-root"]["tools"]["snapclient"]["state"], "ok")
         self.assertEqual(self.status["android"]["tools"]["snapclient"]["state"], "ok")
 
+    def test_playwright_cli_is_unsupported_wherever_headless_chrome_is(self):
+        # playwright-cli 用 headless-chrome:Linux 上 headless-chrome 裝不了的環境,選單上 playwright-cli 也標裝不了
+        # (沒有 root 的 Debian 系以前沒對齊,選單說裝得了、headless-chrome 卻裝不了)
+        for env, res in self.status.items():
+            if ENVS[env]["chezmoi"]["os"] != "linux":
+                continue
+            with self.subTest(env=env):
+                self.assertEqual(res["tools"]["playwright-cli"]["state"] == "unsupported",
+                                 res["tools"]["headless-chrome"]["state"] == "unsupported")
+        self.assertEqual(self.status["debian-noroot"]["tools"]["playwright-cli"]["reason"],
+                         "它用 headless-chrome，這台裝不了 headless-chrome")
+
     def test_noroot_skip_summary_prints_the_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Renderer(tmp).run(dict(ENVS["debian-noroot"], tools=["earlyoom", "fzf"]), "execute-template",
@@ -230,6 +250,33 @@ class ToolTableTest(unittest.TestCase):
         hits = [f"{p.relative_to(ROOT)}:{m.group(0)}" for p in files if p != Path(__file__).resolve()
                 for m in pattern.finditer(p.read_text(errors="ignore"))]
         self.assertEqual(hits, [])
+
+    def test_linux_only_tool_needs_no_reasons_for_other_oses(self):
+        # 只寫 linux 裝法、沒有 rules 的假工具:其他 OS 自動裝不了,原因是固定的「沒有這個環境的裝法」,不用另寫規則
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "src"
+            shutil.copytree(ROOT / "home", src / "home", symlinks=True)
+            shutil.copy(ROOT / ".chezmoiroot", src / ".chezmoiroot")
+            with (src / "home/.chezmoidata/tool-table.yaml").open("a", encoding="utf-8") as f:
+                f.write("    linuxonly:\n"
+                        "      docs: https://example.com/linuxonly\n"
+                        "      checked: 2026-11-20\n"
+                        "      install: {linux: [mise]}\n"
+                        "      mise: {tool: linuxonly}\n")
+            with (src / "home/.chezmoitemplates/tool-menu").open("a", encoding="utf-8") as f:
+                f.write("linuxonly 只有 Linux 裝法的假工具\n")
+            (Path(tmp) / "r").mkdir()
+            r = Renderer(Path(tmp) / "r", source=src)
+            got = {env: json.loads(r.run(dict(ENVS[env], tools=["linuxonly"]), "execute-template", RESOLVE))
+                   ["tools"]["linuxonly"] for env in ("debian-noroot", "darwin", "android", "windows")}
+            menu = r.menu("darwin")
+        self.assertEqual({e: (t["state"], t["method"], t["reason"]) for e, t in got.items()}, {
+            "debian-noroot": ("ok", "mise", ""),
+            "darwin": ("unsupported", "", "沒有這個環境的裝法"),
+            "android": ("unsupported", "", "沒有這個環境的裝法"),
+            "windows": ("unsupported", "", "沒有這個環境的裝法"),
+        })
+        self.assertRegex(menu, r"(?m)^linuxonly +只有 Linux 裝法的假工具（裝不了：沒有這個環境的裝法）$")
 
     def test_adding_a_tool_takes_a_table_entry_and_a_menu_line(self):
         # 照 .chezmoi.toml.tmpl 選單上方的說明加一個走既有裝法的假工具:只改表、加選單說明,
@@ -276,9 +323,10 @@ class ToolTableTest(unittest.TestCase):
                 if not self.known(env, aspect, x)]
 
     def test_installing_matches_tools_to_install(self):
+        # tools-to-install 就是判斷的 install(#315 review):被連帶裝的 node 也算,消費端跟判斷不會各算一份
         diffs = []
         for (env, sel), res in self.resolved.items():
-            got = {n for n, t in res["tools"].items() if t["ticked"] and t["install"]}
+            got = {n for n, t in res["tools"].items() if t["install"]}
             diffs += self.compare(env, "installing", set(self.snap[env, sel]["installing"]), got)
         self.assertFalse(sorted(set(diffs)), "\n".join(sorted(set(diffs))))
 
@@ -390,7 +438,8 @@ class ToolTableTest(unittest.TestCase):
 
     def test_libatomic_stays_in_apt_list_without_root(self):
         # 決定(#315 2026-11-20):依賴裝不了不擋 node,缺 libatomic1 照舊在執行時由套件腳本印手動指令
-        for sel in ("node", "codegraph", "playwright-cli", "opencode", "wakatime", "full"):
+        # (playwright-cli 在沒有 root 的 Debian 系跟 headless-chrome 一樣裝不了,不連帶裝 node,不在這裡)
+        for sel in ("node", "codegraph", "opencode", "wakatime", "full"):
             with self.subTest(sel=sel):
                 self.assertEqual(self.snap["debian-noroot", sel]["packages"]["apt/pkg"][-1], "libatomic1")
         self.assertNotIn("earlyoom", self.snap["debian-noroot", "full"]["packages"]["apt/pkg"])
@@ -442,7 +491,7 @@ class ToolTableTest(unittest.TestCase):
 
     def test_reasons_are_menu_safe(self):
         # ADR 0004:原因接在選單文字後面,半形 / 會被 e2e 的 --promptMultichoice 切開,' 弄壞略過腳本的引號
-        reasons = [r["reason"] for t in self.table["tools"].values() for r in t.get("rules", [])]
+        reasons = [r["reason"] for t in self.table["tools"].values() for r in t.get("rules", [])] + [NO_METHOD]
         self.assertTrue(reasons)
         for reason in reasons:
             with self.subTest(reason=reason):
@@ -458,6 +507,33 @@ class ToolTableTest(unittest.TestCase):
             with self.subTest(tool=name, env=env):
                 rule = next(r for r in self.table["tools"][name]["rules"] if env in r["when"])
                 self.assertIsInstance(rule.get("issue"), int)
+
+    def test_issue_rules_only_match_where_no_install_method_works(self):
+        # 帶 issue 的規則 = 「還沒寫裝法」:它對到的環境,拿掉所有規則時這個工具也一定沒有用得了的裝法。
+        # 不然補了裝法之後,舊規則還是一直擋著(#309 的 herdr 就是這樣)
+        no_rules = {"toolTable": {"tools": {n: {"rules": []} for n in self.table["tools"]}}}
+        with tempfile.TemporaryDirectory() as tmp:
+            r = Renderer(tmp)
+            with ThreadPoolExecutor() as pool:
+                bare = dict(zip(ENVS, pool.map(
+                    lambda env: json.loads(r.run(dict(ENVS[env], **no_rules), "execute-template", RESOLVE)), ENVS)))
+        checked = 0
+        for name, tool in self.table["tools"].items():
+            for rule in tool.get("rules", []):
+                if "issue" not in rule:
+                    continue
+                for env in ENVS:
+                    if not set(rule["when"]) & set(self.status[env]["env"]):
+                        continue
+                    checked += 1
+                    with self.subTest(tool=name, env=env, when=rule["when"]):
+                        self.assertEqual(bare[env]["tools"][name]["method"], "")
+        self.assertTrue(checked)
+
+    def test_issue_rules_point_at_the_open_tracking_issue(self):
+        # 「還沒寫裝法」追蹤在 #348(spec #315 收尾時開的)
+        issues = {r["issue"] for t in self.table["tools"].values() for r in t.get("rules", []) if "issue" in r}
+        self.assertEqual(issues, {348})
 
     def test_every_install_method_is_a_known_method(self):
         methods = set(self.table["methods"])

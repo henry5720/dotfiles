@@ -8,7 +8,7 @@
          needsNode  要不要裝 Node:勾了 node,或勾了 needsNode 有這個 OS 的工具(都要這台裝得了)
          tools.<工具>(表上每個工具都有,不管勾了沒,選單要全部):
            state     ok、discouraged(不建議,照裝)、unsupported(裝不了)
-           label     不建議、裝不了(state 是 ok 時空字串)        reason  原因(ok 時空字串)
+           label     不建議、裝不了(state 是 ok 時空字串)        reason  原因(ok 時空字串;表上沒有這個 OS 的裝法、也沒有規則對到時是「沒有這個環境的裝法」)
            ticked    有沒有勾                                     install 要不要裝:勾了(或 node 被連帶)而且不是 unsupported
            method    這台走的裝法(apt、pkg、brew、cask、winget、mise、builtin、system、official、script、deb);裝不了時空字串
            再加那個裝法的資料(只有用到的那一項):
@@ -57,21 +57,27 @@
 {{-   $r := dict "method" "" -}}
 {{-   if ne $state "unsupported" -}}
 {{-     $r = includeTemplate "tool-install-pick" (merge (dict "name" $name "spec" $spec) $pickArgs) | fromJson -}}
-{{-     if not $r.method }}{{ $state = "unsupported" }}{{ $reason = "表上沒有寫這台的原因" }}{{ end -}}
+{{- /*     都用不了:原因只在要解釋時寫成規則(spec #315)。沒有這個 OS 的裝法是事實,原因固定、不用另寫;
+           有這個 OS 的裝法卻都用不了,表上要有規則說為什麼(測試擋),所以前一句不會出現在選單上 */ -}}
+{{-     if not $r.method -}}
+{{-       $state = "unsupported" -}}
+{{-       $reason = ternary "這台用不了表上寫的裝法" "沒有這個環境的裝法" (hasKey $spec.install $os) -}}
+{{-     end -}}
 {{-   end -}}
 {{-   $entry := merge $r (dict "state" $state "label" (get $labels $state) "reason" $reason "ticked" (has $name $ticked)) -}}
-{{-   $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) -}}
+{{- /*   node 要不要裝還要看別的工具,第 3 步才算 */ -}}
+{{-   if ne $name "node" }}{{ $_ := set $entry "install" (and $entry.ticked (ne $state "unsupported")) }}{{ end -}}
 {{-   with get $spec "setup" }}{{ $_ := set $entry "setup" . }}{{ end -}}
 {{-   $_ := set $tools $name $entry -}}
 {{- end -}}
 
-{{- /* 3. Node:勾了 node,或勾了要 Node 的工具(needsNode 有這個 OS) */ -}}
-{{- $needsNode := (get $tools "node").install -}}
-{{- range $name, $spec := $t.tools -}}
-{{-   if and (get $tools $name).install (has $os (get $spec "needsNode" | default list)) }}{{ $needsNode = true }}{{ end -}}
-{{- end -}}
+{{- /* 3. Node:勾了 node,或要裝的工具裡有要 Node 的(needsNode 有這個 OS);node 本身要這台裝得了 */ -}}
 {{- $node := get $tools "node" -}}
-{{- $needsNode = and $needsNode (ne $node.state "unsupported") -}}
+{{- $wantNode := $node.ticked -}}
+{{- range $name, $spec := $t.tools -}}
+{{-   if and (ne $name "node") (get $tools $name).install (has $os (get $spec "needsNode" | default list)) }}{{ $wantNode = true }}{{ end -}}
+{{- end -}}
+{{- $needsNode := and $wantNode (ne $node.state "unsupported") -}}
 {{- $_ := set $node "install" $needsNode -}}
 
 {{- /* 4. 要裝的工具:算依賴、彙整清單 */ -}}
@@ -86,7 +92,9 @@
 {{-     $_ := set $d "state" (ternary "ok" "unsupported" (ne $d.method "")) -}}
 {{-     $_ := set $deps $dep $d -}}
 {{-     if $d.method }}{{ $picked = append $picked $d }}{{ end -}}
-{{-     if and (not $d.method) (hasKey $have "debian") (has "apt" (dig "install" $os list $dspec)) -}}
+{{-     $aptOnThisOs := has "apt" (dig "install" $os list $dspec) -}}
+{{-     $onlyMissingRoot := and (not $d.method) (hasKey $have "debian") $aptOnThisOs -}}
+{{-     if $onlyMissingRoot -}}
 {{-       $_ := set $lists "aptNeedsRoot" (concat (get $lists "aptNeedsRoot") (get $dspec "apt") | uniq) -}}
 {{-     end -}}
 {{-   end -}}

@@ -2,10 +2,11 @@
        輸入(dict):name 工具或依賴套件的名字、spec 表上那一筆、table 整張表(toolTable)、os、have 這台有的環境條件(root、debian、amd64 → true)、
                    own mise 自己的目錄(system 裝法排除它)。
        輸出 JSON:用得了 → {"method": 裝法, 再加那個裝法的資料(見 tool-install 開頭)};
-                 一個都用不了 → {"method": ""}。原因不在這裡組,一律寫在表的 rules(#335)。
+                 一個都用不了 → {"method": ""}。原因不在這裡組(表的 rules,或 tool-install 第 2 步的固定原因,#335)。
        裝法能不能用的規則寫在 .chezmoidata/tool-table.yaml 的「3. 裝法能不能用」。 */ -}}
 {{- $spec := .spec -}}
 {{- $os := .os -}}
+{{- $kind := ternary "ps1" "sh" (eq $os "windows") -}}{{- /* official 用哪一份 installer */ -}}
 {{- $order := dig "install" $os list $spec -}}
 {{- $out := dict "method" "" -}}
 {{- range $m := $order -}}
@@ -20,7 +21,7 @@
 {{-       $p := lookPath (default $.name (dig "cmd" "" $spec)) -}}
 {{-       if or (not $p) (hasPrefix $.own $p) }}{{ $no = true }}{{ end -}}
 {{-     else if eq $m "official" -}}
-{{-       if not (dig "official" (ternary "ps1" "sh" (eq $os "windows")) "url" "" $spec) }}{{ $no = true }}{{ end -}}
+{{-       if not (dig "official" $kind "url" "" $spec) }}{{ $no = true }}{{ end -}}
 {{-     end -}}
 {{-   end -}}
 {{-   if $no }}{{ continue }}{{ end -}}
@@ -31,7 +32,6 @@
 {{-     $mise := get $spec "mise" -}}
 {{-     $_ := set $out "mise" (dict "tool" $mise.tool "version" (dig "version" "latest" $mise) "options" (dig "options" dict $mise)) -}}
 {{-   else if eq $m "official" -}}
-{{-     $kind := ternary "ps1" "sh" (eq $os "windows") -}}
 {{-     $_ := set $out "official" (merge (dict "kind" $kind) (dig "official" $kind dict $spec)) -}}
 {{-   else if eq $m "script" -}}
 {{-     $_ := set $out "script" (dig "script" "name" "" $spec) -}}

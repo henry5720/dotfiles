@@ -28,7 +28,7 @@ snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
-playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
 
 ## init 存下的設定
@@ -44,13 +44,13 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     codexModel = ""
 
 ## 要裝
-playwright-cli
+
 
 ## 略過(裝不了)
-
+playwright-cli
 
 ## 套件清單
-apt/pkg: git curl python3 libatomic1
+apt/pkg: git curl python3
 brew: 
 brew cask: 
 winget: 
@@ -66,13 +66,14 @@ winget:
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
-.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
@@ -81,9 +82,8 @@ winget:
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
-.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
@@ -234,49 +234,6 @@ for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
 
-### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
-# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
-# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
-# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
-# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
-set -eu
-
-# 1. 已經有就不重裝
-if [ -d "$HOME/.nvm" ]; then
-  echo "nvm 已安裝,跳過"
-  exit 0
-fi
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟(手動方式可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <手動怎麼做>
-  echo "略過 $1(沒有 root)。手動:$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
-skip_root "nvm 與 Node" "Node 官方 binary 要系統函式庫 libatomic.so.1,這台沒有。請有 root 的人跑 sudo apt-get install -y libatomic1(或系統的同名套件),之後 chezmoi apply 會自己補裝"
-exit 0
-# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
-#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
-PROFILE=/dev/null bash "$tmp/install.sh"
-bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
-
 ### .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 #!@BIN@/sh
 # 沒有 root 又沒有 ssh 的機器(例:TeamSync 工作區)把 openssh-client 解到家目錄。不分用途、不在選單上。
@@ -364,31 +321,14 @@ done
 # 6. 確認真的能跑(缺函式庫時 ssh -V 會失敗):跑不起來就拿掉 wrapper,免得 PATH 上有一支壞的 ssh
 "$bin/ssh" -V || give_up "解出來的 ssh 跑不起來(缺函式庫?)"
 
-### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 #!@BIN@/sh
-# 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# agent 操作瀏覽器用它(ADR 0001)。瀏覽器用的是 headless-chrome 裝的 /opt/google/chrome/chrome,
-# 沒有那支就報錯,不會自己下載。
-#
-# 檔名刻意不叫 install-playwright-cli:理由同 npm-install-codegraph,要排在 install-node 之後。
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
 set -eu
 
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
-
-# 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
-#    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
-min=0.1.23
-version_ok() {
-  v=$(playwright-cli --version 2>/dev/null) || return 1
-  [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
-}
-
-# 沒有 root、系統又沒有 libatomic.so.1(.chezmoitemplates/node-runnable):Node 跑不起來,略過。
-# 之後系統補上它,這段渲染結果會變,run_onchange_ 會重跑。
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
@@ -405,24 +345,7 @@ skip_env() {  # skip_env <工具> <原因>
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }
 
-skip_root "playwright-cli" "要 Node,跟著上面「nvm 與 Node」那項"
-exit 0
-# 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-if version_ok; then
-  echo "playwright-cli $(playwright-cli --version) 已 ≥ $min,不重裝"
-else
-  npm install -g @playwright/cli@latest
-  version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
-fi
-
-# 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
-#    用 CLI 自己的 install-browser 裝(等同 playwright 官方的 `playwright install ffmpeg`),下載到
-#    ~/.cache/ms-playwright、不用 root;已經有就不重下載。
-playwright-cli install-browser ffmpeg
-
-# 5. 沒有 Chrome 只提醒,不算失敗:CLI 本身裝好了,之後補勾 headless-chrome 就能用
-[ -x /opt/google/chrome/chrome ] || echo "playwright-cli 找不到 /opt/google/chrome/chrome:要開瀏覽器請一起勾 headless-chrome" >&2
+skip_env 'playwright-cli' '它用 headless-chrome，這台裝不了 headless-chrome'
 
 ### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 #!@BIN@/sh
@@ -475,7 +398,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3 libatomic1; do
+for pkg in git curl python3; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

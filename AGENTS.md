@@ -107,7 +107,7 @@ config 樣板的 windows 分支)時:
 | 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 |
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 |
 | 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 |
-| 8 | 改到 `.ps1` 腳本、`packages.yaml`、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 |
+| 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 |
 | 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` |
 | 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 |
 | 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 |
@@ -123,7 +123,7 @@ config 樣板的 windows 分支)時:
 照 spec 做(`/implement-spec`)時,每張 ticket 只跑單元測試(含 `test_render_snapshot.py` 的渲染快照,快照有變的格子逐格說明原因);
 容器 e2e 三個目標、macOS workflow、Windows 實機清單,以及在這台跑 `chezmoi --source <integration worktree>/home diff`
 (只看、不 apply:已經裝好的機器換到這個分支會被改到什麼),在 integration 分支所有 ticket 併完後各跑一次,全過才把 PR 標成 ready。
-這台是 company-ec2,不在這裡 apply 測試分支。
+不要在自己日常用的主機 apply 測試分支;那台的 `chezmoi diff` 只看、不套用。
 
 改完 `home/` 底下的檔案要 `chezmoi apply` 才生效。**不要直接改家目錄那份**:不會回到 repo,
 下次 apply 還會被蓋掉。真的動了家目錄那份就 `chezmoi re-add` 收回來。

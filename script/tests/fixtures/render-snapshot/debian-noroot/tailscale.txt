@@ -28,7 +28,7 @@ snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機
 node             Node LTS（Linux、macOS 用 nvm 裝，Termux 用 pkg，Windows 用 mise；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
-playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(用 headless-chrome,會一併裝 Node)（裝不了：它用 headless-chrome，這台裝不了 headless-chrome）
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo) [official]
 
 ## init 存下的設定
@@ -324,7 +324,7 @@ done
 ### .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 #!@BIN@/sh
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/packages.yaml)。
+# 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/tool-table.yaml 的 tailscale)。
 # 不會執行 tailscale up,登入與設定自己來。
 set -eu
 

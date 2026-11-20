@@ -45,7 +45,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
 
-只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
+只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，與用 `headless-chrome` 的 `playwright-cli`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
 勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。管理員裝過 snapserver、snapclient 的話，
 套件自帶、開機自動啟動的系統服務也要他停（見 [voice-out](../remote-access/voice-out.md)）。
 
@@ -61,7 +61,7 @@ Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官
 |---|---|
 | 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 請有 root 的人跑彙整裡那行 `sudo apt-get install` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
-| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph、playwright-cli 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
+| nvm 與 Node（勾了 `node` 或要 Node 的工具才有；codegraph 跟著略過；opencode、wakatime 照裝，但要 node 的部分跑不起來） | 只在系統沒有 `libatomic.so.1` 時略過，請有 root 的人裝 `libatomic1` |
 | ssh | 解不開 openssh-client 時才有，請有 root 的人裝 |
 
 略過的步驟不會每次 apply 都重印；之後有了 root（或補上 `libatomic1`），下一次 `chezmoi apply` 會自己把它們跑一遍。

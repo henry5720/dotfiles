@@ -46,7 +46,7 @@ agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(a
     args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
 
 ## 要裝
-playwright-cli
+playwright-cli node
 
 ## 略過(裝不了)
 

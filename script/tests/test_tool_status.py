@@ -53,7 +53,7 @@ def menu_tools():
     return [l.split(" ")[0] for l in text.splitlines() if l[:1].isalpha()]
 
 
-class ToolEnvTest(unittest.TestCase):
+class ToolStatusTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)

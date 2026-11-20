@@ -14,8 +14,11 @@
        3. 裝失敗只印手動指令、繼續下一個,最後 exit 0:不然 apply 中止。代價是不會自動重試 */ -}}
 {{- $install := includeTemplate "tool-install" . | fromJson -}}
 {{- $run := list -}}
-{{- range $name, $t := $install.tools -}}
-{{-   if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) (eq $t.official.kind "ps1") }}{{ $run = append $run $name }}{{ end -}}
+{{- /* 只看 OS 一次:official 的 sh、ps1 由 OS 決定(tool-install-pick),另一個 OS 渲染成空的 */ -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   range $name, $t := $install.tools -}}
+{{-     if and $t.install (eq $t.method "official") (not (hasKey $t "setup")) }}{{ $run = append $run $name }}{{ end -}}
+{{-   end -}}
 {{- end -}}
 {{- if $run -}}
 {{ includeTemplate "ps1-text" . }}
