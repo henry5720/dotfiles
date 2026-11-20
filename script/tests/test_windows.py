@@ -250,6 +250,13 @@ class WindowsDeployTest(unittest.TestCase):
                              data={"tools": ["opencode"]})
         self.assertNotIn("opencode", linux)
 
+    def test_windows_opencode_runs_its_postinstall(self):
+        # mise 的 npm backend 預設不跑 lifecycle script:opencode-ai 的 bin/opencode.exe 是佔位檔,
+        # 要 postinstall 換成平台套件裡的真執行檔(henry-desktop 實測沒跑時 opencode --version 失敗)。
+        # tool option allow_builds 只放行 opencode-ai 自己的 script
+        out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["opencode"])
+        self.assertIn('"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }', out)
+
     def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
         # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),
         # 所以不連帶列 Node LTS;shim 是 codegraph.exe,MCP 設定的 command: codegraph 找得到。

@@ -13,6 +13,9 @@
        opencode 勾了列 npm backend 的 opencode-ai(#318):OpenCode 沒有 Windows 的 install.ps1(官方 curl installer
        在 Windows 要 Git Bash),官方 OpenCode 1 文件列了 npm 與 mise。opencode-ai 只有 OpenCode 1,跟 Linux 的
        opencode.ai/install 同一個大版本(設定檔通用);mise registry 的短名 opencode 已經指到 OpenCode 2 的 @opencode/cli。
+       allow_builds 放行 opencode-ai 自己的 postinstall:mise 的 npm backend 預設不跑 lifecycle script
+       (https://mise.jdx.dev/dev-tools/backends/npm.html),不跑的話 bin/opencode.exe 是印「postinstall script was
+       not run」的佔位檔,真執行檔在平台套件 opencode-windows-x64 裡(henry-desktop 實測)。只點名它,不開 allow_builds = true。
        Linux、macOS 照舊官方 installer(install-opencode)。
        codegraph 勾了列 registry 的短名 codegraph(#323):指到 aqua:colbymchenry/codegraph,裝官方 release 的
        codegraph-win32-<arch>.zip(自帶 Node runtime,不要 mise 的 Node;packages.yaml 的 nodeToolsSkip)。
@@ -49,7 +52,7 @@
 "npm:@playwright/cli" = "latest"
 {{- end -}}
 {{- if has "opencode" $installing }}
-"npm:opencode-ai" = "latest"
+"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
 {{- end -}}
 {{- if has "codegraph" $installing }}
 "codegraph" = "latest"
