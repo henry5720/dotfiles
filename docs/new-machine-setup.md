@@ -8,9 +8,9 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome、playwright-cli 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](remote-access/browser.md)） |
-| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome、playwright-cli 標裝不了 |
-| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單（headless Chrome、playwright-cli 標裝不了），套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask）；Homebrew 要先自己裝 |
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](remote-access/browser.md)） |
+| 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome 標裝不了 |
+| macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單，套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask、headless Chrome 是 `google-chrome` cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、bottom、code-server、headless Chrome、playwright-cli、claude、opencode、herdr、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu），codex 走 `pkg`；終端機字型、`authorized_keys` |
 | Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale、Chrome）用 winget 裝；claude、codex 與 agent-config 的 skillshare 走官方 install.ps1、opencode、codegraph 走 mise、wakatime 的 plugin 跟 Linux 同樣由 agent 裝；zsh、btop、code-server 這類沒有 Windows 裝法的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單，勾了 opencode 加它的設定、勾了 agent-config 加 skillshare 的設定、勾了 wakatime 加 `.wakatime.cfg`），只跑 `.ps1` 腳本；見[Windows 主機](install/windows.md) |
 
@@ -218,7 +218,8 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 選單上每一項後面都有一句說明和這台會走的裝法（例如 `[apt]`、`[mise]`），清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
-WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`、`playwright-cli`；沒有 root 的機器裝不了 `headless-chrome`。
+WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`；沒有 root 的機器裝不了 `headless-chrome`。
+`playwright-cli` 除了原生 Termux 都裝得了，沒有本機 Chrome 時用 `attach` 接遠端瀏覽器（見 [playwright-cli](ai-agent/playwright-cli.md)）。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
 `snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 走 mise 裝官方 release 的 zip；非 Debian 系裝不了，proot Ubuntu 標不建議。

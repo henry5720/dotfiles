@@ -90,9 +90,12 @@ jobs:
         run: |
           summary=$(sed -n '/^== 這台裝不了,以下選裝工具已略過/,$p' "$RUNNER_TEMP/init.log")
           printf '%s\n' "$summary"
-          for t in playwright-cli snapserver earlyoom; do
+          for t in snapserver earlyoom; do
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
+          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 npm 裝,不在略過彙整
+          ! grep -q -- "^- playwright-cli:" <<<"$summary" || { echo "playwright-cli 被略過了" >&2; exit 1; }
+          . ~/.nvm/nvm.sh && playwright-cli --version
 
       # 4b. headless-chrome 在 macOS 走 brew 的 google-chrome cask(#348)。runner 多半已經預裝 Chrome,
       #     那時 brew 裝 cask 失敗、印略過(同 tailscale),apply 照樣跑完;兩種結果都要有 Chrome.app
