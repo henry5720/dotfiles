@@ -11,7 +11,8 @@
        說明都寫在這種樣板註解裡,訊息經 .chezmoitemplates/ps1-text 的 T 解 base64。
 
        1. 沒有 winget(App Installer)就印一行、exit 0:後面的腳本照跑,只是 app 沒裝
-       2. 每個 id 先 winget list 看裝了沒,裝了就跳過(Win11 內建的 Terminal、已經手動裝的 pwsh)
+       2. 每個 id 先 winget list 看裝了沒,裝了就跳過(Win11 內建的 Terminal、已經手動裝的 pwsh);
+          packages.yaml 的 wingetAlsoInstalledAs 列的其他 id 對到也算裝了(企業版 MSI 的 Chrome,#351)
        3. 沒裝的 winget install;tailscale 是 machine scope 的 MSI,會跳 UAC。
           裝失敗只印一行、exit 0:不然 apply 中止,排在後面的腳本全不會跑(同 Linux 的 install-mise) */ -}}
 {{- $ids := concat .packages.windows.winget (includeTemplate "tool-install" . | fromJson).lists.winget -}}
@@ -24,6 +25,11 @@ $ids = @(
     {{ squote $id }}
 {{- end }}
 )
+$alsoAs = @{
+{{- range $id, $alts := .packages.windows.wingetAlsoInstalledAs }}{{ if has $id $ids }}
+    {{ squote $id }} = @('{{ join "', '" $alts }}')
+{{- end }}{{ end }}
+}
 
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Host ((T '{{ "找不到 winget,沒裝:{0}。從 Microsoft Store 裝「應用程式安裝程式」(App Installer)後再 chezmoi apply" | b64enc }}') -f ($ids -join ', '))
@@ -31,8 +37,12 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 }
 
 foreach ($id in $ids) {
-    winget list --id $id --exact --accept-source-agreements *> $null
-    if ($LASTEXITCODE -eq 0) { continue }
+    $installed = $false
+    foreach ($name in @($id) + @($alsoAs[$id] | Where-Object { $_ })) {
+        winget list --id $name --exact --accept-source-agreements *> $null
+        if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+    }
+    if ($installed) { continue }
     winget install --id $id --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
     if ($LASTEXITCODE -ne 0) {
         Write-Host ((T '{{ "winget 沒裝好 {0},之後自己跑:winget install --id {0} --exact" | b64enc }}') -f $id)
