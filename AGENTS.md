@@ -143,11 +143,12 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 | 類別 | 什麼時候打開 | 放在 |
 |---|---|---|
-| README | 第一次看到這個 repo | `README.md`:是什麼、主截圖、安裝一行、裝完之後的入口(工具一覽、操作已配置主機、改設定與更新)、文件索引、改 repo 的人看的結構與 fork 清單 |
+| README | 第一次看到這個 repo | `README.md` 只放四樣:是什麼和為什麼(含主截圖)、安裝一行、裝完之後去哪(工具一覽、操作已配置主機、改設定與更新)、文件索引(只列情境文件與入口文件,工具經 `docs/tools.md`);結尾一行連 `docs/architecture.md` 與這份 |
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
 | 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
 | 工具文件 | 用某個工具、查它的坑 | `docs/tools/<選裝工具表的 key>.md`,`docs/tools.md` 的索引連過去 |
 | 情境文件 | 要完成一件事(可能跨好幾個工具)、遇到某個情境 | `docs/how-to/<檔>.md`;一件事拆成好幾份就開子資料夾、放 README 當入口(例如 `remote-access/`),README 索引連過去 |
+| 說明 | 要改或 fork 這個 repo,想知道它怎麼組成、各部分誰管 | `docs/architecture.md`(repo 結構、fork 清單、agent 環境誰管什麼);太長拆進 `docs/architecture/` |
 | 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、`docs/research/`(選型比較也放這) |
 | 改這個 repo | 要改 repo、照 issue 做事 | `docs/agents/`、`docs/issue-lifecycle.md` |
 
@@ -162,7 +163,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
   `https://github.com/henry5720/dotfiles/blob/main/...` 連進來,這邊一改就斷。
   `grep -rn "henry5720/dotfiles/blob" ~/.config/skillshare --include='*.md'`,斷的到 agent-config 開 PR 修
 
-- README 的專案層包含:哪個檔部署到哪、依賴、fork 前要改什麼
+- 哪個檔部署到哪、依賴、fork 前要改什麼寫在 `docs/architecture.md`,不放 README
 - 改安裝流程、`run_` 腳本、template、externals 之前,先查 chezmoi 官方文件([chezmoi.io](https://www.chezmoi.io/)
   或 context7)有沒有現成做法,有就照官方做;偏離官方時,在那個檔案的註解或 issue 寫下理由。
   這個 repo 曾經自己寫一支安裝腳本重做官方一行指令就有的事(#168)

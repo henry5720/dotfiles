@@ -1,6 +1,6 @@
 # AI agent 環境:為什麼這樣分
 
-[AI agent 環境:誰管什麼](ai-agent-setup.md)寫的是規則、skill、MCP、plugin 各在哪、怎麼更新;
+[架構〈AI agent 環境:誰管什麼〉](../architecture.md#ai-agent-環境誰管什麼)寫的是規則、skill、MCP、plugin 各在哪、怎麼更新;
 這份寫為什麼這樣分,以及看到新工具時怎麼決定要不要裝。
 
 ## 三個原則

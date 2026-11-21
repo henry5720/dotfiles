@@ -307,7 +307,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。plugin 的宣告不跟著
 agent-config 走，每台用 `skillshare plugin add` 各裝一次（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](tools/wakatime.md)）；
 `chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它關掉。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
-[plugin](ai-agent/ai-agent-setup.md#plugin)。
+[plugin](architecture.md#plugin)。
 
 ```bash
 skillshare plugin add https://github.com/jarrodwatts/claude-hud.git --name claude-hud --target claude -g

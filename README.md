@@ -47,25 +47,19 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 |---|---|
 | [用途與憑證](docs/how-to/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 | [沒有 root 的機器](docs/how-to/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連已配置主機的 key |
-| [mise](docs/tools/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
-| [earlyoom](docs/tools/earlyoom.md) | agent 吃滿記憶體、ssh 連不上：保護哪些服務、數字怎麼來、怎麼確認生效、砍了誰去哪查 |
 | [終端機字型](docs/how-to/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [Windows 主機](docs/how-to/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
 | [Windows 上的 skill](docs/how-to/windows-skills.md) | agent-config 的 skill 哪些在 Windows 不能用、卡在哪 |
 | [WSL 網路](docs/how-to/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Hyper-V](docs/how-to/hyper-v.md) | 在 Windows 上開一台 Windows VM：建 VM、不登入微軟帳號、NAT 與橋接、主機傳檔進 VM |
-| [Herdr notifications](docs/tools/herdr.md) | WSL2 通知音、PulseAudio 排錯 |
 
 **coding agent**
 
 | 文件 | 什麼時候看 |
 |---|---|
-| [AI agent 環境：誰管什麼](docs/ai-agent/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
-| [AI profile routing](docs/tools/ai-profile.md) | 切換公司／個人的 CLI、登入前置 |
-| [opencode 設定](docs/tools/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
-| [codegraph](docs/tools/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
-| [playwright-cli](docs/tools/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [WakaTime](docs/tools/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
+| [架構〈AI agent 環境：誰管什麼〉](docs/architecture.md#ai-agent-環境誰管什麼) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
+
+mise、earlyoom、herdr、opencode、codegraph、playwright-cli、WakaTime、ai-profile 這些單一工具的文件，從[工具一覽](docs/tools.md)連過去。
 
 **連線與分享**
 
@@ -73,64 +67,6 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 |---|---|
 | [開給別人連](docs/how-to/remote-access/) | 把一個服務開給人或 agent 連：概念圖、tailnet 內走 ssh／`tailscale serve`、tailnet 外用 Funnel 或 quick tunnel；服務卡：[瀏覽器](docs/how-to/remote-access/browser.md)（agent 的 headless、讓 agent 控你的 Chrome）、[share-shell](docs/how-to/remote-access/share-shell.md)、[code-server](docs/how-to/remote-access/code-server.md)、[voice-out](docs/how-to/remote-access/voice-out.md)（agent 的回覆唸到個人電腦）、[開 sshd](docs/how-to/remote-access/sshd.md)（各平台讓別台 ssh 進來） |
 
-**背景與決策**
+**背景與決策**：某個不直覺的做法為什麼這樣定，看 [`docs/adr/`](docs/adr/)；選型比較與研究紀錄在 [`docs/research/`](docs/research/)。
 
-| 文件 | 什麼時候看 |
-|---|---|
-| [AI agent 環境：為什麼這樣分](docs/ai-agent/ai-agent-principles.md) | 規則寫什麼、放哪；要不要裝一個新工具 |
-| [瀏覽器偵錯 MCP 對照](docs/research/browser-mcp-comparison.md) | 選 Playwright 還是 chrome-devtools-mcp |
-| [`docs/adr/`](docs/adr/) | 想知道某個不直覺的做法為什麼這樣定 |
-
-## 改這個 repo
-
-檔名前綴、秘密、驗證方式（含容器 e2e）、issue 流程看 [`AGENTS.md`](AGENTS.md)。
-`docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
-
-### repo 結構
-
-```text
-.chezmoiroot                    內容是 home：chezmoi 只看 home/，其餘它看不到
-home/                           → 部署到 ~（chezmoi apply）
-├── .chezmoi.toml.tmpl          → ~/.config/chezmoi/chezmoi.toml：憑證、Git 身分、選裝工具
-├── .chezmoidata/               不部署：基底套件與走 apt 的選裝工具清單
-├── .chezmoitemplates/          不部署：樣板共用片段（選單的選項與說明、判斷 WSL／Debian、腳本共用函式…）
-├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
-├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
-├── dot_zshenv                  → ~/.zshenv：環境變數、PATH、MCP key（每個 zsh 都讀，非互動的也是）
-├── dot_zshrc                   → ~/.zshrc：互動式 shell 的提示列、補全、別名
-├── modify_dot_bashrc.tmpl      → ~/.bashrc 最後加段落：starship、沒有 root 時切 zsh
-├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
-├── dot_wslconfig               → Windows 主機的 %USERPROFILE%\.wslconfig（只部署到 Windows）
-├── Documents/                  → Windows 主機的 Documents\：pwsh 7 與 5.1 的 PowerShell profile（只部署到 Windows）
-├── AppData/                    → Windows 主機的 %LOCALAPPDATA%：Windows Terminal 的預設設定檔與字型（只部署到 Windows）
-├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
-├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
-├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、share-shell…）
-├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
-└── private_dot_ssh/            → ~/.ssh/（700）：SSH config（Windows 主機也部署）
-script/                         不部署，自己手動跑
-├── ubuntu/                     會改系統的：Docker、swap
-├── termux/                     平板桌面、proot Ubuntu 的使用者
-├── tests/                      容器 e2e 與單元測試
-└── demo/                       重錄 README 與工具一覽的截圖、安裝 GIF
-docs/                           說明（見上面的文件索引）
-```
-
-- 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
-  [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
-- skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
-  skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](docs/adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
-  [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
-- Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](docs/how-to/windows.md)；
-  為什麼這樣分見 [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
-- chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
-
-### fork 前要改什麼
-
-- [ ] 安裝指令 `chezmoi init --apply henry5720` 裡的 GitHub 帳號
-- [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
-- [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
-- [ ] ssh config 裡的 Tailscale 主機與平板
-- [ ] 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles
-- [ ] 憑證不進 git，`chezmoi init` 時才問、存在 `~/.config/chezmoi/chezmoi.toml`；不信任或共用的機器不要填真實憑證
+改這個 repo：結構看 [`docs/architecture.md`](docs/architecture.md)，規則看 [`AGENTS.md`](AGENTS.md)。

@@ -232,6 +232,10 @@ _Avoid_: 工具說明、tool guide、主題文件（改用工具文件或情境�
 一件事拆成好幾份就開子資料夾、放 README 當入口（例如 `remote-access/`）。只講單一工具本身的事寫進工具文件，這裡連過去。
 _Avoid_: 主題文件（改用工具文件或情境文件）、說明書、guide
 
+**說明（explanation）**:
+給要改或 fork 這個 repo 的人看 repo 怎麼組成、各部分誰管、為什麼這樣分，放 `docs/architecture.md`（太長拆進 `docs/architecture/`）。不寫單一工具的用法，也不記單一決定的來龍去脈（那是 ADR）。
+_Avoid_: 設計文件、README 的「改這個 repo」段（已搬來這裡）
+
 **背景與決策**:
 說明為什麼這樣做的文件：ADR、選型比較、研究紀錄。不寫操作步驟。
 _Avoid_: 設計文件、spec（指已定案的決定時）
