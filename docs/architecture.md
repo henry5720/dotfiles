@@ -2,7 +2,7 @@
 
 給要改或 fork 這個 repo 的人：repo 裡每塊部署到哪、fork 前要改什麼、coding agent 身上的規則、skill、MCP、plugin 各歸誰管。
 改 repo 的規則（檔名前綴、秘密、驗證方式（含容器 e2e）、issue 流程）看 [`AGENTS.md`](../AGENTS.md)；
-`docs/superpowers/`、`docs/research/` 是當時的 spec、plan 與研究紀錄，不是現行文件。
+某個決定當時的理由看 [`adr/`](adr/)；`docs/superpowers/`、[`research/`](research/) 是當時的 spec、plan 與研究紀錄，不是現行文件。
 
 ## repo 結構
 

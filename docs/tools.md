@@ -6,7 +6,7 @@
 哪些工具會裝，看那台的用途與勾選（[用途與憑證](how-to/machine-use.md)）；要加減用 `tools`。
 
 ```
-shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom
+shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom  mise
 入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-mcp
@@ -29,6 +29,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 | fastfetch | 印出系統資訊 | [fastfetch](https://github.com/fastfetch-cli/fastfetch) |
 | btop | 工作管理員：CPU、記憶體、行程 | [btop](https://github.com/aristocratos/btop) |
 | bottom | 跟 btop 一樣（`btm`），Windows 也能裝 | [bottom](https://github.com/ClementTsang/bottom) |
+| mise | Linux 上裝 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、cloudflared，也管它們的更新與移除 | [mise](tools/mise.md) |
 
 `bat <檔案>`：語法上色、上面標檔名
 
@@ -37,8 +38,6 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 `Ctrl-R` 開 fzf，打幾個字篩出打過的指令，Enter 帶回提示列
 
 ![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
-
-Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](tools/mise.md)。
 
 ## 入口與連線
 

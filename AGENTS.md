@@ -110,17 +110,17 @@ README、`docs/`、工具用法、設定檔註解的通則在 `writing-for-human
 | README | 第一次看到這個 repo | `README.md` 只放四樣:是什麼和為什麼(含主截圖)、安裝一行、裝完之後去哪(工具一覽、操作已配置主機、改設定與更新)、文件索引(只列情境文件與入口文件,工具經 `docs/tools.md`);結尾一行連 `docs/architecture.md` 與這份 |
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
 | 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
-| 工具文件 | 用某個工具、查它的坑 | `docs/tools/<選裝工具表的 key>.md`,`docs/tools.md` 的索引連過去 |
+| 工具文件 | 用某個工具、查它的坑 | `docs/tools/<選裝工具表的 key>.md`(不在工具表的用指令名),`docs/tools.md` 的索引連過去 |
 | 情境文件 | 要完成一件事(可能跨好幾個工具)、遇到某個情境 | `docs/how-to/<檔>.md`;一件事拆成好幾份就開子資料夾、放 README 當入口(例如 `remote-access/`),README 索引連過去 |
 | 說明 | 要改或 fork 這個 repo,想知道它怎麼組成、各部分誰管 | `docs/architecture.md`(repo 結構、fork 清單、agent 環境誰管什麼);太長拆進 `docs/architecture/` |
 | 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、`docs/research/`(選型比較也放這) |
 | 改這個 repo | 要改 repo、照 issue 做事 | `docs/agents/`、`docs/issue-lifecycle.md` |
 
 `docs/` 最上層只放 README 直接連的入口:Runbook、日常操作、工具一覽(`docs/tools.md`)、
-操作已配置主機(`docs/configured-host.md`),外加 `docs/issue-lifecycle.md`。其他新文件進上表的資料夾,
+操作已配置主機(`docs/configured-host.md`),外加 `docs/architecture.md`、`docs/issue-lifecycle.md`。其他新文件進上表的資料夾,
 主題沒有合適的資料夾就開一個新的。
 
-- 只有 agent 要遵守的限制寫在這份 AGENTS.md,或 Runbook「交給 coding agent」那段 prompt,不另寫一份給 agent 的文件
+- 只有 agent 要遵守的限制:每次都要守的寫在這份 AGENTS.md(或 Runbook「交給 coding agent」那段 prompt);只在特定任務才要讀的放 `docs/agents/`,由這份連過去
 - Runbook 裡某一步太長(例如整張對照表),拆成情境文件,Runbook 只留一行連結
 - 搬檔案、改名或改標題(錨點會跟著變)後跑連結檢查,兩個 repo 之間的網址一起查;agent-config 斷的到 agent-config 開 PR 修:
   `AGENT_CONFIG_DIR=<agent-config checkout> python3 -m unittest script/tests/test_links.py`(不設就用 `~/.config/skillshare`)

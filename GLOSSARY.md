@@ -223,7 +223,7 @@ _Avoid_: 安裝手冊、setup guide（指裝完之後的操作時）
 _Avoid_: 維運、day-2、之後的設定、裝完之後（README 那段是裝完之後的入口，不只這類文件）
 
 **工具文件（reference）**:
-一個工具一份，放 `docs/tools/<選裝工具表的 key>.md`。只寫 `--help` 找不到的指令、這個 repo 為什麼這樣裝或這樣設、踩過的坑。
+一個工具一份，放 `docs/tools/<選裝工具表的 key>.md`；不在工具表的（例如 mise、自寫指令 ai-profile）用指令名。只寫 `--help` 找不到的指令、這個 repo 為什麼這樣裝或這樣設、踩過的坑。
 固定段落：為什麼裝、常用指令、坑、更多（連官網），沒內容的段省略。`docs/tools.md` 是它們的索引。
 _Avoid_: 工具說明、tool guide、主題文件（改用工具文件或情境文件）、把官方用法抄一份
 
@@ -233,9 +233,9 @@ _Avoid_: 工具說明、tool guide、主題文件（改用工具文件或情境�
 _Avoid_: 主題文件（改用工具文件或情境文件）、說明書、guide
 
 **說明（explanation）**:
-給要改或 fork 這個 repo 的人看 repo 怎麼組成、各部分誰管、為什麼這樣分，放 `docs/architecture.md`（太長拆進 `docs/architecture/`）。不寫單一工具的用法，也不記單一決定的來龍去脈（那是 ADR）。
+寫現在的結構與分工：給要改或 fork 這個 repo 的人看 repo 怎麼組成、各部分誰管、為什麼這樣分，放 `docs/architecture.md`（太長拆進 `docs/architecture/`）。不寫單一工具的用法，也不記單一決定的來龍去脈（那是 ADR）。
 _Avoid_: 設計文件、README 的「改這個 repo」段（已搬來這裡）
 
 **背景與決策**:
-說明為什麼這樣做的文件：ADR、選型比較、研究紀錄。不寫操作步驟。
+記某個決定當時的理由與比較：ADR、選型比較、研究紀錄。不寫操作步驟。
 _Avoid_: 設計文件、spec（指已定案的決定時）

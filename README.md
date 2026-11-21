@@ -67,6 +67,4 @@ mise、earlyoom、herdr、opencode、codegraph、playwright-cli、WakaTime、ai-
 |---|---|
 | [開給別人連](docs/how-to/remote-access/) | 把一個服務開給人或 agent 連：概念圖、tailnet 內走 ssh／`tailscale serve`、tailnet 外用 Funnel 或 quick tunnel；服務卡：[瀏覽器](docs/how-to/remote-access/browser.md)（agent 的 headless、讓 agent 控你的 Chrome）、[share-shell](docs/how-to/remote-access/share-shell.md)、[code-server](docs/how-to/remote-access/code-server.md)、[voice-out](docs/how-to/remote-access/voice-out.md)（agent 的回覆唸到個人電腦）、[開 sshd](docs/how-to/remote-access/sshd.md)（各平台讓別台 ssh 進來） |
 
-**背景與決策**：某個不直覺的做法為什麼這樣定，看 [`docs/adr/`](docs/adr/)；選型比較與研究紀錄在 [`docs/research/`](docs/research/)。
-
 改這個 repo：結構看 [`docs/architecture.md`](docs/architecture.md)，規則看 [`AGENTS.md`](AGENTS.md)。
