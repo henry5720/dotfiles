@@ -1,9 +1,11 @@
 # mise
 
+## 為什麼裝
+
 Linux 上 eza、fzf 這類 CLI 工具由 [mise](https://mise.jdx.dev/) 裝到家目錄，有沒有 root 都一樣。
 Termux 走 `pkg`、macOS 走 `brew`，不用這份。
 
-## 哪些工具是 mise 裝的
+### 哪些工具是 mise 裝的
 
 ```text
 有勾才裝，誰走 mise 看 home/.chezmoidata/tool-table.yaml
@@ -12,7 +14,7 @@ Termux 走 `pkg`、macOS 走 `brew`，不用這份。
    有 root 時這幾個走 apt 或官方 .deb
 ```
 
-沒有 root 時還自動處理什麼，見[沒有 root 的機器](no-root-machine.md)。
+沒有 root 時還自動處理什麼，見[沒有 root 的機器](../install/no-root-machine.md)。
 
 為什麼這樣分見 #231（決定）、#233（實作）。
 
@@ -34,12 +36,14 @@ Termux 走 `pkg`、macOS 走 `brew`，不用這份。
 | 更新 mise 本身 | `mise self-update` |
 | 有問題先跑 | `mise doctor` |
 
-其他指令、設定檔格式見[官方文件](https://mise.jdx.dev/)（[CLI 參考](https://mise.jdx.dev/cli/)）。
-
-## 出問題時
+## 坑
 
 | 狀況 | 怎麼辦 |
 |---|---|
 | apply 印「mise install 有工具沒裝好」 | 多半是 GitHub API 限流（未登入每小時 60 次）：`GITHUB_TOKEN=$(gh auth token) mise install` |
 | 打指令跑到 apt 的舊版 | 開新的 zsh（舊 shell 的 PATH 沒有 shims 在前面）；再不行 `mise which <指令>` 看 |
 | bash 裡找不到 eza 這類指令 | 只有 zsh 把 shims 加進 PATH；bash 用 `~/.local/share/mise/shims/<指令>` |
+
+## 更多
+
+其他指令、設定檔格式見[官方文件](https://mise.jdx.dev/)（[CLI 參考](https://mise.jdx.dev/cli/)）。

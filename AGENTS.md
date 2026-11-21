@@ -146,6 +146,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 | README | 第一次看到這個 repo | `README.md`:是什麼、主截圖、安裝一行、裝完之後的入口(工具一覽、操作已配置主機、改設定與更新)、文件索引、改 repo 的人看的結構與 fork 清單 |
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
 | 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
+| 工具文件 | 用某個工具、查它的坑 | `docs/tools/<選裝工具表的 key>.md`,`docs/tools.md` 的索引連過去 |
 | 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>/<檔>.md`(`install/`、`ai-agent/`、`remote-access/`),README 索引連過去 |
 | 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、`docs/research/`(選型比較也放這) |
 | 改這個 repo | 要改 repo、照 issue 做事 | `docs/agents/`、`docs/issue-lifecycle.md` |

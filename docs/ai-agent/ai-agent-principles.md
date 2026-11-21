@@ -65,7 +65,7 @@ codegraph,量完發現 `df` 有 931 G 可用(0.3%),而且複製主索引只要 1
 ### 3. 它承諾的行為,實測過嗎
 
 README 寫的不算。codegraph 的 README 說「存檔 2 秒內自動同步」,實測 `init` 完根本沒有
-watcher 行程,要有 MCP server 在跑才會同步(見 [codegraph〈索引什麼時候會跟上你的改動〉](codegraph.md#索引什麼時候會跟上你的改動))。
+watcher 行程,要有 MCP server 在跑才會同步(見 [codegraph〈索引什麼時候會跟上你的改動〉](../tools/codegraph.md#索引什麼時候會跟上你的改動))。
 照 README 相信的話,就不會發現沒開 agent 的 repo 永遠不同步 —— 共用的 `post-merge` hook 就是實測後才補的。
 
 ### 4. 它自己寫的設定,chezmoi 會不會蓋掉
@@ -75,6 +75,6 @@ watcher 行程,要有 MCP server 在跑才會同步(見 [codegraph〈索引什�
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|
 | `modify_` 納管的檔(`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.codex/personal.config.toml`) | 留著 —— 那幾支只釘自己那段,其餘原封帶過 | 不用管,在[新機器 Runbook](../new-machine-setup.md) 記一行重裝指令 |
-| `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份,見 [opencode](opencode.md) |
+| `~/.config/opencode/opencode.json` | `mcp` 留著,**其他 key 會被 apply 蓋掉,而且不出聲** | 把它要的內容收進 repo 那份,見 [opencode](../tools/opencode.md) |
 | 規則的 symlink(`~/.claude/CLAUDE.md`、各 `AGENTS.md`) | 寫進去就改到 agent-config 的 source | 在 agent-config 看 `git diff`,要留就 commit |
 | 沒被 chezmoi 管的路徑(含 `~/.claude.json`) | 留著,但換機器就沒了 | MCP 收進 agent-config(`skillshare mcp import`);其他的在[新機器 Runbook](../new-machine-setup.md) 記一行重裝指令 |

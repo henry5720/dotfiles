@@ -26,8 +26,8 @@ agent-config(skillshare)                               ├─→ Claude Code / C
 - 不歸 skillshare 管的例外(obsidian-wiki…)和 herdr skill 要跟版本的事,見
   agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
 - **這個 repo 不寫任何 MCP 條目。** dotfiles 自己部署、跟 MCP 有關的只有
-  [codegraph](codegraph.md)(CLI、索引、git hook)、[playwright-cli](playwright-cli.md)(操作瀏覽器時代替 MCP)
-  和 [opencode](opencode.md) 的設定檔。
+  [codegraph](../tools/codegraph.md)(CLI、索引、git hook)、[playwright-cli](../tools/playwright-cli.md)(操作瀏覽器時代替 MCP)
+  和 [opencode](../tools/opencode.md) 的設定檔。
 
 ## 規則
 
@@ -74,9 +74,9 @@ targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、cod
   但 config.yaml 不進任何 repo,**換一台機器要再 `skillshare plugin add` 一次**。
 - skillshare 底下用各 client 原生的 plugin 系統裝,Claude 的 `claude plugin list` 看得到,
   marketplace 名字是 `skillshare-<名字>-<hash>`,不是作者 README 寫的那個。更新走 `skillshare plugin update`。
-- WakaTime 的 plugin 例外:由 apply 用 `claude plugin install` 裝(見 [WakaTime](wakatime.md)),不收進 skillshare。
+- WakaTime 的 plugin 例外:由 apply 用 `claude plugin install` 裝(見 [WakaTime](../tools/wakatime.md)),不收進 skillshare。
 - 新機器要裝哪些、`chrome-devtools-mcp` 為什麼關掉,見[新機器設定 4.5](../new-machine-setup.md#45-mcpskills-與-claude-plugin)。
-- opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由本 repo 的 [opencode 設定](opencode.md)管,
+- opencode 也有自己的 plugin,寫在 `opencode.json` 的 `plugin` 欄位,由本 repo 的 [opencode 設定](../tools/opencode.md)管,
   跟 Claude 的 plugin 無關。
 - ⚠️ **同一套 skill 不要用兩種方式裝。** 有些作者同時提供一般 skill repo 和 Claude plugin
   兩條路(例如 mattpocock),兩邊都裝會變成每個 skill 兩份。選一條。
@@ -91,9 +91,9 @@ targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、cod
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 見 agent-config 的[〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關);新機器裝完 skill 會全部是開的,要重關一次 |
 | 讓 agent 用瀏覽器查原因 | 遠端主機勾 `headless-chrome`(見[新機器設定 4.1](../new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有)),agent 照[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)開 headless Chrome 在 9222,再在 session 裡 `/mcp` 確認連上。WSL 沒有這一項,查原因到遠端主機做 |
-| 讓 agent 點、跑流程、截圖 | 遠端主機勾 `playwright-cli`,見 [playwright-cli](playwright-cli.md) |
-| 讓 agent 用 symbol 圖查程式碼,不要一直 grep | `codegraph-setup-repo ~/code/<repo>`,見 [codegraph](codegraph.md) |
-| 換過 node 版本後 codegraph／playwright-cli 不見了 | 重裝那個 npm 全域套件,見 [codegraph](codegraph.md#換-node-版本之後) |
-| 某個 repo 的共用 git hook 沒生效 | 見 [codegraph](codegraph.md#repo-自己搶走-corehookspath) |
-| 改 opencode 的 provider、agent、plugin | 見 [opencode](opencode.md) |
+| 讓 agent 點、跑流程、截圖 | 遠端主機勾 `playwright-cli`,見 [playwright-cli](../tools/playwright-cli.md) |
+| 讓 agent 用 symbol 圖查程式碼,不要一直 grep | `codegraph-setup-repo ~/code/<repo>`,見 [codegraph](../tools/codegraph.md) |
+| 換過 node 版本後 codegraph／playwright-cli 不見了 | 重裝那個 npm 全域套件,見 [codegraph](../tools/codegraph.md#換-node-版本之後) |
+| 某個 repo 的共用 git hook 沒生效 | 見 [codegraph](../tools/codegraph.md#repo-自己搶走-corehookspath) |
+| 改 opencode 的 provider、agent、plugin | 見 [opencode](../tools/opencode.md) |
 | 更新 plugin | `skillshare plugin update --all -g` |

@@ -219,7 +219,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
 預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
 WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`；沒有 root 的機器裝不了 `headless-chrome`。
-`playwright-cli` 除了原生 Termux 都裝得了，沒有本機 Chrome 時用 `attach` 接遠端瀏覽器（見 [playwright-cli](ai-agent/playwright-cli.md)）。
+`playwright-cli` 除了原生 Termux 都裝得了，沒有本機 Chrome 時用 `attach` 接遠端瀏覽器（見 [playwright-cli](tools/playwright-cli.md)）。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
 `snapserver`（朗讀串流服務）只裝在有 systemd 的 Debian 系 Linux，WSL 標不建議，其他環境裝不了。
 `snapclient`（收聽朗讀）Linux 走 apt、原生 Termux 走 pkg、macOS 走 brew；Windows 走 mise 裝官方 release 的 zip；非 Debian 系裝不了，proot Ubuntu 標不建議。
@@ -282,7 +282,7 @@ claude auth status
 
 只有顯示尚未登入時才執行 `claude auth login`，並由人類完成 OAuth。Claude OAuth 登入
 狀態不能搬到另一台機器，也不能放進 repo。個人入口要另外登入並填妥 personal model，見
-[AI profile routing](ai-agent/ai-profile-routing.md)，未完成前不要視為可用。
+[AI profile routing](tools/ai-profile.md)，未完成前不要視為可用。
 
 ### 4.4 驗證 OpenCode 與 Claude Code ACP
 
@@ -305,7 +305,7 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 條目要先處理，步驟見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#從舊版-dotfiles-升上來的機器)。
 
 skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。plugin 的宣告不跟著
-agent-config 走，每台用 `skillshare plugin add` 各裝一次（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](ai-agent/wakatime.md)）；
+agent-config 走，每台用 `skillshare plugin add` 各裝一次（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](tools/wakatime.md)）；
 `chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它關掉。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
 [plugin](ai-agent/ai-agent-setup.md#plugin)。
 
@@ -356,11 +356,11 @@ cp -r <主 checkout>/.codegraph .codegraph && codegraph sync -q
 
 不要用 `.git/config` 覆蓋共用 `core.hooksPath`：套件安裝可能把 husky 設定寫回去，而且
 會讓 husky 自己的 hook 停止運作。完整的 worktree 同步與 hook 判斷見
-[codegraph](ai-agent/codegraph.md#共用-git-hook-怎麼接上)。
+[codegraph](tools/codegraph.md#共用-git-hook-怎麼接上)。
 
 ### 4.7 WakaTime（勾了 `wakatime` 才有）
 
-第一次開 Codex 要同意 WakaTime 的 hook；裝了什麼、怎麼確認見 [WakaTime](ai-agent/wakatime.md)。
+第一次開 Codex 要同意 WakaTime 的 hook；裝了什麼、怎麼確認見 [WakaTime](tools/wakatime.md)。
 
 ## 恢復邊界
 

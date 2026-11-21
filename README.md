@@ -47,25 +47,25 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 |---|---|
 | [用途與憑證](docs/install/machine-use.md) | 完整／精簡／自訂各勾哪些、勾了哪個工具會問哪個憑證 |
 | [沒有 root 的機器](docs/install/no-root-machine.md) | 不能 `sudo` 的帳號：會自動處理什麼、略過彙整、tailscale 登入、連已配置主機的 key |
-| [mise](docs/install/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
-| [earlyoom](docs/install/earlyoom.md) | agent 吃滿記憶體、ssh 連不上：保護哪些服務、數字怎麼來、怎麼確認生效、砍了誰去哪查 |
+| [mise](docs/tools/mise.md) | Linux 上 eza、fzf 這類工具誰裝的、怎麼更新、移除、限流 |
+| [earlyoom](docs/tools/earlyoom.md) | agent 吃滿記憶體、ssh 連不上：保護哪些服務、數字怎麼來、怎麼確認生效、砍了誰去哪查 |
 | [終端機字型](docs/install/fonts.md) | 圖示變方框、裝 Nerd Font、中文字形、換別的字型 |
 | [Windows 主機](docs/install/windows.md) | Windows 上的 chezmoi 部署什麼、裝了哪些工具、PowerShell 怎麼用、Documents 移出 OneDrive |
 | [Windows 上的 skill](docs/install/windows-skills.md) | agent-config 的 skill 哪些在 Windows 不能用、卡在哪 |
 | [WSL 網路](docs/install/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Hyper-V](docs/install/hyper-v.md) | 在 Windows 上開一台 Windows VM：建 VM、不登入微軟帳號、NAT 與橋接、主機傳檔進 VM |
-| [Herdr notifications](docs/ai-agent/herdr-notifications.md) | WSL2 通知音、PulseAudio 排錯 |
+| [Herdr notifications](docs/tools/herdr.md) | WSL2 通知音、PulseAudio 排錯 |
 
 **coding agent**
 
 | 文件 | 什麼時候看 |
 |---|---|
 | [AI agent 環境：誰管什麼](docs/ai-agent/ai-agent-setup.md) | 改規則、skill、MCP、plugin 前，先看該去哪改 |
-| [AI profile routing](docs/ai-agent/ai-profile-routing.md) | 切換公司／個人的 CLI、登入前置 |
-| [opencode 設定](docs/ai-agent/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
-| [codegraph](docs/ai-agent/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
-| [playwright-cli](docs/ai-agent/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
-| [WakaTime](docs/ai-agent/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
+| [AI profile routing](docs/tools/ai-profile.md) | 切換公司／個人的 CLI、登入前置 |
+| [opencode 設定](docs/tools/opencode.md) | 改 provider、agent、plugin，驗證 `opencode.json` |
+| [codegraph](docs/tools/codegraph.md) | 建索引、worktree 與 git hook、husky 搶走 `core.hooksPath` |
+| [playwright-cli](docs/tools/playwright-cli.md) | 讓 agent 點網頁、截圖，瀏覽器從哪來 |
+| [WakaTime](docs/tools/wakatime.md) | 勾了 `wakatime` 會裝哪些 plugin、沒記到時看哪 |
 
 **連線與分享**
 
