@@ -1,0 +1,37 @@
+# 環境變數與 PATH。放這裡不放 .zshrc:每個 zsh 都會讀 .zshenv,非互動的也是
+# (ssh host cmd、zsh -c、agent 背景啟動的 MCP),.zshrc 只有互動式 shell 才讀。
+# 只放 export,不印東西、不起程序:這些留在 .zshrc。
+# shortcut: macOS 的 login shell 之後會跑 /etc/zprofile 的 path_helper,把系統目錄排回 PATH 前面;
+#   要讓 ~/.local/bin 在 macOS 也優先時,在 .zprofile 再排一次。
+
+# 如果你有使用 pnpm (Senior Engineer 標配)
+export PNPM_HOME="$HOME/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+
+# Linux 由 mise 裝的選裝工具(eza、fzf、starship…;apt 用不了的機器還有 vim、gh…),經 shims 找得到。
+# 排在系統目錄前面:apt 可能有同名的舊版(Ubuntu 24.04 的 fzf 0.44 沒有 --zsh)。
+# 系統那份 vim 這類通常不受影響:系統已經有就不交給 mise,沒有 shim(.chezmoitemplates/mise-tools)。
+# 例外是 mise 先裝、系統之後才補裝的:shim 還在、會優先,要用系統那份就 mise uninstall <工具>。
+[[ -d $HOME/.local/share/mise/shims ]] && export PATH="$HOME/.local/share/mise/shims:$PATH"
+
+# opencode / claude 之類的工具裝在這兩處(排最前面)
+export PATH="$HOME/.opencode/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
+
+# 啟用 OpenCode 背景 subagents
+export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
+# 啟用 Exa 搜尋
+export OPENCODE_ENABLE_EXA=1
+
+# MCP 用的 API key(CONTEXT7_API_KEY、GRAPHIFY_API_KEY)。chezmoi 從本機 config 渲染,key 沒填就沒有這個檔。
+# 改了 key 要重開讀它的程序:已經在跑的(例如 claude daemon)留著啟動當下的環境。
+[ -r "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
+
+# snap 的指令(舊機器的 chezmoi 可能是 snap 裝的;新機器照 README 裝在 ~/.local/bin)。
+# snapd 是靠 /etc/profile.d/apps-bin-path.sh 加這條,
+# 但 Ubuntu 的 /etc/zsh/zprofile 不 source /etc/profile,所以 zsh 拿不到,得自己加。
+# 用 append:同名工具讓上面那些使用者自己裝的版本優先,不被 snap 蓋掉。
+export PATH="$PATH:/snap/bin"
+
+# 上面各處都往 PATH 加 ~/.local/bin,login shell 的 .profile 也加過一次,巢狀 zsh 會再讀一次這個檔:去掉重複的。
+typeset -U path PATH

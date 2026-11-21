@@ -80,6 +80,7 @@ AppData
 # 沒勾選裝工具 zsh:不部署 zsh 設定檔(外掛在 .chezmoiexternal.toml.tmpl 也一起不下載,
 # 改預設 shell 的腳本渲染成空的)。已經部署過的不會被刪,跟「取消勾選不會解除安裝」一致。
 .zshrc
+.zshenv
 .config/zsh/env.zsh
 {{ end }}
 {{ if not (has "starship" (index . "tools")) }}
