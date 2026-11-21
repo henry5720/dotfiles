@@ -239,6 +239,11 @@ class WindowsDeployTest(unittest.TestCase):
                 linux = self.codex_linux(existing or "")
                 self.assertEqual(self.codex_windows(existing), linux)
                 self.assertEqual(self.codex_windows(linux), linux)
+                # 使用者用記事本存過的 CRLF 檔:舊橫幅照樣認得,輸出跟 codex 一樣是 LF
+                # (Linux 那份讀 CRLF 會失敗,所以比的是同一份內容 LF 版的 Linux 輸出)
+                if existing:
+                    crlf = existing.replace("\n", "\r\n").encode()
+                    self.assertEqual(self.cat_bytes(".codex/config.toml", crlf, ["codex"], ROOT), linux.encode())
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -692,7 +697,7 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("chezmoi apply", out)
 
     def test_windows_apply_writes_codex_config_on_new_machine(self):
-        # 沒有 ~/.codex 的新機器:apply 寫出釘的那幾項,再 verify 沒有差異(沒勾 codex、沒有 key 的情況見上一個測試)
+        # 沒有 ~/.codex 的新機器:apply 寫出釘的那幾項,再 verify 沒有差異(沒勾 codex、沒有 key 的情況見 test_windows_apply_deploys_tools_and_mise_list)
         data = {"tools": ["codex"], "codexLbApiKey": "fixture"}
         self.chezmoi("windows", "apply", "--exclude", "scripts", data=data)
         config = tomllib.loads((self.home / ".codex/config.toml").read_text(encoding="utf-8"))
@@ -931,6 +936,14 @@ class WindowsDeployTest(unittest.TestCase):
         after = json.loads(self.render_claude_settings('{"attribution": "x", "enabledPlugins": null}'))
         self.assertEqual(after["attribution"], {"commit": CLAUDE_COMMIT})
         self.assertEqual(after["enabledPlugins"], {CHROME_PLUGIN: False})
+
+    def test_windows_claude_settings_fails_clearly_when_not_an_object(self):
+        # 整個檔案不是物件(null、陣列)時不猜怎麼修:apply 失敗、說是哪個檔,檔案不動
+        for existing in ("null", "[]"):
+            with self.subTest(existing=existing):
+                with self.assertRaises(subprocess.CalledProcessError) as error:
+                    self.render_claude_settings(existing)
+                self.assertIn("settings.json 必須是 JSON 物件", error.exception.stderr.decode())
 
     def test_windows_claude_settings_has_no_cr_from_crlf_checkout(self):
         crlf = self.crlf_source()

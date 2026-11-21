@@ -21,7 +21,8 @@ codex-config-provider.toml、codex-commit-attribution.md 來。
 {{- $provider := "codex-lb-gcp" -}}
 {{- $skillsMarkers := list "# 由 chezmoi 停用的 skill(obsidian-wiki 那包,見上面的 token 實測)。" "# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。" -}}
 {{- $markers := concat $skillsMarkers (list "# 由 chezmoi 管理的 MCP servers。" "# MCP servers managed by chezmoi.") -}}
-{{- $existing := .chezmoi.stdin -}}
+{{- /* 記事本存過的 CRLF 檔先換成 LF 再比對與輸出:codex 自己寫 LF,第 4 步也拿換過的比 */ -}}
+{{- $existing := .chezmoi.stdin | replace "\r\n" "\n" -}}
 {{- /* 1. */ -}}
 {{- $prior := get (fromToml $existing) "developer_instructions" | default "" -}}
 {{- if not (kindIs "string" $prior) }}{{ fail "developer_instructions 必須是字串" }}{{ end -}}

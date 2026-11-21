@@ -14,6 +14,7 @@
 {{- $commit := [[ $commit | toJson ]] -}}
 {{- $settings := dict -}}
 {{- if trim .chezmoi.stdin }}{{ $settings = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (kindIs "map" $settings) }}{{ fail "~/.claude/settings.json 必須是 JSON 物件({...}),先手動修好再 apply" }}{{ end -}}
 {{- $attribution := get $settings "attribution" -}}
 {{- $plugins := get $settings "enabledPlugins" -}}
 {{- if and (kindIs "map" $attribution) (kindIs "map" $plugins) (eq (get $attribution "commit" | toJson) ($commit | toJson)) (eq (get $plugins $plugin | toJson) "false") -}}
