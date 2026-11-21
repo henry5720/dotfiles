@@ -55,7 +55,7 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 | 工具 | 做什麼 | 連結 |
 |---|---|---|
 | herdr | terminal 多工，同時開多個 agent | [herdr](tools/herdr.md) |
-| claude | Claude Code | [Claude Code](https://code.claude.com/docs/en/overview) |
+| claude | Claude Code | [Claude Code](tools/claude.md) |
 | codex | Codex CLI | [Codex CLI](https://developers.openai.com/codex/cli) |
 | opencode | OpenCode | [opencode](tools/opencode.md) |
 | agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | [skillshare](https://skillshare.runkids.cc/) |
