@@ -32,6 +32,10 @@ WINDOWS_TARGETS = {
 # 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
 # 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
 OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
+# 勾了 claude 才部署的設定(#319)。plugins/claude-hud 不放:claude-hud 由 skillshare 的 plugin 裝,沒裝時那份設定沒人讀
+CLAUDE_SETTINGS = ".claude/settings.json"
+CLAUDE_COMMIT = "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+CHROME_PLUGIN = "chrome-devtools-mcp@claude-plugins-official"
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
@@ -121,16 +125,17 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
+        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 勾了才放 settings.json(#319)。
         # opencode、agent-config 勾了才放它們的設定;Linux 那份 ~/.config/skillshare 永遠不放
         # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
         opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
+        claude = {CLAUDE_SETTINGS} | parents([CLAUDE_SETTINGS])
         # .wakatime.cfg 要有 API key 才管(test_wakatime_cfg_managed_only_with_api_key),這裡沒帶 key
         for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
-                             (sorted(WINDOWS_FULL), opencode | skillshare),
-                             (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
+                             (sorted(WINDOWS_FULL), opencode | skillshare | claude),
+                             (["zsh", "claude", "tailscale"], claude), (["opencode"], opencode),
                              (["agent-config"], skillshare), (["wakatime"], set())):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
@@ -794,6 +799,65 @@ class WindowsDeployTest(unittest.TestCase):
         # 舊格式:profiles 直接是設定檔清單,沒有 defaults 可以設 → 原樣輸出、不報錯
         settings = '{\n    "profiles": [ { "guid": "{x}", "name": "cmd" } ]\n}\n'
         self.assertEqual(self.render_terminal_settings(settings), settings)
+
+    # ===============================================================
+    # Claude Code 的 settings.json(modify template,#319)
+    # ===============================================================
+    # 只釘兩個值(跟 Linux 那份 sh + jq 一樣):官方 chrome-devtools plugin 關掉、attribution.commit。
+    # 其他(hook、statusLine、autoMode、其他 plugin 開關)是 Claude 和其他工具自己寫的,原樣留著。
+    def render_claude_settings(self, existing, source=ROOT):
+        """existing(str,None = 檔案不存在)放到 ~/.claude/settings.json,回傳 chezmoi 算出的 bytes。"""
+        if existing is None:
+            target = self.home / CLAUDE_SETTINGS
+            info = {"os": "windows", "homeDir": str(self.home), "kernel": {"osrelease": ""}}
+            return subprocess.run([
+                "chezmoi", "--no-tty", "--source", str(source), "--config", str(self.cfg),
+                "--destination", str(self.home), "--override-data",
+                json.dumps({"chezmoi": info, "tools": ["claude"]}), "cat", str(target),
+            ], stdin=subprocess.DEVNULL, capture_output=True, check=True).stdout
+        return self.cat_bytes(CLAUDE_SETTINGS, existing.encode(), ["claude"], source)
+
+    def test_windows_claude_settings_pins_two_values_and_keeps_the_rest(self):
+        existing = {
+            "attribution": {"commit": "old", "pr": "Keep PR attribution"},
+            "enabledPlugins": {CHROME_PLUGIN: True, "claude-hud@claude-hud": True},
+            "hooks": {"SessionStart": [{"hooks": [{"command": "herdr hook", "type": "command"}]}]},
+            "statusLine": {"type": "command", "command": "node hud.js"},
+            "cleanupPeriodDays": 30,
+        }
+        first = self.render_claude_settings(json.dumps(existing))
+        after = json.loads(first)
+        expected = json.loads(json.dumps(existing))
+        expected["attribution"]["commit"] = CLAUDE_COMMIT
+        expected["enabledPlugins"][CHROME_PLUGIN] = False
+        self.assertEqual(after, expected)
+        # 第二次 apply 沒有變化
+        self.assertEqual(self.render_claude_settings(first.decode()), first)
+
+    def test_windows_claude_settings_keeps_bytes_when_values_already_right(self):
+        # Claude 自己改寫過(縮排、key 順序都是它的):值已經對就原樣輸出,chezmoi diff 才是空的
+        saved = ('{\n  "theme": "dark",\n  "enabledPlugins": {\n    "%s": false\n  },\n'
+                 '  "attribution": {\n    "pr": "",\n    "commit": "%s"\n  }\n}' % (CHROME_PLUGIN, CLAUDE_COMMIT))
+        self.assertEqual(self.render_claude_settings(saved).decode(), saved)
+
+    def test_windows_claude_settings_without_file_has_only_pinned_values(self):
+        self.assertEqual(json.loads(self.render_claude_settings(None)),
+                         {"attribution": {"commit": CLAUDE_COMMIT}, "enabledPlugins": {CHROME_PLUGIN: False}})
+
+    def test_windows_claude_settings_replaces_non_object_values(self):
+        # 跟 Linux 的 jq 一樣:attribution 不是物件時整個換成物件
+        after = json.loads(self.render_claude_settings('{"attribution": "x", "enabledPlugins": null}'))
+        self.assertEqual(after["attribution"], {"commit": CLAUDE_COMMIT})
+        self.assertEqual(after["enabledPlugins"], {CHROME_PLUGIN: False})
+
+    def test_windows_claude_settings_has_no_cr_from_crlf_checkout(self):
+        crlf = self.crlf_source()
+        lf = self.render_claude_settings(None)
+        self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
+        self.assertEqual(self.render_claude_settings(None, crlf), lf)
+        changed = '{"attribution": {"commit": "old"}}'
+        self.assertEqual(self.render_claude_settings(changed, crlf),
+                         self.render_claude_settings(changed))
 
 
 if __name__ == "__main__":
