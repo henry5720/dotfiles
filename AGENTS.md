@@ -147,7 +147,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 | Runbook | 裝一台新機器,從頭走到尾一次 | `docs/new-machine-setup.md` |
 | 日常操作 | 裝完之後想改點什麼 | `docs/after-install.md`(標題〈改設定與更新〉) |
 | 工具文件 | 用某個工具、查它的坑 | `docs/tools/<選裝工具表的 key>.md`,`docs/tools.md` 的索引連過去 |
-| 主題文件 | 用某個工具、遇到某個情境 | `docs/<主題>/<檔>.md`(`install/`、`ai-agent/`、`remote-access/`),README 索引連過去 |
+| 情境文件 | 要完成一件事(可能跨好幾個工具)、遇到某個情境 | `docs/how-to/<檔>.md`;一件事拆成好幾份就開子資料夾、放 README 當入口(例如 `remote-access/`),README 索引連過去 |
 | 背景與決策 | 想知道為什麼這樣做 | `docs/adr/`、`docs/research/`(選型比較也放這) |
 | 改這個 repo | 要改 repo、照 issue 做事 | `docs/agents/`、`docs/issue-lifecycle.md` |
 
@@ -157,7 +157,7 @@ README、`docs/`、工具用法、設定檔註解的通則在全域規則開頭;
 
 - 能畫成圖的用文字圖(箭頭、縮排樹)和表格,不用 mermaid:終端機和 agent 讀的是原始文字
 - 只有 agent 要遵守的限制寫在這份 AGENTS.md,或 Runbook「交給 coding agent」那段 prompt,不另寫一份給 agent 的文件
-- Runbook 裡某一步太長(例如整張對照表),拆成主題文件,Runbook 只留一行連結
+- Runbook 裡某一步太長(例如整張對照表),拆成情境文件,Runbook 只留一行連結
 - 搬檔案、改名或改標題(錨點會跟著變)時,連 agent-config 一起查:它的文件用
   `https://github.com/henry5720/dotfiles/blob/main/...` 連進來,這邊一改就斷。
   `grep -rn "henry5720/dotfiles/blob" ~/.config/skillshare --include='*.md'`,斷的到 agent-config 開 PR 修

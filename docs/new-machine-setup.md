@@ -8,13 +8,13 @@ mise）；實體機、雲端主機、WSL2、平板上的 proot Ubuntu 都是同�
 
 | 機器 | 怎麼判斷 | chezmoi 會做什麼 |
 |---|---|---|
-| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](remote-access/browser.md)） |
+| Debian 系 Linux（Ubuntu 等；實體機、雲端主機、WSL2、proot 都算） | `/etc/os-release` 的 ID 或 ID_LIKE 有 `debian` | 基底套件、用途（完整／精簡／自訂）與選裝工具選單（zsh 等都在選單裡）；eza、fzf 這類單一執行檔的 CLI 工具用 [mise](https://mise.jdx.dev/) 裝到家目錄，其他走 apt；headless Chrome 只有 amd64、非 WSL 裝得了，其他標「裝不了」、預設不勾、勾了略過（WSL 看 kernel 版本含 `microsoft`；agent 要用瀏覽器時到已配置主機做，見[瀏覽器](how-to/remote-access/browser.md)） |
 | 非 Debian 系 Linux（Fedora 等） | `/etc/os-release` 的 ID、ID_LIKE 沒有 `debian` | 同上，但走 apt 的選裝工具改用 [mise](https://mise.jdx.dev/) 裝到家目錄；headless Chrome 標裝不了 |
 | macOS | `chezmoi.os` 是 `darwin` | 用途與選裝工具選單，套件用 `brew bundle` 裝（tailscale 是官方 app 的 cask、headless Chrome 是 `google-chrome` cask）；Homebrew 要先自己裝 |
 | 原生 Termux | `chezmoi.os` 是 `android` | 基底套件、用途與選裝工具選單（跟 Linux 同一套，也有 `tools` 指令），選裝工具走 `pkg`；tailscale、btop、bottom、code-server、headless Chrome、playwright-cli、claude、opencode、herdr、agent-config、codegraph 標裝不了（開發環境放 proot Ubuntu），codex 走 `pkg`；終端機字型、`authorized_keys` |
-| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale、Chrome）用 winget 裝；claude、codex 與 agent-config 的 skillshare 走官方 install.ps1、opencode、codegraph 走 mise、wakatime 的 plugin 跟 Linux 同樣由 agent 裝；zsh、btop、code-server 這類沒有 Windows 裝法的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單，勾了 opencode 加它的設定、勾了 agent-config 加 skillshare 的設定、勾了 wakatime 加 `.wakatime.cfg`），只跑 `.ps1` 腳本；見[Windows 主機](install/windows.md) |
+| Windows 主機 | `chezmoi.os` 是 `windows` | 用途與選裝工具選單（跟 Linux 同一套，也有 PowerShell 版的 `tools`），CLI 用 mise、app（pwsh 7、Windows Terminal、tailscale、Chrome）用 winget 裝；claude、codex 與 agent-config 的 skillshare 走官方 install.ps1、opencode、codegraph 走 mise、wakatime 的 plugin 跟 Linux 同樣由 agent 裝；zsh、btop、code-server 這類沒有 Windows 裝法的標裝不了；只部署白名單上的檔案（`.wslconfig`、starship 設定、PowerShell profile、Windows Terminal 的預設設定檔與字型、mise 清單，勾了 opencode 加它的設定、勾了 agent-config 加 skillshare 的設定、勾了 wakatime 加 `.wakatime.cfg`），只跑 `.ps1` 腳本；見[Windows 主機](how-to/windows.md) |
 
-機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟略過，印出缺什麼與對應的指令，見[沒有 root 的機器](install/no-root-machine.md)。
+機器種類、有沒有 root 都自動判斷，不用回答。不能 `sudo` 的帳號要 root 的步驟略過，印出缺什麼與對應的指令，見[沒有 root 的機器](how-to/no-root-machine.md)。
 
 ```text
 機器本身的前置 →（可選）更新系統、放 SSH key → chezmoi 官方安裝指令（init --apply）→ 需要才跑的手動腳本 → AI 工具收尾（Ubuntu）
@@ -48,11 +48,11 @@ SSH private key、各服務帳號登入、秘密不會由文件代替你決定�
 ### Linux（Ubuntu 等）
 
 拿到一個一般使用者的 shell 就好：本機、SSH 進雲端主機、WSL2 都一樣。帳號不一定要能 `sudo`
-（見[沒有 root 的機器](install/no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台（見[終端機字型](install/fonts.md)）。
+（見[沒有 root 的機器](how-to/no-root-machine.md)）。字型裝在你看畫面的那個終端機，不是這台（見[終端機字型](how-to/fonts.md)）。
 
 WSL2 另外做兩件事（都在 Windows 那側）：
 
-- 終端機字型裝在 Windows，見[終端機字型](install/fonts.md#windows-terminal)。
+- 終端機字型裝在 Windows，見[終端機字型](how-to/fonts.md#windows-terminal)。
 - `.wslconfig` 由 Windows 主機上的 chezmoi 部署：在 Windows 照下面「[Windows 主機](#windows-主機)」那節 `chezmoi init --apply`。
 
 平板上的 proot Ubuntu 先照下面「平板」那節進到 proot，之後跟一般 Linux 一樣。
@@ -65,12 +65,12 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
    已經從官網或 App Store 裝過的不用勾：勾了 brew 會因為 `/Applications/Tailscale.app` 已經在而裝不起來，
    apply 印一行「略過 tailscale-app」照樣跑完、其他套件照裝；要改由 brew 管就先刪掉那份 app 再 `chezmoi apply`。
-3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](install/fonts.md#macos)。
+3. 預設 shell 本來就是 zsh，chezmoi 不改。終端機字型自己裝 Nerd Font，見[終端機字型](how-to/fonts.md#macos)。
 
 ### Windows 主機
 
 Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`；沒有 WSL、Windows 本身就是開發機也照這節。
-這節一路做到裝好，不用再看第 2 步。要在一台 Windows 上另開一台 Windows VM 來裝，先照 [Hyper-V](install/hyper-v.md) 把 VM 開好，再到 VM 裡照這節。
+這節一路做到裝好，不用再看第 2 步。要在一台 Windows 上另開一台 Windows VM 來裝，先照 [Hyper-V](how-to/hyper-v.md) 把 VM 開好，再到 VM 裡照這節。
 
 1. 在 PowerShell 用 winget 裝 chezmoi：
 
@@ -81,8 +81,8 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    其他的（mise、pwsh 7、Windows Terminal，以及選單勾的 CLI 與 tailscale）由 chezmoi apply 裝。
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
    `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
-2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](install/windows.md#documents-移出-onedrive)。
-3. Hack Nerd Font 照[終端機字型](install/fonts.md#windows-terminal)手動右鍵「安裝」。
+2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](how-to/windows.md#documents-移出-onedrive)。
+3. Hack Nerd Font 照[終端機字型](how-to/fonts.md#windows-terminal)手動右鍵「安裝」。
 4. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
    本機的 `.ps1` 都不能跑（chezmoi 的安裝腳本自己繞過，不受影響）：
 
@@ -96,14 +96,14 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    chezmoi init --apply henry5720
    ```
 
-   跟 Linux 一樣問用途、出選單（[用途與憑證](install/machine-use.md)），Enter 是精簡；git 身分不問。
+   跟 Linux 一樣問用途、出選單（[用途與憑證](how-to/machine-use.md)），Enter 是精簡；git 身分不問。
    要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
-   部署了什麼、裝完怎麼用，見[Windows 主機](install/windows.md)；之後要加減工具打 `tools`。
+   部署了什麼、裝完怎麼用，見[Windows 主機](how-to/windows.md)；之後要加減工具打 `tools`。
 6. 開一次 Windows Terminal 再關掉，再跑一次 `chezmoi apply`：pwsh 7 是上一步才裝的，Terminal 開過才會
    產生它的設定檔；上一步的 apply 找不到就只設字型，這次才把預設分頁改成 pwsh 7。
    沒做這步，新分頁會是 `powershell`（5.1）—— 它也讀同一份 profile、一樣有 starship，看提示列分不出來，
    看分頁標題（「PowerShell」是 7，「Windows PowerShell」是 5.1）。
-7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](install/windows.md#從舊的手寫-profile-遷移)。
+7. 這台本來有手寫的 `$PROFILE`（例如 henry-desktop 用 oh-my-posh 那份）就清掉，不然會蓋掉 starship：見[從舊的手寫 profile 遷移](how-to/windows.md#從舊的手寫-profile-遷移)。
    以前照 Runbook 用 winget 裝的 starship、fastfetch、zoxide 可以 `winget uninstall` 掉，改由 mise 管
    （留著也行：profile 先找 mise 那份）。
 
@@ -118,7 +118,7 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
 4. 裝 [Tailscale 的 Android app](https://tailscale.com/download/android) 並登入：Termux 裡裝不了 tailscale
    （選單上標裝不了），整台平板由這個 app 上 tailnet。
 5. 要讓別台 ssh 進來：放好 SSH key（第 2.2 節）後開 sshd，
-   見[開 sshd〈Termux〉](remote-access/sshd.md#termux)。
+   見[開 sshd〈Termux〉](how-to/remote-access/sshd.md#termux)。
 6. 要桌面：`bash ~/.local/share/chezmoi/script/termux/install-desktop.sh`，結尾會提示在
    xfce 終端機手動選 `Hack Nerd Font`。啟動桌面用同目錄的 `startxfce_native.sh`。
 7. 要 proot Ubuntu（開發環境放這裡）：
@@ -168,7 +168,7 @@ Get-Content $HOME\.ssh\id_ed25519.pub
 公鑰加到要連的地方：
 
 - GitHub 的 [SSH keys](https://github.com/settings/keys)。`ssh -T git@github.com` 回 `successfully authenticated` 就對了。
-- 要連的主機：放哪、權限照[公鑰放哪、權限](remote-access/sshd.md#公鑰放哪權限)。Windows 的管理員帳號不在 `~/.ssh`。
+- 要連的主機：放哪、權限照[公鑰放哪、權限](how-to/remote-access/sshd.md#公鑰放哪權限)。Windows 的管理員帳號不在 `~/.ssh`。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器
@@ -199,7 +199,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
 
-各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](install/machine-use.md)。
+各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](how-to/machine-use.md)。
 
 要一行裝完、不回答用途和選單（例如別人給的機器），把用途和 email 帶在指令上：
 
@@ -217,7 +217,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 選單上每一項後面都有一句說明和這台會走的裝法（例如 `[apt]`、`[mise]`），清單和說明在
 [`home/.chezmoitemplates/tool-menu`](../home/.chezmoitemplates/tool-menu)。這台不建議或裝不了的，說明後面標原因、
-預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](install/machine-use.md#環境不建議裝不了)）。
+預設不勾；裝不了的勾了會略過，apply 最後列出原因（見[用途與憑證〈環境〉](how-to/machine-use.md#環境不建議裝不了)）。
 WSL、非 amd64 的機器與 macOS 裝不了 `headless-chrome`；沒有 root 的機器裝不了 `headless-chrome`。
 `playwright-cli` 除了原生 Termux 都裝得了，沒有本機 Chrome 時用 `attach` 接遠端瀏覽器（見 [playwright-cli](tools/playwright-cli.md)）。
 WSL、proot Ubuntu 的 `tailscale` 標不建議：網路借外層那份 Tailscale，一台實體機只裝一份、裝在最外層。
@@ -232,7 +232,7 @@ macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（app 是 cask，
 
 ### 沒有 root 的機器
 
-不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連已配置主機的專用 key、字型，見[沒有 root 的機器](install/no-root-machine.md)。
+不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連已配置主機的專用 key、字型，見[沒有 root 的機器](how-to/no-root-machine.md)。
 
 ### 2.4 裝完之後
 
@@ -255,7 +255,7 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 ### 4.1 headless Chrome（選了 `headless-chrome` 才有）
 
 裝的是 Google 官方的 `.deb`，外加中文和 emoji 字型（沒裝的話截圖會是方框）。agent 查原因時用
-查原因時開在 9222 給 chrome-devtools MCP，指令見[瀏覽器](remote-access/browser.md#headlessagent-自己的瀏覽器)。
+查原因時開在 9222 給 chrome-devtools MCP，指令見[瀏覽器](how-to/remote-access/browser.md#headlessagent-自己的瀏覽器)。
 
 ### 4.2 安裝／同步 oh-my-opencode-slim
 

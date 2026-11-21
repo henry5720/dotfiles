@@ -15,7 +15,7 @@ agent 要點、填表、跑流程、截圖時用 `playwright-cli`;查原因(慢�
 skill ──────────── 不在這個 repo,agent-config 用 skillshare 發
 ```
 
-attach 的指令與連法見[瀏覽器](../remote-access/browser.md)。
+attach 的指令與連法見[瀏覽器](../how-to/remote-access/browser.md)。
 
 | 問題 | 答案 |
 |---|---|

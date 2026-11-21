@@ -66,12 +66,12 @@ CLI 用 mise 裝、app 用 winget 裝（跟 Linux 寫在同一張選裝工具表
 | node | mise（Node LTS） | 完整或自己勾 | 給只要 Node 的機器；Linux 也用 mise |
 | herdr | mise | 完整或自己勾 | 終端機多工，不搭 coding agent 也能用：`herdr` 開、`ctrl+b q` 離開、再打 `herdr` 接回去 |
 | bottom | mise | 完整或自己勾 | 資源監控：`btm` 開、`q` 離開。btop 在 Windows 裝不了（release 只有 Linux 版），改用它 |
-| snapclient | mise（官方 release 的 zip）＋ winget（VC++ runtime） | 完整或自己勾 | 收聽朗讀串流：`snapclient --host <tailnet IP>`；VC++ runtime 會跳 UAC。見 [voice-out](../remote-access/voice-out.md#windows) |
+| snapclient | mise（官方 release 的 zip）＋ winget（VC++ runtime） | 完整或自己勾 | 收聽朗讀串流：`snapclient --host <tailnet IP>`；VC++ runtime 會跳 UAC。見 [voice-out](remote-access/voice-out.md#windows) |
 | tailscale | winget | 完整或自己勾 | 官方 app，裝完自己開 app 登入；會跳 UAC |
 | headless-chrome | winget（`Google.Chrome.EXE`，已經有 Chrome 就跳過） | 完整或自己勾 | 就是一般的 Chrome：`chrome.exe` 本身能 `--headless`，playwright-cli 預設找它；Linux 上才是另一支 `.deb` |
-| playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](../remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
+| playwright-cli | mise（npm backend 的 `@playwright/cli`，會一併列 Node LTS） | 完整或自己勾 | agent 操作瀏覽器：`playwright-cli -s=<session> open <網址>`，見[瀏覽器](remote-access/browser.md#headlessagent-自己的瀏覽器)；錄影要先自己跑一次 `playwright-cli install-browser ffmpeg` |
 | opencode | mise（npm backend 的 `opencode-ai`，會一併列 Node LTS） | 完整或自己勾 | OpenCode 沒有 Windows 的 `install.ps1`，官方文件列了 npm 與 mise；`opencode-ai` 是 OpenCode 1，跟 Linux 那份同一個大版本。它的 postinstall 才會放上真的 `opencode.exe`，清單用 `allow_builds` 放行（mise 預設不跑）；在放行之前裝過的，`opencode --version` 會說 postinstall 沒跑，`mise install -f npm:opencode-ai` 重裝一次。更新跑 `mise upgrade`（`opencode upgrade` 認不出 mise 裝的）。設定見上面的部署表；commit 指引、MCP 要勾 agent-config |
-| codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見下面〈codegraph〉 |
+| codegraph | mise（registry 的 `codegraph`，aqua backend 裝官方 release 的 zip，自帶 Node，不列 Node LTS） | 完整或自己勾 | 在 repo 裡 `codegraph init` 建索引，`codegraph status` 看狀態；MCP 由 agent-config 同步，不用跑 `codegraph install`。更新跑 `mise upgrade`，不要用 `codegraph upgrade`（它把 mise 的目錄當成自己的 bundle）。`codegraph-setup-repo` 和自動同步索引的 git hook 是 sh，Windows 沒有，索引要自己 `codegraph sync`。見 [codegraph〈Windows 主機〉](../tools/codegraph.md#windows-主機) |
 | agent-config | 官方 [`install.ps1`](https://skillshare.runkids.cc/docs/troubleshooting/windows#how-do-i-install-on-windows) 裝 skillshare ＋ winget 裝 `Git.Git`（init 要 git，已經有就跳過、會跳 UAC） | 完整或自己勾 | 見下面〈agent-config（skillshare）〉 |
 | windows-mcp | mise（pipx backend 的 `windows-mcp`，用 uv 裝，會一併列 uv；要的 Python 由 uv 下載） | 完整或自己勾 | 讓 agent 操作這台的桌面。不直接打指令，WSL 的 agent 經 agent-config 的 MCP 設定叫用；見下面〈windows-mcp〉 |
 | claude | 官方 [`install.ps1`](https://code.claude.com/docs/en/setup#install-on-native-windows) | 完整或自己勾 | 裝到 `%USERPROFILE%\.local\bin\claude.exe`，之後自己在背景更新（`claude update` 馬上更新）；第一次打 `claude` 照瀏覽器登入。照頁數讀 PDF 要的 `pdftoppm` 由 mise 裝（`poppler`）。設定檔見上面的部署表，跟 WSL 那份各自獨立 |
@@ -97,26 +97,13 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata
 `mise ls` 找出那一項的名字（例如 `codex`、`npm:@openai/codex`），`mise unuse -g <那一項>` 從設定拿掉並移除，
 再開新的 shell 確認 `(Get-Command codex).Source` 是 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`。
 
-### codegraph
-
-官方的 Windows 裝法是 `install.ps1` 或 npm，加上 mise 三種裝的都是同一個 release bundle。這裡用 mise（#323）：
-mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定（`command: codegraph`）不經 shell 也找得到；
-`install.ps1` 只在 PATH 放 `codegraph.cmd`。
-
-**Windows 上不要跑 `codegraph install -t claude`。** 它在 `~/.claude/settings.json` 加的 `UserPromptSubmit` hook
-在 Windows 寫成 `codegraph.cmd prompt-hook`（Claude Code 用 Git Bash 跑 hook，Git Bash 不補 `.cmd`，上游 #1466），
-mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
-少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
-
-同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
-Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
-
 ### windows-mcp
 
 PyPI 上的 `windows-mcp` 由 mise 的 pipx backend 裝（#343）。mise 有 uv 就用 `uv tool install`，清單裡有 uv 時先裝 uv
 （[mise 的 pypi backend 文件](https://mise.jdx.dev/dev-tools/backends/pypi.html)），所以勾它會一併列 uv；
 套件要 Python 3.14 以上，uv 找不到就自己下載（[uv 的 Python 文件](https://docs.astral.sh/uv/concepts/python-versions/)）。
-更新跑 `mise up`。
+更新跑 `mise up`。怎麼開給別台的 agent 用（起 server、交 key、收掉）見 agent-config 的
+[windows-mcp skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/windows-mcp.md)。
 
 mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。以前照 agent-config 的 windows-mcp skill 手動
 `uv tool install windows-mcp` 過的機器，勾了之後會有兩份：
@@ -139,7 +126,7 @@ uv tool uninstall windows-mcp
 
 ### agent-config（skillshare）
 
-做的事跟 Linux 一樣（[ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md)）：skillshare 把 agent-config 的
+做的事跟 Linux 一樣（[agent-config](https://github.com/henry5720/agent-config)、[ADR 0003](../adr/0003-agent-instructions-linked-by-skillshare-extras.md)）：skillshare 把 agent-config 的
 skills 同步到勾了的 client、MCP 寫進各 client、指令檔（`CLAUDE.md`、`AGENTS.md`、commit 指引）放到各 client 讀的位置。
 跟 Linux 不同的地方：
 

@@ -3,7 +3,7 @@
 已配置主機上有哪些工具、各做什麼。這個 repo 有工具文件的連工具文件（`docs/tools/`），沒有的連官網。
 怎麼連上已配置主機、怎麼開 agent，見[操作已配置主機](configured-host.md)。
 
-哪些工具會裝，看那台的用途與勾選（[用途與憑證](install/machine-use.md)）；要加減用 `tools`。
+哪些工具會裝，看那台的用途與勾選（[用途與憑證](how-to/machine-use.md)）；要加減用 `tools`。
 
 ```
 shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom
@@ -91,8 +91,8 @@ Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、clo
 |---|---|---|
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [ai-profile](tools/ai-profile.md) |
-| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](remote-access/share-shell.md) |
-| `personal-chrome-attach` | 讓 agent 經插件接你日常的 Chrome（勾了 `playwright-cli` 才有） | [瀏覽器](remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
-| `voice-out` | 開關朗讀串流服務（勾了 `snapserver` 才有） | [voice-out](remote-access/voice-out.md) |
-| `voice-out-speak` | 把 agent 最後一則回覆唸到朗讀串流服務，給 Stop hook 呼叫 | [voice-out](remote-access/voice-out.md#朗讀指令voice-out-speak) |
+| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](how-to/remote-access/share-shell.md) |
+| `personal-chrome-attach` | 讓 agent 經插件接你日常的 Chrome（勾了 `playwright-cli` 才有） | [瀏覽器](how-to/remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
+| `voice-out` | 開關朗讀串流服務（勾了 `snapserver` 才有） | [voice-out](how-to/remote-access/voice-out.md) |
+| `voice-out-speak` | 把 agent 最後一則回覆唸到朗讀串流服務，給 Stop hook 呼叫 | [voice-out](how-to/remote-access/voice-out.md#朗讀指令voice-out-speak) |
 | `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](tools/codegraph.md) |

@@ -30,7 +30,7 @@ share-shell herdr session attach default      # 最後面接什麼，網頁就�
 
 `share-shell` 同時起這兩個，Ctrl+C 一起關。
 
-script 在 [`home/dot_local/bin/executable_share-shell`](../../home/dot_local/bin/executable_share-shell)。
+script 在 [`home/dot_local/bin/executable_share-shell`](../../../home/dot_local/bin/executable_share-shell)。
 它比 dev server 多做的只有一件：**幫 ttyd 產密碼**。
 
 - **密碼每次隨機。** 這是公網上能打字的 shell（`-W`），擋在前面的只有這組密碼。固定密碼等於

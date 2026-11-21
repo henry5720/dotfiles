@@ -35,7 +35,7 @@ code-server ─ vscode-wakatime ──────┘        讀 ~/.wakatime.cfg
 ### 第一次要做的
 
 - Codex 的 hook 要先 review 過才會跑：第一次開 codex 會提示，同意後才開始記。
-- Claude Code、Codex 的 plugin 用 node 跑 hook，要有 node：勾了 `wakatime` 會一併裝 Node LTS（Linux、Windows 主機用 mise，macOS 用 nvm，見 [Windows 主機](../install/windows.md#裝了什麼怎麼用)）。
+- Claude Code、Codex 的 plugin 用 node 跑 hook，要有 node：勾了 `wakatime` 會一併裝 Node LTS（Linux、Windows 主機用 mise，macOS 用 nvm，見 [Windows 主機](../how-to/windows.md#裝了什麼怎麼用)）。
 - API key 留空（init 時沒填）就不部署 `~/.wakatime.cfg`，什麼都不會送。要改見[改設定與更新](../after-install.md)。
 
 ### 沒記到

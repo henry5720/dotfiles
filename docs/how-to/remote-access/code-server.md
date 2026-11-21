@@ -13,7 +13,7 @@
 
 ## 先把它裝起來
 
-chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[改設定與更新](../after-install.md)),apply 時會用官方腳本裝 binary。
+chezmoi 選裝工具選單勾 `code-server`(之後要改選擇見[改設定與更新](../../after-install.md)),apply 時會用官方腳本裝 binary。
 設定檔不用自己弄,由 chezmoi 從 `home/dot_config/private_code-server/private_config.yaml.tmpl`
 部署(權限與密碼見[密碼放哪](#密碼放哪))。
 
@@ -73,7 +73,7 @@ B、C 的憑證都是 tailscale 幫你跟 Let's Encrypt 要的**真憑證**，�
 code-server 本身也**不是裝在原生 Termux**：原生 Termux 的選單一樣列 `code-server`，但標
 （裝不了：官方的 Termux 裝法要另加 TUR 套件庫），勾了也只會在 apply 最後列為略過
 （原因寫在 `home/.chezmoidata/tool-table.yaml`）。要在 phone 跑，先照
-[新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](../new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
+[新機器設定〈平板：原生 Termux 與 proot Ubuntu〉](../../new-machine-setup.md#平板原生-termux-與-proot-ubuntu)
 裝好 proot Ubuntu，在裡面勾 `code-server`。proot 跟 Termux 共用網路，proot 裡綁的
 `127.0.0.1:8080`，從 Termux 的 sshd（`Host phone`，port 8022）轉出去一樣連得到。
 
@@ -105,7 +105,7 @@ ssh -N -o ExitOnForwardFailure=yes -p 8022 -L 127.0.0.1:8080:127.0.0.1:8080 <Ter
 
 **全部都能用。B 最省事。**
 
-作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（[`home/dot_wslconfig`](../../home/dot_wslconfig)），
+作者這台 WSL 曾因 `.wslconfig` 設了 `networkingMode=mirrored`（[`home/dot_wslconfig`](../../../home/dot_wslconfig)），
 eth0 上直接掛著 tailnet IP `100.119.136.27`，WSL 裡的服務綁 `127.0.0.1`，
 Windows 側也看得到，中間不用接任何東西。
 

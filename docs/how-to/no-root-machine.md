@@ -47,7 +47,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
 勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。系統已經裝了 snapserver、snapclient 的話，
-套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](../remote-access/voice-out.md)）。
+套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](remote-access/voice-out.md)）。
 
 系統沒有 `libatomic.so.1`（Debian 系的套件是 `libatomic1`）時，Node 官方 binary 跑不起來：`node` 和要它才能跑的
 `codegraph`、`playwright-cli` 同樣標「裝不了」、完整不勾。只勾了 `opencode`、`wakatime` 這類連帶要 Node 的工具時，它們照裝，

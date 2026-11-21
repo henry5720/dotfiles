@@ -134,7 +134,7 @@ _Avoid_: 語音參數、TTS 設定
 
 ## 開給別人連
 
-把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/remote-access/`。
+把一台機器上的某個 port 開給別人連時，先看連的人在不在你的 tailnet。做法見 `docs/how-to/remote-access/`。
 
 **服務**:
 跑在某一台、聽某個 port 的程式，例如瀏覽器的 debug port、網頁 shell、code-server、dev server。各自決定有沒有驗證。
@@ -225,11 +225,12 @@ _Avoid_: 維運、day-2、之後的設定、裝完之後（README 那段是裝�
 **工具文件（reference）**:
 一個工具一份，放 `docs/tools/<選裝工具表的 key>.md`。只寫 `--help` 找不到的指令、這個 repo 為什麼這樣裝或這樣設、踩過的坑。
 固定段落：為什麼裝、常用指令、坑、更多（連官網），沒內容的段省略。`docs/tools.md` 是它們的索引。
-_Avoid_: 工具說明、tool guide、把官方用法抄一份
+_Avoid_: 工具說明、tool guide、主題文件（改用工具文件或情境文件）、把官方用法抄一份
 
-**主題文件**:
-針對單一工具或情境的文件，要用到那個工具或遇到那個情境時才打開。
-_Avoid_: 說明書、guide
+**情境文件（how-to）**:
+以要完成的事來組織，可以跨好幾個工具（例如把服務開給 tailnet 外的人、沒有 root 的機器、Windows 主機），放 `docs/how-to/`。
+一件事拆成好幾份就開子資料夾、放 README 當入口（例如 `remote-access/`）。只講單一工具本身的事寫進工具文件，這裡連過去。
+_Avoid_: 主題文件（改用工具文件或情境文件）、說明書、guide
 
 **背景與決策**:
 說明為什麼這樣做的文件：ADR、選型比較、研究紀錄。不寫操作步驟。

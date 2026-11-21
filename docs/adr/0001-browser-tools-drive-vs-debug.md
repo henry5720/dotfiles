@@ -13,7 +13,7 @@
 company-ec2 上的 headless 瀏覽器留兩支，各做一件事（2026-11-04 實測，[#247](https://github.com/henry5720/dotfiles/issues/247)）：
 
 - **操作**：`playwright-cli open` 自己開 Chrome。不改成一律 `attach --cdp`：attach 的 session 全部擠在同一個分頁、共用 cookie，設定檔（語系等）不生效，`state-load` 還會蓋掉 MCP 也在用的登入狀態。`attach` 只在要跟 chrome-devtools-mcp 看同一頁時用。
-- **查原因**：`google-chrome --headless --remote-debugging-port=9222` 開在 9222 給 chrome-devtools-mcp（指令見 [瀏覽器](../remote-access/browser.md)）。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=http://127.0.0.1:9222`，MCP 只負責接、不自己開 Chrome：Chrome 由 agent 開、用完收掉，9222 只在查原因時佔著。以前包成 `remote-chrome-headless`，#278 拿掉：只包一行指令。
+- **查原因**：`google-chrome --headless --remote-debugging-port=9222` 開在 9222 給 chrome-devtools-mcp（指令見 [瀏覽器](../how-to/remote-access/browser.md)）。`mcp.yaml` 各機器共用一份、寫死 `--browser-url=http://127.0.0.1:9222`，MCP 只負責接、不自己開 Chrome：Chrome 由 agent 開、用完收掉，9222 只在查原因時佔著。以前包成 `remote-chrome-headless`，#278 拿掉：只包一行指令。
 - **人要看畫面、接手**：`playwright-cli show --port <port>`（只綁 127.0.0.1）+ `ssh -L`。0.1.23 開互動模式後可以在畫面上點擊、打字。
 
 瀏覽器在人的個人電腦上時，有兩個入口，接的是不同的 Chrome：
@@ -24,7 +24,7 @@ company-ec2 上的 headless 瀏覽器留兩支，各做一件事（2026-11-04 �
 | **Playwright 插件**（9555） | 人**日常 profile** 的 Chrome，`playwright-cli attach --extension=chrome` | 一定要日常 profile 裡的東西：passkey、硬體金鑰、裝置 SSO | 只有人貼網址的那一個 |
 
 - **9222 是通用的 CDP 入口，不是 chrome-devtools-mcp 專用。** `playwright-cli attach --cdp=http://127.0.0.1:9222` 操作、chrome-devtools-mcp 查原因，兩個都能接同一支 Chrome。
-  [#261](https://github.com/henry5720/dotfiles/issues/261) 拿掉這條，是當時以為它只給 chrome-devtools-mcp 用；[#278](https://github.com/henry5720/dotfiles/issues/278) 加回來，指令寫在 [瀏覽器](../remote-access/browser.md)、不另外包 script。
+  [#261](https://github.com/henry5720/dotfiles/issues/261) 拿掉這條，是當時以為它只給 chrome-devtools-mcp 用；[#278](https://github.com/henry5720/dotfiles/issues/278) 加回來，指令寫在 [瀏覽器](../how-to/remote-access/browser.md)、不另外包 script。
 - **為什麼要獨立 profile**：Chrome 136 起不能對日常 profile 開 debugging port，只能另開一個 user-data-dir。那個 profile 一開始沒有人的登入，
   人在視窗裡登入一次就會留著。日常 profile 只能靠插件從裡面接出一個分頁，所以插件只是另一個入口，不是另一種工具。
 - **company-ec2 的 9222 同時只有一個**：人的轉發開著時是他的獨立 profile；沒開時才開 headless 給查原因用。
@@ -79,6 +79,6 @@ Playwright MCP、agent-browser、dev-browser、Playwriter、Claude in Chrome 等
 ## 更新（2026-11-06）：插件也能多分頁
 
 上面寫插件只有人貼網址的那一個分頁，是 2026-11-04 實測時的狀況，現在不成立：插件接上後能開多個分頁，也不再限日常 profile。
-依據與實機驗收狀態見[瀏覽器〈多分頁〉](../remote-access/browser.md#多分頁)，裝在哪支 profile 見同頁[〈插件〉](../remote-access/browser.md#插件獨立-profile日常-profile-都能裝)。
+依據與實機驗收狀態見[瀏覽器〈多分頁〉](../how-to/remote-access/browser.md#多分頁)，裝在哪支 profile 見同頁[〈插件〉](../how-to/remote-access/browser.md#插件獨立-profile日常-profile-都能裝)。
 
 結論不變：插件只是另一個入口，不是另一種工具，選工具照舊看動作。
