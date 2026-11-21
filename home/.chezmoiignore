@@ -23,6 +23,12 @@
 !.ssh/config
 !.config
 !.config/starship.toml
+{{ if has "codex" $tools -}}
+# Codex 的設定(#320),勾了才部署。config.toml 在 Windows 渲染成 modify-template(Linux 那份是 sh + python3)。
+# personal.config.toml、codex-gcp.config.toml 不放:給 ai-profile(codex-personal、codex-gcp,只有 Linux)用
+!.codex
+!.codex/config.toml
+{{ end -}}
 {{ if has "opencode" $tools -}}
 # OpenCode 的設定(#318),勾了才部署。opencode.json 在 Windows 渲染成 modify-template(Linux 那份是 sh + jq)。
 # routes/personal 不放:給 opencode-personal(ai-profile,只有 Linux)用,裡面還有 symlink。
