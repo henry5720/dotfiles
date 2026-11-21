@@ -306,8 +306,14 @@ class WindowsDeployTest(unittest.TestCase):
         script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
         self.assertNotIn("Google.Chrome", self.render(script, []))
         out = self.render(script, ["headless-chrome"])
-        self.assertIn("'Google.Chrome.EXE'", out)
-        self.assertNotIn("'Google.Chrome'", out)
+        ids = re.search(r"^\$ids = @\((.*?)^\)", out, re.M | re.S).group(1)
+        self.assertIn("'Google.Chrome.EXE'", ids)
+        self.assertNotIn("'Google.Chrome'", ids)
+
+    def test_windows_chrome_from_enterprise_msi_counts_as_installed(self):
+        # #351:公司派發的企業版 MSI(winget id Google.Chrome)也算已經有 Chrome,跳過,不再 install 一份(exit 3)
+        script = SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl"
+        self.assertIn("'Google.Chrome.EXE' = @('Google.Chrome')", self.render(script, ["headless-chrome"]))
 
     def test_windows_mise_script_runs_mise_install(self):
         out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", WINDOWS_LEAN)

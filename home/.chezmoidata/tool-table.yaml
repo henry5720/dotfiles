@@ -492,6 +492,7 @@ toolTable:
           aptFix: [libatomic1]
     # Windows 的 Chrome 本身就能 --headless(#327)。用 Google 一般 installer 的 Google.Chrome.EXE:
     # 從官網裝的 Chrome 在 winget list 對到的是它,用企業版 MSI 的 id 會再裝一份。
+    # 已經有企業版 MSI(Google.Chrome)的也算裝了、跳過:packages.yaml 的 wingetAlsoInstalledAs(#351)。
     # macOS 走 brew 的 google-chrome cask(#348);從官網裝過的,brew 會因 /Applications 已經有而略過(同 tailscale)
     headless-chrome:
       docs: https://developer.chrome.com/docs/chromium/headless

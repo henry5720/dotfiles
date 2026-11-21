@@ -115,6 +115,8 @@ $ids = @(
     'Microsoft.PowerShell',
     'Microsoft.WindowsTerminal'
 )
+$alsoAs = @{
+}
 
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Host ((T '5om+5LiN5YiwIHdpbmdldCzmspLoo506ezB944CC5b6eIE1pY3Jvc29mdCBTdG9yZSDoo53jgIzmh4nnlKjnqIvlvI/lronoo53nqIvlvI/jgI0oQXBwIEluc3RhbGxlcinlvozlho0gY2hlem1vaSBhcHBseQ==') -f ($ids -join ', '))
@@ -122,8 +124,12 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 }
 
 foreach ($id in $ids) {
-    winget list --id $id --exact --accept-source-agreements *> $null
-    if ($LASTEXITCODE -eq 0) { continue }
+    $installed = $false
+    foreach ($name in @($id) + @($alsoAs[$id] | Where-Object { $_ })) {
+        winget list --id $name --exact --accept-source-agreements *> $null
+        if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+    }
+    if ($installed) { continue }
     winget install --id $id --exact --source winget --accept-package-agreements --accept-source-agreements --disable-interactivity
     if ($LASTEXITCODE -ne 0) {
         Write-Host ((T 'd2luZ2V0IOaykuijneWlvSB7MH0s5LmL5b6M6Ieq5bex6LeROndpbmdldCBpbnN0YWxsIC0taWQgezB9IC0tZXhhY3Q=') -f $id)

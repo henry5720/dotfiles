@@ -102,7 +102,7 @@ config 樣板的 windows 分支)時:
 3. PR 的 `## 驗證` 段逐項列出下表 CI 沒標 ✅ 的實機項目,全部勾完才 merge。能在 Windows 上下指令就自己跑
 
 runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner 的家目錄是全新的(沒有使用者自己的設定檔、
-手寫的 `$PROFILE`、「文件」沒被 OneDrive 接管)、UAC 關著、Developer Mode 開著、pwsh 7 與 Git 預裝(Chrome 預裝的是企業版 MSI,CI 先移掉)、
+手寫的 `$PROFILE`、「文件」沒被 OneDrive 接管)、UAC 關著、Developer Mode 開著、pwsh 7、Git 與企業版 MSI 的 Chrome 預裝、
 是 Windows Server 不是 Windows 11、沒有 WSL2 的 VM、沒有桌面可以看。
 
 | # | 時機 | 在 Windows 上做 | 預期 | CI |
@@ -115,7 +115,7 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 | |
 | 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 | ◐ 只驗不互動的 init |
 | 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 | ✅ |
-| 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` | ◐ runner 先移掉預裝的 Chrome,只驗從沒有 Chrome 裝起與 snapshot |
+| 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` | ◐ 只驗已經有企業版 MSI 的 Chrome 時 winget 跳過、`playwright-cli --version` 跑得起來 |
 | 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 | ✅ |
 | 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 | ✅ |
 | 12 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 | |
