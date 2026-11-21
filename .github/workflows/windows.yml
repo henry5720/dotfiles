@@ -107,6 +107,7 @@ jobs:
               '--promptString', 'code-server 密碼=ci'
               '--promptString', 'codex-lb API key=ci'
               '--promptString', 'Context7 API key（可留空）='
+              '--promptString', 'Graphify API key（可留空）='
               '--promptString', 'WakaTime API key（可留空）='
               '--promptChoice', "$env:USE_PROMPT=f"
               '--promptMultichoice', "$env:TOOLS_PROMPT=$($labels -join '/')"

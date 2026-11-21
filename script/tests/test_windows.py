@@ -43,6 +43,8 @@ WINDOWS_SCRIPTS = {
     ".chezmoiscripts/sync-skillshare.ps1",
     # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
     ".chezmoiscripts/install-wakatime.ps1",
+    # MCP 的 API key(context7、graphify)設成使用者環境變數;沒填 key 時渲染成空的,但仍是 managed
+    ".chezmoiscripts/set-mcp-env.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
 # skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
@@ -577,6 +579,18 @@ class WindowsDeployTest(unittest.TestCase):
                 self.assertTrue(out.strip())
                 self.assertTrue(out.isascii(), [l for l in out.splitlines() if not l.isascii()][:3])
 
+    def test_windows_mcp_keys_become_user_env_vars(self):
+        # Linux 由 env.zsh export;Windows 的 agent 不一定從 PowerShell 開,所以設成 User 範圍的環境變數。
+        # 沒填的不動(不刪),兩個都空就渲染成空的,chezmoi 不跑。
+        path = SCRIPTS / "run_onchange_after_set-mcp-env.ps1.tmpl"
+        for data, want in (({}, []), ({"context7ApiKey": "", "graphifyApiKey": "g'k"}, [("GRAPHIFY_API_KEY", "g''k")]),
+                           ({"context7ApiKey": "c7", "graphifyApiKey": "gk"}, [("CONTEXT7_API_KEY", "c7"), ("GRAPHIFY_API_KEY", "gk")])):
+            with self.subTest(data=data):
+                out = self.chezmoi("windows", "execute-template", path.read_text(encoding="utf-8"), data=data)
+                self.assertTrue(out.isascii())
+                self.assertEqual(re.findall(r"SetEnvironmentVariable\('(\w+)', '((?:[^']|'')*)', 'User'\)", out), want)
+                if not want: self.assertEqual(out.strip(), "")
+
     def test_windows_ps1_scripts_drop_pwsh7_module_paths_first(self):
         # chezmoi 從 pwsh 7 跑時,5.1 繼承 pwsh 7 的 PSModulePath,Get-FileHash、Expand-Archive 載不到(#345,
         # Windows runner 實測)。每支 .ps1 第一行可執行的程式就要把它們拿掉
@@ -584,6 +598,7 @@ class WindowsDeployTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 out = self.render(path, sorted(WINDOWS_FULL) + ["code-server", "zsh"])
                 code = [l for l in out.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+                if not code: continue  # 渲染成空的(set-mcp-env 沒帶 key)chezmoi 不跑
                 self.assertIn("$env:PSModulePath", code[0])
 
     def test_windows_tools_command_reprompts_and_applies(self):

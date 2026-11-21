@@ -34,6 +34,16 @@ class McpHandoffTest(unittest.TestCase):
         env = os.environ.copy(); env["HOME"] = str(self.home)
         return subprocess.run([interpreter, "-c", self.render(template)], input=stdin, env=env, text=True, capture_output=True, check=True).stdout
 
+    def test_env_zsh_exports_only_filled_mcp_keys(self):
+        # skillshare 的 MCP 設定只留 fromEnv／bearerToken 參照，值從 env.zsh 來；兩個都空就整份不部署。
+        env = ROOT / "home/dot_config/zsh/private_env.zsh.tmpl"
+        for c7, gk, want in (("", "", []), ("c7", "", ["CONTEXT7_API_KEY"]), ("", "gk", ["GRAPHIFY_API_KEY"]),
+                             ("c7", "gk", ["CONTEXT7_API_KEY", "GRAPHIFY_API_KEY"])):
+            self.cfg.write_text(f'[data]\ncontext7ApiKey="{c7}"\ngraphifyApiKey="{gk}"\n', encoding="utf-8")
+            out = self.render(env)
+            self.assertEqual([l.split("=")[0].removeprefix("export ") for l in out.splitlines() if l.startswith("export ")], want)
+            if not want: self.assertEqual(out.strip(), "")
+
     def test_codex_keeps_tables_skillshare_appends(self):
         # 停用 skill 那段要出現,才驗得到它不會被搬到 skillshare 的 table 後面。
         wiki = self.home / "obsidian_wiki/skills/wiki-query"; wiki.mkdir(parents=True); (wiki / "SKILL.md").write_text("x")

@@ -37,6 +37,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 [data]
     codexLbApiKey = "x"
     context7ApiKey = ""
+    graphifyApiKey = ""
     wakatimeApiKey = ""
     machineUse = "full"
     tools = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "bottom", "gh", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
@@ -91,6 +92,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 "pipx:windows-mcp" = "latest"
 
 ## 渲染成空的腳本
+.chezmoiscripts/run_onchange_after_set-mcp-env.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
 
 ## 會跑的腳本

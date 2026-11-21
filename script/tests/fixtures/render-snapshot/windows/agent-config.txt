@@ -36,6 +36,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 ## init 存下的設定
 [data]
     context7ApiKey = ""
+    graphifyApiKey = ""
     machineUse = "custom"
     tools = ["agent-config"]
     toolsSchema = 3
@@ -71,6 +72,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git
 ## 渲染成空的腳本
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+.chezmoiscripts/run_onchange_after_set-mcp-env.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
 
 ## 會跑的腳本
