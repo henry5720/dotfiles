@@ -1,3 +1,8 @@
+{{- if eq .chezmoi.os "windows" -}}
+{{- /* Windows(#320):跑不了下面的 sh + python3,原樣吐出 Go template 版(.chezmoitemplates/codex-config-windows),
+       chezmoi 把它當 modify-template、拿現有檔案當 .chezmoi.stdin 再跑一次。 */ -}}
+{{ include ".chezmoitemplates/codex-config-windows" }}
+{{- else -}}
 #!{{ lookPath "sh" }}
 # shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.codex/config.toml 是兩方共用的檔案:上半段是這個 repo 的設定,下半段全是 codex
@@ -211,30 +216,14 @@ except (tomllib.TOMLDecodeError, ValueError) as error:
 sys.stdout.write(candidate)
 ' "$preamble_file" "$instructions_file" < "$input_file" > "$output_file"
 cat <<'TOML'
-# ============================================================
-# codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與權限
-# 是 repo 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
-# ============================================================
-model = "gpt-6.1-sol"
-model_provider = "codex-lb-gcp"
-model_reasoning_effort = "medium"
-approval_policy = "on-request"
-sandbox_mode = "workspace-write"
-approvals_reviewer = "auto_review"
+{{ includeTemplate "codex-config-top.toml" . | trimSuffix "\n" }}
 TOML
 cat "$preamble_file"
 cat <<'TOML'
 
-[model_providers.codex-lb-gcp]
-name = "openai"
-base_url = "https://codex.teamsync.com.tw/backend-api/codex"
-wire_api = "responses"
-experimental_bearer_token = "{{ .codexLbApiKey }}"
-supports_websockets = true
-request_max_retries = 4
-stream_max_retries = 10
-stream_idle_timeout_ms = 300000
+{{ includeTemplate "codex-config-provider.toml" . | trimSuffix "\n" }}
 TOML
 # provider 與後面的 table 之間空一行。
 if [ -s "$output_file" ]; then echo; fi
 cat "$output_file"
+{{ end -}}

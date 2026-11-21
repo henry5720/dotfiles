@@ -7,6 +7,8 @@ Windows 白名單多一個檔案時:改 home/.chezmoiignore 的 Windows 段,再�
 """
 import base64
 import json
+import os
+import tomllib
 import re
 import subprocess
 import tempfile
@@ -32,6 +34,10 @@ WINDOWS_TARGETS = {
 # 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
 # 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
 OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
+# 勾了 claude 才部署的設定(#319)。plugins/claude-hud 不放:claude-hud 由 skillshare 的 plugin 裝,沒裝時那份設定沒人讀
+CLAUDE_SETTINGS = ".claude/settings.json"
+CLAUDE_COMMIT = "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+CHROME_PLUGIN = "chrome-devtools-mcp@claude-plugins-official"
 # 只有 .ps1 腳本跑到 Windows(sh 腳本放行就會被 chezmoi 拿去執行而失敗)
 WINDOWS_SCRIPTS = {
     ".chezmoiscripts/install-packages-windows.ps1",
@@ -47,6 +53,23 @@ WINDOWS_SCRIPTS = {
     ".chezmoiscripts/set-mcp-env.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
 }
+# 勾了 codex 才部署的設定(#320)。personal.config.toml、codex-gcp.config.toml 不放:給 ai-profile(只有 Linux)用
+CODEX_TARGETS = {".codex/config.toml"}
+CODEX_CONFIG = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
+# Codex 自己寫過的 config.toml:codex 加的頂層 key(notify)、信任專案、TUI 計數器、hook,skillshare 寫的 MCP,
+# 使用者在 developer_instructions 自己加的字(多行字串裡有像 table 的一行)
+CODEX_EXISTING = (
+    'model = "drifted"\napprovals_reviewer = "user"\n'
+    'developer_instructions = """使用者自己的指引\n[features]\n照留。"""\n'
+    'notify = [\n  "herdr",\n  "codex-notify",\n]\n\n'
+    '[model_providers.codex-lb-gcp]\nname = "stale"\n\n'
+    '[projects."C:\\\\Users\\\\h\\\\repo"]\ntrust_level = "trusted"\n\n'
+    '[tui.model_availability_nux]\n"gpt-6.1-sol" = 3\n\n'
+    '[features]\nhooks = true\n\n'
+    '[[skills.config]]\npath = "C:/x/SKILL.md"\nenabled = false\n\n'
+    '[mcp_servers.gh_grep]\nurl = "https://mcp.grep.app"\n\n'
+    '[mcp_servers.context7]\nurl = "https://mcp.context7.com/mcp"\nbearer_token_env_var = "CONTEXT7_API_KEY"\n'
+)
 # skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
 SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
 # henry-desktop 上 skillshare 自己存的 config.yaml(LF,勾 claude、codex、opencode、agent-config)
@@ -121,16 +144,18 @@ class WindowsDeployTest(unittest.TestCase):
     # 部署哪些 target
     # ===============================================================
     def test_windows_manages_exactly_the_whitelist(self):
-        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 的設定目錄還不部署(第 2 步,#314),只有安裝腳本。
+        # 裝不了的(zsh)不會放行 sh 腳本或設定目錄;claude 勾了才放 settings.json(#319)。
         # opencode、agent-config 勾了才放它們的設定;Linux 那份 ~/.config/skillshare 永遠不放
         # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
         opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
+        codex = CODEX_TARGETS | parents(CODEX_TARGETS)
+        claude = {CLAUDE_SETTINGS} | parents([CLAUDE_SETTINGS])
         # .wakatime.cfg 要有 API key 才管(test_wakatime_cfg_managed_only_with_api_key),這裡沒帶 key
         for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
-                             (sorted(WINDOWS_FULL), opencode | skillshare),
-                             (["zsh", "claude", "tailscale"], set()), (["opencode"], opencode),
+                             (sorted(WINDOWS_FULL), opencode | skillshare | claude | codex), (["codex"], codex),
+                             (["zsh", "claude", "tailscale"], claude), (["opencode"], opencode),
                              (["agent-config"], skillshare), (["wakatime"], set())):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
@@ -166,6 +191,59 @@ class WindowsDeployTest(unittest.TestCase):
         kept = self.render_opencode_json(existing)
         self.assertEqual(kept["mcp"], {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}})
         self.assertEqual(kept, fresh | {"mcp": kept["mcp"]})
+
+    # ===============================================================
+    # Codex 的 config.toml(#320):Linux 那份是 sh + python3,Windows 渲染成 modify-template,行為一樣
+    # ===============================================================
+    def codex_windows(self, existing):
+        """Windows 上 chezmoi 算出的 ~/.codex/config.toml(existing = None 是檔案不存在)。"""
+        target = self.home / ".codex/config.toml"
+        target.unlink(missing_ok=True)
+        if existing is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(existing, encoding="utf-8")
+        return self.chezmoi("windows", "cat", str(target), data={"tools": ["codex"], "codexLbApiKey": "fixture"})
+
+    def codex_linux(self, existing):
+        script = self.chezmoi("linux", "execute-template", CODEX_CONFIG.read_text(encoding="utf-8"),
+                              data={"tools": ["codex"], "codexLbApiKey": "fixture"})
+        return subprocess.run(["sh", "-c", script], input=existing, text=True, capture_output=True, check=True,
+                              env={"PATH": os.environ["PATH"], "HOME": str(self.home)}).stdout
+
+    def test_windows_codex_config_pins_values_and_keeps_codex_state(self):
+        out = self.codex_windows(CODEX_EXISTING)
+        config, before = tomllib.loads(out), tomllib.loads(CODEX_EXISTING)
+        self.assertEqual(config["model"], "gpt-6.1-sol")
+        self.assertEqual(config["model_provider"], "codex-lb-gcp")
+        self.assertEqual(config["approvals_reviewer"], "auto_review")
+        self.assertEqual(config["model_providers"]["codex-lb-gcp"]["experimental_bearer_token"], "fixture")
+        self.assertTrue(config["developer_instructions"].startswith("使用者自己的指引\n[features]\n照留。\n\n"))
+        self.assertEqual(config["developer_instructions"].count("Co-authored-by: Codex <noreply@openai.com>"), 1)
+        for key in ("notify", "projects", "tui", "features", "mcp_servers"):
+            self.assertEqual(config[key], before[key], key)
+        self.assertNotIn("skills", config)
+        self.assertEqual(self.codex_windows(out), out)
+
+    def test_windows_codex_config_matches_linux_for_same_input(self):
+        # 同一批輸入,Windows 的 modify-template 跟 Linux 的 sh + python3 輸出要逐字一樣
+        cases = [None, "", CODEX_EXISTING,
+                 '"developer_instructions" = "a\\n\\n<!-- chezmoi:codex-commit-attribution:start -->\\nold\\n'
+                 '<!-- chezmoi:codex-commit-attribution:end -->\\nb"\nnotify = ["x"]\n',
+                 '[projects."/x"]\ntrust_level = "trusted"\n\n\n[mcp_servers.a]\nurl = "u"\n',
+                 # 舊版 chezmoi 寫的停用 skill 橫幅在中間、table 名稱帶空白與引號、值裡有括號
+                 '[projects."/x"]\ntrust_level = "trusted"\n\n# ' + '=' * 60 + '\n# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n'
+                 '# ' + '=' * 60 + '\n\n[[skills.config]]\npath = "/w/SKILL.md"\nenabled = false\n\n'
+                 '[ model_providers . "codex-lb-gcp" ]\nname = "x"\n\n[mcp_servers.b]\ncommand = "a[b"\nargs = ["{", "#"]\n']
+        for existing in cases:
+            with self.subTest(existing=(existing or "")[:40]):
+                linux = self.codex_linux(existing or "")
+                self.assertEqual(self.codex_windows(existing), linux)
+                self.assertEqual(self.codex_windows(linux), linux)
+                # 使用者用記事本存過的 CRLF 檔:舊橫幅照樣認得,輸出跟 codex 一樣是 LF
+                # (Linux 那份讀 CRLF 會失敗,所以比的是同一份內容 LF 版的 Linux 輸出)
+                if existing:
+                    crlf = existing.replace("\n", "\r\n").encode()
+                    self.assertEqual(self.cat_bytes(".codex/config.toml", crlf, ["codex"], ROOT), linux.encode())
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -570,6 +648,12 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
         self.assertEqual(self.cat_bytes(target, b"", ["opencode"], self.crlf_source()), lf)
 
+    def test_windows_codex_config_same_from_crlf_checkout(self):
+        # 樣板自己的字(釘的 TOML、commit 指引)不能帶 \r 進來;codex 存的是 LF
+        lf = self.cat_bytes(".codex/config.toml", CODEX_EXISTING.encode(), ["codex"], ROOT)
+        self.assertNotIn(b"\r", lf)
+        self.assertEqual(self.cat_bytes(".codex/config.toml", CODEX_EXISTING.encode(), ["codex"], self.crlf_source()), lf)
+
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
         for path, tools in ((SCRIPTS / "run_onchange_before_install-packages-windows.ps1.tmpl", ["tailscale"]),
@@ -611,6 +695,14 @@ class WindowsDeployTest(unittest.TestCase):
         out = self.render("home/dot_local/bin/tools.ps1.tmpl", [])
         self.assertIn("chezmoi init --prompt @args", out)
         self.assertIn("chezmoi apply", out)
+
+    def test_windows_apply_writes_codex_config_on_new_machine(self):
+        # 沒有 ~/.codex 的新機器:apply 寫出釘的那幾項,再 verify 沒有差異(沒勾 codex、沒有 key 的情況見 test_windows_apply_deploys_tools_and_mise_list)
+        data = {"tools": ["codex"], "codexLbApiKey": "fixture"}
+        self.chezmoi("windows", "apply", "--exclude", "scripts", data=data)
+        config = tomllib.loads((self.home / ".codex/config.toml").read_text(encoding="utf-8"))
+        self.assertEqual(config["sandbox_mode"], "workspace-write")
+        self.chezmoi("windows", "verify", "--exclude", "scripts", data=data)
 
     def test_windows_apply_deploys_tools_and_mise_list(self):
         # 不跑腳本(--exclude scripts):Linux 上沒有 powershell
@@ -794,6 +886,73 @@ class WindowsDeployTest(unittest.TestCase):
         # 舊格式:profiles 直接是設定檔清單,沒有 defaults 可以設 → 原樣輸出、不報錯
         settings = '{\n    "profiles": [ { "guid": "{x}", "name": "cmd" } ]\n}\n'
         self.assertEqual(self.render_terminal_settings(settings), settings)
+
+    # ===============================================================
+    # Claude Code 的 settings.json(modify template,#319)
+    # ===============================================================
+    # 只釘兩個值(跟 Linux 那份 sh + jq 一樣):官方 chrome-devtools plugin 關掉、attribution.commit。
+    # 其他(hook、statusLine、autoMode、其他 plugin 開關)是 Claude 和其他工具自己寫的,原樣留著。
+    def render_claude_settings(self, existing, source=ROOT):
+        """existing(str,None = 檔案不存在)放到 ~/.claude/settings.json,回傳 chezmoi 算出的 bytes。"""
+        if existing is None:
+            target = self.home / CLAUDE_SETTINGS
+            info = {"os": "windows", "homeDir": str(self.home), "kernel": {"osrelease": ""}}
+            return subprocess.run([
+                "chezmoi", "--no-tty", "--source", str(source), "--config", str(self.cfg),
+                "--destination", str(self.home), "--override-data",
+                json.dumps({"chezmoi": info, "tools": ["claude"]}), "cat", str(target),
+            ], stdin=subprocess.DEVNULL, capture_output=True, check=True).stdout
+        return self.cat_bytes(CLAUDE_SETTINGS, existing.encode(), ["claude"], source)
+
+    def test_windows_claude_settings_pins_two_values_and_keeps_the_rest(self):
+        existing = {
+            "attribution": {"commit": "old", "pr": "Keep PR attribution"},
+            "enabledPlugins": {CHROME_PLUGIN: True, "claude-hud@claude-hud": True},
+            "hooks": {"SessionStart": [{"hooks": [{"command": "herdr hook", "type": "command"}]}]},
+            "statusLine": {"type": "command", "command": "node hud.js"},
+            "cleanupPeriodDays": 30,
+        }
+        first = self.render_claude_settings(json.dumps(existing))
+        after = json.loads(first)
+        expected = json.loads(json.dumps(existing))
+        expected["attribution"]["commit"] = CLAUDE_COMMIT
+        expected["enabledPlugins"][CHROME_PLUGIN] = False
+        self.assertEqual(after, expected)
+        # 第二次 apply 沒有變化
+        self.assertEqual(self.render_claude_settings(first.decode()), first)
+
+    def test_windows_claude_settings_keeps_bytes_when_values_already_right(self):
+        # Claude 自己改寫過(縮排、key 順序都是它的):值已經對就原樣輸出,chezmoi diff 才是空的
+        saved = ('{\n  "theme": "dark",\n  "enabledPlugins": {\n    "%s": false\n  },\n'
+                 '  "attribution": {\n    "pr": "",\n    "commit": "%s"\n  }\n}' % (CHROME_PLUGIN, CLAUDE_COMMIT))
+        self.assertEqual(self.render_claude_settings(saved).decode(), saved)
+
+    def test_windows_claude_settings_without_file_has_only_pinned_values(self):
+        self.assertEqual(json.loads(self.render_claude_settings(None)),
+                         {"attribution": {"commit": CLAUDE_COMMIT}, "enabledPlugins": {CHROME_PLUGIN: False}})
+
+    def test_windows_claude_settings_replaces_non_object_values(self):
+        # 跟 Linux 的 jq 一樣:attribution 不是物件時整個換成物件
+        after = json.loads(self.render_claude_settings('{"attribution": "x", "enabledPlugins": null}'))
+        self.assertEqual(after["attribution"], {"commit": CLAUDE_COMMIT})
+        self.assertEqual(after["enabledPlugins"], {CHROME_PLUGIN: False})
+
+    def test_windows_claude_settings_fails_clearly_when_not_an_object(self):
+        # 整個檔案不是物件(null、陣列)時不猜怎麼修:apply 失敗、說是哪個檔,檔案不動
+        for existing in ("null", "[]"):
+            with self.subTest(existing=existing):
+                with self.assertRaises(subprocess.CalledProcessError) as error:
+                    self.render_claude_settings(existing)
+                self.assertIn("settings.json 必須是 JSON 物件", error.exception.stderr.decode())
+
+    def test_windows_claude_settings_has_no_cr_from_crlf_checkout(self):
+        crlf = self.crlf_source()
+        lf = self.render_claude_settings(None)
+        self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
+        self.assertEqual(self.render_claude_settings(None, crlf), lf)
+        changed = '{"attribution": {"commit": "old"}}'
+        self.assertEqual(self.render_claude_settings(changed, crlf),
+                         self.render_claude_settings(changed))
 
 
 if __name__ == "__main__":
