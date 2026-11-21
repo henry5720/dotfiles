@@ -1493,7 +1493,7 @@ noroot_full_checks() {
   check_mise ffmpeg -version
   check_mise pdftoppm -v
   check_mise_skips_system_vim
-  check "zsh 會把 mise 的 shims 加進 PATH" "grep -q 'mise/shims' ~/.zshrc"
+  check "zsh 會把 mise 的 shims 加進 PATH" "grep -q 'mise/shims' ~/.zshenv"
   # 不用 root 的照常裝好
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
