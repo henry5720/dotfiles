@@ -1,12 +1,12 @@
 # 工具一覽
 
-已配置主機上有哪些工具、各自最常用的一兩個指令。其餘用法照官網；這個 repo 有細節文件的，連在最後一欄。
+已配置主機上有哪些工具、各做什麼。這個 repo 有工具文件的連工具文件（`docs/tools/`），沒有的連官網。
 怎麼連上已配置主機、怎麼開 agent，見[操作已配置主機](configured-host.md)。
 
-哪些工具會裝，看那台的用途與勾選（[用途與憑證](install/machine-use.md)）；要加減用 `tools`。
+哪些工具會裝，看那台的用途與勾選（[用途與憑證](how-to/machine-use.md)）；要加減用 `tools`。
 
 ```
-shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom
+shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom  mise
 入口與連線      tailscale  cloudflared  code-server  ttyd  gh
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-mcp
@@ -17,18 +17,19 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 
 ## shell 日常
 
-| 工具 | 做什麼 | 常用 | 官網 |
-|---|---|---|---|
-| zsh | 預設 shell；打字時灰字建議、指令上色、跳常去的目錄 | `→` 接受灰字建議；`z <目錄名片段>` 跳過去 | [zsh](https://www.zsh.org/) |
-| starship | 提示列：目錄、git 分支與狀態 | 不用打指令，自動顯示 | [starship](https://starship.rs/) |
-| eza | 彩色、帶圖示的 ls | `ll` 詳細列表、`lt` 兩層樹狀 | [eza](https://eza.rocks/) |
-| fzf | 模糊搜尋 | `Ctrl-R` 找打過的指令、`Ctrl-T` 找檔案 | [fzf](https://github.com/junegunn/fzf) |
-| bat | 有語法上色的 cat | `bat <檔案>` | [bat](https://github.com/sharkdp/bat) |
-| ripgrep | 全文搜尋 | `rg <關鍵字>` 搜目前資料夾底下所有檔案 | [ripgrep](https://github.com/BurntSushi/ripgrep) |
-| vim | terminal 裡的文字編輯器 | `vim <檔案>`；`:wq` 存檔離開、`:q!` 不存離開 | [vim](https://www.vim.org/) |
-| fastfetch | 印出系統資訊 | `fastfetch` | [fastfetch](https://github.com/fastfetch-cli/fastfetch) |
-| btop | 工作管理員：CPU、記憶體、行程 | `btop`，按 `q` 離開 | [btop](https://github.com/aristocratos/btop) |
-| bottom | 跟 btop 一樣看 CPU、記憶體、行程，Windows 也能裝（btop 不能） | `btm`，按 `q` 離開 | [bottom](https://github.com/ClementTsang/bottom) |
+| 工具 | 做什麼 | 連結 |
+|---|---|---|
+| zsh | 預設 shell；灰字建議（`→` 接受）、指令上色、`z <目錄名片段>` 跳常去的目錄 | [zsh](https://www.zsh.org/) |
+| starship | 提示列：目錄、git 分支與狀態 | [starship](https://starship.rs/) |
+| eza | 彩色、帶圖示的 ls（`ll`、`lt`） | [eza](https://eza.rocks/) |
+| fzf | 模糊搜尋（`Ctrl-R` 打過的指令、`Ctrl-T` 檔案） | [fzf](https://github.com/junegunn/fzf) |
+| bat | 有語法上色的 cat | [bat](https://github.com/sharkdp/bat) |
+| ripgrep | 全文搜尋（`rg`） | [ripgrep](https://github.com/BurntSushi/ripgrep) |
+| vim | terminal 裡的文字編輯器 | [vim](https://www.vim.org/) |
+| fastfetch | 印出系統資訊 | [fastfetch](https://github.com/fastfetch-cli/fastfetch) |
+| btop | 工作管理員：CPU、記憶體、行程 | [btop](https://github.com/aristocratos/btop) |
+| bottom | 跟 btop 一樣（`btm`），Windows 也能裝 | [bottom](https://github.com/ClementTsang/bottom) |
+| mise | Linux 上裝 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、cloudflared，也管它們的更新與移除 | [mise](tools/mise.md) |
 
 `bat <檔案>`：語法上色、上面標檔名
 
@@ -38,61 +39,59 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 
 ![Ctrl-R 開 fzf 歷史面板，打 bat 篩出相關指令](demo/fzf.png)
 
-Linux 上 eza、fzf、bat、ripgrep、starship、btop、bottom、fastfetch、cloudflared 由 mise 裝，更新與移除見 [mise](install/mise.md)。
-
 ## 入口與連線
 
-| 工具 | 做什麼 | 常用 | 官網 | 細節 |
-|---|---|---|---|---|
-| tailscale | 私人網路，連自己的機器 | `tailscale status` 看有哪些機器、名稱與 IP | [tailscale](https://tailscale.com/kb) | |
-| cloudflared | Cloudflare Tunnel：把服務開給 tailnet 外的人 | `cloudflared tunnel --url http://localhost:8080` 開一條臨時網址 | [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) | |
-| code-server | 瀏覽器開的 VS Code | `code-server` | [code-server](https://coder.com/docs/code-server) | [code-server](remote-access/code-server.md) |
-| ttyd | 把 terminal 開成網頁 | 不直接用，透過 `share-shell` | [ttyd](https://github.com/tsl0922/ttyd) | [share-shell](remote-access/share-shell.md) |
-| gh | GitHub CLI | `gh auth login` 登入；`gh pr list` 看 PR | [gh](https://cli.github.com/) | |
+| 工具 | 做什麼 | 連結 |
+|---|---|---|
+| tailscale | 私人網路，連自己的機器 | [tailscale](https://tailscale.com/kb) |
+| cloudflared | Cloudflare Tunnel：把服務開給 tailnet 外的人 | [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
+| code-server | 瀏覽器開的 VS Code | [code-server](https://coder.com/docs/code-server) |
+| ttyd | 把 terminal 開成網頁，`share-shell` 用它 | [ttyd](https://github.com/tsl0922/ttyd) |
+| gh | GitHub CLI | [gh](https://cli.github.com/) |
 
 ## coding agent
 
-| 工具 | 做什麼 | 常用 | 官網 | 細節 |
-|---|---|---|---|---|
-| herdr | terminal 多工，同時開多個 agent | `herdr --session <名字>` | [herdr](https://github.com/herdrdev/herdr) | [操作已配置主機〈herdr〉](configured-host.md#herdr) |
-| claude | Claude Code | `claude`；`claude --bg "<任務>"` 背景跑 | [Claude Code](https://code.claude.com/docs/en/overview) | [操作已配置主機〈coding agent〉](configured-host.md#coding-agent)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
-| codex | Codex CLI | `codex` | [Codex CLI](https://developers.openai.com/codex/cli) | Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
-| opencode | OpenCode | `opencode` | [OpenCode](https://opencode.ai/docs) | [opencode 設定](ai-agent/opencode.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
-| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | `skillshare sync` 同步到各 agent | [skillshare](https://skillshare.runkids.cc/) | [AI agent 環境：誰管什麼](ai-agent/ai-agent-setup.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#agent-configskillshare) |
+| 工具 | 做什麼 | 連結 |
+|---|---|---|
+| herdr | terminal 多工，同時開多個 agent | [herdr](tools/herdr.md) |
+| claude | Claude Code | [Claude Code](tools/claude.md) |
+| codex | Codex CLI | [Codex CLI](https://developers.openai.com/codex/cli) |
+| opencode | OpenCode | [opencode](tools/opencode.md) |
+| agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | [skillshare](https://skillshare.runkids.cc/) |
 
 ## agent 輔助
 
 多半是 agent 自己用，人很少直接打。
 
-| 工具 | 做什麼 | 常用 | 官網 | 細節 |
-|---|---|---|---|---|
-| codegraph | 程式碼索引，給 agent 查 | `codegraph status` 看索引狀態 | [codegraph](https://github.com/colbymchenry/codegraph) | [codegraph](ai-agent/codegraph.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#codegraph) |
-| headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | 不直接用 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) | |
-| playwright-cli | agent 點網頁、填表、截圖 | 不直接用 | [playwright-cli](https://github.com/microsoft/playwright-cli) | [playwright-cli](ai-agent/playwright-cli.md) |
-| node | Node LTS（Linux、Windows 用 mise，macOS 用 nvm，Termux 用 pkg），給要 Node 的工具 | `node -v` | [mise 的 Node](https://mise.jdx.dev/lang/node.html) | [從 nvm 換到 mise](install/machine-use.md#從-nvm-換到-mise) |
-| uv | Python 套件與專案管理，要的 Python 由 uv 自己下載；勾 snapserver、agent-config 會連帶裝 | `uv run <腳本>`、`uv tool run <工具>` | [uv](https://docs.astral.sh/uv/) | |
-| windows-mcp | 讓 agent 操作 Windows 桌面（截圖、點擊、打字）的 MCP server，只裝在 Windows 主機，會連帶裝 uv | 不直接用 | [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) | [Windows 主機](install/windows.md#windows-mcp) |
+| 工具 | 做什麼 | 連結 |
+|---|---|---|
+| codegraph | 程式碼索引，給 agent 查 | [codegraph](tools/codegraph.md) |
+| headless-chrome | 沒有畫面的 Chrome，給 agent 開網頁 | [Headless Chrome](https://developer.chrome.com/docs/chromium/headless) |
+| playwright-cli | agent 點網頁、填表、截圖 | [playwright-cli](tools/playwright-cli.md) |
+| node | Node LTS，給要 Node 的工具 | [mise 的 Node](https://mise.jdx.dev/lang/node.html) |
+| uv | Python 套件與專案管理 | [uv](https://docs.astral.sh/uv/) |
+| windows-mcp | 讓 agent 操作 Windows 桌面的 MCP server，只裝在 Windows 主機 | [Windows-MCP](https://github.com/CursorTouch/Windows-MCP) |
 
 ## 其他
 
-| 工具 | 做什麼 | 常用 | 官網 | 細節 |
-|---|---|---|---|---|
-| ffmpeg | 影音轉檔、抽音軌與影格 | `ffmpeg -i 輸入.mov 輸出.mp4` | [FFmpeg](https://github.com/FFmpeg/FFmpeg) | |
-| snapserver | 朗讀串流服務：agent 的回覆唸到開著 Snapcast 的個人電腦 | `voice-out on`、`voice-out off` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md) |
-| snapclient | 在個人電腦（Linux、macOS、Windows、Termux）收聽朗讀串流 | `snapclient --host <tailnet IP>` | [Snapcast](https://github.com/badaix/snapcast) | [voice-out](remote-access/voice-out.md#桌機筆電termuxsnapclient) |
-| wakatime | 記錄寫程式的時間 | 不用打指令，自動送 | [WakaTime](https://wakatime.com/) | [WakaTime](ai-agent/wakatime.md)；Windows 主機也能裝，見[Windows 主機](install/windows.md#裝了什麼怎麼用) |
-| earlyoom | 記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU | 不用打指令；砍了誰：`journalctl -u earlyoom` | [earlyoom](https://github.com/rfjakob/earlyoom) | [earlyoom](install/earlyoom.md) |
+| 工具 | 做什麼 | 連結 |
+|---|---|---|
+| ffmpeg | 影音轉檔、抽音軌與影格 | [FFmpeg](https://github.com/FFmpeg/FFmpeg) |
+| snapserver | 朗讀串流服務：agent 的回覆唸到個人電腦 | [Snapcast](https://github.com/badaix/snapcast) |
+| snapclient | 在個人電腦收聽朗讀串流 | [Snapcast](https://github.com/badaix/snapcast) |
+| wakatime | 記錄寫程式的時間 | [WakaTime](tools/wakatime.md) |
+| earlyoom | 記憶體快滿先砍最肥的程序，ssh 還連得上 | [earlyoom](tools/earlyoom.md) |
 
 ## 自寫指令
 
 放在 `~/.local/bin`，這個 repo 自己寫的，沒有官網。
 
-| 指令 | 做什麼 | 細節 |
+| 指令 | 做什麼 | 連結 |
 |---|---|---|
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
-| `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [AI profile routing](ai-agent/ai-profile-routing.md) |
-| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](remote-access/share-shell.md) |
-| `personal-chrome-attach` | 讓 agent 經插件接你的 Chrome（日常 profile 的 passkey、硬體金鑰、裝置 SSO，或你不在 tailnet）：印出 connect 網址，你開 9555 的 ssh 轉發、把網址貼進新分頁；不在 tailnet 時加 `--tunnel`，改給你一行 `cloudflared access tcp`（勾了 `playwright-cli` 才能用） | [瀏覽器](remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
-| `voice-out` | 開關朗讀串流服務（`on`、`off`、`status`），預設不開（勾了 `snapserver` 才有） | [voice-out](remote-access/voice-out.md) |
-| `voice-out-speak` | 把一則 Stop hook JSON 的最後一則回覆唸到朗讀串流服務，給 agent 的 hook 呼叫；服務沒開就直接略過（勾了 `snapserver` 才有） | [voice-out](remote-access/voice-out.md#朗讀指令voice-out-speak) |
-| `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](ai-agent/codegraph.md) |
+| `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [ai-profile](tools/ai-profile.md) |
+| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](how-to/remote-access/share-shell.md) |
+| `personal-chrome-attach` | 讓 agent 經插件接你日常的 Chrome（勾了 `playwright-cli` 才有） | [瀏覽器](how-to/remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
+| `voice-out` | 開關朗讀串流服務（勾了 `snapserver` 才有） | [voice-out](how-to/remote-access/voice-out.md) |
+| `voice-out-speak` | 把 agent 最後一則回覆唸到朗讀串流服務，給 Stop hook 呼叫 | [voice-out](how-to/remote-access/voice-out.md#朗讀指令voice-out-speak) |
+| `codegraph-setup-repo` | 幫一個 repo 建 codegraph 索引 | [codegraph](tools/codegraph.md) |

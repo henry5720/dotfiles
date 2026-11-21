@@ -1,4 +1,6 @@
-# earlyoom：agent 吃滿記憶體時，ssh 還連得上
+# earlyoom
+
+## 為什麼裝
 
 平行的 agent 同時跑 tsc、vitest、vite build，記憶體和 swap 一起被吃滿，整台卡到 ssh 都連不上（#298）。
 勾選裝工具 `earlyoom` 後，這台會照下表決定搶資源時誰先被擠，記憶體快滿時在卡死之前砍掉最肥的程序。
@@ -18,7 +20,7 @@
 
 只在 Debian 系、有 systemd 的 Linux 裝得了；用途 full 預設勾。沒有 root 的機器 apply 時略過，記進略過彙整。
 
-## 為什麼是保護保留服務與常駐服務，不是限制 agent
+### 為什麼是保護保留服務與常駐服務，不是限制 agent
 
 平常工作程序想用多少就用多少，搶的時候才讓位。限制 agent（`MemoryMax`、`CPUQuota`）的話，資源空著時 agent 也用不到，
 而且 herdr server 要重啟才進得了限制的 slice。
@@ -32,7 +34,7 @@
   所以保留服務各自另設保底。
 - **常駐服務放進 earlyoom 的避開清單**：container 裡的程序名稱也是 `node`、`codex`，避開它等於 agent 也避開。
 
-## 數字怎麼來
+### 數字怎麼來
 
 數字都在 [`home/.chezmoidata/earlyoom.yaml`](../../home/.chezmoidata/earlyoom.yaml)，每台共用一份。
 
@@ -51,7 +53,7 @@
 改 yaml 後 `chezmoi apply` 就會重寫設定並套上，不重啟 ssh、tailscale、docker、herdr。
 拿掉清單上的 unit，下次 apply 會收掉它的設定。
 
-## 寫了哪些檔
+### 寫了哪些檔
 
 都在 `/etc`，由 `run_onchange_after_install-earlyoom` 用 sudo 寫：
 
@@ -62,11 +64,32 @@
 ```
 
 `tailscaled-.service.d` 是前綴 drop-in，`tailscaled-preview.service` 這類 `tailscaled-*` 也套到。
-`/etc/default/earlyoom` 是套件的設定檔：哪天 earlyoom 套件升級也改了它，`apt upgrade` 會問要留哪一份，選留現在的，再 `chezmoi apply`。
 
 這些檔都在 `/etc`，寫入與啟用要 root：照上面寫好，再 `sudo systemctl daemon-reload && sudo systemctl enable --now earlyoom`。
 
 容器裡 systemd 沒在跑：設定照寫，不啟用，開機後才生效。
+
+## 常用指令
+
+### 怎麼確認生效
+
+```bash
+systemctl show system.slice -p MemoryMin -p MemoryLow -p CPUWeight   # 512M、15% 換算的值、1000
+systemctl show ssh.service -p MemoryMin -p CPUWeight                 # infinity、1000
+systemctl is-active earlyoom                                         # active
+journalctl -u earlyoom -n 10                                         # 開頭印出門檻與避開清單
+```
+
+### earlyoom 砍了誰
+
+```bash
+journalctl -u earlyoom | grep -i -E 'sending|killed'
+```
+
+被砍的通常是最肥的工作程序（tsc、vitest），重跑就好。container 裡的程序也可能被砍（不在避開清單），
+被砍了就重開那個 container；常駐服務要固定的上限，自己給 container 設 `--memory`。
+
+### 取消勾選後拿掉設定
 
 取消勾選不會拿掉這些設定（選裝工具都不解除安裝）。要拿掉：
 
@@ -76,23 +99,12 @@ sudo systemctl daemon-reload
 sudo systemctl disable --now earlyoom
 ```
 
-保留服務的保底量是大家共用的：清單上某個服務漏記憶體長大時，會跟其他保留服務照用量比例分這 512M，ssh 分到的跟著變少。
-真的遇到再給那個 unit 另設 `MemoryMax`。
+## 坑
 
-## 怎麼確認生效
+- `/etc/default/earlyoom` 是套件的設定檔：哪天 earlyoom 套件升級也改了它，`apt upgrade` 會問要留哪一份，選留現在的，再 `chezmoi apply`。
+- 保留服務的保底量是大家共用的：清單上某個服務漏記憶體長大時，會跟其他保留服務照用量比例分這 512M，ssh 分到的跟著變少。
+  真的遇到再給那個 unit 另設 `MemoryMax`。
 
-```bash
-systemctl show system.slice -p MemoryMin -p MemoryLow -p CPUWeight   # 512M、15% 換算的值、1000
-systemctl show ssh.service -p MemoryMin -p CPUWeight                 # infinity、1000
-systemctl is-active earlyoom                                         # active
-journalctl -u earlyoom -n 10                                         # 開頭印出門檻與避開清單
-```
+## 更多
 
-## earlyoom 砍了誰
-
-```bash
-journalctl -u earlyoom | grep -i -E 'sending|killed'
-```
-
-被砍的通常是最肥的工作程序（tsc、vitest），重跑就好。container 裡的程序也可能被砍（不在避開清單），
-被砍了就重開那個 container；常駐服務要固定的上限，自己給 container 設 `--memory`。
+- [earlyoom](https://github.com/rfjakob/earlyoom)：官方 README 與參數

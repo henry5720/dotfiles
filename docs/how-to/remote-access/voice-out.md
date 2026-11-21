@@ -11,7 +11,7 @@ agent 回完話 → voice-out-speak → pipe → snapserver ══tailnet══�
 
 ## 裝
 
-已配置主機的選裝工具選單勾 `snapserver`（之後要加見[改設定與更新](../after-install.md)），apply 時：
+已配置主機的選裝工具選單勾 `snapserver`（之後要加見[改設定與更新](../../after-install.md)），apply 時：
 
 - 用 apt 裝 snapserver、ffmpeg，用 mise 裝 uv。TTS 的 edge-tts 不另外裝，`voice-out-speak` 每次用 `uv tool run` 跑它。
 - 停用並關掉套件自帶的系統服務（它監聽所有網卡、開機自動啟動）。
@@ -143,7 +143,7 @@ stdin 是一則 Stop hook JSON，唸 `last_assistant_message`（Claude Code、Co
 
 ### 桌機、筆電、Termux：snapclient
 
-勾選裝工具 `snapclient`（之後要加見[改設定與更新](../after-install.md)）：
+勾選裝工具 `snapclient`（之後要加見[改設定與更新](../../after-install.md)）：
 
 | 平台 | 裝法 | 備註 |
 |---|---|---|

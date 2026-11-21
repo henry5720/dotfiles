@@ -1,7 +1,7 @@
 # 朗讀串流服務(選裝工具 snapserver,#290)。由 chezmoi 從 home/dot_config/systemd/user/voice-out.service 部署。
 # 用 voice-out on／off／status 開關,不要 enable:預設不開機自動啟動,想聽才開。
 # 登出後還要跑:sudo loginctl enable-linger "$USER"。
-# 說明:dotfiles 的 docs/remote-access/voice-out.md。
+# 說明:dotfiles 的 docs/how-to/remote-access/voice-out.md。
 
 [Unit]
 Description=朗讀串流服務 snapserver(voice-out 開關)

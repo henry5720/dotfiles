@@ -5,7 +5,7 @@
 # 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
 # 套件本身由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml)。
 # 這支把 .chezmoidata/earlyoom.yaml 的數字寫進 /etc;數字一改,渲染結果跟著變,下次 apply 重跑。
-# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/install/earlyoom.md:
+# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/tools/earlyoom.md:
 #   保留服務  各 unit 的 drop-in:MemoryMin=infinity、CPUWeight;earlyoom --avoid
 #   常駐服務  system.slice 的 drop-in:MemoryLow、CPUWeight,另設 MemoryMin 讓保留服務拿得到保底量
 #   工作程序  不設限

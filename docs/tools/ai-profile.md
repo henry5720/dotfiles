@@ -1,5 +1,8 @@
-# AI profile routing
+# ai-profile
 
+## 為什麼裝
+
+用公司或個人帳號開 codex、opencode。
 部署後使用四個入口切換環境：
 
 | 入口 | 環境 |
@@ -11,18 +14,16 @@
 
 四個都是 `~/.local/bin/ai-profile` 的 symlink，靠檔名判斷身分。裸 `codex`、`opencode` 不變。
 
-```mermaid
-flowchart LR
-  work["codex-work<br/>opencode-work"] --> gw["公司 gateway<br/>codex-lb-gcp"]
-  personal["codex-personal<br/>opencode-personal"] --> oa["官方 openai"]
-  work --> shared["共用 roots<br/>auth、session、skills、rules"]
-  personal --> shared
+```text
+codex-work、opencode-work ─────────→ 公司 gateway(codex-lb-gcp)
+codex-personal、opencode-personal ─→ 官方 openai
+                兩邊都用 ──────────→ 共用 roots:auth、session、skills、rules
 ```
 
 個人入口**只切 provider/model**，不是第二份 runtime：roots、auth、session、cache、skills、
 rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下），也不宣稱公司 skills、MCP 或 remote attach 受 model 限制。
 
-## 個人入口實際改了什麼
+### 個人入口實際改了什麼
 
 - **`codex-personal`** = `codex --profile personal`，只用官方 `openai` provider。
   `login`／`logout` 原生轉送、不加 `--profile`。
@@ -39,13 +40,15 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
 
 TUI interactive 與首次 plugin 初始化未在此 lane 驗證。
 
-## 模型與登入
+### 模型與登入
 
 個人 Codex 的模型仍由 chezmoi 非秘密資料 `data.aiPersonal.codexModel` 設定。
 個人 OpenCode 不再另外填三個模型 ID：它直接讀公司 OMO 的 `teamsync-astra` preset，保留同一份
 角色分工與 council，只換成 `openai/` provider。OpenCode main model 取 orchestrator，small model
 取 explorer；調整公司 preset 時個人 route 會一起更新。launcher 仍檢查產生的 route 是否有 main、
 small model 與 OMO preset，避免設定檔缺漏時啟動；不需要模型的 help、models、登入指令仍可使用。
+
+## 常用指令
 
 登入手動完成，沒有自動登入或 API-key route：
 

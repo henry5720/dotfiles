@@ -1,4 +1,10 @@
-# Herdr 通知音:WSL2 設定與排錯
+# herdr
+
+## 為什麼裝
+
+terminal 多工，同時開多個 agent。怎麼開 session、接回去見[操作已配置主機〈herdr〉](../configured-host.md#herdr)。
+
+### 通知音怎麼播
 
 Herdr 的通知音由**目前連線的 local client**播放。Linux 版不內建 audio backend,
 而是把內建或自訂的 MP3 寫到暫存檔,再依序嘗試系統播放器:
@@ -12,13 +18,12 @@ Herdr 的通知音由**目前連線的 local client**播放。Linux 版不內建
 順序以 Herdr 官方 [`src/sound.rs`](https://github.com/herdrdev/herdr/blob/master/src/sound.rs)
 為準。每個 player 最多執行 15 秒,失敗才換下一個。
 
-## 這台機器的做法
+### WSL2 的做法
 
 WSL2 的聲音由 WSLg PulseAudio 提供,所以使用第一順位的 `paplay`:
 
-```mermaid
-flowchart LR
-  H["Herdr local client"] --> P["paplay"] --> W["WSLg PulseAudio"] --> S["Windows 音效"]
+```text
+Herdr local client ──→ paplay ──→ WSLg PulseAudio ──→ Windows 音效
 ```
 
 ```bash
@@ -42,7 +47,9 @@ enabled = true
 這份 config **目前不由 chezmoi 部署**,新機器要自行建立。自訂通知音時只接受 MP3,
 可在 `[ui.sound]` 設定 `path`、`done_path` 或 `request_path`。
 
-## 驗證
+## 常用指令
+
+### 驗證通知音
 
 先確認實際可用的 player:
 
@@ -63,7 +70,9 @@ herdr notification show "Herdr 音效測試" --sound done
 grep 'sound playback failed' ~/.config/herdr/herdr-client.log
 ```
 
-## SSH 後沒聲音
+## 坑
+
+### SSH 後沒聲音
 
 先看 log,不要先假設通知被 SSH client 搶走。若看到:
 
@@ -81,3 +90,7 @@ wsl --shutdown
 
 再重新開啟 WSL 與 Herdr。這個指令會停止所有 WSL process,包括 Herdr panes、dev server
 與 Docker command,不能在尚未保存工作時執行。
+
+## 更多
+
+- [herdr](https://github.com/herdrdev/herdr)：官方 README 與設定

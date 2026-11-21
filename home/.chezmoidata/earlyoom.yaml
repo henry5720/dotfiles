@@ -1,5 +1,5 @@
 # 選裝工具 earlyoom(#298)的數字,run_onchange_after_install-earlyoom 寫進 /etc。
-# 改了這份,下次 chezmoi apply 重跑那支腳本、套上新值。為什麼這樣設見 docs/install/earlyoom.md。
+# 改了這份,下次 chezmoi apply 重跑那支腳本、套上新值。為什麼這樣設見 docs/tools/earlyoom.md。
 # 名詞(保留服務、常駐服務、工作程序)見 GLOSSARY「裝機」段。
 earlyoom:
   # 保留服務:每個 unit 各寫一份 drop-in(MemoryMin=infinity、CPUWeight),記憶體不被回收。

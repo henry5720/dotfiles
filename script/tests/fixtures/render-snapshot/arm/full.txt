@@ -120,7 +120,7 @@ winget:
 # `skillshare sync mcp -g` 可以直接寫。
 #
 # 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
-# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 docs/ai-agent/ai-agent-setup.md 的 MCP 那節。
+# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 agent-config 的 docs/mcp/README.md〈從舊版 dotfiles 升上來的機器〉。
 #
 # run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
 # 所有機器都遷移完(#37)就可以刪掉這支。
@@ -299,7 +299,7 @@ fi
 # 選裝工具 earlyoom(選單見 .chezmoi.toml.tmpl,#298)。沒勾、或這台裝不了(選裝工具表)就渲染成空的,chezmoi 不跑。
 # 套件本身由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml)。
 # 這支把 .chezmoidata/earlyoom.yaml 的數字寫進 /etc;數字一改,渲染結果跟著變,下次 apply 重跑。
-# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/install/earlyoom.md:
+# 名詞見 GLOSSARY「裝機」段,為什麼這樣設見 docs/tools/earlyoom.md:
 #   保留服務  各 unit 的 drop-in:MemoryMin=infinity、CPUWeight;earlyoom --avoid
 #   常駐服務  system.slice 的 drop-in:MemoryLow、CPUWeight,另設 MemoryMin 讓保留服務拿得到保底量
 #   工作程序  不設限
@@ -507,7 +507,7 @@ fi
 # 套件本身由 install-packages 用 apt 裝(.chezmoidata/tool-table.yaml)。
 # 這支只做一件事:停用並關掉 apt 套件自帶的系統服務 —— 它開機自動啟動、用 _snapclient 帳號直接開 ALSA,
 # 靠 mDNS 找伺服器(過不了 tailnet,區網裡有別的 snapserver 反而會自己連上去),還會跟桌面的音效伺服器搶裝置。
-# 要聽時自己跑 snapclient --host <tailnet IP>,要常駐用 user service(docs/remote-access/voice-out.md)。
+# 要聽時自己跑 snapclient --host <tailnet IP>,要常駐用 user service(docs/how-to/remote-access/voice-out.md)。
 # 步驟在共用樣板 sh-disable-system-service。
 set -eu
 # root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。

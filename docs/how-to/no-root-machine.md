@@ -43,11 +43,11 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 | 有 root 時走 apt 或官方 `.deb` 的工具 | vim、ffmpeg、gh、code-server，與 Claude Code 讀 PDF 要的 `pdftoppm`，改用 [mise](https://mise.jdx.dev/) 裝到家目錄；非 Debian 系 Linux 也一樣 |
 | tailscale（勾了才有） | 官方 static tarball 的 `tailscale`、`tailscaled` 裝到 `~/.local/bin`，狀態放 `~/.local/state/tailscale`；勾了 zsh 的話，之後開 zsh 時 tailscaled 沒在跑會自己背景起來 |
 
-上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](mise.md)。
+上表那幾個系統已經有的指令不交給 mise，不會重裝一份。清單在哪、怎麼更新、被 GitHub API 限流怎麼辦，見 [mise](../tools/mise.md)。
 
 只能用 apt 或 `.deb` 裝的 `earlyoom`、`snapserver`、`snapclient`、`headless-chrome`，選單上標「裝不了」並寫原因，完整的預設組合不勾；
 勾了 apply 照樣跑完，最後在 `== 這台裝不了,以下選裝工具已略過` 底下列出來。系統已經裝了 snapserver、snapclient 的話，
-套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](../remote-access/voice-out.md)）。
+套件自帶、開機自動啟動的系統服務還開著，停用要 root，略過彙整會列出指令（見 [voice-out](remote-access/voice-out.md)）。
 
 系統沒有 `libatomic.so.1`（Debian 系的套件是 `libatomic1`）時，Node 官方 binary 跑不起來：`node` 和要它才能跑的
 `codegraph`、`playwright-cli` 同樣標「裝不了」、完整不勾。只勾了 `opencode`、`wakatime` 這類連帶要 Node 的工具時，它們照裝，

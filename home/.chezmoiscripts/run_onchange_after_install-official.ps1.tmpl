@@ -2,7 +2,7 @@
        跑哪些:.chezmoitemplates/tool-install 算出要裝、裝法是 official、沒有 setup 的工具(現在是 claude #316、codex #317),
        照工具名排。一個都沒有就渲染成空的,chezmoi 不跑。網址、env、已安裝的判斷都在表的 official.ps1;換網址只改表。
        裝法照 ADR 0005。claude 裝到 %USERPROFILE%\.local\bin\claude.exe(PATH 由 PowerShell profile 加);
-       codex 的 installer 自己把 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin 加進使用者 PATH。移除見 docs/install/windows.md。
+       codex 的 installer 自己把 %LOCALAPPDATA%\Programs\OpenAI\Codex\bin 加進使用者 PATH。移除見 docs/how-to/windows.md。
        排在 install-wakatime.ps1 之前:wakatime 要幫已經裝好的 agent 裝 plugin。
        由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
 

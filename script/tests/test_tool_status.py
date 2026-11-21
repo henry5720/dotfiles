@@ -588,7 +588,7 @@ exit 0
 
     def test_snapclient_disables_packaged_system_service(self):
         # apt 的 snapclient 自帶開機自動啟動的系統服務(_snapclient 帳號、靠 mDNS 找伺服器):停用並關掉,
-        # 要聽時自己跑或用 user service(voice-out 主題文件)
+        # 要聽時自己跑或用 user service(voice-out 的情境文件)
         script = f"{SCRIPTS}/run_onchange_after_install-snapclient.sh.tmpl"
         for name, env, tools in (("android", ANDROID, ["snapclient"]), ("mac", MAC, ["snapclient"]),
                                  ("unticked", {}, ["snapserver"])):

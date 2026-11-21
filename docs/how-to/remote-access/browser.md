@@ -3,8 +3,8 @@
 服務卡：agent 要用瀏覽器、你要看 agent 的瀏覽器、或讓 agent 控你的瀏覽器。人和 agent 都照這份打指令。
 這份只講**服務**（怎麼開、怎麼確認、怎麼收）；怎麼連過去是[連線](README.md)那份的事，
 每段的「連線」那行告訴你要哪個 port、往哪個方向，完整 ssh 指令在 [ssh 轉發怎麼讀](README.md#ssh-轉發怎麼讀)，
-常用的幾條也整行列在[速查](../configured-host.md#速查)。
-為什麼工具這樣分見 [ADR 0001](../adr/0001-browser-tools-drive-vs-debug.md)。
+常用的幾條也整行列在[速查](../../configured-host.md#速查)。
+為什麼工具這樣分見 [ADR 0001](../../adr/0001-browser-tools-drive-vs-debug.md)。
 
 ## 先挑哪支 Chrome
 
@@ -64,7 +64,7 @@
 
 ## headless：agent 自己的瀏覽器
 
-agent 跑在 Windows 主機上時也一樣：勾 `headless-chrome`、`playwright-cli`（[Windows 主機](../install/windows.md#裝了什麼怎麼用)），
+agent 跑在 Windows 主機上時也一樣：勾 `headless-chrome`、`playwright-cli`（[Windows 主機](../windows.md#裝了什麼怎麼用)），
 `playwright-cli open` 用的是那台本來就有的 `chrome.exe`、開在臨時的資料夾，不碰日常 profile，也不佔 9222。
 查原因要 9222 時，在那台照[獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome)開 Chrome，不用 ssh 轉發，chrome-devtools-mcp 直接接本機的 9222。
 下面的 bash 指令是 Linux 的；`playwright-cli` 的指令在 PowerShell 一樣打。
@@ -194,7 +194,7 @@ agent 經 [Playwright Extension](https://chromewebstore.google.com/detail/playwr
 你和 agent 在同一台 Windows（例如你在那台桌面開 Claude Code），Chrome 和 relay 都在這台的 `127.0.0.1`，不用 ssh 轉發也不用 tunnel。
 `personal-chrome-attach` 在 Windows 跑不了（要 `/proc`、`mkfifo`、`python3`），這裡也用不到。
 
-1. **第一次**：dotfiles 的選裝工具勾 `playwright-cli`（這台還沒有 Chrome 就一起勾 `headless-chrome`，見 [Windows 主機](../install/windows.md#裝了什麼怎麼用)），
+1. **第一次**：dotfiles 的選裝工具勾 `playwright-cli`（這台還沒有 Chrome 就一起勾 `headless-chrome`，見 [Windows 主機](../windows.md#裝了什麼怎麼用)），
    在要給 agent 用的 Chrome 裝 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)。
 2. agent 在背景跑：
 
