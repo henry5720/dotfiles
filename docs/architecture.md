@@ -39,7 +39,7 @@ docs/                           文件（見 README 的文件索引）
   [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
 - skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
   skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
-  [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
+  [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md)。
 - Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](how-to/windows.md)；
   為什麼這樣分見 [Wayfinder: Windows 側交給 chezmoi（PowerShell、WSL、Windows Terminal）](https://github.com/henry5720/dotfiles/issues/167)。
 - chezmoi 本身的日常用法照官方 [daily operations](https://www.chezmoi.io/user-guide/daily-operations/)。
@@ -74,10 +74,10 @@ agent-config(skillshare)                               ├─→ Claude Code / C
 |---|---|---|---|
 | **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,skillshare extras 連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
 | **skill** | 一套做某件事的步驟,用到才載入 | agent-config,skillshare 同步到各 client | `skillshare update --all`,見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md) |
-| **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md) |
+| **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp/README.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md) |
 | **plugin** | 一整包擴充(可同時含 skill、MCP、指令、subagent) | 宣告在 config.yaml 的 `plugins:`,裝進 `~/.claude/plugins/` 等 | `skillshare plugin update`,見 [plugin](#plugin) |
 
-- skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作),這份不重寫。
+- skillshare 怎麼用(裝 skill、加 MCP、跨機器同步)寫在 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#跨機器),這份不重寫。
 - 不歸 skillshare 管的例外(obsidian-wiki…)和 herdr skill 要跟版本的事,見
   agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#從哪來落到哪)。
 - **這個 repo 不寫任何 MCP 條目。** dotfiles 自己部署、跟 MCP 有關的只有
@@ -142,7 +142,7 @@ targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、cod
 |---|---|
 | 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
 | 新機器套用規則、要重裝什麼 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
-| 裝／更新 skill、寫自己的 skill、接 MCP | 見 [agent-config 的日常操作](https://github.com/henry5720/agent-config#日常操作) |
+| 裝／更新 skill、寫自己的 skill、接 MCP | skill 見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md),MCP 見 [docs/mcp/README.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |
 | 關掉不用的 skill | 見 agent-config 的[〈怎麼關〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#怎麼關);新機器裝完 skill 會全部是開的,要重關一次 |
 | 讓 agent 用瀏覽器查原因 | 遠端主機勾 `headless-chrome`(見[新機器設定 4.1](new-machine-setup.md#41-headless-chrome選了-headless-chrome-才有)),agent 照[瀏覽器](how-to/remote-access/browser.md#headlessagent-自己的瀏覽器)開 headless Chrome 在 9222,再在 session 裡 `/mcp` 確認連上。WSL 沒有這一項,查原因到遠端主機做 |

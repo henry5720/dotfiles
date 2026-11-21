@@ -98,7 +98,7 @@ winget:
 # `skillshare sync mcp -g` 可以直接寫。
 #
 # 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
-# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 docs/ai-agent/ai-agent-setup.md 的 MCP 那節。
+# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 agent-config 的 docs/mcp/README.md〈從舊版 dotfiles 升上來的機器〉。
 #
 # run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
 # 所有機器都遷移完(#37)就可以刪掉這支。
@@ -213,7 +213,7 @@ clean_codex()
 ### .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 #!@BIN@/sh
 # 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
-# agent 在這台開 headless Chrome 用(指令見 docs/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
+# agent 在這台開 headless Chrome 用(指令見 docs/how-to/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
 # Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(選裝工具表的依賴套件)。
 set -eu
 # root(例如 proot 裡還沒建使用者)不加 sudo,沒裝 sudo 的機器也跑得動。

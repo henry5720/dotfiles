@@ -135,7 +135,7 @@ codegraph impact  <symbol> -p ~/code/<repo>
 
 - 第一列:它沒有「只裝 hook、不寫 MCP」的選項。內容跟 `mcp.yaml` 一字不差時 skillshare 列為 `unchanged`,不會衝突,
   但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`
-  (見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#從舊版-dotfiles-升上來的機器))。
+  (見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md#從舊版-dotfiles-升上來的機器))。
 - 第三列:那段已經收進 agent-config 的 `AGENTS.md`,**保留英文原文和 START/END 標記** ——
   `codegraph upgrade` 會重寫兩個標記之間的內容,翻成中文的話每次升級都會在 agent-config 留下修改。
 
@@ -215,3 +215,4 @@ Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://git
 ## 更多
 
 - [codegraph](https://github.com/colbymchenry/codegraph)：官方 README 與 CLI 用法
+- [跟 Graphify 差在哪](https://github.com/henry5720/agent-config/blob/main/docs/mcp/graphify.md#跟-codegraph-差在哪)：agent-config 的比較，什麼時候改用 Graphify

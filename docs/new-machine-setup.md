@@ -302,11 +302,11 @@ skillshare sync mcp -g       # pull 不會同步 MCP,這行不能省
 ```
 
 從舊版 dotfiles 升上來的機器，`chezmoi apply` 會先刪掉舊 chezmoi 寫的 MCP 條目；手動加過的
-條目要先處理，步驟見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#從舊版-dotfiles-升上來的機器)。
+條目要先處理，步驟見 agent-config 的[〈從舊版 dotfiles 升上來的機器〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md#從舊版-dotfiles-升上來的機器)。
 
-skills 怎麼新增或更新見 [agent-config 的 README](https://github.com/henry5720/agent-config#日常操作)。plugin 的宣告不跟著
+skills 怎麼新增或更新見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)。plugin 的宣告不跟著
 agent-config 走，每台用 `skillshare plugin add` 各裝一次（WakaTime 的 plugin 由 apply 裝，見 [WakaTime](tools/wakatime.md)）；
-`chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它關掉。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)（在 agent-config）、
+`chrome-devtools-mcp` 不要啟用，repo 的 `modify_` 會把它關掉。範圍與限制：[skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md)（在 agent-config）、
 [plugin](architecture.md#plugin)。
 
 ```bash

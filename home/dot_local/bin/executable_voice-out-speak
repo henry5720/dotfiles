@@ -17,7 +17,7 @@ TTS 失敗(沒網路)exit 1,絕不回 2:Stop hook exit 2 會擋住 agent 結束�
 環境變數(測試用):
   VOICE_OUT_FIFO  snapserver 的輸入 pipe,預設 ~/.local/state/voice-out/snapfifo
   VOICE_OUT_TTS   換掉 TTS 的指令:stdin 是要唸的文字,stdout 是 48000:16:2 的 PCM
-說明:dotfiles 的 docs/remote-access/voice-out.md。
+說明:dotfiles 的 docs/how-to/remote-access/voice-out.md。
 """
 import fcntl
 import hashlib

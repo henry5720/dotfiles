@@ -51,7 +51,7 @@
 
 重疊的不要裝第二份。**skill 每多一個,每個 session 就多一段 description 常駐在 context 裡**,
 而重複的指令本身會讓 agent 更難遵守(跟上面「不要把本體放在 dotfiles」同一個道理)。
-caveman 只挑一個裝的例子見 [agent-config 的〈選 skill 的原則〉](https://github.com/henry5720/agent-config#選-skill-的原則)。
+caveman 只挑一個裝的例子見 [agent-config 的〈選 skill 的原則〉](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md#選-skill-的原則)。
 
 ### 2. 成本量過了嗎
 

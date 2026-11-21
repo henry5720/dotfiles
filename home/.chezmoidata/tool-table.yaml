@@ -222,7 +222,7 @@ toolTable:
       mise: {tool: gh}                # aqua:cli/cli
       brew: [gh]
       pkg: [gh]
-    # 有 root 的 Debian 系用官方 installer(裝 .deb;docs/remote-access/code-server.md 的 systemd user unit 靠它);
+    # 有 root 的 Debian 系用官方 installer(裝 .deb;docs/how-to/remote-access/code-server.md 的 systemd user unit 靠它);
     # 設定檔由 chezmoi 部署(dot_config/private_code-server)
     code-server:
       docs: https://coder.com/docs/code-server/install

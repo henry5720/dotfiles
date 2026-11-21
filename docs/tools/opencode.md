@@ -13,13 +13,13 @@ opencode.json
 ```
 
 `modify_` 的做法:整份照 repo 的版本輸出,只有 `mcp` 換回現有檔案裡的那段
-(誰寫哪一段見 agent-config 的[〈誰寫哪一段〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md#誰寫哪一段))。
+(誰寫哪一段見 agent-config 的[〈誰寫哪一段〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md#誰寫哪一段))。
 
 - `plugin`(`opencode-wakatime`、`oh-my-opencode-slim`)是 opencode 自己的 plugin,跟 Claude 的 `/plugin` 無關。
 - `model`、`small_model` 取自 `oh-my-opencode-slim.json` 目前 preset 的 orchestrator 與 explorer。
 - `instructions` 引用 `~/.config/opencode/commit-instructions.md`,那是指到 agent-config 的 symlink,
   見 [架構〈規則〉](../architecture.md#規則)。
-- 要加 MCP 不是改這裡,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp.md)。
+- 要加 MCP 不是改這裡,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md)。
   chrome-devtools 等 MCP 的版本也釘在 `mcp.yaml`,升級改那裡再 `skillshare sync mcp -g`。
 
 ### provider 與 API key

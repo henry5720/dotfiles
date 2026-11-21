@@ -82,7 +82,7 @@ Host openab
 # ===============================================================
 # 走 tailnet。不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話先連的搶到、其他默默失敗
 # (以前 9222 轉發就是這樣)。要轉發就在要用時另打一條 ssh -N -o ExitOnForwardFailure=yes -L/-R …,
-# 指令見 docs/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
+# 指令見 docs/how-to/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
 # company-henry.pem 是公司發的;沒有它的機器用自己的 id_ed25519(ssh 會跳過不存在的檔)。
 Host company-ec2
     HostName aws-ec2-henry.tail29dcee.ts.net

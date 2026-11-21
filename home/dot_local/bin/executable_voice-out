@@ -10,7 +10,7 @@
 # ~/.config/snapserver/snapserver.conf)。刻意不 enable:像 code-server 一樣想聽才開。
 # 朗讀指令 voice-out-speak 不看這支:它直接用阻塞的 open 開 pipe、0.5 秒內沒等到 snapserver 來讀就當服務沒開
 # (snapserver 0.34 沒有寫入者時每 100 ms 開一次 pipe,見 voice-out-speak 的 open_pipe)。
-# 說明:dotfiles 的 docs/remote-access/voice-out.md。
+# 說明:dotfiles 的 docs/how-to/remote-access/voice-out.md。
 set -eu
 
 UNIT=voice-out.service
@@ -38,7 +38,7 @@ help() {
   voice-out reset          朗讀設定回到預設
   voice-out help           這份說明
 
-朗讀設定從下一則回覆生效。說明:dotfiles 的 docs/remote-access/voice-out.md
+朗讀設定從下一則回覆生效。說明:dotfiles 的 docs/how-to/remote-access/voice-out.md
 EOF
 }
 
