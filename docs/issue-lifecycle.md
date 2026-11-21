@@ -11,5 +11,4 @@
 | 卡住 | open、assign 還在，最新留言寫卡在哪 | 留言，不關 |
 | 完成 | closed | 留言寫 commit 和怎麼驗的，再關；或 PR／commit message 寫 `Closes #N`，進預設分支時 GitHub 自動關 |
 
-spec 和 agent-runner 做的 sub-issue 也照這張表。spec 的 ticket 進 integration 分支、驗過就關（不等 PR），
-blocker 才會照實際進度解除；spec 本身等 PR merge 才關，實機驗收記在 PR 的驗證清單。
+spec 和 agent-runner 做的 sub-issue 也照這張表。spec 的 ticket 和 spec 本身什麼時候關，照 `issue-status` skill〈完成〉的例外。
