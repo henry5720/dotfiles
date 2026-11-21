@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """markdown 連結檢查(#367,spec #366):相對連結的目標存在、#錨點對得到標題(GitHub 的 slug 規則),
-有 agent-config checkout 時連兩個 repo 互連的 github.com/henry5720/<repo>/blob/main/... 網址也一起查。
+有 agent-config checkout 時連兩個 repo 互連的 github.com/henry5720/<repo>/blob/main/... 與 repo 根網址也一起查。
 
 後面搬檔、改標題的 ticket 都靠這支確認連結沒斷。不查外部網址(http、mailto)、不查 code block 與 inline code 裡的連結。
 AGENT_CONFIG_DIR 跟 e2e 同一個變數(預設 ~/.config/skillshare),找不到就略過跨 repo 的部分。
@@ -17,7 +17,8 @@ AGENT_CONFIG = Path(os.environ.get("AGENT_CONFIG_DIR", Path.home() / ".config/sk
 # dotfiles 的 docs/superpowers/ 是當初的 spec / plan,歷史紀錄不是現況(AGENTS.md「文件放哪」),連結斷了也不修;
 # agent-config 沒有歷史紀錄資料夾,tests/fixtures/ 是測試用的假 PR body,裡面的截圖連結本來就不存在
 EXCLUDE = {"dotfiles": ("docs/superpowers/",), "agent-config": ("tests/fixtures/",)}
-GITHUB = re.compile(r"https://github\.com/henry5720/([\w.-]+)/blob/main/([^)#\s>]*)(#[^)\s>]*)?")
+# repo 根網址(github.com/henry5720/<repo>#錨點)GitHub 顯示的是 README.md
+GITHUB = re.compile(r"https://github\.com/henry5720/([\w-]+)(?:/blob/main/([^)#\s>]*)|/?)(#[^)\s>]*)?")
 
 
 # ===============================================================
@@ -127,7 +128,7 @@ def check(root, repos, exclude=()):
             if gh:
                 if gh.group(1) not in repos:
                     continue
-                target = repos[gh.group(1)] / unquote(gh.group(2))
+                target = repos[gh.group(1)] / unquote(gh.group(2) if gh.group(2) is not None else "README.md")
                 anchor = (gh.group(3) or "#")[1:]
             elif re.match(r"[a-z][a-z0-9+.-]*:", link, re.I) or not link:
                 continue  # 外部網址、mailto、空連結
@@ -195,6 +196,14 @@ class CheckTest(unittest.TestCase):
             f"README.md:2 → {gone} → 目標不存在",
         ])
 
+    def test_repo_root_url_checks_readme(self):
+        good = "https://github.com/henry5720/dotfiles#readme-的標題"
+        bad = "https://github.com/henry5720/dotfiles#沒有"
+        (self.a / "README.md").write_text("# README 的標題\n", encoding="utf-8")
+        self.assertEqual(self.write(self.b, "README.md", f"[好]({good})\n[壞]({bad})\n"), [
+            f"README.md:2 → {bad} → dotfiles/README.md 沒有 #沒有 這個標題",
+        ])
+
     def test_repo_without_checkout_is_skipped(self):
         (self.a / "README.md").write_text(
             "[x](https://github.com/henry5720/agent-config/blob/main/nope.md)\n", encoding="utf-8")
@@ -220,7 +229,7 @@ class RepoLinksTest(unittest.TestCase):
 
     def test_this_repo_to_agent_config(self):
         repos = self.agent_config()
-        problems = [p for p in check(ROOT, repos, EXCLUDE["dotfiles"]) if "henry5720/agent-config/" in p]
+        problems = [p for p in check(ROOT, repos, EXCLUDE["dotfiles"]) if "henry5720/agent-config" in p]
         self.assertEqual(problems, [], report(problems))
 
     def test_agent_config(self):
