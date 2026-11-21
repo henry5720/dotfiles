@@ -104,7 +104,7 @@ check_git_remotes() {
     "url=\$(chezmoi execute-template --override-data '{\"tools\":[\"agent-config\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl | sed -n 's/^remote=\\\${AGENT_CONFIG_REMOTE:-\\(.*\\)}\$/\\1/p') && echo \"\$url\" && [ \"\$url\" = $GH_HTTPS/agent-config.git ] && GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND=false git ls-remote \"\$url\" HEAD | grep -q HEAD"
 }
 
-# 瀏覽器與轉發(#261、#278):一兩行指令的包裝都拿掉了,指令寫在 docs/remote-access/。
+# 瀏覽器與轉發(#261、#278):一兩行指令的包裝都拿掉了,指令寫在 docs/how-to/remote-access/。
 # ssh config 只有不帶轉發的 company-ec2,沒有 company-ec2-attach／-socks／-chrome 這些轉發別名;
 # ~/.local/bin 沒有 remote-chrome、remote-chrome-headless。
 check_no_browser_wrappers() {
@@ -226,7 +226,7 @@ PY
 }
 
 # 用途與選裝工具選單。--promptChoice、--promptMultichoice 的 key 也是「提示文字」,值用 / 分隔。
-# 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/install/no-root-machine.md),要一字不差。
+# 用途的提示文字也在免回答安裝那一行(docs/new-machine-setup.md、docs/how-to/no-root-machine.md),要一字不差。
 # 選項是英文代號(#222):full 完整、minimal 精簡、custom 自訂;config 的 machineUse 也存代號。
 USE_PROMPT='用途：按一個字母（full 完整／minimal 精簡：只要 shell 體驗／custom 自訂）'
 # 用途那題的選項是字母(chezmoi 的灰字顯示要按的字),config 存代號。呼叫端照樣給代號,這裡換成字母。
@@ -330,7 +330,7 @@ declare -A TOOL_CHECK=(
   # runtime(#341):Linux 由 mise 裝(要是 mise 那份,不是 ~/.local/bin 的官方 installer 版);Termux 的 pkg 版在 scenario_termux 另外驗
   [uv]="[ -d ~/.local/share/mise/installs/uv ] && ~/.local/share/mise/shims/uv --version"
   # apt 的 earlyoom,加上 install-earlyoom 寫進 /etc 的門檻,與保護保留服務、常駐服務的 drop-in(#298)。
-  # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(主題文件)
+  # 容器的 PID 1 不是 systemd:設定照寫、不啟用,看檔案就好;真的生效要在有 systemd 的主機看(earlyoom 的工具文件)
   [earlyoom]="command -v earlyoom && grep -q -- '--avoid' /etc/default/earlyoom && grep -qx 'MemoryMin=512M' /etc/systemd/system/system.slice.d/50-earlyoom.conf && grep -qx 'MemoryMin=infinity' /etc/systemd/system/ssh.service.d/50-earlyoom.conf"
   # Linux 由 mise 的 npm backend 裝(#342);bash -l 沒有 shims,直接找 shim
   [codegraph]="~/.local/share/mise/shims/codegraph --version"
@@ -762,7 +762,7 @@ scenario_ubuntu() {
   # 免回答安裝那一行(#253 起在 Runbook 與沒有 root 的那份,不在 README)的 --promptChoice
   # 要跟樣板一字不差,不然 init 會報錯或停下來問。兩份都要有、都要一致。
   check "免回答安裝那一行的用途提示跟樣板一致(new-machine-setup、no-root-machine)" \
-    "for f in docs/new-machine-setup.md docs/install/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
+    "for f in docs/new-machine-setup.md docs/how-to/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
   # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
   # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
   check "用途那題打 m 得到 minimal" \

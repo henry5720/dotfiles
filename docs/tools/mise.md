@@ -14,7 +14,7 @@ Termux 走 `pkg`、macOS 走 `brew`，不用這份。
    有 root 時這幾個走 apt 或官方 .deb
 ```
 
-沒有 root 時還自動處理什麼，見[沒有 root 的機器](../install/no-root-machine.md)。
+沒有 root 時還自動處理什麼，見[沒有 root 的機器](../how-to/no-root-machine.md)。
 
 為什麼這樣分見 #231（決定）、#233（實作）。
 

@@ -5,7 +5,7 @@
 [codegraph](https://github.com/colbymchenry/codegraph) 把程式碼建成 symbol 圖,agent 用 `codegraph_explore`
 一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。CLI 要勾選裝工具 `codegraph`(會一併裝 Node:Linux 是 mise、macOS 是 nvm);
 共用 git hook 和 `codegraph-setup-repo` 每台都部署,找不到 `codegraph` 時什麼都不做。
-Windows 主機走 mise、不跑 `codegraph install`,見[Windows 主機〈codegraph〉](../install/windows.md#codegraph)。
+Windows 主機走 mise、不跑 `codegraph install`,見下面〈坑〉的[〈Windows 主機〉](#windows-主機)。
 它同時是 CLI、MCP server 和背景 daemon,三樣東西由不同地方管:
 
 ```text
@@ -197,6 +197,20 @@ git config --local --get core.hooksPath   # 有輸出 = 被搶走了
 - 轉接和共用 hook 最後都明確 `exit 0`:husky 用 `sh -e` 跑 hook 並把 exit code 傳回去,
   `[ 條件 ] && ...` 在條件不成立時整條回 1,husky 就印 `husky - post-checkout script failed (code 1)`。
 - 不要改 `.git/config` 蓋回共用的 `core.hooksPath`:套件安裝可能把 husky 設定寫回去,而且會讓 husky 自己的 hook 停止運作。
+
+### Windows 主機
+
+官方的 Windows 裝法是 `install.ps1` 或 npm，加上 mise 三種裝的都是同一個 release bundle。這裡用 mise（#323）：
+mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定（`command: codegraph`）不經 shell 也找得到；
+`install.ps1` 只在 PATH 放 `codegraph.cmd`。
+
+**Windows 上不要跑 `codegraph install -t claude`。** 它在 `~/.claude/settings.json` 加的 `UserPromptSubmit` hook
+在 Windows 寫成 `codegraph.cmd prompt-hook`（Claude Code 用 Git Bash 跑 hook，Git Bash 不補 `.cmd`，上游 #1466），
+mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
+少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
+
+同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
+Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
 
 ## 更多
 

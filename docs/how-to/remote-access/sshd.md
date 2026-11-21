@@ -19,7 +19,7 @@
 | [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 |
 | [macOS](#macos) | 系統設定 → 一般 → 共享 → 遠端登入 | 同一處關掉 | 開了就常駐 | 22 |
 
-公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../home/private_dot_ssh/private_config.tmpl)。
+公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../../home/private_dot_ssh/private_config.tmpl)。
 
 ## 公鑰放哪、權限
 
@@ -83,7 +83,7 @@ ss -ltn 'sport = :2222'                         # 另一個終端機確認在聽
 
 ## Termux
 
-裝 openssh（`pkg install openssh`，chezmoi 的 Termux [基底](../../GLOSSARY.md#裝機)已經含）後：
+裝 openssh（`pkg install openssh`，chezmoi 的 Termux [基底](../../../GLOSSARY.md#裝機)已經含）後：
 
 ```bash
 sshd                     # 開，聽 8022（非 root 綁不了 22）
@@ -104,7 +104,7 @@ logcat -s 'sshd:*'       # 連不上時看 log
 
   Termux:Boot 要跟 Termux 本體同一個來源（同一把簽章）。
 - 公鑰：加進 `~/.ssh/authorized_keys`。原生 Termux 上 chezmoi apply 會把 `~/.ssh/henry5720.pub` 自動加進去
-  （[`run_onchange_after_termux-authorized-keys`](../../home/.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl)）。
+  （[`run_onchange_after_termux-authorized-keys`](../../../home/.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl)）。
 
 出處：[Termux Wiki〈Remote Access〉](https://wiki.termux.com/wiki/Remote_Access)、[termux-boot README](https://github.com/termux/termux-boot#how-to-use)。
 
