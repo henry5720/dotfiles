@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | [headless](#headlessagent-自己的瀏覽器) | 已配置主機（agent 跑在 Windows 主機時就是那台） | 預設：agent 自己操作、驗收、查原因 | `playwright-cli open`；查原因時開在 9222 給 chrome-devtools-mcp | `playwright-cli show`（9377） | 多個 |
 | [獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome) | 個人電腦（任一台都行） | 你坐在前面，要 agent 在你看得到的 Chrome 做事 | CDP 9222：`playwright-cli attach --cdp`、chrome-devtools-mcp | 就是你眼前的視窗 | 多個 |
-| [插件](#插件獨立-profile日常-profile-都能裝) | 個人電腦（獨立 profile 或日常 profile） | 一定要日常 profile 裡的東西（passkey、硬體金鑰、裝置 SSO），或你不在 tailnet | 插件 relay 9555：`personal-chrome-attach`（tailnet 外加 `--tunnel`） | 就是你眼前的視窗 | 多個（收在一個分頁群組） |
+| [插件](#插件獨立-profile日常-profile-都能裝) | 個人電腦（獨立 profile 或日常 profile） | 一定要日常 profile 裡的東西（passkey、硬體金鑰、裝置 SSO），或你不在 tailnet | `personal-chrome-attach`（relay 轉到 9555；tailnet 外加 `--tunnel`）；[同一台 Windows](#同一台-windows本機直接接) 直接 `playwright-cli attach --extension` | 就是你眼前的視窗 | 多個（收在一個分頁群組） |
 
 - **獨立 profile 和日常 profile 是兩支 Chrome。** Chrome 136 起，日常 profile 不能開 debug port，
   一定要另一個 `--user-data-dir`（[Chrome 官方說明](https://developer.chrome.com/blog/remote-debugging-port)）。
@@ -184,10 +184,29 @@ agent 經 [Playwright Extension](https://chromewebstore.google.com/detail/playwr
 共通步驟：
 
 1. **第一次**：在要給 agent 用的那個 profile 裝插件。
-2. **連線**：看你在不在 tailnet，照下面[tailnet 內](#tailnet-內ssh-轉發)或[tailnet 外](#tailnet-外一次性-tunnel)其中一段做。
-3. **怎麼確認**：`personal-chrome-attach` 印「已接上,session:<session>」，agent 跑 `playwright-cli -s=<session> tab-list` 列得出你的分頁。
+2. **連線**：看你在哪，照下面[同一台 Windows](#同一台-windows本機直接接)、[tailnet 內](#tailnet-內ssh-轉發)或[tailnet 外](#tailnet-外一次性-tunnel)其中一段做。
+3. **怎麼確認**：`personal-chrome-attach` 印「已接上,session:<session>」（同一台 Windows 沒有這行），agent 跑 `playwright-cli -s=<session> tab-list` 列得出你的分頁。
    之後用 `playwright-cli -s=<session> <指令>` 操作，開新分頁做事用 `tab-new <網址>`，不蓋掉你正在看的那頁。
 4. **收**：`playwright-cli -s=<session> detach`。Chrome 和分頁留著。
+
+### 同一台 Windows：本機直接接
+
+你和 agent 在同一台 Windows（例如你在那台桌面開 Claude Code），Chrome 和 relay 都在這台的 `127.0.0.1`，不用 ssh 轉發也不用 tunnel。
+`personal-chrome-attach` 在 Windows 跑不了（要 `/proc`、`mkfifo`、`python3`），這裡也用不到。
+
+1. **第一次**：dotfiles 的選裝工具勾 `playwright-cli`（這台還沒有 Chrome 就一起勾 `headless-chrome`，見 [Windows 主機](../install/windows.md#裝了什麼怎麼用)），
+   在要給 agent 用的 Chrome 裝 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)。
+2. agent 在背景跑：
+
+   ```powershell
+   # 起 relay，用這台的 Chrome 開插件的 connect 分頁，停住等你接上（網址不印出來）
+   playwright-cli -s=<session> attach --extension=chrome
+   ```
+
+3. 在跳出來的分頁的插件畫面選分頁、按允許。沒跳出分頁，或插件畫面說沒裝插件：裝好插件，請 agent 重跑。
+4. 怎麼確認、收同上。300 秒沒接上，agent 會自己收掉。
+
+agent 照的步驟在 agent-config 的 [browser-access〈同一台 Windows〉](https://github.com/henry5720/agent-config/blob/main/skills/browser-access/SKILL.md#同一台-windows)。
 
 ### tailnet 內：ssh 轉發
 
