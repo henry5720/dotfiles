@@ -162,15 +162,19 @@ jobs:
           [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
           $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
           $ids = chezmoi execute-template '{{ concat .packages.windows.winget (includeTemplate "tool-install" . | fromJson).lists.winget | uniq | join "\n" }}' | Where-Object { $_ }
-          $also = chezmoi execute-template '{{ .packages.windows.wingetAlsoInstalledAs | toJson }}' | ConvertFrom-Json
+          $alsoAs = chezmoi execute-template '{{ .packages.windows.wingetAlsoInstalledAs | toJson }}' | ConvertFrom-Json
           $missing = @()
           foreach ($id in $ids) {
             $found = $null
-            foreach ($name in @($id) + @($also.$id | Where-Object { $_ })) {
+            foreach ($name in @($id) + @($alsoAs.$id | Where-Object { $_ })) {
               winget list --id $name --exact --accept-source-agreements *> $null
               if ($LASTEXITCODE -eq 0) { $found = $name; break }
             }
-            if ($found) { "winget: $id($found)" } else { $missing += "winget $id" }
+            if ($found -eq $id) { "winget: $id" } elseif ($found) { "winget: $id(已經有 $found)" } else { $missing += "winget $id" }
+            # 第 3 步確認了預裝的是企業版:先查的是 id 本身,對到它就是又裝了一份官網版,沒有跳過(#351)
+            if ('${{ matrix.use }}' -eq 'full' -and $id -eq 'Google.Chrome.EXE' -and $found -ne 'Google.Chrome') {
+              $missing += "沒跳過:已經有企業版 Chrome,還是 winget 裝了 $id"
+            }
           }
           mise ls
           $tools = mise ls --json | ConvertFrom-Json
