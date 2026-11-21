@@ -1,4 +1,34 @@
-#!{{ lookPath "sh" }}
+{{- /* chezmoi:template:left-delimiter="[[" right-delimiter="]]" */ -}}
+[[- /*
+這個檔案的樣板用 [[ ]]:Windows 分支要輸出一份 {{ }} 的 modify-template,換了分隔符就不用一個個跳脫。
+釘的兩個值兩平台共用下面的變數,只寫一次。
+*/ -]]
+[[- $plugin := "chrome-devtools-mcp@claude-plugins-official" -]]
+[[- $commit := "Co-Authored-By: Claude Code <noreply@anthropic.com>" -]]
+[[- if eq .chezmoi.os "windows" -]]
+[[- /* Windows(#319):跑不了下面的 sh + jq,渲染成 modify-template(chezmoi 拿現有檔案當 .chezmoi.stdin 再跑一次),
+       做同一件事。兩個值都已經對時原樣輸出 stdin:Claude 自己改寫過檔案(縮排、key 順序)後 chezmoi diff 仍是空的;
+       要改時才解析再輸出,這時 key 照字母排。比較時都轉成 JSON:值的型別不對(數字、null)時 eq 不會報錯。 */ -]]
+{{- /* chezmoi:modify-template */ -}}
+{{- $plugin := [[ $plugin | toJson ]] -}}
+{{- $commit := [[ $commit | toJson ]] -}}
+{{- $settings := dict -}}
+{{- if trim .chezmoi.stdin }}{{ $settings = fromJson .chezmoi.stdin }}{{ end -}}
+{{- $attribution := get $settings "attribution" -}}
+{{- $plugins := get $settings "enabledPlugins" -}}
+{{- if and (kindIs "map" $attribution) (kindIs "map" $plugins) (eq (get $attribution "commit" | toJson) ($commit | toJson)) (eq (get $plugins $plugin | toJson) "false") -}}
+{{-   .chezmoi.stdin -}}
+{{- else -}}
+{{-   if not (kindIs "map" $attribution) }}{{ $attribution = dict }}{{ end -}}
+{{-   if not (kindIs "map" $plugins) }}{{ $plugins = dict }}{{ end -}}
+{{-   $_ := set $attribution "commit" $commit -}}
+{{-   $_ = set $plugins $plugin false -}}
+{{-   $_ = set $settings "attribution" $attribution -}}
+{{-   $_ = set $settings "enabledPlugins" $plugins -}}
+{{-   toPrettyJson "  " $settings -}}
+{{- end -}}
+[[- else -]]
+#![[ lookPath "sh" ]]
 # shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
 # ~/.claude/settings.json 這份大部分不該納管:herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
 # autoMode.environment 一整塊機器描述,都是工具自己寫進去、而且會一直變的東西。
@@ -14,7 +44,7 @@
 # attribution 只釘 commit，PR 標記與其他工具自行寫入的設定照留。
 
 set -eu
-{{ template "sh-jq-path" . }}
+[[ template "sh-jq-path" . ]]
 
 # 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的。
 existing=$(cat)
@@ -22,7 +52,8 @@ existing=$(cat)
 
 # 2. 固定 plugin 開關與共同作者；其餘設定原樣保留。
 printf '%s' "$existing" | jq '
-  .enabledPlugins["chrome-devtools-mcp@claude-plugins-official"] = false
+  .enabledPlugins["[[ $plugin ]]"] = false
   | .attribution |= (if type == "object" then . else {} end)
-  | .attribution.commit = "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+  | .attribution.commit = "[[ $commit ]]"
 '
+[[ end -]]
