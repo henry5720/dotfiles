@@ -7,28 +7,12 @@
 # ===============================================================
 # 1. 開場系統資訊
 # ===============================================================
-# Linux 由 mise 裝(第 2 段才進 PATH),這裡先找 shim;Termux、macOS 的在 PATH 上。
-if [[ -x $HOME/.local/share/mise/shims/fastfetch ]]; then $HOME/.local/share/mise/shims/fastfetch
-elif command -v fastfetch &>/dev/null; then fastfetch
-fi
+# Linux 由 mise 裝,shims 已經由 ~/.zshenv 放進 PATH。
+(( $+commands[fastfetch] )) && fastfetch
 
 # ===============================================================
-# 2. 環境變數與路徑 (Path Settings)
+# 2. 背景程序與 nvm(環境變數、PATH 在 ~/.zshenv)
 # ===============================================================
-# 如果你有使用 pnpm (Senior Engineer 標配)
-export PNPM_HOME="$HOME/.local/share/pnpm"
-export PATH="$PNPM_HOME:$PATH"
-
-# Linux 由 mise 裝的選裝工具(eza、fzf、starship…;apt 用不了的機器還有 vim、gh…),經 shims 找得到。
-# 排在系統目錄前面:apt 可能有同名的舊版(Ubuntu 24.04 的 fzf 0.44 沒有 --zsh)。
-# 系統那份 vim 這類通常不受影響:系統已經有就不交給 mise,沒有 shim(.chezmoitemplates/mise-tools)。
-# 例外是 mise 先裝、系統之後才補裝的:shim 還在、會優先,要用系統那份就 mise uninstall <工具>。
-[[ -d $HOME/.local/share/mise/shims ]] && export PATH="$HOME/.local/share/mise/shims:$PATH"
-
-# opencode / claude 之類的工具裝在這兩處(排最前面)
-export PATH="$HOME/.opencode/bin:$PATH"
-export PATH="$HOME/.local/bin:$PATH"
-
 # userspace tailscale(沒有 root 時 install-tailscale 裝到 ~/.local/bin 的):tailscaled 不會常駐,工作區待命回來就沒了。
 # 開 zsh 時沒在跑就背景起來;登入狀態在 statedir,不用重新登入。輸出全導到 log,不印到終端機。
 # 只看「~/.local/bin 有 tailscaled、statedir 存在」:用系統 tailscale 的機器不會走到這裡。
@@ -40,30 +24,13 @@ if [[ -x $HOME/.local/bin/tailscaled && -d $HOME/.local/state/tailscale ]] && ((
     >>"$HOME/.local/state/tailscale/tailscaled.log" 2>&1 &!
 fi
 
-# 啟用 OpenCode 背景 subagents
-export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
-# 啟用 Exa 搜尋
-export OPENCODE_ENABLE_EXA=1
-
-# MCP 用的 API key（CONTEXT7_API_KEY）。chezmoi 從本機 config 渲染，key 沒填就沒有這個檔。
-[ -r "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
-
-# snap 的指令(舊機器的 chezmoi 可能是 snap 裝的;新機器照 README 裝在 ~/.local/bin)。
-# snapd 是靠 /etc/profile.d/apps-bin-path.sh 加這條,
-# 但 Ubuntu 的 /etc/zsh/zprofile 不 source /etc/profile,所以 zsh 拿不到,得自己加。
-# 用 append:同名工具讓上面那些使用者自己裝的版本優先,不被 snap 蓋掉。
-export PATH="$PATH:/snap/bin"
-
-# node、npm:Linux 由 mise 裝,經上面的 shims 找得到(#342)。以前 nvm 裝的 ~/.nvm 原地保留、不再載入,可以手動刪。
+# node、npm:Linux 由 mise 裝,經 ~/.zshenv 放進 PATH 的 shims 找得到(#342)。以前 nvm 裝的 ~/.nvm 原地保留、不再載入,可以手動刪。
 # macOS 照舊走 nvm(#340 Out of Scope),只在 macOS 載入
 if [[ $OSTYPE == darwin* && -s $HOME/.nvm/nvm.sh ]]; then
   export NVM_DIR="$HOME/.nvm"
   \. "$NVM_DIR/nvm.sh"
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 fi
-
-# 上面各處都往 PATH 加 ~/.local/bin,login shell 的 .profile 也加過一次:去掉重複的。
-typeset -U path PATH
 
 # ===============================================================
 # 3. 歷史紀錄設定 (History)
@@ -82,7 +49,7 @@ setopt HIST_IGNORE_SPACE      # 空格開頭不紀錄
 # 4. 提示列 (starship)
 # ===============================================================
 # 選裝工具 starship 裝的,設定在 ~/.config/starship.toml(bash 用同一份,見 modify_dot_bashrc.tmpl)。
-# 沒裝就用 zsh 預設的提示列。放在第 2 段之後:mise shims 那時才在 PATH 上。
+# 沒裝就用 zsh 預設的提示列。
 (( $+commands[starship] )) && eval "$(starship init zsh)"
 
 # ===============================================================

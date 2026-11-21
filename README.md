@@ -96,7 +96,8 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── .chezmoitemplates/          不部署：樣板共用片段（選單的選項與說明、判斷 WSL／Debian、腳本共用函式…）
 ├── .chezmoiexternal.toml.tmpl  → ~/.config/zsh/*、Termux 字型（apply 時下載）
 ├── .chezmoiscripts/            不部署，apply 時執行：裝套件、選裝工具、換預設 shell
-├── dot_zshrc                   → ~/.zshrc
+├── dot_zshenv                  → ~/.zshenv：環境變數、PATH、MCP key（每個 zsh 都讀，非互動的也是）
+├── dot_zshrc                   → ~/.zshrc：互動式 shell 的提示列、補全、別名
 ├── modify_dot_bashrc.tmpl      → ~/.bashrc 最後加段落：starship、沒有 root 時切 zsh
 ├── dot_gitconfig.tmpl          → ~/.gitconfig：Git 身分、HTTPS clone／SSH push
 ├── dot_wslconfig               → Windows 主機的 %USERPROFILE%\.wslconfig（只部署到 Windows）
