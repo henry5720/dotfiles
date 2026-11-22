@@ -87,8 +87,8 @@ macOS 沒有容器,改由 GitHub Actions 的 `.github/workflows/macos.yml` 在 m
 方法,三個目標都要過。需要 docker、能連外(會用 HTTPS 連 GitHub,不用 SSH key);
 測的是工作目錄(含未 commit 的修改)加上 `AGENT_CONFIG_DIR` 指定的 agent-config checkout
 (預設 `~/.config/skillshare`,找不到就直接失敗),不碰本機家目錄。agent-config 在容器裡是假 remote:
-`personal-chrome-attach` 從那份 checkout 複製真腳本,其他 skill 與腳本是 fixture 自己寫的假檔
-(`script/tests/container.sh` 的 `make_fixtures`)。改 agent-config 那支腳本時,`AGENT_CONFIG_DIR` 指到自己的 worktree。
+`playwright-extension-attach`、`remote-access` 從那份 checkout 複製真腳本,其他 skill 與腳本是 fixture 自己寫的假檔
+(`script/tests/container.sh` 的 `make_fixtures`)。改 agent-config 這兩支腳本時,`AGENT_CONFIG_DIR` 指到自己的 worktree。
 檢查清單與環境變數(`E2E_TAG`、`E2E_KEEP`、`AGENT_CONFIG_DIR`)寫在腳本開頭。要驗證從零安裝就跑 e2e,**不要拿自己的家目錄 `chezmoi init` 來試**。
 
 改到 Windows 會部署的檔案(白名單上的 target、`.chezmoiignore` 的 Windows 段、config 樣板的 windows 分支)時,照 [`docs/agents/verification.md`](docs/agents/verification.md#windows-實機清單) 驗:Linux 上的單元測試、Windows CI、實機清單。

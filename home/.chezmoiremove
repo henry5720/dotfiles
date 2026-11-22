@@ -4,7 +4,7 @@
 # tmux 已改用 herdr,當初從別人 repo 抄來的設定整包拿掉。
 .tmux.conf
 .config/tmux
-# ttyd 改由 share-shell 臨時起(前景、隨機密碼),不再有常駐 service 和固定密碼。
+# ttyd 改由指令臨時起(前景、隨機密碼),不再有常駐 service 和固定密碼。
 .config/systemd/user/ttyd.service
 .config/ttyd
 # WakaTime 的 zsh 外掛(社群版 sobolevn/wakatime-zsh-plugin)不再裝:官方 https://wakatime.com/terminal
@@ -41,3 +41,7 @@
 .local/bin/ttyd
 # company-imagegen-fallback 整支拿掉(agent-config 已刪),指令 symlink 留著只會是斷掉的連結。
 .local/bin/imagegen-fallback
+# personal-chrome-attach 改名 playwright-extension-attach(#380),舊 symlink 留著會是兩個名字指同一支。
+.local/bin/personal-chrome-attach
+# 舊名的網頁 shell 指令改名 ttyd-serve,只起 ttyd,分享改打 remote-access funnel(#381)。
+.local/bin/share-shell

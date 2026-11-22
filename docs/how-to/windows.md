@@ -102,10 +102,10 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata
 PyPI 上的 `windows-mcp` 由 mise 的 pipx backend 裝（#343）。mise 有 uv 就用 `uv tool install`，清單裡有 uv 時先裝 uv
 （[mise 的 pypi backend 文件](https://mise.jdx.dev/dev-tools/backends/pypi.html)），所以勾它會一併列 uv；
 套件要 Python 3.14 以上，uv 找不到就自己下載（[uv 的 Python 文件](https://docs.astral.sh/uv/concepts/python-versions/)）。
-更新跑 `mise up`。怎麼開給別台的 agent 用（起 server、交 key、收掉）見 agent-config 的
-[windows-mcp skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/windows-mcp.md)。
+更新跑 `mise up`。怎麼開給別台的 agent 用（起 server、交 key、收掉）見服務卡
+[windows-mcp](remote-access/windows-mcp.md)。
 
-mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。以前照 agent-config 的 windows-mcp skill 手動
+mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。以前照 agent-config 舊版 skill 的說明手動
 `uv tool install windows-mcp` 過的機器，勾了之後會有兩份：
 
 | | 手動 `uv tool install` | mise |

@@ -6,7 +6,7 @@
 ```text
 你看畫面用的是
 ├─ Windows Terminal（WSL、ssh）── 字型裝在 Windows（下面「Windows Terminal」）
-├─ 瀏覽器（code-server、TeamSync 工作區、share-shell）── 字型裝在開瀏覽器那台
+├─ 瀏覽器（code-server、TeamSync 工作區、ttyd-serve）── 字型裝在開瀏覽器那台
 ├─ macOS 的終端機 ── brew 裝
 ├─ Linux 桌面的終端機 ── 放進 ~/.local/share/fonts
 └─ 原生 Termux ── chezmoi 自動放好，不用做事
@@ -46,7 +46,7 @@ starship 提示列（`~/.config/starship.toml`）和 eza（`ll`、`lt`）用 Ner
 在開瀏覽器那台裝好 Hack Nerd Font（Windows 照上面裝），再讓網頁用它：
 
 - code-server、TeamSync 工作區：到 `chrome://settings/fonts` 把「固定寬度字型」改成 `Hack Nerd Font`，重新整理頁面。
-- `share-shell` 開給別人看的頁面：照 `Hack`、`Hack Nerd Font`、`Menlo`、`Consolas` 的順序找對方裝了哪個，
+- `ttyd-serve` 開給別人看的頁面：照 `Hack`、`Hack Nerd Font`、`Menlo`、`Consolas` 的順序找對方裝了哪個，
   都沒有就用瀏覽器預設的等寬字型，只有圖示變方框。
 
 ### macOS

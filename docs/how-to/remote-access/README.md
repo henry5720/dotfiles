@@ -4,8 +4,9 @@
 這份只講**連線**；每個服務自己的事（port、驗證、人看什麼、agent 接什麼、用完收什麼）寫在服務卡：
 
 - [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、插件（裝在獨立或日常 profile，tailnet 外也接得上）
-- [網頁 shell：share-shell](share-shell.md)
+- [網頁 shell：ttyd-serve](ttyd-serve.md)
 - [code-server](code-server.md)
+- [Windows 桌面：windows-mcp](windows-mcp.md)：讓別台的 agent 操作一台 Windows 的 GUI app
 - [朗讀串流：voice-out](voice-out.md)：agent 的回覆唸到 tailnet 內的個人電腦
 - [開 sshd](sshd.md)：讓別台 ssh 進這台，各平台怎麼暫時開、常駐、公鑰放哪
 
@@ -105,7 +106,7 @@ ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 <host>                     
 ```
 
 怎麼確認通了：ssh 停住不動、沒有印錯誤；在要連的那一端 `curl -sI http://127.0.0.1:<port>` 有回應。
-各服務用哪個 port 見服務卡。
+各服務用哪個 port 見 `remote-access` skill 的[本機 port 總表](https://github.com/henry5720/agent-config/blob/main/skills/remote-access/SKILL.md#本機-port-總表)，挑轉發的 port 照那張，不另外挑。
 
 `LocalForward` 左邊在**執行 ssh 的那台**開 port，右邊的 `localhost` 在**那台**上解析。
 連線中要臨時加 port：換行後按 `~C`，輸入 `-L 5173:localhost:5173`。
@@ -203,10 +204,11 @@ getent hosts "$magic_dns_name"
 | server | 誰擋陌生人 | 能開到公網嗎 |
 |---|---|---|
 | dev server | app 自己的登入 | 可以，對方看到的就是你的網站 |
-| ttyd | **它自己沒有密碼**，`share-shell` 每次產一組 | 可以，用 [share-shell](share-shell.md) |
+| ttyd | **它自己沒有密碼**，`ttyd-serve` 每次產一組 | 可以，`ttyd-serve` 起、`remote-access funnel` 開，見 [ttyd-serve](ttyd-serve.md) |
+| Windows-MCP | Bearer key，每次起 server 換新、收掉時再換 | 可以，見 [windows-mcp](windows-mcp.md) |
 | code-server | 自己的固定密碼 | **不要**：它能開 terminal，等於整台機器，只靠一組固定密碼 |
 | 瀏覽器（CDP 9222、`show` 9377） | **沒有** | **不要**：拿到網址等於拿到那支 Chrome 的所有登入；CDP 還會擋外來的 `Host`。只走 ssh，見[瀏覽器〈能怎麼連〉](browser.md#能怎麼連) |
-| 瀏覽器插件 9555 | connect 網址裡的隨機路徑，加上人在插件畫面按允許 | 可以，只用一次性 tcp tunnel：`personal-chrome-attach --tunnel` 開，connect 網址就是鑰匙，用完就收掉。見[瀏覽器〈tailnet 外〉](browser.md#tailnet-外一次性-tunnel) |
+| 瀏覽器插件 9555 | connect 網址裡的隨機路徑，加上人在插件畫面按允許 | 可以，只用一次性 tcp tunnel：`playwright-extension-attach --tunnel` 開，connect 網址就是鑰匙，用完就收掉。見[瀏覽器〈tailnet 外〉](browser.md#tailnet-外一次性-tunnel) |
 
 ### Tailscale Funnel
 
@@ -223,7 +225,7 @@ sudo tailscale funnel --https=10000 <port>     # 不加 --bg，在這台的終�
 （Linux `pgrep -af 'tailscale funnel'` 看得到參數，Windows `Get-Process tailscale` 有行程就當作被佔）。
 
 這份的例子都用 10000，因為 company-ec2 的 443 給 code-server 的
-tailnet serve 用了（`share-shell` 也固定開 10000）。agent 照 `expose-port` skill 開時預設 8443：
+tailnet serve 用了（`ttyd-serve` 印的那行也用 10000）。agent 照 `remote-access` skill 開時預設 8443：
 443 常被 serve 佔，8443 又剛好跟這份手動開的 10000 錯開，同一台可以同時開。
 
 開不起來時查這三項（[Tailscale Funnel 官方文件](https://tailscale.com/docs/features/tailscale-funnel)）：
@@ -256,9 +258,9 @@ cloudflared tunnel --url http://localhost:<port>    # 印出 https://<隨機>.tr
 
 chezmoi 管的機器在工具選單勾 `cloudflared` 就會裝（見 [工具一覽](../../tools.md#入口與連線)）；不歸 chezmoi 管的機器（例如別人的 Windows）自己裝，Windows 用 `winget install --id Cloudflare.cloudflared -e`，裝完當下的 PowerShell 找不到它，用完整路徑 `C:\Program Files (x86)\cloudflared\cloudflared.exe`。
 
-### shell：`share-shell`
+### shell：`ttyd-serve`
 
-在 Funnel 上開一個帶隨機密碼的網頁 shell，見 [share-shell](share-shell.md)。
+`ttyd-serve` 起一個帶隨機密碼的網頁 shell，再用 `remote-access funnel` 開到 Funnel，見 [ttyd-serve](ttyd-serve.md)。
 
 ### dev server：兩行，不用 script
 
@@ -277,7 +279,7 @@ sudo tailscale funnel --https=10000 <dev server 的 port>   # 10000 被佔就換
 ### code-server：不開給訪客
 
 code-server 本身就能開 terminal，給出去等於給整台機器；它的密碼又是固定的，給過就收不回。
-真的要讓人看你的畫面，用 `share-shell` 開 shell 就好。自己從別台連 code-server 走
+真的要讓人看你的畫面，用 `ttyd-serve` 開 shell 就好。自己從別台連 code-server 走
 [tailnet 內](#tailnet-內)。
 
 ## 比較表
@@ -296,6 +298,8 @@ tailnet 外的兩種做法：
 
 出處：[Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel)、
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)。
+
+ngrok 這類工具也做得到同一件事，這裡只用 Funnel（那台在 tailnet 裡）和 quick tunnel（不在、免帳號）。
 
 ## 共通規則
 

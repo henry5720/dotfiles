@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | [headless](#headlessagent-自己的瀏覽器) | 已配置主機（agent 跑在 Windows 主機時就是那台） | 預設：agent 自己操作、驗收、查原因 | `playwright-cli open`；查原因時開在 9222 給 chrome-devtools-mcp | `playwright-cli show`（9377） | 多個 |
 | [獨立 profile](#獨立-profile讓-agent-控你看得到的-chrome) | 個人電腦（任一台都行） | 你坐在前面，要 agent 在你看得到的 Chrome 做事 | CDP 9222：`playwright-cli attach --cdp`、chrome-devtools-mcp | 就是你眼前的視窗 | 多個 |
-| [插件](#插件獨立-profile日常-profile-都能裝) | 個人電腦（獨立 profile 或日常 profile） | 一定要日常 profile 裡的東西（passkey、硬體金鑰、裝置 SSO），或你不在 tailnet | `personal-chrome-attach`（relay 轉到 9555；tailnet 外加 `--tunnel`）；[同一台 Windows](#同一台-windows本機直接接) 直接 `playwright-cli attach --extension` | 就是你眼前的視窗 | 多個（收在一個分頁群組） |
+| [插件](#插件獨立-profile日常-profile-都能裝) | 個人電腦（獨立 profile 或日常 profile） | 一定要日常 profile 裡的東西（passkey、硬體金鑰、裝置 SSO），或你不在 tailnet | `playwright-extension-attach`（relay 轉到 9555；tailnet 外加 `--tunnel`）；[同一台 Windows](#同一台-windows本機直接接) 直接 `playwright-cli attach --extension` | 就是你眼前的視窗 | 多個（收在一個分頁群組） |
 
 - **獨立 profile 和日常 profile 是兩支 Chrome。** Chrome 136 起，日常 profile 不能開 debug port，
   一定要另一個 `--user-data-dir`（[Chrome 官方說明](https://developer.chrome.com/blog/remote-debugging-port)）。
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | 9222 | Chrome 的 CDP（headless 或獨立 profile） | 慣例（Chrome 沒有預設，要自己給 `--remote-debugging-port`）；我們固定用它，因為 `mcp.yaml` 寫死 | **沒有**：連得到就能操作整支 Chrome，包括它的登入 |
 | 9377 | `playwright-cli show`（看 agent 的畫面、接手） | 我們選的（`show --port` 沒有預設，`0` 是隨機） | **沒有**：連得到就能操作 |
-| 9555 | 插件的 relay | 我們選的（relay 本身每次隨機；tailnet 內 `personal-chrome-attach` 轉到這台的 9555，ssh 指令才能固定；tailnet 外是你那台的 `cloudflared access tcp` 聽 9555） | connect 網址裡的隨機路徑，拿到完整網址就能接；你在插件畫面按允許（tailnet 內可設插件的 token 省掉這步） |
+| 9555 | 插件的 relay | 我們選的（relay 本身每次隨機；tailnet 內 `playwright-extension-attach` 轉到這台的 9555，ssh 指令才能固定；tailnet 外是你那台的 `cloudflared access tcp` 聽 9555） | connect 網址裡的隨機路徑，拿到完整網址就能接；你在插件畫面按允許（tailnet 內可設插件的 token 省掉這步） |
 | 1080 | 反向 SOCKS（借你的網路） | SOCKS 的慣例 port | **沒有** |
 
 除了 9222，其他都能換：連線兩邊的 port 和服務起的 port 一起改就好。
@@ -41,13 +41,13 @@
 | 同一台：直接連 `127.0.0.1` | ✓ | ✓ |
 | tailnet 內：[ssh -L／-R](README.md#ssh-轉發怎麼讀) | ✓ | ✓ |
 | tailnet 內：`tailscale serve` | ✗ tailnet 裡每台裝置都連得到，等於把 Chrome 交給整個 tailnet | ✗ 同左 |
-| tailnet 外：一次性 tcp tunnel | ✗ 見下 | ✓（[`personal-chrome-attach --tunnel`](#tailnet-外一次性-tunnel)） |
+| tailnet 外：一次性 tcp tunnel | ✗ 見下 | ✓（[`playwright-extension-attach --tunnel`](#tailnet-外一次性-tunnel)） |
 | tailnet 外：Funnel、http quick tunnel | ✗ 見下 | ✗ |
 
 9555 能開出去，因為 **connect 網址就是鑰匙，用完就收掉**：
 
 - relay 只認 connect 網址裡的隨機路徑（`crypto.randomUUID()`）。只拿到 trycloudflare 網址的人猜不到它，連上也只回 400。
-- 一次性：detach、逾時、被中斷時 `personal-chrome-attach` 收掉 tunnel，那條網址和路徑跟著失效，下次是新的。
+- 一次性：detach、逾時、被中斷時 `playwright-extension-attach` 收掉 tunnel，那條網址和路徑跟著失效，下次是新的。
 - 每次接都要你在插件畫面選分頁、按允許。
 - 反過來，網址和路徑都拿到的人能搶在 agent 之前接上你的 Chrome。所以 connect 網址只交給本人，不貼到別人看得到的地方。
 
@@ -56,7 +56,7 @@
 9222、9377、1080 不開公網的原因：
 
 - **這幾個 port 都沒有驗證。** 拿到網址的人等於坐在那支 Chrome 前面，裡面所有網站的登入、cookie 都能讀能用。
-  [expose-port](README.md#tailnet-外) 只開「app 自己有驗證」的服務，瀏覽器不符合。
+  [公開網址](README.md#tailnet-外)只開「app 自己有驗證」的服務，瀏覽器不符合。
 - **CDP 直接接不上。** Chrome 只接受 `Host` 是 IP 或 `localhost` 的請求，Funnel、quick tunnel 轉進來的 `Host` 是公開網址，
   會回 `500 Host header is specified and is not an IP address or localhost.`（2026-11-06 在 company-ec2 實測 Chrome 154）。
 
@@ -185,14 +185,14 @@ agent 經 [Playwright Extension](https://chromewebstore.google.com/detail/playwr
 
 1. **第一次**：在要給 agent 用的那個 profile 裝插件。
 2. **連線**：看你在哪，照下面[同一台 Windows](#同一台-windows本機直接接)、[tailnet 內](#tailnet-內ssh-轉發)或[tailnet 外](#tailnet-外一次性-tunnel)其中一段做。
-3. **怎麼確認**：`personal-chrome-attach` 印「已接上,session:<session>」（同一台 Windows 沒有這行），agent 跑 `playwright-cli -s=<session> tab-list` 列得出你的分頁。
+3. **怎麼確認**：`playwright-extension-attach` 印「已接上,session:<session>」（同一台 Windows 沒有這行），agent 跑 `playwright-cli -s=<session> tab-list` 列得出你的分頁。
    之後用 `playwright-cli -s=<session> <指令>` 操作，開新分頁做事用 `tab-new <網址>`，不蓋掉你正在看的那頁。
 4. **收**：`playwright-cli -s=<session> detach`。Chrome 和分頁留著。
 
 ### 同一台 Windows：本機直接接
 
 你和 agent 在同一台 Windows（例如你在那台桌面開 Claude Code），Chrome 和 relay 都在這台的 `127.0.0.1`，不用 ssh 轉發也不用 tunnel。
-`personal-chrome-attach` 在 Windows 跑不了（要 `/proc`、`mkfifo`、`python3`），這裡也用不到。
+`playwright-extension-attach` 在 Windows 跑不了（要 `/proc`、`mkfifo`、`python3`），這裡也用不到。
 
 1. **第一次**：dotfiles 的選裝工具勾 `playwright-cli`（這台還沒有 Chrome 就一起勾 `headless-chrome`，見 [Windows 主機](../windows.md#裝了什麼怎麼用)），
    在要給 agent 用的 Chrome 裝 [Playwright Extension](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)。
@@ -215,17 +215,17 @@ agent 照的步驟在 agent-config 的 [browser-access〈同一台 Windows〉](h
 
    ```bash
    # 起插件要連的 relay，固定聽 9555，等你的 Chrome 連進來（預設等 300 秒）
-   personal-chrome-attach -s=<session>
+   playwright-extension-attach -s=<session>
    ```
 
    這支是 agent-config 的 browser-access skill 附的：relay 本來每次隨機 port，它固定到 9555；有 token 時不把網址印出來。
 3. 在**新分頁**（agent 會直接改這個分頁）：
    - 有設 token：開 `http://127.0.0.1:9555/connect`，按「複製」，貼進同一個分頁的網址列。這個網址每次一樣，可以加書籤。
-   - 沒設 token：貼 `personal-chrome-attach` 印出的 `chrome-extension://…` 網址，再在插件畫面選這個分頁、按允許。
+   - 沒設 token：貼 `playwright-extension-attach` 印出的 `chrome-extension://…` 網址，再在插件畫面選這個分頁、按允許。
 4. 收：detach 之後關掉 ssh。
 
 - token：插件狀態頁上的 token 設成**已配置主機**的環境變數 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，之後貼網址就接上、不用選分頁。token 不進 repo、不貼進對話。
-- 逾時：`personal-chrome-attach` 預設等 300 秒，沒人連就自己收掉，重跑會是新的網址。
+- 逾時：`playwright-extension-attach` 預設等 300 秒，沒人連就自己收掉，重跑會是新的網址。
 
 ### tailnet 外：一次性 tunnel
 
@@ -242,14 +242,14 @@ agent 照的步驟在 agent-config 的 [browser-access〈同一台 Windows〉](h
 ```bash
 # 起 relay，再開一條 cloudflared tcp quick tunnel 指向它；印出你要做的四步，停到 session 結束
 #   --timeout=<秒>  等你接上的秒數（--tunnel 預設 600：第一次要裝 cloudflared 和插件）
-personal-chrome-attach --tunnel -s=<session>
+playwright-extension-attach --tunnel -s=<session>
 ```
 
 - 要 `playwright-cli`（≥ 0.1.23）和 `cloudflared`。沒有 cloudflared 時印下載頁網址、exit 1。
 - 不帶 token：tunnel 模式不讀 `PLAYWRIGHT_MCP_EXTENSION_TOKEN`，每次你在插件畫面選分頁、按允許。
 - 不在 agent 這台聽 9555，所以同一台可以同時開多條，session 名要不同。
 
-它印出的樣子（2026-11-06 在 company-ec2 實跑 `personal-chrome-attach --tunnel -s=tunneltest --timeout=600`，
+它印出的樣子（2026-11-06 在 company-ec2 實跑 `playwright-extension-attach --tunnel -s=tunneltest --timeout=600`，
 cloudflared 2026.10.7、playwright-cli 0.1.23；hostname 和 UUID 每次不同，這條 tunnel 已收掉，UUID 改成 `<uuid>`）：
 
 ```text
@@ -311,7 +311,7 @@ agent 把「tunnel 開好了」到「等使用者接上」那段原樣交給你�
 4. 在這支 Chrome 開**新分頁**，網址列貼 connect 網址，在插件畫面選分頁、按允許。
 
 - **connect 網址就是鑰匙**：拿到它和 hostname 的人能搶在 agent 前面接上你的 Chrome（見[能怎麼連](#能怎麼連)）。只給本人，不貼到別人看得到的地方。
-- 收：agent detach 後 `personal-chrome-attach` 收掉 tunnel，印「cloudflared 剩 0 個(要 0)。」；你那台的 `cloudflared access tcp` 按 Ctrl-C。
+- 收：agent detach 後 `playwright-extension-attach` 收掉 tunnel，印「cloudflared 剩 0 個(要 0)。」；你那台的 `cloudflared access tcp` 按 Ctrl-C。
   腳本只檢查 cloudflared 行程剩 0 個；要確認公網也斷了，照 [remote-access〈共通規則〉](README.md#共通規則)打那個網址，回 `530` 才算。
 - 逾時、attach 失敗（例如你按了拒絕）、cloudflared 起不來或中途結束：都會收掉 cloudflared、exit 1；被中斷（Ctrl-C、SIGTERM）exit 130。網址每次不同，重跑就是新的四步。
 
@@ -341,7 +341,7 @@ henry-desktop 的獨立 profile）：
 | 9222 一直不通，Chrome 卻開著 | 同 profile 的 Chrome 早就開著、沒帶 debug port，新參數被吞掉 | 關掉那個 Chrome 視窗，重開 |
 | `remote port forwarding failed`（9222 或 1080） | 已配置主機的 port 被佔 | `ss -ltnp \| grep <port>` 看是誰；另一台的 ssh 或 headless 先收掉 |
 | chrome-devtools-mcp 接到的不是你要的那支 | 9222 同時只有一支 Chrome | `curl 127.0.0.1:9222/json/version` 看 `User-Agent` |
-| `personal-chrome-attach` 說「等了 N 秒沒人連進來」 | `--timeout` 秒內（預設 300，`--tunnel` 600）沒人連進來 | 重跑，用新的網址 |
+| `playwright-extension-attach` 說「等了 N 秒沒人連進來」 | `--timeout` 秒內（預設 300，`--tunnel` 600）沒人連進來 | 重跑，用新的網址 |
 | `找不到 cloudflared:--tunnel 要它` | agent 那台沒有 cloudflared | 照它印的官方下載頁裝 |
 | `cloudflared 沒開出 trycloudflare.com 網址` | quick tunnel 沒開成，常見是被限流回 `429`；它會印 cloudflared 最後幾行 | 看那幾行，過一陣子重跑 |
 | `cloudflared 自己結束了,tunnel 斷了` | 接上之後 agent 那台的 cloudflared 掉了 | 重跑，用新的四步 |

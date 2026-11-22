@@ -113,7 +113,7 @@ _Avoid_: 工作機、開發機、目標機器、agent 機、遠端機器、serve
 _Avoid_: 自己電腦、本機、client、local（指這個角色時）
 
 **入口**:
-從個人電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 share-shell 網址。
+從個人電腦操作已配置主機的方式：terminal ssh、VS Code Remote-SSH、瀏覽器開 code-server、別人開給你的 ttyd-serve 網址。
 _Avoid_: 連線方式（只指 ssh 時）、登入方式
 
 **朗讀服務**:
