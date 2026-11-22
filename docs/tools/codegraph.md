@@ -3,7 +3,7 @@
 ## 為什麼裝
 
 [codegraph](https://github.com/colbymchenry/codegraph) 把程式碼建成 symbol 圖,agent 用 `codegraph_explore`
-一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。CLI 要勾選裝工具 `codegraph`(會一併裝 Node:Linux 是 mise、macOS 是 nvm);
+一次拿到「相關符號原始碼 + 呼叫路徑」,取代一堆 grep。CLI 要勾選裝工具 `codegraph`(會一併裝 Node:Linux 是 mise、macOS 是 brew);
 共用 git hook 和 `codegraph-setup-repo` 每台都部署,找不到 `codegraph` 時什麼都不做。
 Windows 主機走 mise、不跑 `codegraph install`,見下面〈坑〉的[〈Windows 主機〉](#windows-主機)。
 它同時是 CLI、MCP server 和背景 daemon,三樣東西由不同地方管:
@@ -152,9 +152,9 @@ chmod 600 ~/.claude.json
 Linux 的 codegraph 由 mise 的 npm backend 裝成獨立的工具,不綁在某個 node 版本上,換 node 版本不受影響
 ([mise 的 Node](https://mise.jdx.dev/lang/node.html):要跨版本保留的 CLI 就用 npm backend 裝)。
 
-macOS 照舊是 nvm 的 npm 全域套件,綁在當前 node 版本(`npm config get prefix` 是 `~/.nvm/versions/node/<版本>`)。
-`nvm use` 換版本後 `codegraph` 就從 PATH 上消失,而 MCP server 的 command 是裸的 `codegraph` —— 它會變成連不上,
-而不是報「找不到指令」。重跑一次 `npm i -g @colbymchenry/codegraph` 就好。playwright-cli 同理。
+macOS 用 brew 那份 node 的 npm 裝(brew 沒有 codegraph formula),全域套件在 Homebrew 的 prefix
+(`npm config get prefix` 是 `/opt/homebrew`,Intel 是 `/usr/local`),`brew upgrade node` 之後照樣在 PATH 上(#383)。
+以前 nvm 那時綁在當前 node 版本,`nvm use` 換版本後 MCP server 的裸 `codegraph` 會變成連不上,而不是報「找不到指令」。
 
 ### 索引什麼時候會跟上你的改動
 

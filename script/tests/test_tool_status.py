@@ -293,13 +293,10 @@ exit 0
     def test_playwright_cli_without_local_chrome_points_to_attach(self):
         # #349:沒有本機 Chrome 不擋安裝(exit 0),提醒改用 attach 接遠端瀏覽器。macOS 照 Playwright 找 chrome
         # channel 的位置(/Applications/Google Chrome.app),跑測試的主機沒有那支,所以一定走到提醒。
-        # playwright-cli、npm 換成假的:已經 ≥ 下限就不重裝,install-browser 什麼都不做
-        bin_dir = self.dir / "bin"
-        bin_dir.mkdir()
+        # brew、playwright-cli 換成假的(macOS 由 brew 裝,#383):已經 ≥ 下限,install-browser 什麼都不做
+        bin_dir = self.fake_brew_prefix() / "bin"
         (bin_dir / "playwright-cli").write_text('#!/bin/sh\n[ "$1" = --version ] && echo 9.9.9\nexit 0\n')
-        (bin_dir / "npm").write_text("#!/bin/sh\nexit 0\n")
-        for f in bin_dir.iterdir():
-            f.chmod(0o755)
+        (bin_dir / "playwright-cli").chmod(0o755)
         script = self.render(MAC, f"{SCRIPTS}/run_onchange_after_npm-install-playwright-cli.sh.tmpl", ["playwright-cli"])
         self.assertIn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", script)
         path = self.dir / "pw.sh"
@@ -309,6 +306,39 @@ exit 0
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("playwright-cli attach --extension", run.stderr)
         self.assertIn("playwright-cli attach --cdp=", run.stderr)
+
+    def fake_brew_prefix(self):
+        # 假的 Homebrew:bin/brew --prefix 印出 prefix 自己。腳本要從 PATH 上的 brew 找到它
+        prefix = self.dir / "homebrew"
+        (prefix / "bin").mkdir(parents=True)
+        brew = prefix / "bin/brew"
+        brew.write_text(f'#!/bin/sh\n[ "$1" = --prefix ] && echo {prefix}\n')
+        brew.chmod(0o755)
+        return prefix
+
+    def test_macos_codegraph_installs_with_brew_npm_even_if_nvm_one_is_on_path(self):
+        # #383:apply 時的 shell 可能還載著 nvm。PATH 上有 nvm 那份 codegraph、npm,也要用 Homebrew 那份 npm 裝進 brew 的 prefix
+        prefix = self.fake_brew_prefix()
+        nvm_bin = self.dir / ".nvm/versions/node/v22.0.0/bin"
+        nvm_bin.mkdir(parents=True)
+        log = self.dir / "npm.log"
+        for d, name in ((nvm_bin, "nvm"), (prefix / "bin", "brew")):
+            for c in ("npm", "codegraph"):
+                (d / c).write_text(f'#!/bin/sh\necho "{name} {c} $*" >> {log}\n')
+                (d / c).chmod(0o755)
+        (prefix / "bin/codegraph").unlink()
+        script = self.render(MAC, f"{SCRIPTS}/run_onchange_after_npm-install-codegraph.sh.tmpl", ["codegraph"])
+        path = self.dir / "cg.sh"
+        path.write_text(script, encoding="utf-8")
+        env = {"PATH": f"{nvm_bin}:{prefix / 'bin'}:/usr/bin:/bin", "HOME": str(self.dir)}
+        run = subprocess.run(["sh", str(path)], capture_output=True, text=True, env=env)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(log.read_text(), "brew npm install -g @colbymchenry/codegraph\n")
+        # Homebrew 那份已經有就跳過
+        (prefix / "bin/codegraph").write_text("#!/bin/sh\n")
+        (prefix / "bin/codegraph").chmod(0o755)
+        run = subprocess.run(["sh", str(path)], capture_output=True, text=True, env=env)
+        self.assertEqual((run.returncode, run.stdout.strip()), (0, "codegraph 已安裝,跳過"))
 
     def test_wsl_skips_headless_chrome_fonts(self):
         pkgs = self.render(WSL, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["headless-chrome", "vim"])
@@ -422,7 +452,6 @@ exit 0
     def test_android_node_is_pkg_nodejs_lts_not_nvm(self):
         for tool in ("node", "wakatime"):
             with self.subTest(tool=tool):
-                self.assertEqual(self.render(ANDROID, f"{SCRIPTS}/run_onchange_after_install-node.sh.tmpl", [tool]).strip(), "")
                 pkgs = self.render(ANDROID, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", [tool])
                 self.assertIn("nodejs-lts", pkgs)
                 self.assert_sh(pkgs)

@@ -26,10 +26,10 @@ ffmpeg           影音轉檔、抽音軌與影格 [brew]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [brew]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [brew]
-node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 nvm，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [script]
+node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 brew，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [brew]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [script]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [cask]
-playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [script]
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [brew]
 agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv) [official]
 windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
 
@@ -58,7 +58,7 @@ earlyoom snapserver windows-mcp
 
 ## 套件清單
 apt/pkg: 
-brew: jq bat bottom btop poppler cloudflared code-server eza fastfetch ffmpeg fzf gh ripgrep snapcast starship ttyd uv
+brew: jq bat bottom btop poppler cloudflared code-server eza fastfetch ffmpeg fzf gh node playwright-cli ripgrep snapcast starship ttyd uv
 brew cask: google-chrome tailscale-app
 winget: 
 
@@ -85,7 +85,6 @@ winget:
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-node.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
@@ -283,29 +282,6 @@ fi
 "$ss" install -g
 "$ss" sync --all
 
-### .chezmoiscripts/run_onchange_after_install-node.sh.tmpl
-#!@BIN@/sh
-# 選裝工具 node:nvm + Node LTS。勾了 node,或勾了其他要 Node 的工具(.chezmoidata/tool-table.yaml 的 needsNode:
-# codegraph、playwright-cli、opencode、wakatime)就裝,後者沒勾 node 也一併裝,免得漏勾讓 apply 半路失敗、
-# 或裝好的工具一跑就找不到 node。都沒勾就渲染成空的,chezmoi 不跑。
-# dot_zshrc 已經會載入 ~/.nvm/nvm.sh,所以 installer 不准改 shell 設定檔(PROFILE=/dev/null),
-# 否則它會往 chezmoi 管的 ~/.zshrc 追加內容,之後 chezmoi diff/verify 都會有差異。
-set -eu
-
-# 1. 已經有就不重裝
-if [ -d "$HOME/.nvm" ]; then
-  echo "nvm 已安裝,跳過"
-  exit 0
-fi
-
-# 2. 裝 nvm(版本釘在 URL 上),再用它裝 Node LTS
-#    先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
-PROFILE=/dev/null bash "$tmp/install.sh"
-bash -c 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install --lts'
-
 ### .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
 #!@BIN@/sh
 # 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
@@ -442,24 +418,26 @@ fi
 #!@BIN@/sh
 # 選裝工具 codegraph CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 #
-# 檔名刻意不叫 install-codegraph:chezmoi 依檔名字母順序跑腳本,它要 npm,
-# 必須排在 install-node 之後(勾了 codegraph 就會一併裝 nvm),第一次 apply 才裝得起來。
+# 它要 npm:勾了 codegraph 就會連帶裝 node,由 install-packages-darwin(run_onchange_before_)的 brew bundle 先裝好。
+# 全域套件裝在 Homebrew 的 prefix,brew 升級 node 不會從 PATH 消失(nvm 那時會,#383)。
 set -eu
 
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
+# 1. 用 Homebrew 那份 node、npm。apply 時的 shell 可能還載著 nvm(.zshrc 改掉前開的),PATH 上的 npm、codegraph
+#    會是 ~/.nvm 那份,所以排到前面;chezmoi 跑腳本時的 PATH 也不一定有 Homebrew(同 install-packages-darwin)
+for b in brew /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  prefix=$("$b" --prefix 2>/dev/null) && break
+done
+[ -n "${prefix:-}" ] || { echo "codegraph 要 brew 的 node:找不到 Homebrew" >&2; exit 1; }
+export PATH="$prefix/bin:$PATH"
 
-# 2. 已經有就不重裝
-if command -v codegraph >/dev/null 2>&1; then
+# 2. 已經有就不重裝。只看 Homebrew 那份:以前 nvm 的 npm 裝在 ~/.nvm 底下,.zshrc 不再載入 nvm,要在這裡重裝
+if [ -x "$prefix/bin/codegraph" ]; then
   echo "codegraph 已安裝,跳過"
   exit 0
 fi
 
 # 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
+[ -x "$prefix/bin/npm" ] || { echo "codegraph 要 npm:$prefix/bin/npm 不在,看 install-packages-darwin 的 brew bundle 有沒有裝好 node" >&2; exit 1; }
 npm install -g @colbymchenry/codegraph
 
 ### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
@@ -469,14 +447,16 @@ npm install -g @colbymchenry/codegraph
 # /opt/google/chrome/chrome,macOS 是 /Applications 的 Google Chrome),沒有那支就報錯,不會自己下載;
 # 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
 #
-# 檔名刻意不叫 install-playwright-cli:要排在 install-mise(Linux)、install-node(macOS)之後。
+# 檔名刻意不叫 install-playwright-cli:Linux 要排在 install-mise 之後(macOS 的 brew bundle 是 run_onchange_before_)。
 set -eu
 
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
+# 1. Homebrew 的 bin 排到前面:apply 時的 shell 可能還載著 nvm,PATH 上的 playwright-cli 會是 ~/.nvm 那份;
+#    chezmoi 跑腳本時的 PATH 也不一定有 Homebrew(同 install-packages-darwin)
+for b in brew /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  prefix=$("$b" --prefix 2>/dev/null) && break
+done
+[ -n "${prefix:-}" ] || { echo "playwright-cli 由 brew 裝:找不到 Homebrew" >&2; exit 1; }
+export PATH="$prefix/bin:$PATH"
 
 # 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
 #    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
@@ -486,13 +466,10 @@ version_ok() {
   [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
 }
 
-# 3. 安裝或升級(官方 README 的裝法:npm install -g @playwright/cli@latest)
-command -v npm >/dev/null 2>&1 || { echo "playwright-cli 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
-if version_ok; then
-  echo "playwright-cli $(playwright-cli --version) 已 ≥ $min,不重裝"
-else
-  npm install -g @playwright/cli@latest
-  version_ok || { echo "playwright-cli 裝完是 $(playwright-cli --version 2>/dev/null),低於 $min" >&2; exit 1; }
+# 3. 確認版本。latest 低於下限或沒裝好就只印一行、exit 0,同 install-mise:apply 不中止
+if ! version_ok; then
+  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:brew upgrade playwright-cli" >&2
+  exit 0
 fi
 
 # 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
@@ -601,6 +578,8 @@ brew "fastfetch"
 brew "ffmpeg"
 brew "fzf"
 brew "gh"
+brew "node"
+brew "playwright-cli"
 brew "ripgrep"
 brew "snapcast"
 brew "starship"

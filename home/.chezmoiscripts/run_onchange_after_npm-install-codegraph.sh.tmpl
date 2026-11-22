@@ -1,26 +1,28 @@
-{{- /* 照裝法判斷:codegraph 要裝而且走 npm(script)。只剩 macOS;Linux 走 mise 的 npm backend(#342)、Windows 走 mise(aqua) */ -}}
+{{- /* 照裝法判斷:codegraph 要裝而且走 npm(script)。只剩 macOS(用 brew 那份 node 的 npm,#383);Linux 走 mise 的 npm backend(#342)、Windows 走 mise(aqua) */ -}}
 {{- $codegraph := (includeTemplate "tool-install" . | fromJson).tools.codegraph -}}
 {{- if and $codegraph.install (eq $codegraph.method "script") -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 codegraph CLI(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 #
-# 檔名刻意不叫 install-codegraph:chezmoi 依檔名字母順序跑腳本,它要 npm,
-# 必須排在 install-node 之後(勾了 codegraph 就會一併裝 nvm),第一次 apply 才裝得起來。
+# 它要 npm:勾了 codegraph 就會連帶裝 node,由 install-packages-darwin(run_onchange_before_)的 brew bundle 先裝好。
+# 全域套件裝在 Homebrew 的 prefix,brew 升級 node 不會從 PATH 消失(nvm 那時會,#383)。
 set -eu
 
-# 1. 載入 nvm(chezmoi 跑腳本時不會讀 .zshrc)
-if ! command -v npm >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR="$HOME/.nvm"
-  set +u; . "$NVM_DIR/nvm.sh"; set -u
-fi
+# 1. 用 Homebrew 那份 node、npm。apply 時的 shell 可能還載著 nvm(.zshrc 改掉前開的),PATH 上的 npm、codegraph
+#    會是 ~/.nvm 那份,所以排到前面;chezmoi 跑腳本時的 PATH 也不一定有 Homebrew(同 install-packages-darwin)
+for b in brew /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  prefix=$("$b" --prefix 2>/dev/null) && break
+done
+[ -n "${prefix:-}" ] || { echo "codegraph 要 brew 的 node:找不到 Homebrew" >&2; exit 1; }
+export PATH="$prefix/bin:$PATH"
 
-# 2. 已經有就不重裝
-if command -v codegraph >/dev/null 2>&1; then
+# 2. 已經有就不重裝。只看 Homebrew 那份:以前 nvm 的 npm 裝在 ~/.nvm 底下,.zshrc 不再載入 nvm,要在這裡重裝
+if [ -x "$prefix/bin/codegraph" ]; then
   echo "codegraph 已安裝,跳過"
   exit 0
 fi
 
 # 3. 安裝
-command -v npm >/dev/null 2>&1 || { echo "codegraph 要 npm:install-node 應該已經裝好,看它的輸出" >&2; exit 1; }
+[ -x "$prefix/bin/npm" ] || { echo "codegraph 要 npm:$prefix/bin/npm 不在,看 install-packages-darwin 的 brew bundle 有沒有裝好 node" >&2; exit 1; }
 npm install -g @colbymchenry/codegraph
 {{ end -}}
