@@ -9,6 +9,12 @@
 │    tools ──→ 用途（預設帶現在的）──→ 選單（預設帶現在的勾選；改成完整或精簡就帶那組）
 │          ──→ Enter ──→ 自動 apply，新勾的才裝；改用途時 mise 裝的會移除，其他的留著
 │
+├─ 不出選單改勾選（agent 代跑、寫在腳本裡）
+│    chezmoi edit-config ──→ [data] 改成 machineUse = "custom"、tools 加減工具
+│    ──→ chezmoi init --no-tty（用途、勾選都存過，不會問）──→ chezmoi apply
+│    一定要改成 custom：minimal、full 只認預設組合，不看存著的 tools
+│    新勾的工具用得到、還沒存過的憑證照樣會問，先在 [data] 一起填好
+│
 ├─ 更新 eza、fzf 這類工具（Linux，mise 裝的）
 │    mise outdated ──→ mise up ──→ mise prune（清掉舊版）；其他指令見 tools/mise.md
 │
