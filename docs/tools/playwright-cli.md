@@ -7,7 +7,7 @@ agent 要點、填表、跑流程、截圖時用 `playwright-cli`;查原因(慢�
 
 ```text
 選裝工具 playwright-cli ── Linux、Windows:mise 的 npm:@playwright/cli(會一併列 Node LTS)
-        │                  macOS:npm install -g @playwright/cli(會一併裝 nvm)
+        │                  macOS:brew 的 playwright-cli(就是 @playwright/cli,brew 會一併裝 node)
         ├─ open ───→ 本機 Chrome:Linux 是 /opt/google/chrome/chrome ←── 選裝工具 headless-chrome 裝的那支
         │                         macOS 是 /Applications 的 Google Chrome(自己裝)
         │                         Windows 是一般的 chrome.exe ←────── headless-chrome 用 winget 確保有
@@ -30,7 +30,7 @@ attach 的指令與連法見[瀏覽器](../how-to/remote-access/browser.md)。
 |---|---|
 | 原生 Termux 為什麼不行 | Termux 的 Node 平台是 `android`,playwright-core 只認 `linux`、`darwin`、`win32`,連 `playwright-cli --version` 都丟 `Unsupported platform: android`(2026-11-20 termux-docker 實測 0.1.25)。同一台平板的 proot Ubuntu 照 Linux 的裝法(還沒在 proot 實測) |
 | 沒有本機 Chrome 會怎樣 | 安裝時只提醒、印 attach 的兩種接法;`open` 直接報錯 `Chromium distribution 'chrome' is not found`,**不會自己下載**(2026-10-06 在 `node:22-bookworm-slim` 容器實測 0.1.22) |
-| 換過 node 版本後不見了 | 只有 macOS 會:npm 全域套件綁在當下的 node 版本,`nvm use` 換版本後重跑 `npm i -g @playwright/cli`。Linux、Windows 由 mise 的 npm backend 裝,不綁 node 版本 |
+| 換過 node 版本後不見了 | 現在不會:Linux、Windows 由 mise 的 npm backend 裝,macOS 由 brew 裝(#383),都不綁 node 版本。以前 macOS 走 nvm 的 npm 時,`nvm use` 換版本就不見 |
 
 ## 更多
 

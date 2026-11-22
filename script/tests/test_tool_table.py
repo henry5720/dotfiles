@@ -83,10 +83,9 @@ SCRIPT_METHODS = {
     # 不再跟舊腳本比(test_official_installer.py 驗渲染結果跟以前各自那支一樣)
     "run_onchange_after_install-gh.sh.tmpl": ("gh", {"script"}),
     "run_onchange_after_install-headless-chrome.sh.tmpl": ("headless-chrome", {"deb"}),
-    "run_onchange_after_install-node.sh.tmpl": ("node", {"script"}),
     "run_onchange_after_npm-install-codegraph.sh.tmpl": ("codegraph", {"script"}),
-    # Linux 的 playwright-cli 走 mise(#342),這支照樣跑:它也是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
-    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"script", "mise"}),
+    # playwright-cli 在 Linux 走 mise(#342)、macOS 走 brew(#383),這支照樣跑:它是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
+    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"mise", "brew"}),
     "run_onchange_after_install-tailscale.sh.tmpl": ("tailscale", {"official", "script"}),
     **{f"run_onchange_after_install-{t}.sh.tmpl": (t, {"apt"}) for t in ("snapserver", "snapclient", "earlyoom")},
     **{f"run_onchange_after_install-wakatime.{ext}.tmpl": ("wakatime", {"script"}) for ext in ("sh", "ps1")},
@@ -227,7 +226,7 @@ class ToolTableTest(unittest.TestCase):
         # (fedora:42 容器實測 attach --cdp,見 #349 留言)。期望值照那份盤點,不從表推
         # Linux 從 #342 起走 mise 的 npm backend;沒有 libatomic 的格子(快照裡的 debian-noroot、non-debian)
         # Node 跑不起來,見 test_node_skipped_without_libatomic
-        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "script", "windows": "mise"}
+        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "brew", "windows": "mise"}
         for env, method in want.items():
             with self.subTest(env=env):
                 res = self.status[env]["tools"]
@@ -490,18 +489,18 @@ class ToolTableTest(unittest.TestCase):
                 self.assertEqual(self.status[env]["tools"]["node"]["method"], "mise")
 
     def test_needs_node_matches_rendered_node(self):
-        # Node 有沒有被連帶裝:macOS 看 install-node(nvm)、Termux 看 pkg 的 nodejs-lts、Linux 與 Windows 看 mise 的 node(#342)
+        # Node 有沒有被連帶裝:macOS 看 brew 的 node(#383)、Termux 看 pkg 的 nodejs-lts、Linux 與 Windows 看 mise 的 node(#342)
         for (env, sel), res in self.resolved.items():
             snap = self.snap[env, sel]
             want = {"android": bool(snap["packages"].get("pkg(node)")),
-                    "darwin": snap["scripts"].get("run_onchange_after_install-node.sh.tmpl", False)}.get(
+                    "darwin": "node" in snap["packages"]["brew"]}.get(
                 env, '"node" = "lts"' in snap["mise"])
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsNode"], want)
 
     def test_linux_node_and_npm_tools_go_through_mise(self):
         # #342:Linux 的 Node、codegraph、playwright-cli 由 mise 裝(npm backend),不再跑 nvm 與 npm install -g
-        scripts = ("run_onchange_after_install-node.sh.tmpl", "run_onchange_after_npm-install-codegraph.sh.tmpl")
+        scripts = ("run_onchange_after_npm-install-codegraph.sh.tmpl",)
         for env in ("debian-root", "wsl", "arm", "proot"):
             for sel, want in (("node", {'"node" = "lts"'}),
                               ("codegraph", {'"node" = "lts"', '"npm:@colbymchenry/codegraph" = "latest"'}),
@@ -518,9 +517,21 @@ class ToolTableTest(unittest.TestCase):
         self.assertIn("install-browser ffmpeg", body)
         self.assertNotIn("npm install", body)
         self.assertNotIn("nvm", body)
-        # Windows 的 codegraph 照舊走 aqua(自帶 Node runtime,#323),macOS 照舊 nvm(#340 Out of Scope)
+        # Windows 的 codegraph 照舊走 aqua(自帶 Node runtime,#323)
         self.assertIn('"codegraph" = "latest"', self.snap["windows", "codegraph"]["mise"])
-        self.assertTrue(self.snap["darwin", "codegraph"]["scripts"]["run_onchange_after_install-node.sh.tmpl"])
+
+    def test_macos_node_and_npm_tools_go_through_brew(self):
+        # #383:macOS 的 Node、playwright-cli 由 brew 裝,codegraph 沒有 formula、用 brew 那份 node 的 npm;不再裝、不再載入 nvm
+        for sel, brews in (("node", {"node"}), ("codegraph", {"node"}), ("playwright-cli", {"playwright-cli"})):
+            snap = self.snap["darwin", sel]
+            with self.subTest(sel=sel):
+                self.assertLessEqual(brews, set(snap["packages"]["brew"]))
+                self.assertEqual(snap["scripts"].get("run_onchange_after_npm-install-codegraph.sh.tmpl", False),
+                                 sel == "codegraph")
+        text = path_of("darwin", "codegraph").read_text(encoding="utf-8")
+        self.assertNotIn("nvm.sh", text)
+        self.assertIn('[ -x "$prefix/bin/codegraph" ]', text)
+        self.assertNotIn("nvm.sh", (ROOT / "home/dot_zshrc").read_text(encoding="utf-8"))
 
     def test_needs_uv_matches_rendered_uv(self):
         # uv 有沒有裝(勾了或被連帶):Linux、Windows 看 mise 的 uv、macOS 看 brew、Termux 看 pkg

@@ -443,7 +443,7 @@ check_playwright_cli() {
   local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
   check "show --port 起得來、只聽 127.0.0.1" \
     "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host=127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
-  # Linux 由 mise 裝 latest(#342),設定腳本只確認版本、補 ffmpeg,不用 npm 升級(npm 升級那條只剩 macOS)。
+  # Linux 由 mise 裝 latest(#342),設定腳本只確認版本、補 ffmpeg,不用 npm 升級(macOS 由 brew 裝,#383)。
   # run_onchange_ 內容沒變不會再跑,所以直接跑渲染出來的腳本
   check "設定腳本再跑一次 exit 0、沒有 npm install、版本 ≥ $PWCLI_MIN" \
     "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/pw.sh && ! grep -q 'npm install' /tmp/pw.sh && sh /tmp/pw.sh && $PWCLI $PWCLI_VERSION_OK"
@@ -949,7 +949,7 @@ scenario_ubuntu() {
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
-  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 npm(#349)
+  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 brew(#349、#383)
   local mac_full=${LINUX_FULL/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
@@ -976,8 +976,8 @@ scenario_ubuntu() {
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "macOS 勾了 playwright-cli:跟 Linux 同一支 npm 安裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
-    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && grep -q 'npm install -g @playwright/cli' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
+  check "macOS 勾了 playwright-cli:brew bundle 裝(#383),設定腳本不用 npm 裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | grep -qx 'brew \"playwright-cli\"' && chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && ! grep -q 'npm install' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
   check "macOS 勾了裝不了的(snapserver):略過腳本只列這一項(tailscale、headless-chrome 走 cask,playwright-cli 照裝),彙整腳本渲染出來" \
     "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'snapserver' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \

@@ -21,10 +21,10 @@
 
 精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，mise 裝的 btop 在下次 apply 會被移除（#330），其他已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
-- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Linux 與 Windows 是 mise 的 Node LTS，只有 macOS 還走 nvm。
+- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Linux 與 Windows 是 mise 的 Node LTS、在 macOS 是 brew 的 `node`。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
 - `node` 裝 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
-  已經用 nvm 裝過的 Linux 機器見下面〈從 nvm 換到 mise〉。
+  已經用 nvm 裝過的機器見下面〈從 nvm 換掉〉。
 - `starship` 是 zsh、bash 共用的提示列，跟 `zsh` 分開勾：只要 zsh 外掛、不要提示列，或用 bash 配 starship 都行；沒勾就是 shell 預設的提示列。以前存自訂、勾了 `zsh` 的 config（當時 zsh 附帶 p10k），下次 `chezmoi init` 自動補勾 `starship`。
 
 選單每一項的說明後面標這台會走的裝法（#335），例如
@@ -35,12 +35,14 @@
 選項清單與每一項的說明在 [`home/.chezmoitemplates/tool-menu`](../../home/.chezmoitemplates/tool-menu)，
 用途的預設組合在 [`home/.chezmoi.toml.tmpl`](../../home/.chezmoi.toml.tmpl) 的 `$lean`。
 
-### 從 nvm 換到 mise
+### 從 nvm 換掉
 
-Linux 的 `node` 以前走 nvm，#342 起改由 mise 裝（跟 Windows 一樣）。已經裝過 nvm 的機器下次 `chezmoi apply`：
+`node` 以前在 Linux、macOS 走 nvm：Linux 從 #342 起改由 mise 裝（跟 Windows 一樣），macOS 從 #383 起改由 brew 裝。
+已經裝過 nvm 的機器下次 `chezmoi apply`：
 
-- mise 裝 Node LTS，`node`、`npm` 經 mise 的 shims 找得到；`.zshrc` 不再載入 `~/.nvm/nvm.sh`（只有 macOS 還載入）。
-- codegraph、playwright-cli 改由 mise 的 npm backend 裝，nvm 底下 `npm -g` 裝的那份不再用到。
+- Linux：mise 裝 Node LTS，`node`、`npm` 經 mise 的 shims 找得到；codegraph、playwright-cli 改由 mise 的 npm backend 裝。
+- macOS：brew 裝 `node`（跟著最新大版，不固定 LTS）與 `playwright-cli`，codegraph 改用 brew 那份 npm 裝進 Homebrew 的 prefix。
+- `.zshrc` 不再載入 `~/.nvm/nvm.sh`，nvm 底下 `npm -g` 裝的那份不再用到。
 - `~/.nvm` 原地保留，不會被刪（取消勾選不解除安裝）。確定不用了就自己刪：`rm -rf ~/.nvm`。
   其他 shell 設定檔（例如自己在 `~/.bashrc` 加過的 nvm 那幾行）也要自己拿掉。
 

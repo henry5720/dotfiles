@@ -3,7 +3,7 @@
        (現在是 claude、code-server、codex、herdr、opencode),照工具名排。一個都沒有就渲染成空的,chezmoi 不跑。
        網址、shell、env、args、已安裝的判斷都在表的 official.sh;換網址只改表。
        有 setup 的(tailscale、agent-config…)裝完還要設定,留在自己的腳本。
-       檔名排在 install-mise(Linux 的 Node)、install-node(macOS 的 Node)之後(opencode 的 oh-my-opencode-slim 要 npx)、install-wakatime 之前
+       檔名排在 install-mise(Linux 的 Node;macOS 的 Node 由 run_onchange_before_ 的 brew bundle 先裝)之後(opencode 的 oh-my-opencode-slim 要 npx)、install-wakatime 之前
        (wakatime 要幫已經裝好的 claude、codex、code-server 裝 plugin)。
 
        1. 已經有就不重裝:PATH 上有那個指令,或表上的檔案在(chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin)

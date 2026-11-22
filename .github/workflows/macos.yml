@@ -99,9 +99,20 @@ jobs:
           for t in snapserver earlyoom windows-mcp; do
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
-          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 npm 裝,不在略過彙整
+          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 brew 裝,不在略過彙整
           ! grep -q -- "^- playwright-cli:" <<<"$summary" || { echo "playwright-cli 被略過了" >&2; exit 1; }
-          . ~/.nvm/nvm.sh && playwright-cli --version
+
+      # 4a. node 走 brew、不再裝 nvm(#383):node、codegraph、playwright-cli 都是 Homebrew prefix 底下那份
+      - name: node 與要 Node 的工具是 brew 的
+        if: matrix.use == 'full'
+        run: |
+          prefix=$(brew --prefix)
+          [ ! -e ~/.nvm ] || { echo "不該有 ~/.nvm" >&2; exit 1; }
+          brew list --formula node playwright-cli
+          for c in node npm codegraph playwright-cli; do
+            [ "$(command -v "$c")" = "$prefix/bin/$c" ] || { echo "$c 是 $(command -v "$c"),不是 $prefix/bin/$c" >&2; exit 1; }
+          done
+          node --version && codegraph --version && playwright-cli --version
 
       # 4b. headless-chrome 在 macOS 走 brew 的 google-chrome cask(#348)。runner 多半已經預裝 Chrome,
       #     那時 brew 裝 cask 失敗、印略過(同 tailscale),apply 照樣跑完;兩種結果都要有 Chrome.app
