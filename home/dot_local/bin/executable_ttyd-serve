@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# 把這台的 shell 開成網頁(ttyd),只綁 127.0.0.1:7681、帶隨機密碼。只起服務，不分享:
+# 要給 tailnet 外的人用，另外打 remote-access funnel(這支啟動後印出那一行)。
+# 說明與取捨:dotfiles 的 docs/how-to/remote-access/ttyd-serve.md。
+
+set -euo pipefail
+
+TTYD_PORT=7681
+
+if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  cat <<HELP
+用法:ttyd-serve [指令…]
+
+把 shell 開成網頁:ttyd 綁 127.0.0.1:$TTYD_PORT,帳號 guest、密碼每次隨機。
+停在前景,Ctrl+C(或 SIGTERM、關掉終端機)就收掉 ttyd。
+
+  ttyd-serve                                # 開 login zsh
+  ttyd-serve herdr session attach default   # 最後面接什麼，網頁就開什麼
+
+要給 tailnet 外的人用：照啟動後印出的那行另外跑 remote-access funnel open。
+HELP
+  exit 0
+fi
+
+command -v ttyd >/dev/null || { echo "找不到 ttyd。打 tools 勾 ttyd。" >&2; exit 1; }
+
+if ss -ltn "sport = :$TTYD_PORT" | grep -q LISTEN; then
+  echo "127.0.0.1:$TTYD_PORT 已經有東西在聽(另一個 ttyd-serve?)。" >&2
+  exit 1
+fi
+
+cmd=("$@")
+[ ${#cmd[@]} -gt 0 ] || cmd=(zsh -l)
+# 密碼每次隨機：這是能打字的 shell(-W),固定密碼等於給過的人永遠有效。
+pw=$(openssl rand -hex 8)
+
+# 從 herdr 的 pane 裡起時會繼承 HERDR_ENV,網頁裡再 attach herdr 就被當成巢狀而擋掉。
+# 字型是瀏覽器那端畫的，對方沒裝 Nerd Font 就照順序往後退(提示字元的圖示會變方框，不影響使用)。
+env -u HERDR_ENV ttyd -i lo -p "$TTYD_PORT" -W -c "guest:$pw" \
+  -t 'fontFamily=Hack, "Hack Nerd Font", Menlo, Consolas, monospace' \
+  "${cmd[@]}" >/dev/null 2>&1 &
+ttyd_pid=$!
+# ttyd 是這支的子行程:Ctrl+C、SIGTERM、關終端機都走 EXIT 把它收掉。
+trap 'kill "$ttyd_pid" 2>/dev/null || true' EXIT
+trap 'exit 130' INT TERM HUP
+
+sleep 1
+kill -0 "$ttyd_pid" 2>/dev/null || { echo "ttyd 沒起來。" >&2; exit 1; }
+
+auth=$(printf 'guest:%s' "$pw" | base64)
+cat <<MSG
+
+  http://127.0.0.1:$TTYD_PORT
+  帳號 guest  密碼 $pw
+  (Ctrl+C 關閉，關了就失效)
+
+  要給 tailnet 外的人用，另開一個終端機跑:
+  remote-access funnel open --port $TTYD_PORT --https 10000 --path / \\
+    --expect-without 401 --expect-with 200 --auth-header-cmd 'echo "Authorization: Basic $auth"'
+
+MSG
+
+wait "$ttyd_pid"

@@ -4,7 +4,7 @@
 這份只講**連線**；每個服務自己的事（port、驗證、人看什麼、agent 接什麼、用完收什麼）寫在服務卡：
 
 - [瀏覽器](browser.md)：agent 自己的 headless、你的獨立 profile（9222）、插件（裝在獨立或日常 profile，tailnet 外也接得上）
-- [網頁 shell：share-shell](share-shell.md)
+- [網頁 shell：ttyd-serve](ttyd-serve.md)
 - [code-server](code-server.md)
 - [Windows 桌面：windows-mcp](windows-mcp.md)：讓別台的 agent 操作一台 Windows 的 GUI app
 - [朗讀串流：voice-out](voice-out.md)：agent 的回覆唸到 tailnet 內的個人電腦
@@ -204,7 +204,7 @@ getent hosts "$magic_dns_name"
 | server | 誰擋陌生人 | 能開到公網嗎 |
 |---|---|---|
 | dev server | app 自己的登入 | 可以，對方看到的就是你的網站 |
-| ttyd | **它自己沒有密碼**，`share-shell` 每次產一組 | 可以，用 [share-shell](share-shell.md) |
+| ttyd | **它自己沒有密碼**，`ttyd-serve` 每次產一組 | 可以，`ttyd-serve` 起、`remote-access funnel` 開，見 [ttyd-serve](ttyd-serve.md) |
 | Windows-MCP | Bearer key，每次起 server 換新、收掉時再換 | 可以，見 [windows-mcp](windows-mcp.md) |
 | code-server | 自己的固定密碼 | **不要**：它能開 terminal，等於整台機器，只靠一組固定密碼 |
 | 瀏覽器（CDP 9222、`show` 9377） | **沒有** | **不要**：拿到網址等於拿到那支 Chrome 的所有登入；CDP 還會擋外來的 `Host`。只走 ssh，見[瀏覽器〈能怎麼連〉](browser.md#能怎麼連) |
@@ -225,7 +225,7 @@ sudo tailscale funnel --https=10000 <port>     # 不加 --bg，在這台的終�
 （Linux `pgrep -af 'tailscale funnel'` 看得到參數，Windows `Get-Process tailscale` 有行程就當作被佔）。
 
 這份的例子都用 10000，因為 company-ec2 的 443 給 code-server 的
-tailnet serve 用了（`share-shell` 也固定開 10000）。agent 照 `remote-access` skill 開時預設 8443：
+tailnet serve 用了（`ttyd-serve` 印的那行也用 10000）。agent 照 `remote-access` skill 開時預設 8443：
 443 常被 serve 佔，8443 又剛好跟這份手動開的 10000 錯開，同一台可以同時開。
 
 開不起來時查這三項（[Tailscale Funnel 官方文件](https://tailscale.com/docs/features/tailscale-funnel)）：
@@ -258,9 +258,9 @@ cloudflared tunnel --url http://localhost:<port>    # 印出 https://<隨機>.tr
 
 chezmoi 管的機器在工具選單勾 `cloudflared` 就會裝（見 [工具一覽](../../tools.md#入口與連線)）；不歸 chezmoi 管的機器（例如別人的 Windows）自己裝，Windows 用 `winget install --id Cloudflare.cloudflared -e`，裝完當下的 PowerShell 找不到它，用完整路徑 `C:\Program Files (x86)\cloudflared\cloudflared.exe`。
 
-### shell：`share-shell`
+### shell：`ttyd-serve`
 
-在 Funnel 上開一個帶隨機密碼的網頁 shell，見 [share-shell](share-shell.md)。
+`ttyd-serve` 起一個帶隨機密碼的網頁 shell，再用 `remote-access funnel` 開到 Funnel，見 [ttyd-serve](ttyd-serve.md)。
 
 ### dev server：兩行，不用 script
 
@@ -279,7 +279,7 @@ sudo tailscale funnel --https=10000 <dev server 的 port>   # 10000 被佔就換
 ### code-server：不開給訪客
 
 code-server 本身就能開 terminal，給出去等於給整台機器；它的密碼又是固定的，給過就收不回。
-真的要讓人看你的畫面，用 `share-shell` 開 shell 就好。自己從別台連 code-server 走
+真的要讓人看你的畫面，用 `ttyd-serve` 開 shell 就好。自己從別台連 code-server 走
 [tailnet 內](#tailnet-內)。
 
 ## 比較表

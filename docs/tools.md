@@ -11,7 +11,7 @@ shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  b
 coding agent    herdr  claude  codex  opencode  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-mcp
 其他            ffmpeg  snapserver  snapclient  wakatime  earlyoom
-自寫指令        tools  ai-profile  share-shell  playwright-extension-attach  remote-access
+自寫指令        tools  ai-profile  ttyd-serve  playwright-extension-attach  remote-access
                 codegraph-setup-repo  voice-out  voice-out-speak
 ```
 
@@ -46,7 +46,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 | tailscale | 私人網路，連自己的機器 | [tailscale](https://tailscale.com/kb) |
 | cloudflared | Cloudflare Tunnel：把服務開給 tailnet 外的人 | [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
 | code-server | 瀏覽器開的 VS Code | [code-server](https://coder.com/docs/code-server) |
-| ttyd | 把 terminal 開成網頁，`share-shell` 用它 | [ttyd](https://github.com/tsl0922/ttyd) |
+| ttyd | 把 terminal 開成網頁，`ttyd-serve` 用它 | [ttyd](https://github.com/tsl0922/ttyd) |
 | gh | GitHub CLI | [gh](https://cli.github.com/) |
 
 ## coding agent
@@ -90,7 +90,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 |---|---|---|
 | `tools` | 改用途、加減選裝工具 | [改設定與更新](after-install.md) |
 | `codex-work`、`codex-personal`、`opencode-work`、`opencode-personal` | 用公司或個人帳號開 agent（都是 `ai-profile`） | [ai-profile](tools/ai-profile.md) |
-| `share-shell` | 把 terminal 臨時開成公網網頁給訪客，Ctrl+C 就關 | [share-shell](how-to/remote-access/share-shell.md) |
+| `ttyd-serve` | 把 terminal 開成網頁（綁 127.0.0.1、隨機密碼），Ctrl+C 就關；給 tailnet 外的人再接 `remote-access funnel` | [ttyd-serve](how-to/remote-access/ttyd-serve.md) |
 | `playwright-extension-attach` | 讓 agent 經插件接你日常的 Chrome（勾了 `playwright-cli` 才有） | [瀏覽器](how-to/remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
 | `remote-access` | 把一個 port 開成 tailnet 外的公開網址（Funnel、quick tunnel）：開、從公網驗證、收（勾了 `agent-config` 才有） | [開給別人連〈tailnet 外〉](how-to/remote-access/README.md#tailnet-外) |
 | `voice-out` | 開關朗讀串流服務（勾了 `snapserver` 才有） | [voice-out](how-to/remote-access/voice-out.md) |

@@ -24,7 +24,7 @@ home/                           → 部署到 ~（chezmoi apply）
 ├── dot_config/                 → ~/.config/：nvim、git hooks、zsh、starship、opencode…
 ├── dot_claude/                 → ~/.claude/：設定（選單勾了 claude 才部署）
 ├── dot_codex/                  → ~/.codex/：同上（勾了 codex 才部署）
-├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、share-shell…）
+├── dot_local/bin/              → ~/.local/bin/：自己的指令（tools、ai-profile、ttyd-serve…）
 ├── dot_local/share/fonts/      → ~/.local/share/fonts/：Termux 字型的 symlink
 └── private_dot_ssh/            → ~/.ssh/（700）：SSH config（Windows 主機也部署）
 script/                         不部署，自己手動跑

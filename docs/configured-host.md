@@ -29,7 +29,7 @@
 | 看 agent 的瀏覽器、接手、替它登入 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9377:127.0.0.1:9377 <帳號>@<已配置主機>` → 瀏覽器開 `http://127.0.0.1:9377` | [瀏覽器：headless](how-to/remote-access/browser.md#headlessagent-自己的瀏覽器) |
 | agent 一定要用我日常的 Chrome（passkey、SSO） | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9555:127.0.0.1:9555 <帳號>@<已配置主機>` | [瀏覽器：插件](how-to/remote-access/browser.md#插件獨立-profile日常-profile-都能裝) |
 | 網站擋機房 IP，借我的網路 | 個人電腦 | `ssh -N -o ExitOnForwardFailure=yes -R 127.0.0.1:1080 <帳號>@<已配置主機>` | [瀏覽器：headless](how-to/remote-access/browser.md#headlessagent-自己的瀏覽器) |
-| 給不在 tailnet 的人一個 shell | 已配置主機 | `share-shell` | [share-shell](how-to/remote-access/share-shell.md) |
+| 給不在 tailnet 的人一個 shell | 已配置主機 | `ttyd-serve`，再 `remote-access funnel open --port 7681 …` | [ttyd-serve](how-to/remote-access/ttyd-serve.md) |
 | 把 dev server 給 tailnet 外的人看 | 已配置主機 | `sudo tailscale funnel --https=10000 <port>` | [開給別人連](how-to/remote-access/README.md#dev-server兩行不用-script) |
 
 ## 入口
@@ -39,7 +39,7 @@
 | terminal `ssh` | ssh key、在 tailnet 裡 | 自己 | **預設**：跑 herdr、agent |
 | VS Code Remote-SSH | VS Code、同上 | 自己 | **預設**：看檔、改檔、拖拉傳檔 |
 | 瀏覽器開 code-server | 瀏覽器、ssh tunnel | 自己先在已配置主機開 | 沒裝 VS Code 的裝置（平板）；見 [code-server](how-to/remote-access/code-server.md) |
-| 瀏覽器開 share-shell | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見 [share-shell](how-to/remote-access/share-shell.md) |
+| 瀏覽器開 ttyd-serve | 只要瀏覽器 | 已配置主機上的人開給你，關掉就失效 | 沒有 key、不在 tailnet 的臨時訪客；見 [ttyd-serve](how-to/remote-access/ttyd-serve.md) |
 
 ### 第一次連：找管理員要兩樣
 
