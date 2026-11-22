@@ -24,8 +24,10 @@ if [[ -x $HOME/.local/bin/tailscaled && -d $HOME/.local/state/tailscale ]] && ((
     >>"$HOME/.local/state/tailscale/tailscaled.log" 2>&1 &!
 fi
 
-# node、npm:Linux 由 mise 裝,經 ~/.zshenv 放進 PATH 的 shims 找得到(#342);macOS 由 brew 裝,經 ~/.zprofile 的
-# brew shellenv 找得到(#383)。以前 nvm 裝的 ~/.nvm 原地保留、不再載入,可以手動刪。
+# node、npm、uv:Linux、macOS 由 mise 裝,經 ~/.zshenv 放進 PATH 的 shims 找得到(#342、#386)。以前 nvm 裝的 ~/.nvm
+# 原地保留、不再載入,可以手動刪。macOS 的 ~/.zprofile(path_helper、brew shellenv)在 .zshenv 之後跑,會把 Homebrew
+# 排回 shims 前面,#383 裝過的 brew node、playwright-cli、uv 就會蓋掉 mise 那份:這裡把 shims 再排到最前面。
+[[ $OSTYPE == darwin* && -d $HOME/.local/share/mise/shims ]] && path=("$HOME/.local/share/mise/shims" $path)
 
 # ===============================================================
 # 3. 歷史紀錄設定 (History)

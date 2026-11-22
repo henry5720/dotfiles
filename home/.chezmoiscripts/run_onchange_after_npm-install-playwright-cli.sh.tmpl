@@ -1,28 +1,17 @@
-{{- /* Linux、macOS 都走這支(Windows 只有 mise,沒有這支),只做裝完的設定:Linux 由 mise 的 npm backend 裝(#342),
-       macOS 由 brew bundle 裝 playwright-cli formula(#383)。原生 Termux 裝不了:原因寫在 .chezmoidata/tool-table.yaml,勾了也渲染成空的,由略過彙整列出 */ -}}
+{{- /* Linux、macOS 都走這支(Windows 只有 mise,沒有這支),只做裝完的設定:兩邊都由 mise 的 npm backend 裝(#342、#386)。原生 Termux 裝不了:原因寫在 .chezmoidata/tool-table.yaml,勾了也渲染成空的,由略過彙整列出 */ -}}
 {{- if has "playwright-cli" (splitList " " (includeTemplate "tools-to-install" .)) -}}
-{{- $method := index (includeTemplate "tool-install" . | fromJson).tools "playwright-cli" "method" -}}
 #!{{ lookPath "sh" }}
 # 選裝工具 playwright-cli(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # agent 操作瀏覽器用它(ADR 0001)。open 開的是本機的 Chrome(Linux 是 headless-chrome 裝的
 # /opt/google/chrome/chrome,macOS 是 /Applications 的 Google Chrome),沒有那支就報錯,不會自己下載;
 # 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
 #
-# 檔名刻意不叫 install-playwright-cli:Linux 要排在 install-mise 之後(macOS 的 brew bundle 是 run_onchange_before_)。
+# 檔名刻意不叫 install-playwright-cli:要排在 install-mise 之後。
 set -eu
 
-{{ if eq $method "mise" -}}
-# 1. mise 的 shims(chezmoi 跑腳本時不會讀 .zshrc)。install-mise 已經照清單裝好 npm:@playwright/cli
+# 1. mise 的 shims 排最前面(chezmoi 跑腳本時不會讀 .zshrc;macOS 上 #383 裝的 brew playwright-cli 可能還在 PATH 上)。
+#    install-mise 已經照清單裝好 npm:@playwright/cli
 export PATH="$HOME/.local/share/mise/shims:$PATH"
-{{- else -}}
-# 1. Homebrew 的 bin 排到前面:apply 時的 shell 可能還載著 nvm,PATH 上的 playwright-cli 會是 ~/.nvm 那份;
-#    chezmoi 跑腳本時的 PATH 也不一定有 Homebrew(同 install-packages-darwin)
-for b in brew /opt/homebrew/bin/brew /usr/local/bin/brew; do
-  prefix=$("$b" --prefix 2>/dev/null) && break
-done
-[ -n "${prefix:-}" ] || { echo "playwright-cli 由 brew 裝:找不到 Homebrew" >&2; exit 1; }
-export PATH="$prefix/bin:$PATH"
-{{- end }}
 
 # 2. 版本下限:0.1.23 起 show 的畫面才能點擊、打字(#262)。改這個值,腳本內容就變,
 #    run_onchange_ 會在每台重跑;已經 ≥ 下限的不重裝,只補 ffmpeg。
@@ -34,7 +23,7 @@ version_ok() {
 
 # 3. 確認版本。latest 低於下限或沒裝好就只印一行、exit 0,同 install-mise:apply 不中止
 if ! version_ok; then
-  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:{{ ternary "mise install" "brew upgrade playwright-cli" (eq $method "mise") }}" >&2
+  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:mise install" >&2
   exit 0
 fi
 

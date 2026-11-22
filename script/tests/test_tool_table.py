@@ -59,12 +59,18 @@ def parse_cell(text):
         packages[key] = value.split()
     mise = sec["mise 清單"]
     mise = mise[mise.index("[tools]") + 1:] if "[tools]" in mise else []
+    mise = mise[:mise.index("")] if "" in mise else mise   # 空行之後是 [settings](#386)
     scripts = {s.removeprefix(".chezmoiscripts/"): False for s in sec["渲染成空的腳本"] if s}
     scripts |= {s.removeprefix(".chezmoiscripts/"): True for s in sec["會跑的腳本"] if s}
     jq_zsh = text.partition("### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl")[2]
     return {"tools": json.loads(tools.partition(" = ")[2]),
-            "installing": " ".join(sec["要裝"]).split(), "skipped": " ".join(sec["略過(裝不了)"]).split(), "packages": packages, "mise": set(filter(None, mise)),
+            "installing": " ".join(sec["要裝"]).split(), "skipped": " ".join(sec["略過(裝不了)"]).split(), "packages": packages, "mise": set(mise),
             "scripts": scripts, "zsh-bin": "zsh_install=" in jq_zsh.partition("\n### ")[0]}
+
+
+def mac_mise(env, lists):
+    """macOS 有工具交給 mise 時,brew bundle 另外裝 mise 本身(#386),排在清單最後。"""
+    return ["mise"] if env == "darwin" and lists["mise"] else []
 
 
 def mise_line(entry):
@@ -83,9 +89,8 @@ SCRIPT_METHODS = {
     # 不再跟舊腳本比(test_official_installer.py 驗渲染結果跟以前各自那支一樣)
     "run_onchange_after_install-gh.sh.tmpl": ("gh", {"script"}),
     "run_onchange_after_install-headless-chrome.sh.tmpl": ("headless-chrome", {"deb"}),
-    "run_onchange_after_npm-install-codegraph.sh.tmpl": ("codegraph", {"script"}),
-    # playwright-cli 在 Linux 走 mise(#342)、macOS 走 brew(#383),這支照樣跑:它是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
-    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"mise", "brew"}),
+    # playwright-cli 在 Linux、macOS 走 mise(#342、#386),這支照樣跑:它是裝完的設定腳本(ffmpeg、沒有本機 Chrome 的提醒)
+    "run_onchange_after_npm-install-playwright-cli.sh.tmpl": ("playwright-cli", {"mise"}),
     "run_onchange_after_install-tailscale.sh.tmpl": ("tailscale", {"official", "script"}),
     **{f"run_onchange_after_install-{t}.sh.tmpl": (t, {"apt"}) for t in ("snapserver", "snapclient", "earlyoom")},
     **{f"run_onchange_after_install-wakatime.{ext}.tmpl": ("wakatime", {"script"}) for ext in ("sh", "ps1")},
@@ -226,7 +231,7 @@ class ToolTableTest(unittest.TestCase):
         # (fedora:42 容器實測 attach --cdp,見 #349 留言)。期望值照那份盤點,不從表推
         # Linux 從 #342 起走 mise 的 npm backend;沒有 libatomic 的格子(快照裡的 debian-noroot、non-debian)
         # Node 跑不起來,見 test_node_skipped_without_libatomic
-        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "brew", "windows": "mise"}
+        want = {"debian-root": "mise", "wsl": "mise", "arm": "mise", "proot": "mise", "darwin": "mise", "windows": "mise"}
         for env, method in want.items():
             with self.subTest(env=env):
                 res = self.status[env]["tools"]
@@ -370,7 +375,7 @@ class ToolTableTest(unittest.TestCase):
                 diffs += self.compare(env, "apt", set(snap["apt/pkg"]) - set(self.base["ubuntu"]),
                                       set(lists["apt"]) | set(lists["aptNeedsRoot"]))
             diffs += self.compare(env, "brew", set(snap["brew"]) - set(self.base["darwin"]["brews"]),
-                                  set(lists["brew"]))
+                                  set(lists["brew"] + mac_mise(env, lists)))
             diffs += self.compare(env, "cask", set(snap["brew cask"]), set(lists["cask"]))
             diffs += self.compare(env, "winget", set(snap["winget"]) - set(self.base["windows"]["winget"]),
                                   set(lists["winget"]))
@@ -420,7 +425,7 @@ class ToolTableTest(unittest.TestCase):
             else:
                 base = b["ubuntu"] if env != "debian-noroot" else [p for p in b["ubuntu"] if p != "jq"]
                 want = {"apt/pkg": base + lists["apt"] + lists["aptNeedsRoot"]}
-            want["brew"] = b["darwin"]["brews"] + lists["brew"] if env == "darwin" else []
+            want["brew"] = b["darwin"]["brews"] + lists["brew"] + mac_mise(env, lists) if env == "darwin" else []
             want["brew cask"] = b["darwin"]["casks"] + lists["cask"] if env == "darwin" else []
             want["winget"] = list(dict.fromkeys(b["windows"]["winget"] + lists["winget"])) if env == "windows" else []
             got = {k: v for k, v in snap.items() if k}
@@ -435,7 +440,7 @@ class ToolTableTest(unittest.TestCase):
             text = path_of(env, sel).read_text(encoding="utf-8")
             body = sections(text)["mise 清單"]
             got = body[body.index("[tools]") + 1:] if "[tools]" in body else []
-            got = [l for l in got if l]
+            got = got[:got.index("")] if "" in got else got   # 空行之後是 [settings](#386)
             want = [mise_line(e) for e in res["lists"]["mise"]]
             if env == "windows":
                 want = [f'"{t}" = "latest"' for t in self.base["windows"]["mise"]] + want
@@ -489,27 +494,23 @@ class ToolTableTest(unittest.TestCase):
                 self.assertEqual(self.status[env]["tools"]["node"]["method"], "mise")
 
     def test_needs_node_matches_rendered_node(self):
-        # Node 有沒有被連帶裝:macOS 看 brew 的 node(#383)、Termux 看 pkg 的 nodejs-lts、Linux 與 Windows 看 mise 的 node(#342)
+        # Node 有沒有被連帶裝:Termux 看 pkg 的 nodejs-lts、其他看 mise 的 node(#342、#386)
         for (env, sel), res in self.resolved.items():
             snap = self.snap[env, sel]
-            want = {"android": bool(snap["packages"].get("pkg(node)")),
-                    "darwin": "node" in snap["packages"]["brew"]}.get(
+            want = {"android": bool(snap["packages"].get("pkg(node)"))}.get(
                 env, '"node" = "lts"' in snap["mise"])
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsNode"], want)
 
     def test_linux_node_and_npm_tools_go_through_mise(self):
-        # #342:Linux 的 Node、codegraph、playwright-cli 由 mise 裝(npm backend),不再跑 nvm 與 npm install -g
-        scripts = ("run_onchange_after_npm-install-codegraph.sh.tmpl",)
-        for env in ("debian-root", "wsl", "arm", "proot"):
+        # #342、#386:Linux、macOS 的 Node、codegraph、playwright-cli 由 mise 裝(npm backend),不再跑 nvm、brew 與 npm install -g
+        for env in ("debian-root", "wsl", "arm", "proot", "darwin"):
             for sel, want in (("node", {'"node" = "lts"'}),
                               ("codegraph", {'"node" = "lts"', '"npm:@colbymchenry/codegraph" = "latest"'}),
                               ("playwright-cli", {'"node" = "lts"', '"npm:@playwright/cli" = "latest"'})):
                 snap = self.snap[env, sel]
                 with self.subTest(env=env, sel=sel):
                     self.assertLessEqual(want, snap["mise"])
-                    for s in scripts:
-                        self.assertFalse(snap["scripts"].get(s, False), s)
         # playwright-cli 的設定腳本照跑(ffmpeg、找不到本機 Chrome 的提醒),但不用 npm 裝
         text = path_of("debian-root", "playwright-cli").read_text(encoding="utf-8")
         body = text.partition("### .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl")[2]
@@ -520,25 +521,33 @@ class ToolTableTest(unittest.TestCase):
         # Windows 的 codegraph 照舊走 aqua(自帶 Node runtime,#323)
         self.assertIn('"codegraph" = "latest"', self.snap["windows", "codegraph"]["mise"])
 
-    def test_macos_node_and_npm_tools_go_through_brew(self):
-        # #383:macOS 的 Node、playwright-cli 由 brew 裝,codegraph 沒有 formula、用 brew 那份 node 的 npm;不再裝、不再載入 nvm
-        for sel, brews in (("node", {"node"}), ("codegraph", {"node"}), ("playwright-cli", {"playwright-cli"})):
-            snap = self.snap["darwin", sel]
+    def test_macos_mise_itself_comes_from_brew(self):
+        # #386:macOS 有工具交給 mise 時,brew bundle 裝 mise 本身;沒有就不裝(精簡全走 brew)。
+        # node、uv、playwright-cli 不再走 brew(#383 那時的 formula)
+        for (env, sel), snap in self.snap.items():
+            if env != "darwin":
+                continue
             with self.subTest(sel=sel):
-                self.assertLessEqual(brews, set(snap["packages"]["brew"]))
-                self.assertEqual(snap["scripts"].get("run_onchange_after_npm-install-codegraph.sh.tmpl", False),
-                                 sel == "codegraph")
-        text = path_of("darwin", "codegraph").read_text(encoding="utf-8")
-        self.assertNotIn("nvm.sh", text)
-        self.assertIn('[ -x "$prefix/bin/codegraph" ]', text)
+                self.assertEqual("mise" in snap["packages"]["brew"], bool(snap["mise"]))
+                self.assertFalse({"node", "uv", "playwright-cli"} & set(snap["packages"]["brew"]))
+        text = path_of("darwin", "node").read_text(encoding="utf-8")
+        self.assertIn("/opt/homebrew/bin/mise", text)
         self.assertNotIn("nvm.sh", (ROOT / "home/dot_zshrc").read_text(encoding="utf-8"))
 
+    def test_mise_reads_nvmrc_but_not_python_version(self):
+        # #386:有 mise 清單的每一格都開 node 的 idiomatic version file(.nvmrc、.node-version);python 交給 uv,不開
+        for (env, sel), snap in self.snap.items():
+            if not snap["mise"]:
+                continue
+            text = path_of(env, sel).read_text(encoding="utf-8")
+            with self.subTest(env=env, sel=sel):
+                self.assertIn('idiomatic_version_file_enable_tools = ["node"]', text)
+
     def test_needs_uv_matches_rendered_uv(self):
-        # uv 有沒有裝(勾了或被連帶):Linux、Windows 看 mise 的 uv、macOS 看 brew、Termux 看 pkg
+        # uv 有沒有裝(勾了或被連帶):Termux 看 pkg、其他看 mise 的 uv(macOS 從 #386 起)
         for (env, sel), res in self.resolved.items():
             snap = self.snap[env, sel]
-            want = {"darwin": "uv" in snap["packages"]["brew"],
-                    "android": "uv" in snap["packages"]["apt/pkg"]}.get(env, '"uv" = "latest"' in snap["mise"])
+            want = {"android": "uv" in snap["packages"]["apt/pkg"]}.get(env, '"uv" = "latest"' in snap["mise"])
             with self.subTest(env=env, sel=sel):
                 self.assertEqual(res["needsUv"], want)
                 self.assertEqual(res["tools"]["uv"]["install"], want)
@@ -561,10 +570,10 @@ class ToolTableTest(unittest.TestCase):
                     self.assertLessEqual(set(oses), {"linux", "darwin", "android", "windows"})
 
     def test_uv_is_a_runtime_on_the_menu(self):
-        # #341(獨立的期望值):uv 能單獨勾,走 mise(macOS brew、Termux pkg,ADR 0005 的例外);
+        # #341(獨立的期望值):uv 能單獨勾,走 mise(macOS 也是,#386;Termux pkg,ADR 0005 的例外);
         # 不再是 snapserver 的依賴套件,改由 snapserver、agent-config 的 needsUv 連帶裝
         want = {"debian-root": "mise", "debian-noroot": "mise", "wsl": "mise", "arm": "mise", "non-debian": "mise",
-                "proot": "mise", "darwin": "brew", "android": "pkg", "windows": "mise"}
+                "proot": "mise", "darwin": "mise", "android": "pkg", "windows": "mise"}
         for env, method in want.items():
             with self.subTest(env=env):
                 uv = self.resolved[env, "uv"]

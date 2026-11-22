@@ -21,7 +21,7 @@
 
 精簡以前還有 tailscale、btop（#273 拿掉，加了 fastfetch）。存精簡的舊機器下次 `chezmoi init` 後 tools 少這兩項，mise 裝的 btop 在下次 apply 會被移除（#330），其他已經裝的不會解除安裝，只是不再管它們；還要 chezmoi 管就打 `tools` 勾回來（會存成自訂）。
 
-- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`、在 Linux 與 Windows 是 mise 的 Node LTS、在 macOS 是 brew 的 `node`。
+- 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`，在 Linux、macOS、Windows 是 mise 的 Node LTS（macOS 的 mise 本身由 brew 裝）。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
 - `node` 裝 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
   已經用 nvm 裝過的機器見下面〈從 nvm 換掉〉。
@@ -37,14 +37,35 @@
 
 ### 從 nvm 換掉
 
-`node` 以前在 Linux、macOS 走 nvm：Linux 從 #342 起改由 mise 裝（跟 Windows 一樣），macOS 從 #383 起改由 brew 裝。
+`node` 以前在 Linux、macOS 走 nvm：Linux 從 #342 起改由 mise 裝（跟 Windows 一樣），macOS 從 #386 起也是（#383 到 #386 之間走 brew，見下面〈macOS 的 brew node〉）。
 已經裝過 nvm 的機器下次 `chezmoi apply`：
 
-- Linux：mise 裝 Node LTS，`node`、`npm` 經 mise 的 shims 找得到；codegraph、playwright-cli 改由 mise 的 npm backend 裝。
-- macOS：brew 裝 `node`（跟著最新大版，不固定 LTS）與 `playwright-cli`，codegraph 改用 brew 那份 npm 裝進 Homebrew 的 prefix。
+- mise 裝 Node LTS，`node`、`npm` 經 mise 的 shims 找得到；codegraph、playwright-cli 改由 mise 的 npm backend 裝。
 - `.zshrc` 不再載入 `~/.nvm/nvm.sh`，nvm 底下 `npm -g` 裝的那份不再用到。
 - `~/.nvm` 原地保留，不會被刪（取消勾選不解除安裝）。確定不用了就自己刪：`rm -rf ~/.nvm`。
   其他 shell 設定檔（例如自己在 `~/.bashrc` 加過的 nvm 那幾行）也要自己拿掉。
+
+### 專案的 node 版本
+
+mise 管的 node 只是全域預設的 LTS。專案要別的版本，在專案目錄放 `mise.toml`（`mise use node@<版本>`），
+或只放 `.nvmrc`、`.node-version` 也行：dotfiles 的 mise 設定開了 `idiomatic_version_file_enable_tools = ["node"]`（#386），
+三個平台都會照那個檔切。Python 不歸 mise：`.python-version`、`requires-python` 由 uv 讀。
+
+```bash
+cd <專案> && mise current node   # 印出專案要的版本;沒裝過就 mise install
+```
+
+### macOS 的 brew node
+
+#383 到 #386 之間，macOS 的 `node`、`playwright-cli`、`uv` 由 brew 裝，codegraph 用 brew 那份 npm 裝進 Homebrew 的 prefix。
+#386 起改由 mise 裝，下次 `chezmoi apply` 會用 brew 裝 mise，再由 mise 裝 Node LTS、uv、codegraph、playwright-cli。
+brew 那幾份不會被移除（取消勾選不解除安裝）；`.zshrc` 把 mise 的 shims 排在 Homebrew 前面，新開的 zsh 用的是 mise 那份。
+確定不用了就自己移除：
+
+```bash
+npm uninstall -g @colbymchenry/codegraph   # 先用 brew 那份 npm 移除:要在 brew uninstall node 之前
+brew uninstall playwright-cli node uv
+```
 
 ### 自己裝過的 uv
 

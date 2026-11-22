@@ -8,7 +8,7 @@
 export PNPM_HOME="$HOME/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 
-# Linux 由 mise 裝的選裝工具(eza、fzf、starship…;apt 用不了的機器還有 vim、gh…),經 shims 找得到。
+# Linux 由 mise 裝的選裝工具(eza、fzf、starship…;apt 用不了的機器還有 vim、gh…)與 macOS 由 mise 裝的 node、uv(#386),經 shims 找得到。
 # 排在系統目錄前面:apt 可能有同名的舊版(Ubuntu 24.04 的 fzf 0.44 沒有 --zsh)。
 # 系統那份 vim 這類通常不受影響:系統已經有就不交給 mise,沒有 shim(.chezmoitemplates/mise-tools)。
 # 例外是 mise 先裝、系統之後才補裝的:shim 還在、會優先,要用系統那份就 mise uninstall <工具>。

@@ -372,7 +372,7 @@ check_waka_plugin()    { check "$1 的 WakaTime plugin 已安裝" "${WAKA_PLUGIN
 check_no_waka_plugin() { check "$1 的 WakaTime plugin 沒有安裝" "! { ${WAKA_PLUGIN[$1]}; }"; }
 
 # 選裝腳本在 chezmoi 裡的名字(scriptState 的 name、dry-run 的 diff 標頭)。從 TOOL_CHECK 產生,
-# 加工具時不用再改這裡。名字帶腳本所在的 .chezmoiscripts/;codegraph 的腳本叫 npm-install-codegraph,
+# 加工具時不用再改這裡。名字帶腳本所在的 .chezmoiscripts/;playwright-cli 的腳本叫 npm-install-playwright-cli,
 # 所以檔名前綴是 (npm-)?install-。
 TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK[*]}"))"
 
@@ -443,7 +443,7 @@ check_playwright_cli() {
   local hex; hex=$(printf '%04X' $PWCLI_SHOW_PORT)
   check "show --port 起得來、只聽 127.0.0.1" \
     "$PWCLI true; playwright-cli show --port $PWCLI_SHOW_PORT --host=127.0.0.1 > show.log 2>&1 & p=\$!; ok=; for i in \$(seq 30); do curl -sf -o /dev/null http://127.0.0.1:$PWCLI_SHOW_PORT/ && ok=1 && break; sleep 1; done; cat show.log; l=\$(awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':$hex\$'); echo \"LISTEN:\$l\"; kill \$p; playwright-cli show --kill >/dev/null 2>&1; [ -n \"\$ok\" ] && [ -n \"\$l\" ] && [ -z \"\$(grep -v '^0100007F:' <<<\"\$l\")\" ]"
-  # Linux 由 mise 裝 latest(#342),設定腳本只確認版本、補 ffmpeg,不用 npm 升級(macOS 由 brew 裝,#383)。
+  # Linux、macOS 由 mise 裝 latest(#342、#386),設定腳本只確認版本、補 ffmpeg,不用 npm 升級。
   # run_onchange_ 內容沒變不會再跑,所以直接跑渲染出來的腳本
   check "設定腳本再跑一次 exit 0、沒有 npm install、版本 ≥ $PWCLI_MIN" \
     "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/pw.sh && ! grep -q 'npm install' /tmp/pw.sh && sh /tmp/pw.sh && $PWCLI $PWCLI_VERSION_OK"
@@ -532,6 +532,7 @@ scenario_ubuntu() {
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入(mise 的 Node LTS,沒有 nvm,#342)
   check_tool node
   check "Node 是 mise 裝的、沒有 ~/.nvm" "~/.local/bin/mise which node | grep -q '/.local/share/mise/installs/node/' && [ ! -e ~/.nvm ]"
+  check "只放 .nvmrc 的專案照它切 node,.python-version 不歸 mise(#386)" "d=\$(mktemp -d) && echo 20.11.0 > \$d/.nvmrc && echo 3.11 > \$d/.python-version && cd \$d && ~/.local/bin/mise current node | grep -qx 20.11.0 && [ -z \"\$(~/.local/bin/mise current python 2>/dev/null)\" ]"
   # 選單沒勾 uv,勾了 snapserver、agent-config 就要自動帶入(#341);agent-config 的測試用 uv run 跑
   check_tool uv
   check "uv run 跑得起來(agent-config 的測試這樣跑)" \
@@ -949,7 +950,7 @@ scenario_ubuntu() {
   # macOS(#218):沒有 mac 可跑,把 .chezmoi.os 蓋成 darwin 渲染。真機驗收另一張 ticket。
   bold "▶ (渲染)macOS 出用途選單,套件走 brew bundle(tailscale 是 cask)"
   local mac='{"chezmoi":{"os":"darwin"}}'
-  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 brew(#349、#383)
+  # snapserver 靠 systemd user service(#290),macOS 裝不了;headless-chrome 走 brew cask(#348)、playwright-cli 走 mise(#349、#386)
   local mac_full=${LINUX_FULL/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
@@ -970,14 +971,14 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"android\"},\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   local mac_all='{"chezmoi":{"os":"darwin"},"tools":["zsh","eza","fastfetch","gh","ttyd","code-server","tailscale","headless-chrome","playwright-cli","btop","snapserver"]}'
   for f in run_onchange_before_install-packages run_once_after_set-default-shell \
-           run_onchange_after_install-gh run_onchange_after_install-mise \
+           run_onchange_after_install-gh \
            run_onchange_after_install-official run_onchange_after_install-headless-chrome \
            run_onchange_after_install-tailscale; do
     check "macOS 上 $f 渲染成空的(Linux 的裝法、不改預設 shell、裝不了的不跑)" \
       "[ -z \"\$(chezmoi execute-template --override-data '$mac_all' < $scripts/$f.sh.tmpl | tr -d '[:space:]')\" ]"
   done
-  check "macOS 勾了 playwright-cli:brew bundle 裝(#383),設定腳本不用 npm 裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
-    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | grep -qx 'brew \"playwright-cli\"' && chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && ! grep -q 'npm install' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
+  check "macOS 勾了 playwright-cli:brew bundle 裝 mise、mise 裝 Node 與 npm:@playwright/cli(#386),設定腳本不用 npm 裝,沒有本機 Chrome 時看 /Applications 那支(#349)" \
+    "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | grep -qx 'brew \"mise\"' && chezmoi execute-template --override-data '$mac_all' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | grep -qx '\"npm:@playwright/cli\" = \"latest\"' && chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_install-mise.sh.tmpl | sh -n && chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/mac-pw.sh && sh -n /tmp/mac-pw.sh && ! grep -q 'npm install' /tmp/mac-pw.sh && grep -qF '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' /tmp/mac-pw.sh"
   check "macOS 勾了裝不了的(snapserver):略過腳本只列這一項(tailscale、headless-chrome 走 cask,playwright-cli 照裝),彙整腳本渲染出來" \
     "chezmoi execute-template --override-data '$mac_all' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/mac-rec.sh && sh -n /tmp/mac-rec.sh && [ \"\$(grep '^skip_env ' /tmp/mac-rec.sh | cut -d\\' -f2 | sort | paste -sd' ')\" = 'snapserver' ] && chezmoi execute-template --override-data '$mac_all' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | grep -q 這台裝不了"
   check "macOS 的 wakatime 抓 darwin 版" \
@@ -1044,13 +1045,15 @@ scenario_ubuntu() {
     "$(mise_has '["node"]' '"node" = "lts"') && chezmoi execute-template --override-data '{\"tools\":[\"node\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
   check "只勾 node:選單勾 node 存 custom、tools 只有 node" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice node)") > /tmp/only-node.toml && $(printf "$use_is" custom /tmp/only-node.toml) && grep -qxF '$(toml_list node)' /tmp/only-node.toml"
+  # 換 HOME 的 apply 先 cd 進那個 HOME:留在 /home/ubuntu 的話,mise 往上找到 /home/ubuntu/.config/mise/conf.d/dotfiles.toml,
+  # 對換過 HOME 的 mise 來說那是沒 trust 的專案設定,有 [settings](#386)就報 not trusted
   check "只勾 node:在空的 HOME apply exit 0、node 是 mise 的、沒有 ~/.nvm" \
-    "rm -rf /tmp/only-node /tmp/only-node.boltdb && mkdir /tmp/only-node && HOME=/tmp/only-node chezmoi --source ~/.local/share/chezmoi --config /tmp/only-node.toml --persistent-state /tmp/only-node.boltdb apply --no-tty && HOME=/tmp/only-node bash -c '~/.local/share/mise/shims/node --version && ~/.local/share/mise/shims/npm --version && [ ! -e ~/.nvm ]'"
+    "rm -rf /tmp/only-node /tmp/only-node.boltdb && mkdir /tmp/only-node && cd /tmp/only-node && HOME=/tmp/only-node chezmoi --source ~/.local/share/chezmoi --config /tmp/only-node.toml --persistent-state /tmp/only-node.boltdb apply --no-tty && HOME=/tmp/only-node bash -c '~/.local/share/mise/shims/node --version && ~/.local/share/mise/shims/npm --version && [ ! -e ~/.nvm ]'"
   # 只勾 uv(#341):runtime 能單獨勾,裝的是 mise 那份
   check "只勾 uv:選單勾 uv 存 custom,在空的 HOME apply exit 0、uv 是 mise 裝的" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice uv)") > /tmp/only-uv.toml && grep -qxF '$(toml_list uv)' /tmp/only-uv.toml && rm -rf /tmp/only-uv /tmp/only-uv.boltdb && mkdir /tmp/only-uv && HOME=/tmp/only-uv chezmoi --source ~/.local/share/chezmoi --config /tmp/only-uv.toml --persistent-state /tmp/only-uv.boltdb apply --no-tty && [ -d /tmp/only-uv/.local/share/mise/installs/uv ] && HOME=/tmp/only-uv /tmp/only-uv/.local/share/mise/shims/uv --version"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice uv)") > /tmp/only-uv.toml && grep -qxF '$(toml_list uv)' /tmp/only-uv.toml && rm -rf /tmp/only-uv /tmp/only-uv.boltdb && mkdir /tmp/only-uv && cd /tmp/only-uv && HOME=/tmp/only-uv chezmoi --source ~/.local/share/chezmoi --config /tmp/only-uv.toml --persistent-state /tmp/only-uv.boltdb apply --no-tty && [ -d /tmp/only-uv/.local/share/mise/installs/uv ] && HOME=/tmp/only-uv /tmp/only-uv/.local/share/mise/shims/uv --version"
   check "只勾 codegraph:在空的 HOME apply exit 0、codegraph 能跑" \
-    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice codegraph)") > /tmp/only-cg.toml && rm -rf /tmp/only-cg /tmp/only-cg.boltdb && mkdir /tmp/only-cg && HOME=/tmp/only-cg chezmoi --source ~/.local/share/chezmoi --config /tmp/only-cg.toml --persistent-state /tmp/only-cg.boltdb apply --no-tty && HOME=/tmp/only-cg bash -c '~/.local/share/mise/shims/codegraph --version'"
+    "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice codegraph)") > /tmp/only-cg.toml && rm -rf /tmp/only-cg /tmp/only-cg.boltdb && mkdir /tmp/only-cg && cd /tmp/only-cg && HOME=/tmp/only-cg chezmoi --source ~/.local/share/chezmoi --config /tmp/only-cg.toml --persistent-state /tmp/only-cg.boltdb apply --no-tty && HOME=/tmp/only-cg bash -c '~/.local/share/mise/shims/codegraph --version'"
 
   # 已經裝過 nvm 的機器(#342 前的 Linux):先用 nvm 裝 Node 與 npm 全域的 codegraph,再 apply。
   # 新開的 zsh 裡 node 是 mise 那份、~/.nvm 原地保留(取消勾選不解除安裝)、codegraph 與 playwright-cli 找得到

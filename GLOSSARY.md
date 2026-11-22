@@ -179,7 +179,7 @@ _Avoid_: preset、套餐
 _Avoid_: 用途（兩者是分開的）、機器類型；「不支援」「不列」（現在是列出來、標裝不了）
 
 **裝法**:
-一個選裝工具在一個環境用哪個管道裝：官方 installer、mise、系統的套件管理員（apt、pkg、brew、winget）、npm。看工具的種類，不看 OS：廠商有自己的 installer 而且會自己更新的用官方 installer，單一執行檔的 CLI 用 mise，要動系統的（服務、GUI app、函式庫多的）用套件管理員；例外是 Termux 一律 pkg、macOS 一律 brew。一個環境可以依序列好幾個裝法，用第一個這台能用的（例如有 root 走 apt、沒有 root 退到 mise）。寫在選裝工具表；一個工具在某個環境沒有裝法，在那裡就是裝不了。
+一個選裝工具在一個環境用哪個管道裝：官方 installer、mise、系統的套件管理員（apt、pkg、brew、winget）、npm。看工具的種類，不看 OS：廠商有自己的 installer 而且會自己更新的用官方 installer，單一執行檔的 CLI 用 mise，要動系統的（服務、GUI app、函式庫多的）用套件管理員；例外是 Termux 一律 pkg、macOS 除了 runtime 一律 brew。一個環境可以依序列好幾個裝法，用第一個這台能用的（例如有 root 走 apt、沒有 root 退到 mise）。寫在選裝工具表；一個工具在某個環境沒有裝法，在那裡就是裝不了。
 _Avoid_: 安裝方式、管道、路徑
 
 **選裝工具表**:
@@ -191,7 +191,7 @@ _Avoid_: 套件清單（那是基底）、環境規則表
 _Avoid_: 選裝工具（依賴不能單獨勾）、子工具
 
 **runtime**:
-別的選裝工具要靠它才跑得起來、也能單獨勾的選裝工具，例如 node、uv。勾了要它的工具（例如 codegraph 要 node、snapserver 要 uv）沒勾它也會連帶裝；要它的 OS 寫在選裝工具表那個工具的 `needsNode`、`needsUv`。照裝法的分類走 mise（Termux、macOS 照例外）；dotfiles 只裝全域預設版本，專案要固定版本由專案自己的 `mise.toml` 決定。
+別的選裝工具要靠它才跑得起來、也能單獨勾的選裝工具，例如 node、uv。勾了要它的工具（例如 codegraph 要 node、snapserver 要 uv）沒勾它也會連帶裝；要它的 OS 寫在選裝工具表那個工具的 `needsNode`、`needsUv`。照裝法的分類走 mise，macOS 也是（mise 本身用 brew 裝），只有 Termux 照例外走 pkg；dotfiles 只裝全域預設版本，專案要固定版本由專案自己的 `mise.toml`（node 也認 `.nvmrc`、`.node-version`）決定。Python 的版本由 uv 管，不歸 mise。
 _Avoid_: dev tools（mise 的用語，範圍包含所有 CLI）、依賴（依賴套件不能單獨勾）
 
 **Windows 主機**:

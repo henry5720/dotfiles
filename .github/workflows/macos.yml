@@ -99,20 +99,26 @@ jobs:
           for t in snapserver earlyoom windows-mcp; do
             grep -q -- "^- $t:" <<<"$summary" || { echo "略過彙整沒有 $t" >&2; exit 1; }
           done
-          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 brew 裝,不在略過彙整
+          # playwright-cli 不跟 headless-chrome 綁(#349):macOS 照 mise 裝(#386),不在略過彙整
           ! grep -q -- "^- playwright-cli:" <<<"$summary" || { echo "playwright-cli 被略過了" >&2; exit 1; }
 
-      # 4a. node 走 brew、不再裝 nvm(#383):node、codegraph、playwright-cli 都是 Homebrew prefix 底下那份
-      - name: node 與要 Node 的工具是 brew 的
+      # 4a. node、uv 走 mise(#386),mise 本身由 brew 裝。runner 預裝了 Homebrew 的 node,正好是 #383 裝過 brew node 的 Mac:
+      #     新開的 login zsh(會跑 /etc/zprofile 的 path_helper)裡,node、uv、codegraph、playwright-cli 都要是 mise 的 shims。
+      #     只放 .nvmrc 的目錄照它切 node 版本(mise 的 idiomatic_version_file_enable_tools)
+      - name: node、uv 與要 Node 的工具是 mise 的
         if: matrix.use == 'full'
         run: |
-          prefix=$(brew --prefix)
+          shims=~/.local/share/mise/shims
           [ ! -e ~/.nvm ] || { echo "不該有 ~/.nvm" >&2; exit 1; }
-          brew list --formula node playwright-cli
-          for c in node npm codegraph playwright-cli; do
-            [ "$(command -v "$c")" = "$prefix/bin/$c" ] || { echo "$c 是 $(command -v "$c"),不是 $prefix/bin/$c" >&2; exit 1; }
+          brew list --formula mise
+          for c in node npm uv codegraph playwright-cli; do
+            got=$(zsh -lic "command -v $c" </dev/null 2>/dev/null | tail -n1)
+            [ "$got" = "$shims/$c" ] || { echo "zsh 裡的 $c 是 $got,不是 $shims/$c" >&2; exit 1; }
           done
-          node --version && codegraph --version && playwright-cli --version
+          export PATH="$shims:$PATH"
+          node --version && uv --version && codegraph --version && playwright-cli --version
+          d=$(mktemp -d) && echo 22.11.0 > "$d/.nvmrc" && echo 3.11 > "$d/.python-version"
+          (cd "$d" && [ "$(mise current node)" = 22.11.0 ] && [ -z "$(mise current python)" ])
 
       # 4b. headless-chrome 在 macOS 走 brew 的 google-chrome cask(#348)。runner 多半已經預裝 Chrome,
       #     那時 brew 裝 cask 失敗、印略過(同 tailscale),apply 照樣跑完;兩種結果都要有 Chrome.app

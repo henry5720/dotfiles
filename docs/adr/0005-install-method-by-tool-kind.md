@@ -6,9 +6,9 @@
 |---|---|---|
 | 廠商有自己的 installer，而且會自己更新 | 官方 installer（Linux、macOS 是 `install.sh`，Windows 是 `install.ps1`） | claude、codex；Linux、macOS 的 herdr |
 | GitHub release 的單一執行檔 | mise | eza、fzf、bat、ripgrep、starship、gh；Windows 的 herdr |
-| runtime（別的選裝工具要靠它跑、也能單獨勾，見 `GLOSSARY.md`） | mise | node、uv |
+| runtime（別的選裝工具要靠它跑、也能單獨勾，見 `GLOSSARY.md`） | mise（macOS 也是，mise 本身用 brew 裝） | node、uv |
 | 要動系統的：服務、GUI app、函式庫多的 | 系統的套件管理員（apt、winget） | tailscale、Windows Terminal；有 root 的 Linux 上的 vim、ffmpeg |
-| 例外 | Termux 一律 pkg、macOS 一律 brew | |
+| 例外 | Termux 一律 pkg（包括 runtime）、macOS 除了 runtime 一律 brew | |
 
 Windows 主機和 WSL 都要能完整使用 coding agent，用哪一邊由那台的選單決定（2026-11-19 的 grilling，#311）。
 所以 claude、codex 在 Windows 不再標裝不了：照上表走官方 `install.ps1`，跟 Linux 同一個理由（#233：官方 installer 會自己更新）。
@@ -18,6 +18,12 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
 「這個工具在這個環境走哪個裝法」寫在選裝工具表 `home/.chezmoidata/tool-table.yaml`（spec #315）：每個 OS 一串依序試的裝法，
 腳本與清單只照裝法判斷 `tool-install` 的結果跑，沒有針對單一工具的特例；表上沒有裝法的環境就是裝不了，
 各工具的 `rules` 只留「不建議」和需要解釋給人看的原因。依序試只是把「apt 用不了才 mise」寫成表的形狀，分類照上表。
+
+runtime 在 macOS 也走 mise，不照「macOS 一律 brew」（2026-11-22，#386）：brew 的 `node`、`uv` 一台只有一個版本，
+沒辦法照專案切，「專案要固定版本由專案自己的 `mise.toml` 決定」在 macOS 做不到；brew 的 `node` 還跟著最新大版、不固定 LTS。
+三個平台都用 mise，專案的 `mise.toml`、`.nvmrc`、`.node-version` 在每台的效果一樣（dotfiles 的 mise 設定開了 node 的
+`idiomatic_version_file_enable_tools`，預設是空的）。要 Node 的 npm 工具（codegraph、playwright-cli）跟著走 mise 的 npm backend，
+跟 Linux 一樣不綁 node 版本。Python 的版本交給 uv，mise 不管 python。Termux 照樣 pkg：不在上面開發，官方 Node binary 也跑不起來。
 
 ## Considered Options
 
@@ -29,6 +35,7 @@ skill、MCP、指令檔由 skillshare 在兩邊各自同步，指令檔在 Windo
 | Windows 的 claude、codex 走 mise | 不選 | 實測裝得起來（claude 2.1.327、codex 0.170.0），但兩者偵測到不是官方裝法就只提示、不更新；claude 還會一直提示有新版而 `mise upgrade` 沒東西可升（anthropics/claude-code#95103）；codex 的 `codex update` 會報認不出安裝方式 |
 | Windows 的 claude、codex 走 winget | 不選 | Claude Code 的 winget 套件預設不自動更新，查的當下落後 9 個小版；Codex 的官方 README 沒有列 winget |
 | 照工具的種類分，claude、codex 走官方 `install.ps1` | **選** | Linux 與 Windows 同一個裝法、同一個理由；Anthropic 把 `install.ps1` 標為 Recommended |
+| macOS 的 runtime 照例外走 brew（#383） | 不選（#386 改掉） | brew 的 node、uv 沒辦法照專案切版本，node 也不固定 LTS；改走 mise 之後三個平台一致 |
 
 ## 代價
 

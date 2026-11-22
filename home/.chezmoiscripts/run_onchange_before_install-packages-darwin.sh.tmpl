@@ -30,6 +30,8 @@ command -v brew >/dev/null 2>&1 || {
        誰走哪個寫在 .chezmoidata/tool-table.yaml */}}
 {{- $install := includeTemplate "tool-install" . | fromJson }}
 {{- $brews := concat .packages.darwin.brews $install.lists.brew }}
+{{- /* 有工具要交給 mise(node、uv、npm 工具,#386)就用 brew 裝 mise 本身,install-mise 再照清單裝 */}}
+{{- if includeTemplate "mise-tools" . }}{{ $brews = append $brews "mise" }}{{ end }}
 {{- $casks := concat .packages.darwin.casks $install.lists.cask }}
 brew bundle --file=/dev/stdin <<EOF
 {{ range $brews | uniq -}}

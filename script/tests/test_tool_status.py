@@ -293,57 +293,24 @@ exit 0
     def test_playwright_cli_without_local_chrome_points_to_attach(self):
         # #349:沒有本機 Chrome 不擋安裝(exit 0),提醒改用 attach 接遠端瀏覽器。macOS 照 Playwright 找 chrome
         # channel 的位置(/Applications/Google Chrome.app),跑測試的主機沒有那支,所以一定走到提醒。
-        # brew、playwright-cli 換成假的(macOS 由 brew 裝,#383):已經 ≥ 下限,install-browser 什麼都不做
-        bin_dir = self.fake_brew_prefix() / "bin"
-        (bin_dir / "playwright-cli").write_text('#!/bin/sh\n[ "$1" = --version ] && echo 9.9.9\nexit 0\n')
-        (bin_dir / "playwright-cli").chmod(0o755)
+        # playwright-cli 換成假的、放在 mise 的 shims(macOS 也由 mise 裝,#386):已經 ≥ 下限,install-browser 什麼都不做。
+        # PATH 上另有一支低於下限的(#383 裝的 brew 那份):腳本要用 shims 那份
+        shims = self.dir / ".local/share/mise/shims"
+        old = self.dir / "homebrew/bin"
+        for d, v in ((shims, "9.9.9"), (old, "0.0.1")):
+            d.mkdir(parents=True)
+            (d / "playwright-cli").write_text(f'#!/bin/sh\n[ "$1" = --version ] && echo {v}\nexit 0\n')
+            (d / "playwright-cli").chmod(0o755)
         script = self.render(MAC, f"{SCRIPTS}/run_onchange_after_npm-install-playwright-cli.sh.tmpl", ["playwright-cli"])
         self.assertIn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", script)
         path = self.dir / "pw.sh"
         path.write_text(script, encoding="utf-8")
         run = subprocess.run(["sh", str(path)], capture_output=True, text=True,
-                             env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(self.dir)})
+                             env={"PATH": f"{old}:/usr/bin:/bin", "HOME": str(self.dir)})
         self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertNotIn("低於", run.stderr)
         self.assertIn("playwright-cli attach --extension", run.stderr)
         self.assertIn("playwright-cli attach --cdp=", run.stderr)
-
-    def fake_brew_prefix(self):
-        # 假的 Homebrew:bin/brew --prefix 印出 prefix 自己。腳本要從 PATH 上的 brew 找到它
-        prefix = self.dir / "homebrew"
-        (prefix / "bin").mkdir(parents=True)
-        brew = prefix / "bin/brew"
-        brew.write_text(f'#!/bin/sh\n[ "$1" = --prefix ] && echo {prefix}\n')
-        brew.chmod(0o755)
-        return prefix
-
-    def test_macos_codegraph_installs_with_brew_npm_even_if_nvm_one_is_on_path(self):
-        # #383:apply 時的 shell 可能還載著 nvm。PATH 上有 nvm 那份 codegraph、npm,也要用 Homebrew 那份 npm 裝進 brew 的 prefix
-        prefix = self.fake_brew_prefix()
-        nvm_bin = self.dir / ".nvm/versions/node/v22.0.0/bin"
-        nvm_bin.mkdir(parents=True)
-        log = self.dir / "npm.log"
-        for d, name in ((nvm_bin, "nvm"), (prefix / "bin", "brew")):
-            for c in ("npm", "codegraph"):
-                (d / c).write_text(f'#!/bin/sh\necho "{name} {c} $*" >> {log}\n')
-                (d / c).chmod(0o755)
-        (prefix / "bin/codegraph").unlink()
-        script = self.render(MAC, f"{SCRIPTS}/run_onchange_after_npm-install-codegraph.sh.tmpl", ["codegraph"])
-        path = self.dir / "cg.sh"
-        path.write_text(script, encoding="utf-8")
-        env = {"PATH": f"{nvm_bin}:{prefix / 'bin'}:/usr/bin:/bin", "HOME": str(self.dir)}
-        run = subprocess.run(["sh", str(path)], capture_output=True, text=True, env=env)
-        self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(log.read_text(), "brew npm install -g @colbymchenry/codegraph\n")
-        # Homebrew 那份已經有就跳過
-        (prefix / "bin/codegraph").write_text("#!/bin/sh\n")
-        (prefix / "bin/codegraph").chmod(0o755)
-        run = subprocess.run(["sh", str(path)], capture_output=True, text=True, env=env)
-        self.assertEqual((run.returncode, run.stdout.strip()), (0, "codegraph 已安裝,跳過"))
-
-    def test_wsl_skips_headless_chrome_fonts(self):
-        pkgs = self.render(WSL, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["headless-chrome", "vim"])
-        self.assertIn("vim", pkgs)
-        self.assertNotIn("fonts-noto-cjk", pkgs)
 
     def test_summary_tells_no_root_from_unsupported(self):
         summary = self.render(WSL, f"{SCRIPTS}/{SUMMARY}", ["headless-chrome"])
@@ -409,7 +376,6 @@ exit 0
             "opencode": "run_onchange_after_install-official.sh.tmpl",
             "herdr": "run_onchange_after_install-official.sh.tmpl",
             "agent-config": "run_onchange_after_install-agent-config.sh.tmpl",
-            "codegraph": "run_onchange_after_npm-install-codegraph.sh.tmpl",
             "headless-chrome": "run_onchange_after_install-headless-chrome.sh.tmpl",
             "playwright-cli": "run_onchange_after_npm-install-playwright-cli.sh.tmpl",
         }

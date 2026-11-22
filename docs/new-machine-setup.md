@@ -322,7 +322,7 @@ skillshare plugin add https://github.com/DietrichGebert/ponytail.git --plugin po
 已經用 `claude plugin install` 裝過的，上面那行會直接收編、不重裝。
 
 裝完在 Claude 裡跑 `/claude-hud:setup` 寫 `statusLine`。它會把 node 的**絕對路徑**寫進去
-（Linux 的 mise 是 `~/.local/share/mise/installs/node/<版本>/bin/node`，macOS 的 brew 是 `/opt/homebrew/bin/node`，不帶版本），Linux 的 Node 換版本、刪掉舊版，HUD 就會消失，
+（mise 的是 `~/.local/share/mise/installs/node/<版本>/bin/node`），Node 換版本、刪掉舊版，HUD 就會消失，
 重跑 `/claude-hud:setup` 即可。顯示偏好 `~/.claude/plugins/claude-hud/config.json` 由 chezmoi
 放好，用 `/claude-hud:configure` 改過之後要 `chezmoi re-add` 收回來。
 
