@@ -1,21 +1,25 @@
-# Commit 共同作者改用 git hook 的評估
+# Commit 共同作者要不要改用 git hook
 
 研究日期：2026-11-21。對應 [評估：commit 共同作者改用 git hook 強制](https://github.com/henry5720/dotfiles/issues/373)。各 agent 的身分 email 與 attribution 設定入口已在 [#153 的研究](agent-commit-attribution.md) 查過，這裡只補 hook 相關的部分。
 
 ## 結論
 
-兩者並用：「把名單和提交者的標記合併進 message」交給 `prepare-commit-msg` git hook，「誰有參與、要不要記進名單」仍由 agent 照規則寫。
+不用 hook，也不累積名單：**誰改的誰 commit，每顆 commit 用各家官方 attribution 標自己**。Claude 改完、Codex 審＋修的流程，會是 Claude 的 commit 標 Claude、Codex 的 commit 標 Codex；這個 repo 用 merge commit 合 PR（例如 `b97a5c6 Merge pull request #374`），每顆 commit 和它的 trailer 都留在歷史裡，PR 的 commit 列表也各自顯示。
 
-hook 能做的是把字串放進 message 並去重：`--no-verify`、`--amend`、merge、`merge --squash` 都會觸發它，`git interpret-trailers --if-exists addIfDifferent` 在字串一致時也能去重。hook 不知道的是誰參與過。環境變數只能指出 commit 是在哪個 agent 的子行程裡跑的，而且會被子行程繼承；沒執行 commit、但改過檔的 agent，hook 只能從名單檔得知，名單還是要 agent 自己寫。
-
-| 步驟（[instructions.md](#現況)） | 交給誰 | 理由 |
+| 要做到的事 | 做法 | 狀態 |
 |---|---|---|
-| 2. 留下貢獻後把自己加進名單 | 維持規則 | 「有沒有實際貢獻」只有 agent 知道，hook 判斷不了 |
-| 3. commit 前合併名單、本次提交者、既有標記 | **改 git hook** | 純字串處理；hook 在 `--no-verify` 下也會跑，比靠 agent 記得可靠 |
-| 4. 提交後驗證 | 規則保留，但會很少失敗 | 有 hook 之後主要防 hook 沒生效的 repo（見下面的 hooksPath 範圍） |
-| 5. 全部提交後刪名單 | 維持規則 | 部分提交時要不要留名單，hook 判斷不了 |
+| Claude 下的 commit 標 Claude | 官方 `attribution.commit`（[settings-reference](https://code.claude.com/docs/en/settings-reference#attribution)） | 已設定 |
+| Codex 下的 commit 標 Codex | 官方 git-attribution extension＋這裡的 `developer_instructions` 補同一個字串 | 已設定 |
+| OpenCode 下的 commit | 正文標記 `Generated with OpenCode.`（官方沒有，見 [#153](agent-commit-attribution.md)） | 已設定 |
+| 一顆 commit 同時標好幾個 agent | **不做**。`agent-coauthors` 名單與 `instructions.md` 的合併、驗證、刪名單步驟拿掉 | 另開 ticket |
 
-不建議改用 agent 自己的 hook（Claude／Codex 的 PreToolUse、OpenCode plugin）去改寫 `git commit` 指令：三家要各寫一份，而且要解析 shell 指令裡的 `-m`、heredoc；Codex 官方文件也說 tool hook 不是完整的強制手段。
+為什麼不用 hook 硬做「一顆 commit 標多個」：
+- 沒有成熟做法。[block/aittributor](https://github.com/block/aittributor) 是 `prepare-commit-msg` hook，但 README〈Known limitations〉明寫「Only one agent is attributed per commit」；[git-ai](https://github.com/git-ai-project/git-ai) 用 agent hook 記每次改檔、寫進 Git Notes，不產生 `Co-authored-by`，GitHub 不會顯示頭像。
+- 要做穩得兩邊都裝：agent hook（PostToolUse）記「誰改過檔」，git hook 在 commit 時合併；前者三家各一份，Bash 改檔還抓不到。為了「A 改、B commit」這種可以改成各自 commit 的情況，不值得。
+
+已知漏洞：Codex 只審不動手、由 Claude 照建議修並 commit 時，Codex 不會被標。要標就讓提建議的 agent 自己修、自己 commit。
+
+下面第 1、2 節是評估 hook 時的查證，保留作為「為什麼不用」的根據。
 
 ## 現況
 
@@ -115,28 +119,10 @@ Co-authored-by: Claude Code <noreply@anthropic.com>  # 同 email、不同 name�
 
 三家都要從 shell 字串裡找出 `git commit` 的 message 再改，`-m`、`-F`、heredoc、`&&` 串接都要處理，還要各寫一份。git hook 拿到的是已經組好的 message 檔，一份就涵蓋三家。OpenCode 的 `shell.env` 可以設一個比 `OPENCODE` 更明確的變數，但 `OPENCODE=1` 已經夠用。
 
-## 3. 建議與要另開的 ticket
+## 3. 後續
 
-建議兩者並用。這張不改碼，以下兩張另開：
-
-### Ticket A（dotfiles）：全域 `prepare-commit-msg` 合併共同作者
-
-- 新增 `home/dot_config/git/hooks/executable_prepare-commit-msg`，跟同目錄的 codegraph hook 一樣用 `#!/bin/sh`。原生 Termux 沒有 `/bin/sh`（AGENTS.md），要不要改成 `.tmpl` 用 `lookPath "sh"`，兩支既有 hook 一起決定。
-- 行為：
-  1. 讀 `git rev-parse --git-path agent-coauthors`，檔案不存在就略過。
-  2. 依環境變數加上本次提交者：`CODEX_THREAD_ID` → Codex；`OPENCODE` → OpenCode；兩者都沒有且 `CLAUDE_CODE_CHILD_SESSION=1` → Claude Code。都沒有 = 人自己 commit，只合併名單。
-  3. trailer 用 `git interpret-trailers --in-place --if-exists addIfDifferent`，加之前先比 email，已經有同 email 的就不加；正文標記用 `grep -qxF` 判斷。
-  4. 不刪名單、不擋 commit：hook 失敗時要 `exit 0`，因為非零會讓 commit 中止（githooks(5)）。
-- 要先決定：`core.hooksPath` 目前只對 `~/code` 生效，這個 chezmoi repo（`~/.local/share/chezmoi`）和 herdr worktree 都拿不到。要全部 repo 生效就把 hooksPath 搬到 `config`，影響範圍會擴大到 codegraph 那兩支 hook，也會讓其他 repo 原本的 `.git/hooks/` 失效（`config-code` L6–8 只清查過 `~/code`）。
-- husky 這類 repo 的 local `core.hooksPath` 會搶走全域設定（`config-code` L10–13），hook 不會跑；這種 repo 靠 `instructions.md` 的驗證步驟補。
-- 測試：`script/tests/` 加單元測試，在暫存 repo 驗 `-m`、`--no-verify`、`--amend`、merge、squash、同 email 不同 name、OpenCode 正文標記、名單不存在。另外驗 Termux、Windows 不會部署錯（Windows 白名單預設不放行，確認一下）。
-- 要不要尊重 Codex backend 的 disabled policy：要決定。hook 讀不到 policy。
-
-### Ticket B（agent-config）：`instructions.md` 配合 hook
-
-- 步驟 3 改成「有 hook 時由 hook 合併；驗證時發現沒合併（hook 沒裝或被 husky 搶走），照原本手動合併」。
-- 步驟 2、4、5 不變。
-- `home/.chezmoitemplates/codex-commit-attribution.md` 和 OpenCode 的 commit 指引裡「合併待提交參與者」那句同步改。
+- 另開 ticket 拿掉名單機制：agent-config 的 `instructions/agent-commit/instructions.md` 縮成「保留主要作者與既有 trailers，加自己的標記恰好一次，提交後確認」；全域規則〈Commit 共同作者〉同步改；dotfiles 的 [`codex-commit-attribution.md`](../../home/.chezmoitemplates/codex-commit-attribution.md) 拿掉「合併待提交參與者」那行。
+- 評估當時開的 hook 相關 ticket（#376、agent-config#116）關成 wontfix。
 
 ## 未查到或未驗
 
@@ -152,5 +138,6 @@ Co-authored-by: Claude Code <noreply@anthropic.com>  # 同 email、不同 name�
 - Claude Code 2.1.330：[settings-reference](https://code.claude.com/docs/en/settings-reference)（`attribution`、`attribution.commit`、`includeGitInstructions`）、[env-vars](https://code.claude.com/docs/en/env-vars)、[hooks](https://code.claude.com/docs/en/hooks)
 - Codex 0.171.0（tag `rust-v0.171.0`，commit `295eca9`）：[Codex hooks](https://learn.chatgpt.com/docs/hooks)（`developers.openai.com/codex/hooks` 308 轉到這裡）、上文各 source 連結
 - OpenCode 1.18.35（tag `v1.18.35`）：[plugins](https://opencode.ai/docs/plugins/)、上文各 source 連結
+- 別人的做法（讀 GitHub README，未安裝試用）：[block/aittributor](https://github.com/block/aittributor)、[git-ai-project/git-ai](https://github.com/git-ai-project/git-ai)
 - 先前研究：[agent-commit-attribution.md](agent-commit-attribution.md)（#153）、agent-config 的 `docs/research/agent-instructions-best-practices.md` L82、L136
 - 本機指令：`claude --version` → `2.1.330 (Claude Code)`；`codex --version` → `codex-cli 0.171.0`；`opencode --version` → `1.18.35`；`git --version` → `git version 2.53.0`
