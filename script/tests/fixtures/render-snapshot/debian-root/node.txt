@@ -26,7 +26,7 @@ ffmpeg           影音轉檔、抽音軌與影格 [apt]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv) [apt]
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [apt]
-node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 brew，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [mise]
+node             Node LTS（Linux、macOS、Windows 用 mise 裝，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [mise]
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node) [mise]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [deb]
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [mise]
@@ -64,6 +64,12 @@ winget:
 [tools]
 "node" = "lts"
 
+# 專案只放 .nvmrc、.node-version 也照它切 node 版本(預設是空的,只認 mise.toml;#386,
+# https://mise.jdx.dev/configuration/settings.html#idiomatic_version_file_enable_tools)。
+# 不開 python:Python 版本交給 uv(讀 .python-version、requires-python),mise 只裝 uv。
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
+
 ## 渲染成空的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
@@ -78,7 +84,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
-.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
@@ -215,8 +220,9 @@ clean_codex()
 
 ### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 #!@BIN@/sh
-# Linux 上有勾、交給 mise 的選裝工具裝到家目錄:單一執行檔的(eza、fzf…)每台都是,
-# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時。誰走 mise 見 .chezmoidata/tool-table.yaml。
+# 有勾、交給 mise 的選裝工具裝到家目錄。Linux:單一執行檔的(eza、fzf…)每台都是,
+# conda 那幾個(vim、ffmpeg…)只在 apt 用不了時;macOS:runtime(node、uv)與要 Node 的 npm 工具(#386)。
+# 誰走 mise 見 .chezmoidata/tool-table.yaml。
 # 清單由 chezmoi 部署成 ~/.config/mise/conf.d/dotfiles.toml,這支跑 mise install 與 mise prune。
 # 套法照 chezmoi「宣告式裝套件」那頁:清單 + run_onchange_ 腳本
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/)。
@@ -232,7 +238,8 @@ clean_codex()
 # 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
 set -eu
 
-# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)
+# 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)。
+#    macOS 的 mise 由 install-packages-darwin 的 brew bundle 先裝好;chezmoi 跑腳本時的 PATH 不一定有 Homebrew
 mise=$(command -v mise || echo "$HOME/.local/bin/mise")
 if [ ! -x "$mise" ]; then
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0

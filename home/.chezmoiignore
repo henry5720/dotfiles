@@ -153,6 +153,6 @@ AppData
 # 管了又渲染成空的,chezmoi 會把現有的檔刪掉,自己放的 key 就不見了。
 {{ if not (index . "wakatimeApiKey") }}.wakatime.cfg{{ end }}
 
-# 沒有工具要交給 mise 的機器(Termux、macOS、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
+# 沒有工具要交給 mise 的機器(Termux、macOS 沒勾 runtime 與 npm 工具、Linux 上一個都沒勾):不部署它的清單,也不建空的 ~/.config/mise。
 {{ if not (includeTemplate "mise-tools" .) }}.config/mise{{ end }}
 {{ end }}

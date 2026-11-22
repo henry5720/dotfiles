@@ -5,7 +5,8 @@
        照工具名排、依賴接在工具後面。誰在哪個 OS 走 mise、用哪個 backend 與選項(Windows 的 node、herdr、opencode、
        codegraph、playwright-cli、snapclient,Linux 沒有 root 時的 vim、ffmpeg…)寫在 .chezmoidata/tool-table.yaml,
        這裡不針對單一工具判斷(spec #315)。
-       Windows 先列 packages.windows.mise(zoxide,不看勾選)。Termux 走 pkg、macOS 走 brew,表上沒有 mise,清單是空的。
+       Windows 先列 packages.windows.mise(zoxide,不看勾選)。Termux 走 pkg,表上沒有 mise,清單是空的;macOS 只有 runtime
+       與要 Node 的 npm 工具走 mise(#386),其他走 brew。
        「系統已經有同名指令就不裝」是表上的 system 裝法,判斷時排除 mise 自己的目錄(裝過一次之後 PATH 上的 shim 不算)。 */ -}}
 {{- $install := includeTemplate "tool-install" . | fromJson -}}
 {{- if eq .chezmoi.os "windows" -}}

@@ -1,4 +1,4 @@
-{{- /* 有工具要交給 mise 的 Linux 與 Windows 主機(一定有 zoxide)才有這個檔(.chezmoitemplates/mise-tools);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
+{{- /* 有工具要交給 mise 的 Linux、macOS 與 Windows 主機(一定有 zoxide)才有這個檔(.chezmoitemplates/mise-tools);其他機器 .chezmoiignore 整個 ~/.config/mise 不管。
        清單是空的(什麼都不用 mise 裝)就渲染成空的,chezmoi 不建這個檔。 */ -}}
 {{- $list := includeTemplate "mise-tools" . -}}
 {{- if $list -}}
@@ -7,4 +7,10 @@
 # 誰走 mise 見 home/.chezmoidata/tool-table.yaml;run_onchange_after_install-mise 在這份變了之後跑 mise install。
 [tools]
 {{- $list }}
+
+# 專案只放 .nvmrc、.node-version 也照它切 node 版本(預設是空的,只認 mise.toml;#386,
+# https://mise.jdx.dev/configuration/settings.html#idiomatic_version_file_enable_tools)。
+# 不開 python:Python 版本交給 uv(讀 .python-version、requires-python),mise 只裝 uv。
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
 {{ end -}}

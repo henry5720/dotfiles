@@ -26,7 +26,7 @@ ffmpeg           影音轉檔、抽音軌與影格 [mise]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：沒有 root 用不了 apt，官方只出 .deb）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流（裝不了：沒有 root 用不了 apt，官方只出 .deb）
-node             Node LTS（Linux、Windows 用 mise 裝，macOS 用 brew，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）（裝不了：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
+node             Node LTS（Linux、macOS、Windows 用 mise 裝，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝）（裝不了：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：Chrome 要的系統函式庫只能用 apt 裝，沒有 root 用不了 apt）
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)（裝不了：要 Node：Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有）
@@ -73,7 +73,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
-.chezmoiscripts/run_onchange_after_npm-install-codegraph.sh.tmpl
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
