@@ -41,3 +41,5 @@
 .local/bin/ttyd
 # company-imagegen-fallback 整支拿掉(agent-config 已刪),指令 symlink 留著只會是斷掉的連結。
 .local/bin/imagegen-fallback
+# personal-chrome-attach 改名 playwright-extension-attach(#380),舊 symlink 留著會是兩個名字指同一支。
+.local/bin/personal-chrome-attach

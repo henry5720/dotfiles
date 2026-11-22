@@ -6,7 +6,8 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 
 盤點的前提：
 
-- 對象是 agent-config `6579bb9` 的 49 支 skill（2026-11-19），只讀 SKILL.md 與附帶的腳本，沒有在 Windows 實機逐支跑過
+- 對象是 agent-config `6579bb9` 的 49 支 skill（2026-11-19），只讀 SKILL.md 與附帶的腳本，沒有在 Windows 實機逐支跑過。
+  remote-access、windows-access 兩列照 [#119](https://github.com/henry5720/agent-config/issues/119) 改名後的版本重看過（2026-11-22）
 - agent 是 Windows 上的 Claude Code。agent-config 會一併裝 Git for Windows，Claude Code 有它時 Bash tool 走 Git Bash
   （[官方文件](https://code.claude.com/docs/en/setup#install-on-native-windows)），所以 `bash` 腳本、`grep`、`find`、`~` 路徑都還能用；
   Git Bash 沒有的是 `python3`、`jq`、`uv`、`ss`、`/proc` 裡的行程資訊、`sudo`
@@ -17,14 +18,14 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 | skill | 卡在哪 | agent-config issue |
 |---|---|---|
 | slack-list | 腳本檔頭 `import fcntl`，Windows 的 Python 沒有這個模組，連唯讀指令都跑不了；而且要 `python3` | [#94](https://github.com/henry5720/agent-config/issues/94) |
-| expose-port | 兩支腳本是 python3，用 `pgrep`、`sudo`、`SIGHUP`（Windows 沒有）。開公網網址改到 WSL 或 Linux 那台做 | [#95](https://github.com/henry5720/agent-config/issues/95) |
 
 ## 部分可用
 
 | skill | 能用的 | 不能用的 | agent-config issue |
 |---|---|---|---|
-| windows-mcp | 〈使用者在那台 PowerShell 貼〉那段 | `scripts/` 全部要在 WSL 跑（`powershell.exe`、`wslpath`）；agent 就在那台 Windows 時自己跑 PowerShell 的路 SKILL.md 沒寫 | [#95](https://github.com/henry5720/agent-config/issues/95) |
-| browser-access | headless（`playwright-cli open`）、使用者的獨立 profile | 接插件的 `personal-chrome-attach`（要 `python3`、`/proc`、`mkfifo`）；查 port 的 `ss -ltnp` 換 `Get-NetTCPConnection` | [#96](https://github.com/henry5720/agent-config/issues/96) |
+| remote-access | tailnet 內的 ssh 轉發、`tailscale serve`；tailnet 外照〈agent 就在那台 Windows〉用 PowerShell 開、驗、收 | `remote-access` 腳本（python3，用 `pgrep`、`SIGHUP`） | [#119](https://github.com/henry5720/agent-config/issues/119) |
+| windows-access | `windows-mcp-http.ps1 start\|stop\|auth-header`（PowerShell 5.1 或 7） | 同一台的 stdio（`mcp.yaml` 的 `windows-mcp`）：`windows-mcp-stdio` 要在 WSL 跑（`wslpath`） | [#119](https://github.com/henry5720/agent-config/issues/119) |
+| browser-access | headless（`playwright-cli open`）、使用者的獨立 profile | 接插件的 `playwright-extension-attach`（要 `python3`、`/proc`、`mkfifo`）；查 port 的 `ss -ltnp` 換 `Get-NetTCPConnection` | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | verify-in-browser | 用 `playwright-cli` 逐條驗、存證據 | 產報告的 `uv run scripts/render-report.py`（要 uv：勾了 agent-config、`uv` 或 windows-mcp 就由 mise 一併裝）；證據資料夾 `chmod 700` 在 NTFS 不生效 | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | pr-review-and-verify | 審 PR、`gh` 發 comment | 瀏覽器結果的報告靠 verify-in-browser 的 `render-report.py`，同上 | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | show-me | 寫 HTML、Mermaid | 開 HTML 寫的是 macOS 的 `open`，Windows 叫 agent 改用 `start` | 上游 skill，不開 |
