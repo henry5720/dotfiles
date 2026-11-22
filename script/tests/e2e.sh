@@ -10,10 +10,10 @@
 #   E2E_TAG=<字串>   容器名與映像 tag 的後綴,平行跑時避免撞名(預設 local)
 #   E2E_KEEP=1       跑完不刪容器,方便 `docker exec -it <容器> bash` 進去看
 #   AGENT_CONFIG_DIR=<路徑>  agent-config 的 checkout(預設 ~/.config/skillshare),找不到就直接失敗。
-#                    改 agent-config 的 personal-chrome-attach 時指到自己的 worktree
+#                    改 agent-config 的 playwright-extension-attach、remote-access 時指到自己的 worktree
 #
 # 測的是 repo 的工作目錄(含未 commit 的修改)加上 AGENT_CONFIG_DIR 指定的 agent-config checkout,不經過 GitHub。
-# agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):personal-chrome-attach 是從那份 checkout
+# agent-config 在容器裡是假 remote(container.sh 的 make_fixtures):playwright-extension-attach、remote-access 是從那份 checkout
 # 複製的真腳本(工作目錄的現況,含未 commit),其他 skill 都是 fixture 自己寫的假檔。
 # dotfiles 這邊:
 # 工作目錄在主機上包成一個暫時的 git repo 放進容器,先 cp 成 chezmoi 的 source(~/.local/share/chezmoi),
@@ -114,17 +114,30 @@ check_no_browser_wrappers() {
     "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ] && [ ! -e ~/.local/bin/remote-chrome-headless ] && [ ! -L ~/.local/bin/remote-chrome-headless ]"
 }
 
-# 接個人電腦日常的 Chrome(#264):~/.local/bin/personal-chrome-attach 指向 agent-config 的 browser-access skill,
+# 接個人電腦日常的 Chrome(#264):~/.local/bin/playwright-extension-attach 指向 agent-config 的 browser-access skill,
 # 勾了 playwright-cli 和 agent-config 才部署(.chezmoiignore);fixture 放的是 agent-config 的真腳本,見 container.sh。
-ATTACH_TARGET='$HOME/.config/skillshare/skills/browser-access/scripts/personal-chrome-attach'
-check_personal_chrome_attach() {  # check_personal_chrome_attach <有沒有勾 playwright-cli 和 agent-config:yes|no>
+ATTACH_TARGET='$HOME/.config/skillshare/skills/browser-access/scripts/playwright-extension-attach'
+check_playwright_extension_attach() {  # check_playwright_extension_attach <有沒有勾 playwright-cli 和 agent-config:yes|no>
   if [ "$1" = yes ]; then
-    check "personal-chrome-attach 指向 agent-config 的腳本" \
-      "[ \"\$(readlink ~/.local/bin/personal-chrome-attach)\" = \"$ATTACH_TARGET\" ]"
-    check "personal-chrome-attach 指得到檔案、可執行" "[ -f ~/.local/bin/personal-chrome-attach ] && [ -x ~/.local/bin/personal-chrome-attach ]"
+    check "playwright-extension-attach 指向 agent-config 的腳本" \
+      "[ \"\$(readlink ~/.local/bin/playwright-extension-attach)\" = \"$ATTACH_TARGET\" ]"
+    check "playwright-extension-attach 指得到檔案、可執行" "[ -f ~/.local/bin/playwright-extension-attach ] && [ -x ~/.local/bin/playwright-extension-attach ]"
   else
-    check "沒有 ~/.local/bin/personal-chrome-attach(沒勾 playwright-cli、agent-config 不部署)" \
-      "[ ! -e ~/.local/bin/personal-chrome-attach ] && [ ! -L ~/.local/bin/personal-chrome-attach ]"
+    check "沒有 ~/.local/bin/playwright-extension-attach(沒勾 playwright-cli、agent-config 不部署)" \
+      "[ ! -e ~/.local/bin/playwright-extension-attach ] && [ ! -L ~/.local/bin/playwright-extension-attach ]"
+  fi
+}
+
+# 連線(#380):~/.local/bin/remote-access 指向 agent-config 的 remote-access skill,勾了 agent-config 才部署;
+# fixture 放的是 agent-config 的真腳本,見 container.sh。
+REMOTE_ACCESS_TARGET='$HOME/.config/skillshare/skills/remote-access/scripts/remote-access'
+check_remote_access() {  # check_remote_access <有沒有勾 agent-config:yes|no>
+  if [ "$1" = yes ]; then
+    check "remote-access 指向 agent-config 的腳本,--help 有輸出" \
+      "[ \"\$(readlink ~/.local/bin/remote-access)\" = \"$REMOTE_ACCESS_TARGET\" ] && remote-access --help | grep -q 'remote-access funnel'"
+  else
+    check "沒有 ~/.local/bin/remote-access(沒勾 agent-config 不部署)" \
+      "[ ! -e ~/.local/bin/remote-access ] && [ ! -L ~/.local/bin/remote-access ]"
   fi
 }
 
@@ -437,31 +450,31 @@ check_playwright_cli() {
 }
 
 # ===============================================================
-# personal-chrome-attach:dry run(#264)
+# playwright-extension-attach:dry run(#264)
 # ===============================================================
 # 容器裡沒有人的 Chrome,只驗 ec2 單邊:網址拿得到、9555 轉得到 relay、沒人連進來會自己收乾淨、9555 被佔就失敗。
 # 有 token 時網址不進腳本的輸出(agent 看得到、背景跑會存檔),只在 9555 的 /connect 頁給人複製。
 # 不帶 -s:順便驗預設 session 名是 personal-chrome。
 # 9555 有在聽 = /proc/net/tcp{,6} 有 :2553(9555)的 LISTEN(狀態 0A)。殘留 = 指令列還有這支、它的轉發或 session 的 daemon。
 ATTACH_LISTEN="awk 'NR>1 && \$4==\"0A\" {print \$2}' /proc/net/tcp /proc/net/tcp6 | grep -i ':2553\$'"
-ATTACH_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'personal-chrome-attach|cliDaemon.js personal-chrome' | grep -v grep"
+ATTACH_LEFT="for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep -E 'playwright-extension-attach|cliDaemon.js personal-chrome' | grep -v grep"
 ATTACH_TOKEN=e2e-attach-token-$$
 # connect 網址:chrome-extension://<id>/connect.html?…,mcpRelayUrl 是 ws://127.0.0.1:9555/extension/…
 ATTACH_URL_RE='^chrome-extension://[a-z]+/connect\.html\?.*mcpRelayUrl=ws%3A%2F%2F127\.0\.0\.1%3A9555%2Fextension%2F'
 
-check_personal_chrome_attach_dry_run() {
-  bold "▶ personal-chrome-attach:dry run"
+check_playwright_extension_attach_dry_run() {
+  bold "▶ playwright-extension-attach:dry run"
   # 要放背景的指令前面先 `$PWCLI true;`:整串接在 $PWCLI 後面再加 & 的話,連 cd、export 都在背景的 subshell 跑,
   # $! 是那個 subshell,kill 不到腳本本身。/connect 頁的網址在 value="…" 裡,&amp; 換回 &。
   check "有 token:輸出不印網址、指到 /connect;/connect 回帶 token 的網址;/ 是 relay 的 404;session 是 personal-chrome" \
-    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$ATTACH_TOKEN personal-chrome-attach --timeout=60 > ~/attach.log 2>&1 & p=\$!; for i in \$(seq 30); do grep -q '127.0.0.1:9555/connect' ~/attach.log && break; sleep 1; done; url=\$(curl -s http://127.0.0.1:9555/connect | grep -o 'value=\"[^\"]*\"' | sed 's/^value=\"//; s/\"\$//; s/&amp;/\\&/g'); code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); daemon=\$(for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep 'cliDaemon.js personal-chrome ' | grep -vc grep); kill \$p; wait \$p; cat ~/attach.log; echo \"curl /:\$code daemon:\$daemon\"; grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && grep -q '&token=$ATTACH_TOKEN' <<<\"\$url\" && echo '/connect 的網址 OK' && grep -q 'http://127.0.0.1:9555/connect' ~/attach.log && ! grep -q 'chrome-extension://' ~/attach.log && [ \"\$code\" = 404 ] && [ \"\$daemon\" -ge 1 ]"
+    "$PWCLI true; PLAYWRIGHT_MCP_EXTENSION_TOKEN=$ATTACH_TOKEN playwright-extension-attach --timeout=60 > ~/attach.log 2>&1 & p=\$!; for i in \$(seq 30); do grep -q '127.0.0.1:9555/connect' ~/attach.log && break; sleep 1; done; url=\$(curl -s http://127.0.0.1:9555/connect | grep -o 'value=\"[^\"]*\"' | sed 's/^value=\"//; s/\"\$//; s/&amp;/\\&/g'); code=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9555/); daemon=\$(for f in /proc/[0-9]*/cmdline; do tr '\\0' ' ' < \$f 2>/dev/null; echo; done | grep 'cliDaemon.js personal-chrome ' | grep -vc grep); kill \$p; wait \$p; cat ~/attach.log; echo \"curl /:\$code daemon:\$daemon\"; grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && grep -q '&token=$ATTACH_TOKEN' <<<\"\$url\" && echo '/connect 的網址 OK' && grep -q 'http://127.0.0.1:9555/connect' ~/attach.log && ! grep -q 'chrome-extension://' ~/attach.log && [ \"\$code\" = 404 ] && [ \"\$daemon\" -ge 1 ]"
   check "被中斷後 9555 放掉、沒有殘留 process" "sleep 2; ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
   # 連腳本自己的輸出(~/attach.log)一起找:輸出也是 agent 看得到、會存檔的地方
   check "token 沒寫進任何檔案(含腳本的輸出)" "[ -s ~/attach.log ] && ! grep -rlI $ATTACH_TOKEN ~ /tmp 2>/dev/null"
   check "沒 token:印出 connect 網址(不帶 token);沒人連進來就在逾時(10 秒)內非 0 結束、9555 放掉、沒有殘留 process" \
-    "$PWCLI s=\$SECONDS; out=\$(env -u PLAYWRIGHT_MCP_EXTENSION_TOKEN personal-chrome-attach --timeout=10 2>&1); rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"\$out\"; echo \"rc=\$rc 秒數=\$e\"; url=\$(grep -o 'chrome-extension://[^ ]*' <<<\"\$out\"); grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && ! grep -q 'token=' <<<\"\$url\" && [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
+    "$PWCLI s=\$SECONDS; out=\$(env -u PLAYWRIGHT_MCP_EXTENSION_TOKEN playwright-extension-attach --timeout=10 2>&1); rc=\$?; e=\$((SECONDS - s)); sleep 1; echo \"\$out\"; echo \"rc=\$rc 秒數=\$e\"; url=\$(grep -o 'chrome-extension://[^ ]*' <<<\"\$out\"); grep -E '$ATTACH_URL_RE' <<<\"\$url\" >/dev/null && ! grep -q 'token=' <<<\"\$url\" && [ \$rc -ne 0 ] && [ \$e -le 20 ] && ! $ATTACH_LISTEN && ! $ATTACH_LEFT"
   check "9555 先被佔時失敗,說出是誰佔著" \
-    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(personal-chrome-attach --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
+    "$PWCLI true; python3 -m http.server 9555 --bind 127.0.0.1 >/dev/null 2>&1 & h=\$!; sleep 1; out=\$(playwright-extension-attach --timeout=10 2>&1); rc=\$?; kill \$h; echo \"\$out\"; echo rc=\$rc; [ \$rc -ne 0 ] && grep -q 'http.server 9555' <<<\"\$out\""
 }
 
 # 朗讀串流服務(#290)。容器的 PID 1 不是 systemd、也沒有 systemctl:user service 起不來,
@@ -562,7 +575,8 @@ scenario_ubuntu() {
   check "reload 腳本沒跑(渲染成空的)" \
     "! chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check_no_browser_wrappers
-  check_personal_chrome_attach yes
+  check_playwright_extension_attach yes
+  check_remote_access yes
   check_codex_permissions
   check_zsh_env "getent passwd \$(id -un) | cut -d: -f7"
   check "有 root 走 chsh:~/.bashrc 沒加切 zsh 那段、~/.profile 不是 dotfiles 補的" \
@@ -573,7 +587,7 @@ scenario_ubuntu() {
   check "互動 bash 載入 starship" "[ \"\$(bash -ic 'echo \$STARSHIP_SHELL' 2>/dev/null)\" = bash ]"
   check_cli_tools
   check_playwright_cli
-  check_personal_chrome_attach_dry_run
+  check_playwright_extension_attach_dry_run
 
   bold "▶ 第二次 init／apply"
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
@@ -1165,9 +1179,10 @@ scenario_termux() {
   # openssh 是 Termux 的基底套件;ssh client 補裝、userspace tailscale 的 ProxyCommand 只看 Linux(#216)
   check "ssh config 已部署、沒有 ProxyCommand、沒有補裝家目錄的 ssh" \
     "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/opt/openssh ]"
-  # personal-chrome-attach 要勾 playwright-cli 和 agent-config 才部署,Termux 沒有
+  # playwright-extension-attach、remote-access 要勾 agent-config 才部署,Termux 沒有
   check_no_browser_wrappers
-  check_personal_chrome_attach no
+  check_playwright_extension_attach no
+  check_remote_access no
   check "~/.termux/font.ttf 是 Hack Nerd Font Regular" \
     "echo '$HACK_SHA256  .termux/font.ttf' | sha256sum -c - && grep -aq 'Hack Nerd Font' ~/.termux/font.ttf"
   check "~/.local/share/fonts/HackNerdFont-Regular.ttf 是指向 ~/.termux/font.ttf 的 symlink" \
@@ -1498,8 +1513,9 @@ noroot_full_checks() {
   for t in herdr wakatime claude codex opencode agent-config; do check_tool "$t"; done
   check_ssh_client
   check_no_browser_wrappers
-  # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),personal-chrome-attach 不部署
-  check_personal_chrome_attach no
+  # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),playwright-extension-attach 不部署
+  check_playwright_extension_attach no
+  check_remote_access yes
   check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
