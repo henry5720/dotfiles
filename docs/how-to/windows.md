@@ -111,7 +111,10 @@ mise 把它裝在自己的目錄，跟 `uv tool install` 的不是同一份。�
 | | 手動 `uv tool install` | mise |
 |---|---|---|
 | 執行檔 | `%USERPROFILE%\.local\bin\windows-mcp.exe`（uv 的[執行檔目錄](https://docs.astral.sh/uv/reference/storage/#executable-directory)，複製過去的） | shim `%LOCALAPPDATA%\mise\shims\windows-mcp.exe` |
-| 本體 | `%APPDATA%\uv\data\tools\windows-mcp` | `%LOCALAPPDATA%\mise\installs\pipx-windows-mcp\<版本>\bin\windows-mcp.exe`（2026-11-20 henry-desktop 實測，0.8.9） |
+| 本體 | `%APPDATA%\uv\data\tools\windows-mcp` | `mise where pipx:windows-mcp` 印的目錄（`%LOCALAPPDATA%\mise\installs\pipx-windows-mcp\<版本>`），Python 在裡面的 `windows-mcp\Scripts\` |
+
+行程清單看到的路徑是 `...\pipx-windows-mcp\latest\bin\windows-mcp.exe`：`latest` 是 mise 替別名建的連結
+（[mise 的目錄文件](https://mise.jdx.dev/directories.html)），Windows 上是指到最新版目錄的 junction，不是另一份安裝（2026-11-22 實測）。
 
 載入 profile 的 PowerShell 把 mise 的 shims 排在 `.local\bin` 前面，打 `windows-mcp` 拿到的是 mise 那份；
 不載入 profile 的（`pwsh -NoProfile`、別的程式只帶系統與使用者 PATH 起的行程）沒有 shims，會先找到舊的那份，
@@ -184,6 +187,21 @@ Remove-Item $PROFILE        # 整份都不要時
 ```
 
 pwsh 和 `powershell`（5.1）的 `$PROFILE` 是不同檔案，兩邊都要看。
+
+## source 出現假的權限變更
+
+- 症狀：`~/.local/share/chezmoi` 的 `git status` 列出一堆 ` M`，`git diff --summary` 全是 `mode change 100755 => 100644`，
+  內容沒差；`git checkout -- <檔>` 也消不掉，`git pull --ff-only` 被擋。
+- 原因：NTFS 沒有執行位，repo 的 `core.fileMode` 開著時，git 每次讀都把 755 的檔當成 644。Git for Windows 自己 clone
+  會寫 `core.fileMode = false`；沒寫，可能是 `chezmoi init` 時 PATH 上還沒有 git，chezmoi 用內建的 git clone
+  （[`useBuiltinGit`](https://www.chezmoi.io/reference/configuration-file/variables/) 預設 `auto`）。
+  [Runbook](../new-machine-setup.md#windows-主機) 第 1 步先裝 git 就是為了避開這個。
+- 解法（2026-11-22 實測）：只改這個 repo 的設定，不動 global：
+
+  ```powershell
+  git -C "$HOME\.local\share\chezmoi" config core.fileMode false
+  git -C "$HOME\.local\share\chezmoi" status   # 要是乾淨的
+  ```
 
 ## WSL 網路：mirrored 與 NAT portproxy
 

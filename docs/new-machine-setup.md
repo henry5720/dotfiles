@@ -72,15 +72,19 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi init`；沒有 WSL、Windows 本身就是開發機也照這節。
 這節一路做到裝好，不用再看第 2 步。要在一台 Windows 上另開一台 Windows VM 來裝，先照 [Hyper-V](how-to/hyper-v.md) 把 VM 開好，再到 VM 裡照這節。
 
-1. 在 PowerShell 用 winget 裝 chezmoi：
+1. 在 PowerShell 用 winget 裝 chezmoi 與 git：
 
    ```powershell
    winget install twpayne.chezmoi
+   winget install --id Git.Git --exact
    ```
 
+   git 要在第 5 步的 `chezmoi init` 之前裝：PATH 上沒有 git 時 chezmoi 改用內建的 git clone
+   （[`useBuiltinGit`](https://www.chezmoi.io/reference/configuration-file/variables/) 預設 `auto`），
+   clone 出來的 repo 沒有 `core.fileMode = false`，之後在 source 打 `git status` 會看到[假的權限變更](how-to/windows.md#source-出現假的權限變更)。
    其他的（mise、pwsh 7、Windows Terminal，以及選單勾的 CLI 與 tailscale）由 chezmoi apply 裝。
    winget 裝的 pwsh 是 MSIX 版，入口是 `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`，沒有
-   `C:\Program Files\PowerShell\7`。git 這類其他 GUI app 照舊從官網裝。
+   `C:\Program Files\PowerShell\7`。其他 GUI app 照舊從官網裝。
 2. 把 Documents 移出 OneDrive 備份，不然 PowerShell 讀不到 chezmoi 部署的 profile：見[Documents 移出 OneDrive](how-to/windows.md#documents-移出-onedrive)。
 3. Hack Nerd Font 照[終端機字型](how-to/fonts.md#windows-terminal)手動右鍵「安裝」。
 4. 讓 profile 與 `tools` 跑得動：Windows client 的 Windows PowerShell 5.1 預設執行原則是 `Restricted`，
