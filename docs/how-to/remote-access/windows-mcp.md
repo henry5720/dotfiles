@@ -40,8 +40,7 @@ Windows-MCP 是第三方開源專案：[CursorTouch/Windows-MCP](https://github.
 1. **在那台桌面開 PowerShell**，跑 agent 給你的 `windows-mcp-http.ps1 start --host <位址>`（參數看 `--help`）。
    一定要在你登入的桌面跑：從 ssh 起的 server 沒有桌面，一啟動就結束。
    那台有 skillshare 時 script 已經在 `$HOME\.claude\skills\windows-access\scripts\`；沒有的話 agent 會先給你一行下載。
-   它會換一把新 key、起 server、把 key 複製到剪貼簿，key 不印在畫面上。
-   起好的樣子：印出 `server 在 <位址>:8000，key 已複製到剪貼簿（沒有印出來）`。
+   它會換一把新 key、起 server、把 key 複製到剪貼簿，key 不印在畫面上。每一步做什麼看 `--help`；成功或失敗看它印的訊息，失敗時會寫要你做什麼。
 2. **交 key**：把剪貼簿的 key 給 agent 那端的使用者，請他在啟動 agent 的 shell 裡 `export WINDOWS_MCP_AUTH_KEY=<key>`
    再開 session。key 只放在環境變數，不寫進任何設定檔；換了 key 要重開 session。
    別用記事本開 `config.toml` 看 key：開在畫面上會被 agent 的截圖拍進去。
@@ -57,7 +56,7 @@ Windows-MCP 是第三方開源專案：[CursorTouch/Windows-MCP](https://github.
    只按 Ctrl+C 不夠：叫它的那一端斷掉時，`tailscale.exe`、`cloudflared.exe` 可能還在跑，網址照樣通。
    agent 會再從它那邊確認網址連不上。
 2. **收 server**：跑 `windows-mcp-http.ps1 stop`。它停掉 server、換 key、設定綁回 `127.0.0.1`，交出去的那把就作廢了。
-   收好的樣子：印出 `還在聽 8000 的程式：0（要 0）` 和 `已收掉，key 已換新`。
+   成功或失敗看它印的訊息（`--help` 有每一步）。聽 8000 的不是 windows-mcp 時它不停那支，列出來交給你處理。
    一定先停再換：server 跑著時換的 key 不生效，舊 key 照樣能用（2026-11-05 實測），`stop` 會照這個順序做。
 
 agent 那端以前用 `claude mcp add` 自己加過的設定（local scope，key 原文寫在裡面）：等固定的 `windows-mcp-remote`

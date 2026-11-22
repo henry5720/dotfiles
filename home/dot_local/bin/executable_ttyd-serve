@@ -40,14 +40,17 @@ env -u HERDR_ENV ttyd -i lo -p "$TTYD_PORT" -W -c "guest:$pw" \
   -t 'fontFamily=Hack, "Hack Nerd Font", Menlo, Consolas, monospace' \
   "${cmd[@]}" >/dev/null 2>&1 &
 ttyd_pid=$!
-# ttyd 是這支的子行程:Ctrl+C、SIGTERM、關終端機都走 EXIT 把它收掉。
-trap 'kill "$ttyd_pid" 2>/dev/null || true' EXIT
+# 給 remote-access 驗證用的 header 放檔案、印出的那行只 cat 它：密碼寫進指令列會出現在 ps 的 argv。
+# mktemp 建的檔是 600,只有自己讀得到。
+hdr=$(mktemp "${TMPDIR:-/tmp}/ttyd-serve-auth.XXXXXX")
+# ttyd 是這支的子行程:Ctrl+C、SIGTERM、關終端機都走 EXIT 把它和 header 檔收掉。
+trap 'kill "$ttyd_pid" 2>/dev/null || true; rm -f "$hdr"' EXIT
 trap 'exit 130' INT TERM HUP
 
 sleep 1
 kill -0 "$ttyd_pid" 2>/dev/null || { echo "ttyd 沒起來。" >&2; exit 1; }
 
-auth=$(printf 'guest:%s' "$pw" | base64)
+printf 'Authorization: Basic %s\n' "$(printf 'guest:%s' "$pw" | base64)" > "$hdr"
 cat <<MSG
 
   http://127.0.0.1:$TTYD_PORT
@@ -56,7 +59,7 @@ cat <<MSG
 
   要給 tailnet 外的人用，另開一個終端機跑:
   remote-access funnel open --port $TTYD_PORT --https 10000 --path / \\
-    --expect-without 401 --expect-with 200 --auth-header-cmd 'echo "Authorization: Basic $auth"'
+    --expect-without 401 --expect-with 200 --auth-header-cmd 'cat $hdr'
 
 MSG
 
