@@ -1,3 +1,7 @@
+# 臨時、只在這台用的 Host 寫在 ~/.ssh/config.local(不進 git,chezmoi apply 不碰);沒有這個檔 ssh 也不報錯。
+# 要放最上面:寫在某個 Host 段底下的話,只有連那台時才讀得到。
+Include ~/.ssh/config.local
+
 # 不寫 IdentityFile:ssh 用預設的 ~/.ssh/id_ed25519。Host 寫了 IdentityFile,ssh 就不找預設檔。
 
 # ===============================================================
