@@ -20,10 +20,12 @@ WINDOWS_CONFIG = "AppData/Roaming/skillshare/config.yaml"
 AGENTS_MD = ".config/skillshare/instructions/agents-md/AGENTS.md"
 AGENT_COMMIT = ".config/skillshare/instructions/agent-commit/instructions.md"
 OPENCODE_COMMIT = ".config/skillshare/instructions/opencode-commit/commit-instructions.md"
+PSTACK_MODELS = ".config/skillshare/instructions/pstack-models/pstack-models.md"
 # 勾了哪個 client 才有哪幾個連結;任一個 agent 都有 agent-commit
 LINKS = {
     # 一份 AGENTS.md,Claude 讀的檔名是 CLAUDE.md
-    "claude": {".claude/CLAUDE.md": AGENTS_MD},
+    # pstack 的模型設定只給 claude(官方 pstack 只支援 Cursor 與 Claude Code)
+    "claude": {".claude/CLAUDE.md": AGENTS_MD, ".claude/rules/pstack-models.md": PSTACK_MODELS},
     "codex": {".codex/AGENTS.md": AGENTS_MD},
     # commit 指引:路徑要對上 AGENTS.md 與 opencode.json 引用的位置
     "opencode": {
@@ -122,7 +124,7 @@ class SkillshareConfigTest(unittest.TestCase):
     def test_only_claude_targets_claude_and_links_claude_md_and_agent_commit(self):
         out = self.run_script(["claude", "agent-config"])
         self.assertEqual(self.section(out, "targets"), "targets:\n" + CLAUDE_TARGET)
-        self.assertEqual(self.extras_paths(out), ["~/.claude", "~/.config/agent-commit"])
+        self.assertEqual(self.extras_paths(out), ["~/.claude", "~/.config/agent-commit", "~/.claude/rules"])
         self.assertIn("as: CLAUDE.md", out)
 
     def test_all_clients_target_claude_and_codex_but_not_opencode(self):
@@ -130,7 +132,7 @@ class SkillshareConfigTest(unittest.TestCase):
         self.assertEqual(self.section(out, "targets"), "targets:\n" + CLAUDE_TARGET + CODEX_TARGET)
         self.assertEqual(self.extras_paths(out), [
             "~/.claude", "~/.codex", "~/.config/opencode", "~/.config/opencode/routes/personal",
-            "~/.config/agent-commit", "~/.config/opencode",
+            "~/.config/agent-commit", "~/.claude/rules", "~/.config/opencode",
         ])
 
     def test_only_opencode_has_no_target_but_its_extras(self):
@@ -258,7 +260,7 @@ class SkillshareConfigTest(unittest.TestCase):
                 source = self.home / ".config/skillshare"
                 (source / "skills").mkdir(parents=True)  # 沒有 skills 來源 sync 會直接失敗
                 (source / "config.yaml").write_text(self.run_script(tools), encoding="utf-8")
-                for target in (AGENTS_MD, AGENT_COMMIT, OPENCODE_COMMIT):
+                for target in (AGENTS_MD, AGENT_COMMIT, OPENCODE_COMMIT, PSTACK_MODELS):
                     (self.home / target).parent.mkdir(parents=True, exist_ok=True)
                     (self.home / target).write_text(target, encoding="utf-8")
                 env = os.environ | {"HOME": str(self.home), "XDG_CONFIG_HOME": str(self.home / ".config")}
