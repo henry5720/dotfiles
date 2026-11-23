@@ -27,6 +27,10 @@ export OPENCODE_ENABLE_EXA=1
 # 改了 key 要重開讀它的程序:已經在跑的(例如 claude daemon)留著啟動當下的環境。
 [ -r "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
 
+# windows-mcp-remote 的 key(WINDOWS_MCP_AUTH_KEY)。每次 start／stop 都換,不能交給 chezmoi 渲染:
+# agent 拿到新 key 就寫進這個檔(600),新開的 session 自動帶上;舊 session 要重開。沒有這個檔就跳過。
+[ -r "$HOME/.config/windows-mcp/auth.env" ] && source "$HOME/.config/windows-mcp/auth.env"
+
 # snap 的指令(舊機器的 chezmoi 可能是 snap 裝的;新機器照 README 裝在 ~/.local/bin)。
 # snapd 是靠 /etc/profile.d/apps-bin-path.sh 加這條,
 # 但 Ubuntu 的 /etc/zsh/zprofile 不 source /etc/profile,所以 zsh 拿不到,得自己加。
