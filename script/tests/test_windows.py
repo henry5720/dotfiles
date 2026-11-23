@@ -679,7 +679,8 @@ class WindowsDeployTest(unittest.TestCase):
         # 沒填的不動(不刪),兩個都空就渲染成空的,chezmoi 不跑。
         path = SCRIPTS / "run_onchange_after_set-mcp-env.ps1.tmpl"
         for data, want in (({}, []), ({"context7ApiKey": "", "graphifyApiKey": "g'k"}, [("GRAPHIFY_API_KEY", "g''k")]),
-                           ({"context7ApiKey": "c7", "graphifyApiKey": "gk"}, [("CONTEXT7_API_KEY", "c7"), ("GRAPHIFY_API_KEY", "gk")])):
+                           ({"context7ApiKey": "c7", "graphifyApiKey": "gk"}, [("CONTEXT7_API_KEY", "c7"), ("GRAPHIFY_API_KEY", "gk")]),
+                           ({"discordBotToken": "dt"}, [("DISCORD_TOKEN", "dt")])):
             with self.subTest(data=data):
                 out = self.chezmoi("windows", "execute-template", path.read_text(encoding="utf-8"), data=data)
                 self.assertTrue(out.isascii())

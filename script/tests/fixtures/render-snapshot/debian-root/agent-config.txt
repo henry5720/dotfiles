@@ -37,6 +37,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 [data]
     context7ApiKey = ""
     graphifyApiKey = ""
+    discordBotToken = ""
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "custom"

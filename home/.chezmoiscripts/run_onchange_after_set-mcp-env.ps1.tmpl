@@ -1,5 +1,5 @@
 {{- /* MCP 用的 API key 設成 Windows 的使用者環境變數。Linux 那邊是 dot_config/zsh/private_env.zsh.tmpl export 同樣的名稱。
-       skillshare 寫進各 client 的 MCP 設定只留參照(context7 的 fromEnv、graphify 的 bearerToken),值從這裡來。
+       skillshare 寫進各 client 的 MCP 設定只留參照(context7、discord 的 fromEnv,graphify 的 bearerToken),值從這裡來。
        chezmoi 沒有內建「設永久環境變數」,官方做法是 run_onchange_ 腳本(https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/);
        Windows 這邊照 Microsoft 的 about_Environment_Variables 用 User 範圍的 SetEnvironmentVariable:
        寫進 HKCU\Environment,之後新開的程式(不只 PowerShell)都讀得到。不寫在 PowerShell profile:
@@ -8,7 +8,7 @@
        key 值會渲染進腳本(chezmoi 跑完就刪暫存檔,state 只記雜湊),值改了 run_onchange 才重跑。
        由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。 */ -}}
 {{- $vars := dict -}}
-{{- range $pair := list (list "context7ApiKey" "CONTEXT7_API_KEY") (list "graphifyApiKey" "GRAPHIFY_API_KEY") -}}
+{{- range $pair := list (list "context7ApiKey" "CONTEXT7_API_KEY") (list "graphifyApiKey" "GRAPHIFY_API_KEY") (list "discordBotToken" "DISCORD_TOKEN") -}}
 {{-   with index $ (index $pair 0) }}{{ $_ := set $vars (index $pair 1) . }}{{ end -}}
 {{- end -}}
 {{- if $vars -}}

@@ -43,6 +43,8 @@ class McpHandoffTest(unittest.TestCase):
             out = self.render(env)
             self.assertEqual([l.split("=")[0].removeprefix("export ") for l in out.splitlines() if l.startswith("export ")], want)
             if not want: self.assertEqual(out.strip(), "")
+        self.cfg.write_text('[data]\ndiscordBotToken="dt"\n', encoding="utf-8")
+        self.assertIn("export DISCORD_TOKEN='dt'", self.render(env))
 
     def test_codex_keeps_tables_skillshare_appends(self):
         # 停用 skill 那段要出現,才驗得到它不會被搬到 skillshare 的 table 後面。
