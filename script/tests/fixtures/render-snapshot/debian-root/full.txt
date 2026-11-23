@@ -789,7 +789,7 @@ fi
 # 只有 config.yaml 換掉不會動到各 client 那份:新勾的 client 要 sync 才拿到 skills、MCP,
 # 指令檔要 sync extras 才會建、改、拆連結;有這支,勾選或「改連到哪」只要 chezmoi apply 一步。
 # hash: bf6a245c354145ae5d84fdd6eabfe14f8514fa065a41b1cf7424d84ebd980323
-# pinned: a8e3e3cbd7c2f314bcba5058e218a21fc35579af32c7c7a4abd65917a17f31bb
+# pinned: e286115b6da156a2dc1aa5eb4cba898e63a9abdb240bf945bfe25f91196f82c8
 #
 # 新機器上 install-agent-config(字母序在前)的 sync --all 已經做過,這裡再跑一次無害。
 set -eu

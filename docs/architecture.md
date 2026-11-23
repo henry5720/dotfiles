@@ -99,6 +99,8 @@ agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要
    └── ~/.config/opencode/routes/personal/AGENTS.md (opencode)
 agent-config/instructions/agent-commit/instructions.md
    └── ~/.config/agent-commit/instructions.md
+agent-config/instructions/pstack-models/pstack-models.md
+   └── ~/.claude/rules/pstack-models.md             (claude;pstack 每個角色用哪個模型)
 agent-config/instructions/opencode-commit/commit-instructions.md
    └── ~/.config/opencode/commit-instructions.md    (opencode;opencode.json 的 instructions 引用它)
 ```

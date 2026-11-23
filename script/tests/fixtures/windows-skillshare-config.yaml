@@ -30,6 +30,11 @@ extras:
     file: instructions.md
     targets:
       - path: ~\.config\agent-commit
+  - name: pstack-models
+    source: ~\AppData\Roaming\skillshare\instructions\pstack-models
+    file: pstack-models.md
+    targets:
+      - path: ~\.claude\rules
   - name: opencode-commit
     source: ~\AppData\Roaming\skillshare\instructions\opencode-commit
     file: commit-instructions.md
