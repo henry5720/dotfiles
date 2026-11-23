@@ -55,7 +55,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 |---|---|---|
 | herdr | terminal 多工，同時開多個 agent | [herdr](tools/herdr.md) |
 | claude | Claude Code | [Claude Code](tools/claude.md) |
-| codex | Codex CLI | [Codex CLI](https://developers.openai.com/codex/cli) |
+| codex | Codex CLI | [codex](tools/codex.md) |
 | opencode | OpenCode | [opencode](tools/opencode.md) |
 | agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | [skillshare](https://skillshare.runkids.cc/) |
 
