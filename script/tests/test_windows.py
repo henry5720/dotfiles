@@ -280,7 +280,7 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_mise_reads_nvmrc_but_not_python_version(self):
         # #386:Windows 的 mise 設定也開 node 的 idiomatic version file(.nvmrc、.node-version),python 交給 uv
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["node"])
-        self.assertIn('idiomatic_version_file_enable_tools = ["node"]', out.partition("[settings]")[2].splitlines())
+        self.assertIn('idiomatic_version_file_enable_tools = ["node", "pnpm"]', out.partition("[settings]")[2].splitlines())
 
     def test_windows_minimal_installs_cli_with_mise(self):
         # #275 驗收:選精簡 apply 後 starship、fastfetch、zoxide 由 mise 裝好

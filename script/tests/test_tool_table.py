@@ -535,13 +535,13 @@ class ToolTableTest(unittest.TestCase):
         self.assertNotIn("nvm.sh", (ROOT / "home/dot_zshrc").read_text(encoding="utf-8"))
 
     def test_mise_reads_nvmrc_but_not_python_version(self):
-        # #386:有 mise 清單的每一格都開 node 的 idiomatic version file(.nvmrc、.node-version);python 交給 uv,不開
+        # #386:有 mise 清單的每一格都開 node 的 idiomatic version file(.nvmrc、.node-version)與 pnpm(package.json 的 packageManager);python 交給 uv,不開
         for (env, sel), snap in self.snap.items():
             if not snap["mise"]:
                 continue
             text = path_of(env, sel).read_text(encoding="utf-8")
             with self.subTest(env=env, sel=sel):
-                self.assertIn('idiomatic_version_file_enable_tools = ["node"]', text)
+                self.assertIn('idiomatic_version_file_enable_tools = ["node", "pnpm"]', text)
 
     def test_needs_uv_matches_rendered_uv(self):
         # uv 有沒有裝(勾了或被連帶):Termux 看 pkg、其他看 mise 的 uv(macOS 從 #386 起)
