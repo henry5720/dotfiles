@@ -41,8 +41,10 @@ Windows-MCP 是第三方開源專案：[CursorTouch/Windows-MCP](https://github.
    一定要在你登入的桌面跑：從 ssh 起的 server 沒有桌面，一啟動就結束。
    那台有 skillshare 時 script 已經在 `$HOME\.claude\skills\windows-access\scripts\`；沒有的話 agent 會先給你一行下載。
    它會換一把新 key、起 server、把 key 複製到剪貼簿，key 不印在畫面上。每一步做什麼看 `--help`；成功或失敗看它印的訊息，失敗時會寫要你做什麼。
-2. **交 key**：把剪貼簿的 key 給 agent 那端的使用者，請他在啟動 agent 的 shell 裡 `export WINDOWS_MCP_AUTH_KEY=<key>`
-   再開 session。key 只放在環境變數，不寫進任何設定檔；換了 key 要重開 session。
+2. **交 key**：把剪貼簿的 key 交給 agent 那端。agent 那端把它寫進 `~/.config/windows-mcp/auth.env`：
+   資料夾權限 `700`、檔案 `600`，內容只有一行 `export WINDOWS_MCP_AUTH_KEY='<key>'`。
+   `~/.zshenv` 會讀這個檔，之後新開的 session 自動帶上 key，不用手動 `export`；沒有這個檔就跳過，不報錯。
+   換了 key 要更新這個檔，已經開著的 session 不會重讀，要重開。key 只放在這個檔，不寫進 MCP 設定。
    別用記事本開 `config.toml` 看 key：開在畫面上會被 agent 的截圖拍進去。
 3. **連線**：tailnet 內由 agent 那台開 ssh 轉發，你不用做事。Funnel、quick tunnel 時 agent 會再給你一行，
    在另一個 PowerShell 貼上、開著別關；quick tunnel 要把印出的 `https://<隨機>.trycloudflare.com` 給 agent。
@@ -75,6 +77,7 @@ agent 那端以前用 `claude mcp add` 自己加過的設定（local scope，key
 | 項目 | 狀態 |
 |---|---|
 | tailnet 內：company-ec2 用 `ssh -L` 18000 → 那台 8000 接 | 2026-11-11 起常用 |
+| agent 那端新開的 zsh（`zsh -c`、`zsh -i`）從 `auth.env` 帶上 key；沒有這個檔時不報錯、沒有輸出 | 2026-11-23 在 company-ec2 實測 |
 | quick tunnel：不帶 key `401`；帶 key 時 `initialize`、`tools/list`、`Snapshot` 都 `200` | 2026-11-05 在 henry-laptop 實測（當時手動貼指令） |
 | Windows 原生 tailscale 開 Funnel：不帶 key `401`、帶 key `200` | 2026-11-05 在 henry-laptop 實測（當時手動貼指令） |
 | 收掉：`Stop-Process` 後 `tailscale.exe`、`cloudflared.exe`、聽 8000 的都是 `0`，公網連不上 | 2026-11-05 在 henry-laptop 實測 |
