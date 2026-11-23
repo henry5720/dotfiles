@@ -72,9 +72,11 @@ winget:
 
 # 專案只放 .nvmrc、.node-version 也照它切 node 版本(預設是空的,只認 mise.toml;#386,
 # https://mise.jdx.dev/configuration/settings.html#idiomatic_version_file_enable_tools)。
+# pnpm 照專案 package.json 的 packageManager 由 mise 裝、切版本,不靠 Corepack(Node 25 起不附;
+# https://mise.jdx.dev/lang/node.html#package-manager-versions-in-package-json)。
 # 不開 python:Python 版本交給 uv(讀 .python-version、requires-python),mise 只裝 uv。
 [settings]
-idiomatic_version_file_enable_tools = ["node"]
+idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl

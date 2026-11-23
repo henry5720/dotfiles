@@ -48,11 +48,12 @@
 ### 專案的 node 版本
 
 mise 管的 node 只是全域預設的 LTS。專案要別的版本，在專案目錄放 `mise.toml`（`mise use node@<版本>`），
-或只放 `.nvmrc`、`.node-version` 也行：dotfiles 的 mise 設定開了 `idiomatic_version_file_enable_tools = ["node"]`（#386），
-三個平台都會照那個檔切。Python 不歸 mise：`.python-version`、`requires-python` 由 uv 讀。
+或只放 `.nvmrc`、`.node-version` 也行：dotfiles 的 mise 設定開了 `idiomatic_version_file_enable_tools = ["node", "pnpm"]`（#386），
+三個平台都會照那個檔切。pnpm 也一樣：mise 照專案 `package.json` 的 `packageManager`（例如 `pnpm@10.11.1`）裝那一版，
+不用 Corepack（Node 25 起不附）。Python 不歸 mise：`.python-version`、`requires-python` 由 uv 讀。
 
 ```bash
-cd <專案> && mise current node   # 印出專案要的版本;沒裝過就 mise install
+cd <專案> && mise current node pnpm   # 印出專案要的版本;沒裝過就 mise install
 ```
 
 ### macOS 的 brew node
