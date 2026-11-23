@@ -23,7 +23,7 @@ export OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true
 # 啟用 Exa 搜尋
 export OPENCODE_ENABLE_EXA=1
 
-# MCP 用的 API key(CONTEXT7_API_KEY、GRAPHIFY_API_KEY)。chezmoi 從本機 config 渲染,key 沒填就沒有這個檔。
+# MCP 用的 API key(CONTEXT7_API_KEY、GRAPHIFY_API_KEY、DISCORD_TOKEN)。chezmoi 從本機 config 渲染,key 沒填就沒有這個檔。
 # 改了 key 要重開讀它的程序:已經在跑的(例如 claude daemon)留著啟動當下的環境。
 [ -r "$HOME/.config/zsh/env.zsh" ] && source "$HOME/.config/zsh/env.zsh"
 
