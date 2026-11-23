@@ -149,6 +149,7 @@ SECRET_FLAGS=(
   --promptString 'codex-lb API key=e2e'
   --promptString 'Context7 API key（可留空）='
   --promptString 'Graphify API key（可留空）='
+  --promptString 'Discord bot token，給 discord MCP（可留空）='
   --promptString 'WakaTime API key（可留空）='
 )
 GIT_FLAGS=(

@@ -82,6 +82,7 @@ jobs:
               --promptString 'codex-lb API key=ci'
               --promptString 'Context7 API key（可留空）='
               --promptString 'Graphify API key（可留空）='
+              --promptString 'Discord bot token，給 discord MCP（可留空）='
               --promptString 'WakaTime API key（可留空）='
               --promptString 'git user.name=ci'
               --promptChoice "$USE_PROMPT=f"
