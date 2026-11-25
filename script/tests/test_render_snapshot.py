@@ -71,7 +71,7 @@ ENVS = {
 # ===============================================================
 SINGLES = ["snapserver", "snapclient", "headless-chrome", "playwright-cli", "claude", "codex", "opencode",
            "herdr", "node", "uv", "codegraph", "tailscale", "agent-config", "wakatime",
-           "windows-mcp"]
+           "windows-mcp", "openssh-server"]
 SELECTIONS = ["full", "minimal", "all", *SINGLES]
 
 

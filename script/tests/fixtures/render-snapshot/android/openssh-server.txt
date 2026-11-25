@@ -1,0 +1,184 @@
+# 環境 android × 勾選 openssh-server
+
+## 選單
+zsh              zsh、自動建議／跳目錄／語法上色外掛,並改成預設 shell [pkg]
+starship         提示列：顯示目錄、git 狀態、時間，跨 shell 共用一份設定 [pkg]
+eza              彩色、帶圖示的 ls(ll、la、lt 用它) [pkg]
+fzf              模糊搜尋:Ctrl-R 找歷史、Ctrl-T 找檔案 [pkg]
+bat              有語法上色的 cat [pkg]
+ripgrep          rg:比 grep 快的全文搜尋 [pkg]
+vim              終端機文字編輯器 [pkg]
+fastfetch        終端機印出系統資訊 [pkg]
+btop             終端機看 CPU、記憶體、行程（裝不了：Termux 的 btop 在 root-repo，沒有 root 的 Android 看不到行程）
+bottom           btm:跨 OS 的終端機資源監控(CPU、記憶體、行程),Windows 也能用（裝不了：termux-packages 沒有 bottom，到 proot Ubuntu 裝）
+earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-agent 保有記憶體和 CPU（裝不了：平板上沒有 systemd，保護不了保留服務與常駐服務）
+gh               GitHub CLI(官方 apt 源),裝完 gh auth login [pkg]
+code-server      瀏覽器開的 VS Code（裝不了：官方的 Termux 裝法要另加 TUR 套件庫）
+tailscale        私人 VPN,連自己的機器（裝不了：原生 Termux 裝 Tailscale 的 Android app）
+openssh-server   sshd:讓別台 ssh 進這台(WSL 改聽 2222,避開 Windows 的 22)（裝不了：原生 Termux 的基本套件已經有 openssh）
+cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [pkg]
+herdr            終端機多工,同時開多個 coding agent（裝不了：官方 installer 擋 Android，release 沒有 Android 版，npm 上的 herdr 是佔名的空套件）
+ttyd             把終端機開成網頁,ttyd-serve 用 [pkg]
+wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 agent 與 code-server 一併裝 plugin;會一併裝 Node) [script]
+claude           Claude Code CLI（裝不了：官方沒有 Android 版，npm 版也沒有 Android 的執行檔）
+codex            Codex CLI [pkg]
+opencode         OpenCode CLI(會一併裝 Node)（裝不了：官方沒有 Android 版，npm 版限定 macOS、Linux、Windows，Termux 的 npm 拒裝）
+ffmpeg           影音轉檔、抽音軌與影格 [pkg]
+uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [pkg]
+snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機）
+snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [pkg]
+node             Node LTS（Linux、macOS、Windows 用 mise 裝，Termux 用 pkg；勾了 codegraph、playwright-cli、opencode、wakatime 也會自動裝） [pkg]
+codegraph        程式碼索引給 agent 查(npm 裝,會一併裝 Node)（裝不了：官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有）
+headless-chrome  沒有畫面的 Chrome,給 agent 開網頁（裝不了：原生 Termux 裝不了 Google 的 .deb）
+playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node)（裝不了：Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android）
+agent-config     skillshare:統一管理 agent 的 skills、MCP、全域規則(agent-config repo,會一併裝 uv)（裝不了：給 coding agent 用，原生 Termux 不裝 agent，到 proot Ubuntu 裝）
+windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MCP server,只在 Windows 主機裝(mise 裝,會一併裝 uv)（裝不了：windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份）
+
+## init 存下的設定
+[data]
+    gitUserName = "e2e"
+    gitUserEmail = "e2e@example.com"
+    machineUse = "custom"
+    tools = ["openssh-server"]
+    toolsSchema = 3
+
+    # 個人 Codex 使用的非秘密模型資料。
+    [data.aiPersonal]
+    codexModel = ""
+
+## 要裝
+
+
+## 略過(裝不了)
+openssh-server
+
+## 套件清單
+apt/pkg: git curl openssh jq python
+brew: 
+brew cask: 
+winget: 
+
+## mise 清單
+
+
+## 渲染成空的腳本
+.chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
+.chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-official.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl
+.chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
+.chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-openssh-server.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
+
+## 會跑的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+.chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+.chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+
+### .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+#!@BIN@/sh
+# 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
+# (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
+#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
+#   root-skipped  沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
+# 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
+# run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
+set -eu
+
+d="$HOME/.local/state/dotfiles"
+if [ -s "$d/env-skipped" ]; then
+  echo
+  echo '== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):'
+  cat "$d/env-skipped"
+fi
+rm -f "$d/env-skipped"
+if [ -s "$d/root-skipped" ]; then
+  echo
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
+  cat "$d/root-skipped"
+fi
+rm -f "$d/root-skipped"
+
+### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
+#!@BIN@/sh
+# 勾了、但這台裝不了的選裝工具(選裝工具表算出裝不了的):各工具的腳本與套件清單
+# 看 tools-to-install,本來就不會裝它們;這支只負責印「略過＋原因」並記進略過彙整,
+# 由 run_after_zz-root-skipped-summary 在 apply 最後列出來。apply 不會因此失敗。
+# 沒有裝不了的勾選就渲染成空的。run_onchange_:勾選或原因變了才再印一次。
+set -eu
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+
+skip_env 'openssh-server' '原生 Termux 的基本套件已經有 openssh'
+
+### .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
+#!@BIN@/sh
+# 讓 Termux app 重新讀 ~/.termux/font.ttf。非 android 渲染成空檔,chezmoi 不會跑。
+#
+# run_onchange_:內容變了才重跑。字型來源寫在這裡,換字型時要跟 .chezmoiexternal.toml.tmpl 一起改:
+# 字型:https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/Hack.tar.xz (HackNerdFont-Regular.ttf)
+#
+# reload 失敗(例如沒有 Termux app 的容器)只警告,不讓 apply 失敗;下次開 Termux 一樣會讀到新字型。
+termux-reload-settings || echo "警告:termux-reload-settings 失敗,重開 Termux 後字型才會生效" >&2
+
+### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
+#!@BIN@/sh
+# 裝 .chezmoidata/packages.yaml 列的基本套件。Debian 系 Linux 走 apt-get,原生 Termux(os 是 android)走 pkg。
+# 其他 Linux 渲染成空的,不跑:套件名對不上,套件自己裝。
+# 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
+# 這台裝不了的勾了也不裝。
+#
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
+#
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
+# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+set -eu
+
+# 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
+missing=""
+for pkg in git curl openssh jq python; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
+    || missing="$missing $pkg"
+done
+[ -n "$missing" ] || exit 0
+
+# 2. 有缺才裝
+echo "安裝缺少的套件:$missing"
+# Termux 不支援部分升級(新套件可能連到比已裝的更新的 library),官方建議裝新套件前先 upgrade。
+# 走到這裡代表確定有缺的套件要裝(第 1 步一個都不缺就結束了),所以不是每次 apply 都升級。
+# --force-confold:遇到改過的設定檔保留現有的,不跳互動提示。
+DEBIAN_FRONTEND=noninteractive pkg upgrade -y -o Dpkg::Options::=--force-confold
+# shellcheck disable=SC2086 # 要拆成多個參數
+DEBIAN_FRONTEND=noninteractive pkg install -y $missing

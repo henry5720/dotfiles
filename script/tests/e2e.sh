@@ -909,7 +909,9 @@ scenario_ubuntu() {
   fedora_full=${fedora_full/\/snapclient\///}
   # earlyoom 也走 apt(#298)
   fedora_full=${fedora_full/\/earlyoom\///}
-  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、snapserver、snapclient、earlyoom" \
+  # openssh-server 也走 apt(#398)
+  fedora_full=${fedora_full/\/openssh-server\///}
+  check "非 Debian 系出用途選單:選完整存完整,tools 是選單上全部扣掉裝不了的 headless-chrome、snapserver、snapclient、earlyoom、openssh-server" \
     "$(render_cmd /tmp/fresh-fedora.toml --override-data "$fedora" --promptChoice "$(use_choice full)") > /tmp/fedora.toml && grep -qx '    machineUse = \"full\"' /tmp/fedora.toml && grep -qxF '$(toml_list "$fedora_full")' /tmp/fedora.toml"
   label=$(menu_choice headless-chrome "$fedora")
   check "非 Debian 系的選單列 headless-chrome、標裝不了,勾了照存" \
@@ -955,7 +957,9 @@ scenario_ubuntu() {
   local mac_full=${LINUX_FULL/\/snapserver\///}
   # earlyoom 靠 Linux 的 systemd(#298)
   mac_full=${mac_full/\/earlyoom\///}
-  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom)" \
+  # macOS 內建 sshd(#398)
+  mac_full=${mac_full/\/openssh-server\///}
+  check "macOS 選完整、選單不改:存完整,tools 是選單上全部(有 tailscale、headless-chrome、playwright-cli,沒有 snapserver、earlyoom、openssh-server)" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice full)") > /tmp/mac.toml && $(printf "$use_is" full /tmp/mac.toml) && grep -qxF '$(toml_list "$mac_full")' /tmp/mac.toml"
   check "macOS 選精簡:跟 Linux 同一組" \
     "$(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptChoice "$(use_choice minimal)") > /tmp/mac-lean.toml && $(printf "$use_is" minimal /tmp/mac-lean.toml) && grep -qxF '$LEAN_TOML' /tmp/mac-lean.toml"
@@ -1466,9 +1470,13 @@ noroot_tailscale_checks() {
     "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:走 tailnet 的 Host 都帶 ProxyCommand(#301)
   check "ssh config:tailnet 主機都經 userspace tailscale 的 ProxyCommand" \
-    "for h in henry-laptop lianghua pos2-dev company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
+    "for h in henry-laptop henry-desktop lianghua pos2-dev company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
+  # WSL 的 Host 是跳板上的 127.0.0.1:只有 ProxyJump 那台 Windows 經 tailscaled,它自己不套 ProxyCommand(#397)。
+  # 不用 localhost:mirrored 不支援 ::1(#396)
+  check "ssh config:WSL Host 是 127.0.0.1、沒有 ProxyCommand、經 ProxyJump 跳到那台 Windows" \
+    "for h in henry-desktop henry-laptop; do g=\$(ssh -G \$h-wsl) && ! grep -qi '^proxycommand' <<<\"\$g\" && grep -qx \"proxyjump \$h\" <<<\"\$g\" && grep -qx 'hostname 127.0.0.1' <<<\"\$g\" || { echo \"\$h-wsl 不對\"; exit 1; }; done"
   step "放時間標記(之後看 tailscale 有沒有重新下載)" "touch ~/.e2e-marker-ts"
   check "再 apply 一次 exit 0" "chezmoi apply --no-tty"
   check "再 apply 沒有重新下載 tailscale" \

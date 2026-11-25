@@ -10,6 +10,7 @@ import json
 import os
 import tomllib
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -269,6 +270,34 @@ class WindowsDeployTest(unittest.TestCase):
             with self.subTest(host=host):
                 self.assertEqual(hostnames[host], f"{host}.tail29dcee.ts.net")
         self.assertEqual(hostnames["company-ec2"], "company-ec2.tail0fed08.ts.net")
+
+    def ssh_g(self, out, host):
+        """ssh 實際會用的設定(ssh -G),Include 那行拿掉,不讀這台的 config.local。"""
+        with tempfile.NamedTemporaryFile("w", suffix=".conf") as f:
+            f.write(re.sub(r"^Include .*$", "", out, flags=re.M))
+            f.flush()
+            lines = subprocess.run(["ssh", "-G", "-F", f.name, host], capture_output=True, text=True,
+                                   check=True).stdout.splitlines()
+        return dict(l.split(" ", 1) for l in lines)
+
+    @unittest.skipUnless(shutil.which("ssh"), "沒有 ssh client")
+    def test_wsl_hosts_jump_through_their_windows(self):
+        # WSL 的 sshd 聽 127.0.0.1:2222,經那台 Windows 跳過去;兩台的 host key 分開記(#396)。
+        # 不寫 localhost:mirrored 不支援 ::1,Windows 的 localhost 先解析成 ::1 會連不上
+        out = self.render("home/private_dot_ssh/private_config.tmpl", [])
+        aliases = set()
+        for host, windows in (("henry-desktop-wsl", "henry-desktop"), ("henry-laptop-wsl", "henry-laptop")):
+            with self.subTest(host=host):
+                g = self.ssh_g(out, host)
+                self.assertEqual((g["hostname"], g["port"], g["proxyjump"], g["user"]),
+                                 ("127.0.0.1", "2222", windows, "henry"))
+                aliases.add(g["hostkeyalias"])
+        self.assertEqual(aliases, {"henry-desktop-wsl", "henry-laptop-wsl"})
+
+    @unittest.skipUnless(shutil.which("ssh"), "沒有 ssh client")
+    def test_vm1_jumps_through_lianghua(self):
+        g = self.ssh_g(self.render("home/private_dot_ssh/private_config.tmpl", []), "vm-1")
+        self.assertEqual((g["hostname"], g["user"], g["proxyjump"]), ("172.22.123.179", "user-1", "lianghua"))
 
     # ===============================================================
     # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的

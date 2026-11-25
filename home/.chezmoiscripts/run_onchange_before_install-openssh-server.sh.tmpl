@@ -1,0 +1,43 @@
+{{- /* 照裝法判斷(.chezmoitemplates/tool-install):openssh-server 只走 apt,沒有 root 在表上標裝不了,所以這裡一定有 root。
+       只有 WSL 要設定;其他 Linux 用套件預設的 22,渲染成空的。
+       WSL 的判斷寫在這裡、不寫進工具表:表上只有「在哪些環境裝得了」,沒有「只在某環境跑 setup」的欄位。 */ -}}
+{{- if and (index (includeTemplate "tool-install" . | fromJson).tools "openssh-server").install (eq (includeTemplate "is-wsl" .) "true") -}}
+#!{{ lookPath "sh" }}
+# 選裝工具 openssh-server 在 WSL 的設定(選單見 .chezmoi.toml.tmpl,#398)。套件本身由 install-packages 用 apt 裝。
+# 這個 repo 部署的 .wslconfig 是 mirrored 網路模式:WSL 跟 Windows 共用 port 和 127.0.0.1。Windows 的 sshd 佔 22,
+# WSL 改聽 {{ .opensshServer.wslPort }}(.chezmoidata/openssh-server.yaml);mirrored 下 WSL 聽 0.0.0.0 會直接開在 Windows 的網卡上,
+# 所以只聽 127.0.0.1,別台經那台 Windows 跳進來。為什麼這樣設、開關指令見 docs/how-to/remote-access/sshd.md〈WSL〉。
+#
+# 名字帶 before_、排在 install-packages 前面:apt 裝 openssh-server 時 postinst 立刻啟動 sshd,
+# 設定片段沒先寫好就會聽 22,跟 Windows 的 sshd 撞號、postinst 失敗。
+# 設定片段整份覆寫,重跑結果一樣。
+set -eu
+{{ includeTemplate "sh-sudo" . }}
+conf=/etc/ssh/sshd_config.d/50-wsl-port.conf
+
+# 1. 設定片段。套件還沒裝時目錄還不存在,先建
+$SUDO mkdir -p "$(dirname "$conf")"
+printf '# chezmoi 管理(install-openssh-server):Windows 的 sshd 佔 22,mirrored 下只聽 127.0.0.1\nPort {{ .opensshServer.wslPort }}\nListenAddress 127.0.0.1\n' | $SUDO tee "$conf" >/dev/null
+
+# 2. 還沒裝就到這裡為止:接下來 install-packages 裝的時候,postinst 第一次啟動就照這份設定
+if ! dpkg-query -W -f='${Status}' openssh-server 2>/dev/null | grep -q 'install ok installed'; then
+  echo "openssh-server 還沒裝,先寫好 $conf;裝好就聽 127.0.0.1:{{ .opensshServer.wslPort }}"
+  exit 0
+fi
+
+# 3. 已經裝了(之後改 port、或勾選前就自己裝過)就重新生效。systemd 沒在跑(沒開 systemd 的 WSL)就只寫設定。
+#    Ubuntu 22.10 起 sshd 是 socket activation:port 由 systemd generator 讀 sshd_config(含 sshd_config.d)產生 ssh.socket,
+#    所以要 daemon-reload 再重啟 ssh.socket
+if [ ! -d /run/systemd/system ]; then
+  echo "systemd 沒在跑,只把設定寫進 $conf;要有 systemd(ssh.socket),或手動起 sshd,才會聽 127.0.0.1:{{ .opensshServer.wslPort }}"
+  exit 0
+fi
+$SUDO systemctl daemon-reload
+if systemctl is-enabled ssh.socket >/dev/null 2>&1; then
+  $SUDO systemctl restart ssh.socket
+else
+  # Ubuntu 22.10 以前沒有 socket activation,sshd 自己讀 Port
+  $SUDO systemctl restart ssh.service
+fi
+echo "WSL 的 sshd 聽 127.0.0.1:{{ .opensshServer.wslPort }}。確認:ss -ltn 'sport = :{{ .opensshServer.wslPort }}'"
+{{ end -}}

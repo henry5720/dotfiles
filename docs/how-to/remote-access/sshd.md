@@ -4,7 +4,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 服務 | sshd；Linux、Windows、macOS 聽 22，Termux 聽 8022 |
+| 服務 | sshd；Linux、Windows、macOS 聽 22，WSL 聽 2222，Termux 聽 8022 |
 | 連線 | 一律走 tailnet，不開到公網，見 [remote-access〈判準〉](README.md#判準) |
 | 操作者 | 人（terminal、VS Code Remote-SSH）或 agent（ssh 指令、`ssh -R` 轉發） |
 | 用完收什麼 | 只是臨時讓人連進來的話，照下表「關」那欄關掉 |
@@ -14,12 +14,13 @@
 | 平台 | 暫時開 | 關 | 常駐 | port |
 |---|---|---|---|---|
 | [Linux（有 root）](#linux有-root) | `sudo systemctl start ssh` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 22 |
+| [WSL](#wsl) | `sudo systemctl start ssh.socket` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 2222 |
 | [Linux（沒有 root）](#linux沒有-root) | `/usr/sbin/sshd -D -f ~/.sshd/sshd_config` | Ctrl+C | 要管理員 | 自選 ≥ 1024 |
 | [Termux](#termux) | `sshd` | `pkill sshd` | Termux:Boot | 8022 |
 | [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 |
 | [macOS](#macos) | 系統設定 → 一般 → 共享 → 遠端登入 | 同一處關掉 | 開了就常駐 | 22 |
 
-公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../../home/private_dot_ssh/private_config.tmpl)。只在一台用的臨時主機（例如 IP 會變的 VM）寫在那台的 `~/.ssh/config.local`，不進 git，`chezmoi apply` 也不會蓋掉。
+公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../../home/private_dot_ssh/private_config.tmpl)。常用的主機都寫在那份（IP 可能會變的在註解標出來）；只在一台臨時用的才寫在那台的 `~/.ssh/config.local`，不進 git，`chezmoi apply` 也不會蓋掉。
 
 ## 公鑰放哪、權限
 
@@ -53,6 +54,39 @@ ss -ltn 'sport = :22'                           # 確認在聽 22
 
 出處：[Ubuntu Server〈OpenSSH server〉](https://ubuntu.com/server/docs/how-to/security/openssh-server/)、
 [sshd now uses socket-based activation](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)。
+
+## WSL
+
+選單勾 openssh-server，`chezmoi apply` 先寫 `/etc/ssh/sshd_config.d/50-wsl-port.conf`（`Port 2222`、`ListenAddress 127.0.0.1`），
+再用 apt 裝。順序不能反：apt 一裝完就啟動 sshd，那時還沒這份設定會聽 22，跟 Windows 的 sshd 撞號，安裝失敗。
+已經裝好之後改 port，`chezmoi apply` 會 daemon-reload 再重啟 `ssh.socket`。
+
+這個 repo 部署的 `.wslconfig` 是 mirrored 網路模式（[`home/dot_wslconfig`](../../../home/dot_wslconfig)），
+WSL 跟 Windows 共用 port，也共用 `127.0.0.1`。下面三條都從這裡來：
+
+- **為什麼是 2222**（值在 [`home/.chezmoidata/openssh-server.yaml`](../../../home/.chezmoidata/openssh-server.yaml)，ssh config 的 `Host *-wsl` 也讀它）：同一台的 Windows 自己的 sshd 已經佔 22，WSL 也聽 22 會撞號。
+- **為什麼只聽 127.0.0.1**：sshd 預設聽 `0.0.0.0`，mirrored 下等於開在 Windows 的網卡上，tailnet 上的別台直接連 `<Windows 主機>:2222` 就到 WSL 的 sshd
+  （Ubuntu 預設還允許密碼登入）。只聽 `127.0.0.1` 之後，對外的入口只剩 Windows 的 22。
+- **別台怎麼連**：`ssh <主機>-wsl`。ssh config 裡這個 Host 先跳到那台 Windows，再連它的 `127.0.0.1:2222`。
+  不寫 `localhost`：Windows 會先把它解析成 `::1`，mirrored 不支援 `::1`，連過去會被直接關掉。
+
+NAT 模式下這樣設行不行沒驗證過。
+
+```bash
+sudo systemctl start ssh.socket                 # 暫時開
+sudo systemctl stop ssh.socket ssh.service      # 關（只停 ssh.service 的話，下一條連線又會把它叫起來）
+sudo systemctl enable --now ssh.socket          # 常駐（裝好就是這樣）
+systemctl status ssh.socket                     # 確認在跑
+ss -ltn 'sport = :2222'                         # 確認在聽 127.0.0.1:2222
+```
+
+- **port 由 `ssh.socket` 決定**：Ubuntu 22.10 之後，systemd 開機或 daemon-reload 時讀 `sshd_config`（含 `sshd_config.d/`）
+  產生 `ssh.socket` 的 port。手動改 port 後要 `sudo systemctl daemon-reload && sudo systemctl restart ssh.socket`，
+  只重啟 `ssh.service` 不會換 port。
+- WSL 閒置太久，整個 VM 可能會被關掉，sshd 常駐擋不了；連不上時先從 Windows 打 `wsl` 把它叫起來。
+
+出處：[sshd now uses socket-based activation](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)、
+[WSL〈Mirrored mode networking〉](https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking)（「IPv6 localhost address ::1 is not supported」）。
 
 ## Linux（沒有 root）
 

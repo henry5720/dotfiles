@@ -610,6 +610,26 @@ class ToolTableTest(unittest.TestCase):
                 self.assertNotEqual(res["tools"]["windows-mcp"]["reason"], NO_METHOD)
                 self.assertFalse(res["needsUv"])
 
+    def test_openssh_server_apt_on_linux_wsl_listens_on_2222(self):
+        # #398:Linux 走 apt;只有 WSL 多跑 setup 改聽 127.0.0.1:2222(避開 Windows sshd 的 22)。
+        # Windows、macOS 內建不在清單裝,Termux 基本套件已有,proot 沒有 systemd,都標原因
+        script = "run_onchange_before_install-openssh-server.sh.tmpl"
+        for env in ("debian-root", "wsl"):
+            with self.subTest(env=env):
+                cell = self.snap[env, "openssh-server"]
+                self.assertEqual(cell["installing"], ["openssh-server"])
+                self.assertIn("openssh-server", cell["packages"]["apt/pkg"])
+                self.assertEqual(cell["scripts"][script], env == "wsl")
+        text = path_of("wsl", "openssh-server").read_text(encoding="utf-8")
+        self.assertIn("Port 2222", text)
+        self.assertIn("ListenAddress 127.0.0.1", text)
+        self.assertIn("restart ssh.socket", text)
+        reasons = {env: self.status[env]["tools"]["openssh-server"] for env in ("windows", "darwin", "android", "proot")}
+        for env, keyword in (("windows", "系統管理員"), ("darwin", "內建"), ("android", "基本套件"), ("proot", "systemd")):
+            with self.subTest(env=env):
+                self.assertEqual(reasons[env]["state"], "unsupported")
+                self.assertIn(keyword, reasons[env]["reason"])
+
     def test_system_command_is_reused_without_root_like_mise_tools(self):
         # 快照的 PATH 什麼都找不到,system 裝法另外驗:沒有 root 的 Debian 系、系統已經有 vim
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,4 +1,4 @@
-# 臨時、只在這台用的 Host 寫在 ~/.ssh/config.local(不進 git,chezmoi apply 不碰);沒有這個檔 ssh 也不報錯。
+# 只在這台臨時用的 Host 寫 ~/.ssh/config.local(不進 git);沒有這個檔也不報錯。
 # 要放最上面:寫在某個 Host 段底下的話,只有連那台時才讀得到。
 Include ~/.ssh/config.local
 
@@ -12,26 +12,34 @@ Host github.com
     User git
 
 # ===============================================================
-# 2. Tailscale 節點 (Tailscale devices)
+# 2. Tailscale:個人 tailnet(tail0fed08)
 # ===============================================================
-# HostName 寫 MagicDNS 的完整名稱(<裝置名>.<tailnet>.ts.net),新增主機也要加進第 6 節。
-#   不寫短名:短名只有同一個 tailnet 的機器解析得到。公司 tailnet(tail29dcee)的機器分享給
-#     個人 tailnet 的 laptop 之後,laptop 上 lianghua 解析失敗、pos2-dev 解析到區網的同名機器(#307)。
-#   不寫 IP:機器重新註冊 tailscale 就換 IP,名稱不變。
-# henry-laptop、henry-desktop、company-ec2 在個人 tailnet(tail0fed08);lianghua、pos2-dev
-# 是公司 tailnet 分享過來的。laptop 留短名。
-# Windows 端要跑 OpenSSH server,admin 金鑰必須放在
-#   C:\ProgramData\ssh\administrators_authorized_keys
+# HostName 寫 MagicDNS 完整名稱(<裝置名>.<tailnet>.ts.net):短名只有同一個 tailnet 解析得到(#307),
+# IP 重新註冊就換。新增主機也要加進第 6 節。
+# 例外:henry-laptop 的 HostName 是短名,只有同在這個 tailnet(tail0fed08)的機器解析得到。
 Host henry-laptop
     HostName henry-laptop
     User henry
 
-# 平常用的那台桌機。公司 tailnet 的 desktop-ifmbqh5 是另一台,不是它
+# 公司 tailnet 的 desktop-ifmbqh5 是另一台,不是它
 Host henry-desktop
     HostName henry-desktop.tail0fed08.ts.net
     User henry
 
-# 量華的 Windows(DESKTOP-4P510DU),本機帳號 user
+# 公司的機器,在個人 tailnet。Host 不帶轉發:每條連線都帶的話第二條搶不到 port,
+# 要轉發另打一條,見 docs/how-to/remote-access/README.md。
+# company-henry.pem 是公司發的;沒有它的機器用 id_ed25519(ssh 會跳過不存在的檔)。
+Host company-ec2
+    HostName company-ec2.tail0fed08.ts.net
+    User ubuntu
+    IdentityFile ~/.ssh/company-henry.pem
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+
+# ===============================================================
+# 3. Tailscale:公司 tailnet(tail29dcee)分享進來的
+# ===============================================================
+# 公司收回分享,這節全部連不到。
 Host lianghua
     HostName lianghua.tail29dcee.ts.net
     User user
@@ -41,61 +49,54 @@ Host pos2-dev
     User user
 
 # ===============================================================
-# 3. Oracle VPS — tenancy A (我的)
+# 4. 跳板後面的機器
 # ===============================================================
-# 這節和第 4 節是兩個不同的 Oracle 帳號(tenancy),各自有一份獨立的 Always Free
-# 額度,分開算。Host 名不一定等於 OCI Console 上的 display name,每台在自己那段
-# 註解標出 Console 上叫什麼,免得再搞混。
-# 判斷某台屬於哪個帳號,登進去跑:
-#   curl -sH "Authorization: Bearer Oracle" \
-#     http://169.254.169.254/opc/v2/instance/ | jq -r .compartmentId
-#   tenancy A = ...z3lry3...   tenancy B = ...7yh5zf...
-#
-# A1 額度(2 OCPU / 12 GB)全開給下面這一台。E2.1.Micro 額度(上限 2 台)是空的。
+# 量華的 Hyper-V 測試機。IP 在 Default Switch 上,VM 重開機可能會變:連不到先到 lianghua 查 IP。
+Host vm-1
+    HostName 172.22.123.179
+    User user-1
+    ProxyJump lianghua
 
-# Console display name:a1-2c12g。A1 Flex,2 OCPU / 12 GB,AD-2 / FD-1。
-# 跑著 keepalive(~/bin/oci-keepalive.sh,crontab @reboot 起)防閒置回收,
-# oracle-toolkit 的預設週期 3s/7s,實測整機 31% CPU(判定門檻是 20%)。
+# 個人電腦的 WSL:經那台 Windows 跳到它的 127.0.0.1:2222(WSL 的 sshd 只聽 127.0.0.1:2222,避開 Windows 的 22)。
+# 都叫 127.0.0.1,所以每台用 HostKeyAlias 分開記 host key。
+Host henry-desktop-wsl
+    ProxyJump henry-desktop
+    HostKeyAlias henry-desktop-wsl
+
+Host henry-laptop-wsl
+    ProxyJump henry-laptop
+    HostKeyAlias henry-laptop-wsl
+
+# Port 跟 WSL 那台 sshd 聽的同一個值(.chezmoidata/openssh-server.yaml)。
+# 不寫 localhost:Windows 的 localhost 先解析成 ::1,WSL 的 mirrored 網路模式不支援 ::1,連過去會被直接關掉
+Host *-wsl
+    HostName 127.0.0.1
+    Port {{ .opensshServer.wslPort }}
+    User henry
+
+# ===============================================================
+# 5. 公網
+# ===============================================================
+# Oracle 有兩個帳號(tenancy),Always Free 額度各算各的;判斷某台屬於哪個帳號見 docs/how-to/oracle-vps.md。
+
+# 我的(tenancy A)。Console 上叫 a1-2c12g。跑著 keepalive(~/bin/oci-keepalive.sh)防閒置回收,別停
 Host henry-a1
     HostName 129.80.13.225
     User ubuntu
 
-# ===============================================================
-# 4. Oracle VPS — tenancy B (別人的,不要動)
-# ===============================================================
-# 兩台 A1 各 1 OCPU / 6 GB,把 B 的 A1 額度佔滿了(2/2 OCPU、12/12 GB)。
-
-# a1-fleet-1,跑 hermes gateway + ollama + nginx
+# 別人的(tenancy B),不要動,見 docs/how-to/oracle-vps.md。a1-fleet-1:hermes gateway、ollama、nginx
 Host hermes
     HostName 150.136.179.96
     User henry
     IdentitiesOnly yes
 
-# a1-fleet-2,跑 openab-codex / openab-patrick / openab-claude 三個 container
-# User 是 ubuntu 不是 henry,原本寫 henry 一直 Permission denied
+# 別人的(tenancy B),不要動。a1-fleet-2:openab 的三個 container
 Host openab
     HostName 158.101.108.0
     User ubuntu
     IdentitiesOnly yes
 
-# 另一個拿掉的舊 Host:oracle-2 = 129.159.185.160。它也在 tenancy B,是
-# 2026-07-20 前的舊 hermes micro(instance-20260709-1122),不是我的,別終止它。
-
-# ===============================================================
-# 5. 公司 AWS EC2
-# ===============================================================
-# 走 tailnet。不帶任何轉發:遠端的 port 只有一個位子,每條連線都帶的話先連的搶到、其他默默失敗
-# (以前 9222 轉發就是這樣)。要轉發就在要用時另打一條 ssh -N -o ExitOnForwardFailure=yes -L/-R …,
-# 指令見 docs/how-to/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
-# company-henry.pem 是公司發的;沒有它的機器用自己的 id_ed25519(ssh 會跳過不存在的檔)。
-Host company-ec2
-    HostName company-ec2.tail0fed08.ts.net
-    User ubuntu
-    IdentityFile ~/.ssh/company-henry.pem
-    IdentityFile ~/.ssh/id_ed25519
-    IdentitiesOnly yes
-
-# 備用:EC2 的 tailscale 掛掉時走公網 IP。
+# company-ec2 的備用:tailscale 掛掉時走公網 IP。
 Host company-ec2-public
     HostName 18.141.90.104
     User ubuntu
@@ -108,6 +109,7 @@ Host company-ec2-public
 # 6. 沒有 root:tailnet 主機經 userspace tailscale
 # ===============================================================
 # userspace tailscale 沒有網卡,連線和解析都經 tailscaled(見 .chezmoitemplates/tailscale-userspace)。
+# 跳板後面的機器不用列:跳板那一段已經經過這裡,它們自己是跳板上的 localhost 或區網 IP。
 Host henry-laptop henry-desktop lianghua pos2-dev company-ec2
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
