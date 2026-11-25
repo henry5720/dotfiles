@@ -611,9 +611,9 @@ class ToolTableTest(unittest.TestCase):
                 self.assertFalse(res["needsUv"])
 
     def test_openssh_server_apt_on_linux_wsl_listens_on_2222(self):
-        # #398:Linux 走 apt;只有 WSL 多跑 setup 改聽 2222(避開 Windows sshd 的 22)。
+        # #398:Linux 走 apt;只有 WSL 多跑 setup 改聽 127.0.0.1:2222(避開 Windows sshd 的 22)。
         # Windows、macOS 內建不在清單裝,Termux 基本套件已有,proot 沒有 systemd,都標原因
-        script = "run_onchange_after_install-openssh-server.sh.tmpl"
+        script = "run_onchange_before_install-openssh-server.sh.tmpl"
         for env in ("debian-root", "wsl"):
             with self.subTest(env=env):
                 cell = self.snap[env, "openssh-server"]
@@ -622,6 +622,7 @@ class ToolTableTest(unittest.TestCase):
                 self.assertEqual(cell["scripts"][script], env == "wsl")
         text = path_of("wsl", "openssh-server").read_text(encoding="utf-8")
         self.assertIn("Port 2222", text)
+        self.assertIn("ListenAddress 127.0.0.1", text)
         self.assertIn("restart ssh.socket", text)
         reasons = {env: self.status[env]["tools"]["openssh-server"] for env in ("windows", "darwin", "android", "proot")}
         for env, keyword in (("windows", "系統管理員"), ("darwin", "內建"), ("android", "基本套件"), ("proot", "systemd")):

@@ -95,11 +95,11 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 ## 渲染成空的腳本
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
 ## 會跑的腳本

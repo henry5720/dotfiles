@@ -71,7 +71,6 @@ winget:
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-official.sh.tmpl
-.chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
@@ -82,6 +81,7 @@ winget:
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
 ## 會跑的腳本

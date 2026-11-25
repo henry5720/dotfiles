@@ -1473,9 +1473,10 @@ noroot_tailscale_checks() {
     "for h in henry-laptop henry-desktop lianghua pos2-dev company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
-  # WSL 的 Host 是跳板上的 localhost:只有 ProxyJump 那台 Windows 經 tailscaled,它自己不套 ProxyCommand(#397)
-  check "ssh config:WSL Host 沒有 ProxyCommand、經 ProxyJump 跳到那台 Windows" \
-    "for h in henry-desktop henry-laptop; do g=\$(ssh -G \$h-wsl) && ! grep -qi '^proxycommand' <<<\"\$g\" && grep -qx \"proxyjump \$h\" <<<\"\$g\" || { echo \"\$h-wsl 不對\"; exit 1; }; done"
+  # WSL 的 Host 是跳板上的 127.0.0.1:只有 ProxyJump 那台 Windows 經 tailscaled,它自己不套 ProxyCommand(#397)。
+  # 不用 localhost:mirrored 不支援 ::1(#396)
+  check "ssh config:WSL Host 是 127.0.0.1、沒有 ProxyCommand、經 ProxyJump 跳到那台 Windows" \
+    "for h in henry-desktop henry-laptop; do g=\$(ssh -G \$h-wsl) && ! grep -qi '^proxycommand' <<<\"\$g\" && grep -qx \"proxyjump \$h\" <<<\"\$g\" && grep -qx 'hostname 127.0.0.1' <<<\"\$g\" || { echo \"\$h-wsl 不對\"; exit 1; }; done"
   step "放時間標記(之後看 tailscale 有沒有重新下載)" "touch ~/.e2e-marker-ts"
   check "再 apply 一次 exit 0" "chezmoi apply --no-tty"
   check "再 apply 沒有重新下載 tailscale" \

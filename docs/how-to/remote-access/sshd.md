@@ -57,22 +57,27 @@ ss -ltn 'sport = :22'                           # 確認在聽 22
 
 ## WSL
 
-選單勾 openssh-server，`chezmoi apply` 會用 apt 裝好，再寫 `/etc/ssh/sshd_config.d/50-wsl-port.conf`（`Port 2222`），
-daemon-reload 後重啟 `ssh.socket`。
+選單勾 openssh-server，`chezmoi apply` 先寫 `/etc/ssh/sshd_config.d/50-wsl-port.conf`（`Port 2222`、`ListenAddress 127.0.0.1`），
+再用 apt 裝。順序不能反：apt 一裝完就啟動 sshd，那時還沒這份設定會聽 22，跟 Windows 的 sshd 撞號，安裝失敗。
+已經裝好之後改 port，`chezmoi apply` 會 daemon-reload 再重啟 `ssh.socket`。
 
-- **為什麼是 2222**（值在 [`home/.chezmoidata/openssh-server.yaml`](../../../home/.chezmoidata/openssh-server.yaml)，ssh config 的 `Host *-wsl` 也讀它）：同一台的 Windows 自己的 sshd 已經佔 22。WSL2 預設的 NAT 模式會把 WSL 裡聽的 port 轉到 Windows 的 localhost，
-  兩邊都聽 22 會撞號。
-- **別台怎麼連**：`ssh <主機>-wsl`。ssh config 裡這個 Host 先跳到那台 Windows，再連它的 `localhost:2222`，
-  所以對外的入口還是只有 Windows 的 22，WSL 重開換了 IP 也不影響。
-- **mirrored 網路模式不一樣**：WSL 改成 mirrored 模式（`.wslconfig` 的 `networkingMode=mirrored`）時，2222 會直接開在 Windows 的網卡上，
-  別台不經那台 Windows 也連得到，入口不再只有 Windows 的 22。
+這個 repo 部署的 `.wslconfig` 是 mirrored 網路模式（[`home/dot_wslconfig`](../../../home/dot_wslconfig)），
+WSL 跟 Windows 共用 port，也共用 `127.0.0.1`。下面三條都從這裡來：
+
+- **為什麼是 2222**（值在 [`home/.chezmoidata/openssh-server.yaml`](../../../home/.chezmoidata/openssh-server.yaml)，ssh config 的 `Host *-wsl` 也讀它）：同一台的 Windows 自己的 sshd 已經佔 22，WSL 也聽 22 會撞號。
+- **為什麼只聽 127.0.0.1**：sshd 預設聽 `0.0.0.0`，mirrored 下等於開在 Windows 的網卡上，tailnet 上的別台直接連 `<Windows 主機>:2222` 就到 WSL 的 sshd
+  （Ubuntu 預設還允許密碼登入）。只聽 `127.0.0.1` 之後，對外的入口只剩 Windows 的 22。
+- **別台怎麼連**：`ssh <主機>-wsl`。ssh config 裡這個 Host 先跳到那台 Windows，再連它的 `127.0.0.1:2222`。
+  不寫 `localhost`：Windows 會先把它解析成 `::1`，mirrored 不支援 `::1`，連過去會被直接關掉。
+
+NAT 模式下這樣設行不行沒驗證過。
 
 ```bash
 sudo systemctl start ssh.socket                 # 暫時開
 sudo systemctl stop ssh.socket ssh.service      # 關（只停 ssh.service 的話，下一條連線又會把它叫起來）
 sudo systemctl enable --now ssh.socket          # 常駐（裝好就是這樣）
 systemctl status ssh.socket                     # 確認在跑
-ss -ltn 'sport = :2222'                         # 確認在聽 2222
+ss -ltn 'sport = :2222'                         # 確認在聽 127.0.0.1:2222
 ```
 
 - **port 由 `ssh.socket` 決定**：Ubuntu 22.10 之後，systemd 開機或 daemon-reload 時讀 `sshd_config`（含 `sshd_config.d/`）
@@ -81,7 +86,7 @@ ss -ltn 'sport = :2222'                         # 確認在聽 2222
 - WSL 閒置太久，整個 VM 可能會被關掉，sshd 常駐擋不了；連不上時先從 Windows 打 `wsl` 把它叫起來。
 
 出處：[sshd now uses socket-based activation](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)、
-[WSL〈Accessing network applications with WSL〉](https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-linux-networking-apps-from-windows-localhost)。
+[WSL〈Mirrored mode networking〉](https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking)（「IPv6 localhost address ::1 is not supported」）。
 
 ## Linux（沒有 root）
 

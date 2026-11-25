@@ -57,8 +57,8 @@ Host vm-1
     User user-1
     ProxyJump lianghua
 
-# 個人電腦的 WSL:經那台 Windows 跳到它的 localhost:2222(WSL 的 sshd 聽 2222,避開 Windows 的 22)。
-# 都叫 localhost,所以每台用 HostKeyAlias 分開記 host key。
+# 個人電腦的 WSL:經那台 Windows 跳到它的 127.0.0.1:2222(WSL 的 sshd 只聽 127.0.0.1:2222,避開 Windows 的 22)。
+# 都叫 127.0.0.1,所以每台用 HostKeyAlias 分開記 host key。
 Host henry-desktop-wsl
     ProxyJump henry-desktop
     HostKeyAlias henry-desktop-wsl
@@ -67,9 +67,10 @@ Host henry-laptop-wsl
     ProxyJump henry-laptop
     HostKeyAlias henry-laptop-wsl
 
-# Port 跟 WSL 那台 sshd 聽的同一個值(.chezmoidata/openssh-server.yaml)
+# Port 跟 WSL 那台 sshd 聽的同一個值(.chezmoidata/openssh-server.yaml)。
+# 不寫 localhost:Windows 的 localhost 先解析成 ::1,WSL 的 mirrored 網路模式不支援 ::1,連過去會被直接關掉
 Host *-wsl
-    HostName localhost
+    HostName 127.0.0.1
     Port {{ .opensshServer.wslPort }}
     User henry
 

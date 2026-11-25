@@ -282,14 +282,15 @@ class WindowsDeployTest(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("ssh"), "沒有 ssh client")
     def test_wsl_hosts_jump_through_their_windows(self):
-        # WSL 的 sshd 聽 2222,經那台 Windows 跳到它的 localhost;兩台的 host key 分開記(#396)
+        # WSL 的 sshd 聽 127.0.0.1:2222,經那台 Windows 跳過去;兩台的 host key 分開記(#396)。
+        # 不寫 localhost:mirrored 不支援 ::1,Windows 的 localhost 先解析成 ::1 會連不上
         out = self.render("home/private_dot_ssh/private_config.tmpl", [])
         aliases = set()
         for host, windows in (("henry-desktop-wsl", "henry-desktop"), ("henry-laptop-wsl", "henry-laptop")):
             with self.subTest(host=host):
                 g = self.ssh_g(out, host)
                 self.assertEqual((g["hostname"], g["port"], g["proxyjump"], g["user"]),
-                                 ("localhost", "2222", windows, "henry"))
+                                 ("127.0.0.1", "2222", windows, "henry"))
                 aliases.add(g["hostkeyalias"])
         self.assertEqual(aliases, {"henry-desktop-wsl", "henry-laptop-wsl"})
 

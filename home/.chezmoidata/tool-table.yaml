@@ -262,7 +262,7 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 原生 Termux 裝 Tailscale 的 Android app
-    # 系統服務,照 ADR 0005 走 apt。WSL 的 setup 改聽 2222(Windows 的 sshd 佔 22),#398
+    # 系統服務,照 ADR 0005 走 apt。WSL 的 setup 在 apt 裝之前寫好設定,改聽 127.0.0.1:2222(Windows 的 sshd 佔 22),#398
     openssh-server:
       docs: https://ubuntu.com/server/docs/how-to/security/openssh-server/
       checked: 2026-11-25

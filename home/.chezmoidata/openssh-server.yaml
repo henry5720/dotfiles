@@ -1,4 +1,4 @@
-# 選裝工具 openssh-server(#398)在 WSL 上的 sshd port。run_onchange_after_install-openssh-server 寫進 /etc,
+# 選裝工具 openssh-server(#398)在 WSL 上的 sshd port。run_onchange_before_install-openssh-server 寫進 /etc,
 # ~/.ssh/config 的 Host *-wsl 連這個 port:兩邊讀同一個值,改這裡下次 chezmoi apply 一起換。
 # 為什麼不是 22 見 docs/how-to/remote-access/sshd.md〈WSL〉。
 opensshServer:
