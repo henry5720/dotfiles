@@ -437,6 +437,18 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("mise prune --yes", out)
         self.assertLess(out.index("mise install"), out.index("mise prune --yes"))
 
+    def test_windows_mise_script_prepends_shims_to_user_path(self):
+        # #400:ssh 進 Windows 預設是 cmd,不讀 PowerShell profile;shims 要在使用者 Path(HKCU\Environment)最前面。
+        # 照 mise 官方 install.ps1 的 Add-ToUserPath:讀原始值(%VARS% 不展開)、已經有就不寫、寫回 REG_EXPAND_SZ
+        out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", WINDOWS_LEAN)
+        self.assertIn(r"$shims = Join-Path $env:LOCALAPPDATA 'mise\shims'", out)
+        self.assertIn("GetValue('Path', '', 'DoNotExpandEnvironmentNames')", out)
+        self.assertIn("-notcontains $shims", out)
+        self.assertIn("Set-ItemProperty -LiteralPath 'HKCU:\\Environment' -Name Path -Type ExpandString "
+                      "-Value ((@($shims) + $parts) -join ';')", out)
+        # mise install 失敗也照加:之前裝好的工具一樣要找得到
+        self.assertLess(out.index("Set-ItemProperty"), out.index("mise install"))
+
     def test_windows_skip_summary_lists_unsupported_ticked_tools(self):
         script = SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl"
         self.assertEqual(self.render(script, WINDOWS_LEAN).strip(), "")

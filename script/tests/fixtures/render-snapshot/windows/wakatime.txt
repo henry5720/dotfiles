@@ -103,6 +103,13 @@ if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
     exit 0
 }
 
+$shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
+$parts = @((Get-Item -LiteralPath 'HKCU:\Environment').GetValue('Path', '', 'DoNotExpandEnvironmentNames') -split ';' | Where-Object { $_ })
+if (@($parts | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_).TrimEnd('\') }) -notcontains $shims) {
+    Set-ItemProperty -LiteralPath 'HKCU:\Environment' -Name Path -Type ExpandString -Value ((@($shims) + $parts) -join ';')
+    Write-Host ((T '5bey5oqKIHswfSDliqDliLDkvb/nlKjogIUgUGF0aCDmnIDliY3pnaIo5paw6ZaL55qEIGNtZOOAgXNzaCDmiY3oroDlvpfliLAp') -f $shims)
+}
+
 mise install
 if ($LASTEXITCODE -ne 0) {
     Write-Host (T 'bWlzZSBpbnN0YWxsIOacieW3peWFt+aykuijneWlvSzkuYvlvozoh6rlt7Hot5E6bWlzZSBpbnN0YWxs')
