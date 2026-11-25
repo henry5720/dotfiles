@@ -114,18 +114,20 @@ check_no_browser_wrappers() {
     "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ] && [ ! -e ~/.local/bin/remote-chrome-headless ] && [ ! -L ~/.local/bin/remote-chrome-headless ]"
 }
 
-# authorized_keys 從 github.com/henry5720.keys 抓(#402)。容器能連外,但 GitHub 掛了也要過:
+# authorized_keys 從 github.com/<githubUser>.keys 抓(#402)。帳號讀 .chezmoidata/github.yaml,fork 改了這裡跟著換。
+# 容器能連外,但 GitHub 掛了也要過:
 # 硬性檢查只看「抓得到就加、抓不到就警告」都成立的事;「GitHub 上的 key 都在」只在容器這時抓得到才比。
 # 抓不到的情況另外用假 curl(exit 6)跑一次。$FIX/key.pub 當作手動複製過去的 key。
 check_authorized_keys() {  # check_authorized_keys <跑一次腳本的容器內指令>
+  local user; user=$(awk '/^githubUser:/{print $2}' "$REPO/home/.chezmoidata/github.yaml")
   local blob="\$(awk '{print \$2}' $FIX/key.pub)"
   step "手動加一把 key 進 authorized_keys(模擬手動複製過去的)" "mkdir -p ~/.ssh && cat $FIX/key.pub >> ~/.ssh/authorized_keys"
-  check "跑兩次都 exit 0,印出加了 github.com/henry5720 的 key,或抓不到的警告" \
-    "for i in 1 2; do out=\$($1 2>&1) || exit 1; echo \"\$out\"; grep -qE '已加入 github.com/henry5720 的公鑰|警告:抓不到' <<<\"\$out\" || exit 1; done"
+  check "跑兩次都 exit 0,印出加了 github.com/$user 的 key,或抓不到的警告" \
+    "for i in 1 2; do out=\$($1 2>&1) || exit 1; echo \"\$out\"; grep -qE '已加入 github.com/$user 的公鑰|警告:抓不到' <<<\"\$out\" || exit 1; done"
   check "手動加的 key 還在、只有一行;沒有重複的行;權限 600" \
     "[ \"\$(grep -cF \"$blob\" ~/.ssh/authorized_keys)\" = 1 ] && [ -z \"\$(grep -v '^\$' ~/.ssh/authorized_keys | sort | uniq -d)\" ] && [ \"\$(stat -c %a ~/.ssh/authorized_keys)\" = 600 ]"
   check "這時抓得到 GitHub 的話,上面每把 key 都在 authorized_keys" \
-    "keys=\$(curl -fsSL --max-time 30 https://github.com/henry5720.keys) || { echo '抓不到 GitHub,略過比對'; exit 0; }; printf '%s\n' \"\$keys\" | awk '{print \$2}' | while read -r b; do grep -qF \"\$b\" ~/.ssh/authorized_keys || exit 1; done"
+    "keys=\$(curl -fsSL --max-time 30 https://github.com/$user.keys) || { echo '抓不到 GitHub,略過比對'; exit 0; }; printf '%s\n' \"\$keys\" | awk '{print \$2}' | while read -r b; do grep -qF \"\$b\" ~/.ssh/authorized_keys || exit 1; done"
   check "抓不到 GitHub(假 curl exit 6):exit 0、印警告、authorized_keys 不動" \
     "mkdir -p ~/nocurl && printf '#!%s\nexit 6\n' \"\$(command -v sh)\" > ~/nocurl/curl && chmod +x ~/nocurl/curl && before=\$(cat ~/.ssh/authorized_keys) && out=\$(PATH=~/nocurl:\$PATH; $1 2>&1); r=\$?; rm -rf ~/nocurl; echo \"\$out\"; [ \$r = 0 ] && grep -q '警告:抓不到' <<<\"\$out\" && [ \"\$(cat ~/.ssh/authorized_keys)\" = \"\$before\" ]"
 }
