@@ -36,7 +36,7 @@ cleanup() {
 # 放在家目錄底下,因為 Termux 容器沒有 /tmp(在 Termux 裡是 $PREFIX/tmp)。
 #   $FIX/dotfiles        repo 工作目錄(含未 commit、不含 .gitignore 擋掉的)commit 成的 git repo,
 #                        origin 是 GitHub 的 HTTPS URL
-#   $FIX/key、key.pub     假的 henry5720 key(Termux 測 authorized_keys 用)
+#   $FIX/key、key.pub     假 key(authorized_keys 測手動加的 key 不被洗掉用)
 #   $FIX/agent-config.git agent-config 的假 remote(bare repo,內容是三個 skill(e2e-hello、
 #                        browser-access 的真 playwright-extension-attach、remote-access 的真腳本,從 $AGENT_CONFIG_DIR 複製)+ 一個 MCP server + instructions/ 的 AGENTS.md 與 agent-commit)
 # CTR_USER／CTR_HOME 由 setup_<目標> 設定。

@@ -70,7 +70,7 @@ watcher 行程,要有 MCP server 在跑才會同步(見 [codegraph〈索引什�
 
 ### 4. 它自己寫的設定,chezmoi 會不會蓋掉
 
-裝完跑 `chezmoi verify`。四種情況:
+裝完跑 `chezmoi verify --exclude scripts`。四種情況:
 
 | installer 寫進哪 | 結果 | 怎麼辦 |
 |---|---|---|

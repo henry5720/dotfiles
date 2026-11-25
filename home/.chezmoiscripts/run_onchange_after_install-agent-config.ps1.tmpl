@@ -22,7 +22,7 @@
 {{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
 $dir = Join-Path $env:APPDATA 'skillshare'
-$remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/henry5720/agent-config.git' }
+$remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/{{ .githubUser }}/agent-config.git' }
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
 $manual = "skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets; skillshare install -g; skillshare sync --all"
 

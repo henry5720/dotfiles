@@ -20,7 +20,7 @@
 # 再照抄 README 那行:source 已經在,chezmoi init 就不 clone,直接用它渲染、apply。
 # (不把路徑直接給 init:clone 本機路徑要外部 git,連 go-git 也是,但全新機器還沒有 git。
 #  真的從 GitHub clone 那段由「chezmoi init henry5720 猜出 HTTPS」那項檢查驗。)
-# 機器上不放 SSH key(新機器本來就可以沒有);Termux 那段之後才放假 key 測 authorized_keys。
+# 機器上不放 SSH key(新機器本來就可以沒有);authorized_keys 那段才放一把假 key,當作手動加的。
 # 秘密類 prompt 用 --promptString 給假值。
 #
 # 要加檢查項目:改下面「目標:<目標>」那一段的 scenario_<目標>,其他地方不用動。
@@ -112,6 +112,22 @@ check_no_browser_wrappers() {
     "[ -f ~/.ssh/config ] && ! grep -Eqi '^[[:space:]]*Host .*company-ec2-(attach|socks|chrome)' ~/.ssh/config && ! ssh -G company-ec2 | grep -Ei '^(localforward|remoteforward|dynamicforward) '"
   check "沒有 ~/.local/bin/remote-chrome、remote-chrome-headless" \
     "[ ! -e ~/.local/bin/remote-chrome ] && [ ! -L ~/.local/bin/remote-chrome ] && [ ! -e ~/.local/bin/remote-chrome-headless ] && [ ! -L ~/.local/bin/remote-chrome-headless ]"
+}
+
+# authorized_keys 從 github.com/henry5720.keys 抓(#402)。容器能連外,但 GitHub 掛了也要過:
+# 硬性檢查只看「抓得到就加、抓不到就警告」都成立的事;「GitHub 上的 key 都在」只在容器這時抓得到才比。
+# 抓不到的情況另外用假 curl(exit 6)跑一次。$FIX/key.pub 當作手動複製過去的 key。
+check_authorized_keys() {  # check_authorized_keys <跑一次腳本的容器內指令>
+  local blob="\$(awk '{print \$2}' $FIX/key.pub)"
+  step "手動加一把 key 進 authorized_keys(模擬手動複製過去的)" "mkdir -p ~/.ssh && cat $FIX/key.pub >> ~/.ssh/authorized_keys"
+  check "跑兩次都 exit 0,印出加了 github.com/henry5720 的 key,或抓不到的警告" \
+    "for i in 1 2; do out=\$($1 2>&1) || exit 1; echo \"\$out\"; grep -qE '已加入 github.com/henry5720 的公鑰|警告:抓不到' <<<\"\$out\" || exit 1; done"
+  check "手動加的 key 還在、只有一行;沒有重複的行;權限 600" \
+    "[ \"\$(grep -cF \"$blob\" ~/.ssh/authorized_keys)\" = 1 ] && [ -z \"\$(grep -v '^\$' ~/.ssh/authorized_keys | sort | uniq -d)\" ] && [ \"\$(stat -c %a ~/.ssh/authorized_keys)\" = 600 ]"
+  check "這時抓得到 GitHub 的話,上面每把 key 都在 authorized_keys" \
+    "keys=\$(curl -fsSL --max-time 30 https://github.com/henry5720.keys) || { echo '抓不到 GitHub,略過比對'; exit 0; }; printf '%s\n' \"\$keys\" | awk '{print \$2}' | while read -r b; do grep -qF \"\$b\" ~/.ssh/authorized_keys || exit 1; done"
+  check "抓不到 GitHub(假 curl exit 6):exit 0、印警告、authorized_keys 不動" \
+    "mkdir -p ~/nocurl && printf '#!%s\nexit 6\n' \"\$(command -v sh)\" > ~/nocurl/curl && chmod +x ~/nocurl/curl && before=\$(cat ~/.ssh/authorized_keys) && out=\$(PATH=~/nocurl:\$PATH; $1 2>&1); r=\$?; rm -rf ~/nocurl; echo \"\$out\"; [ \$r = 0 ] && grep -q '警告:抓不到' <<<\"\$out\" && [ \"\$(cat ~/.ssh/authorized_keys)\" = \"\$before\" ]"
 }
 
 # 接個人電腦日常的 Chrome(#264):~/.local/bin/playwright-extension-attach 指向 agent-config 的 browser-access skill,
@@ -547,6 +563,10 @@ scenario_ubuntu() {
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
+  check "沒勾 openssh-server:authorized_keys 腳本渲染成空的、沒跑" \
+    "! chezmoi status | grep -q authorized-keys-from-github && ! grep -q 'github.com/henry5720 的公鑰' ~/e2e-init.log"
+  # 不為了這項裝 sshd:渲染時給 tools 勾 openssh-server,直接跑渲染出來的腳本(authorized_keys 跟 sshd 裝了沒無關)
+  check_authorized_keys "chezmoi execute-template --override-data '{\"tools\":[\"openssh-server\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_after_authorized-keys-from-github.sh.tmpl | sh"
   check_snapserver
   check_snapclient
   # agent 有裝、wakatime 沒勾:不裝 plugin
@@ -1216,28 +1236,22 @@ scenario_termux() {
   # Termux 的 chsh 寫的是 ~/.termux/shell 這個 symlink,不是 passwd。
   check_zsh_env "readlink -f ~/.termux/shell"
 
-  # key 不在 init 時放:之後放好、再 apply 一次,authorized_keys 才補上(docs/new-machine-setup.md 的步驟)
-  bold "▶ 之後才放 SSH key,再 apply"
-  # Termux 的 openssh 套件安裝時會建一個空的 authorized_keys,所以看「沒有這把 key」而不是「沒有檔案」
-  check "還沒放 key:authorized_keys 腳本渲染成空的、沒加任何東西" \
-    "! grep -qF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys 2>/dev/null && ! chezmoi status | grep -q termux-authorized-keys"
-  step "放假 key(~/.ssh/henry5720、henry5720.pub)" \
-    "cp $FIX/key ~/.ssh/henry5720 && cp $FIX/key.pub ~/.ssh/henry5720.pub && chmod 600 ~/.ssh/henry5720"
-  check "放了 key 之後 authorized_keys 腳本待跑" "chezmoi status | grep -E '^.?R.*termux-authorized-keys'"
-  check "apply exit 0" "chezmoi apply --no-tty"
-  check "authorized_keys 有這把 key 一次、權限 600" \
-    "[ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ] && [ \"\$(stat -c %a ~/.ssh/authorized_keys)\" = 600 ]"
-  # run_onchange_ 內容沒變就不會再跑,所以直接把渲染出來的腳本再跑一次
-  check "腳本重跑不重複加" \
-    "chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl | sh | grep -q '已有 henry5720 這把 key' && [ \"\$(grep -cF \"\$(awk '{print \$2}' $FIX/key.pub)\" ~/.ssh/authorized_keys)\" = 1 ]"
+  # 原生 Termux 不用勾 openssh-server(基底就有 openssh),也不用手動放 key:每次 apply 都從 GitHub 抓(#402)
+  bold "▶ authorized_keys 從 GitHub 抓"
+  check "init --apply 時就跑了:印出加了誰的 key,或抓不到的警告" \
+    "grep -qE '已加入 github.com/henry5720 的公鑰|警告:抓不到' ~/e2e-init.log"
+  check "authorized_keys 腳本每次 apply 都跑(chezmoi status 一直是 R)" "chezmoi status | grep -qE '^.?R.*authorized-keys-from-github'"
+  check_authorized_keys "chezmoi apply --no-tty"
 
   bold "▶ 第二次 apply"
-  check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
+  check "除了每次都跑的 authorized_keys,沒有腳本待跑" \
+    "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*authorized-keys-from-github')\" ]"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、pkg 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' $APT_LOG); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' $APT_LOG)\" = \"\$before\" ]"
-  check "chezmoi verify 通過" "chezmoi verify"
+  # 每次都跑的 authorized_keys 腳本永遠算沒對齊,verify 只看檔案(同 macos.yml);待跑的腳本上面 status 那項看過
+  check "chezmoi verify 通過(不看腳本)" "chezmoi verify --exclude scripts"
 
   # 跟 Linux 一樣用 tools 加減工具(#274)。勾 pkg 裝得起來的(gh、node、uv、wakatime、codex、cloudflared、snapclient),
   # 再勾兩個 Termux 裝不了的(claude、headless-chrome):apply 照樣 exit 0,最後列出略過與原因。
