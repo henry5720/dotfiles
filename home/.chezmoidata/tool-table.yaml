@@ -262,6 +262,30 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 原生 Termux 裝 Tailscale 的 Android app
+    # 系統服務,照 ADR 0005 走 apt。WSL 的 setup 改聽 2222(Windows 的 sshd 佔 22),#398
+    openssh-server:
+      docs: https://ubuntu.com/server/docs/how-to/security/openssh-server/
+      checked: 2026-11-25
+      cmd: sshd
+      install: {linux: [apt]}
+      apt: [openssh-server]
+      setup: install-openssh-server
+      rules:
+        - when: [windows]
+          state: unsupported
+          reason: Windows 內建 OpenSSH Server，啟用要系統管理員權限，在設定的選用功能裡開
+        - when: [darwin]
+          state: unsupported
+          reason: macOS 內建 sshd，在系統設定的共享開啟遠端登入
+        - when: [android]
+          state: unsupported
+          reason: 原生 Termux 的基本套件已經有 openssh
+        - when: [non-debian]
+          state: unsupported
+          reason: openssh-server 走 apt，只能裝在 Debian 系
+        - when: [noroot]
+          state: unsupported
+          reason: 要 root：sshd 是系統服務，用 apt 裝
     # 官方也有 apt 源,但 GitHub release 就是單一執行檔:照 #231 走 mise
     cloudflared:
       docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/

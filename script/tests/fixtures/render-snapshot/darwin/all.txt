@@ -15,6 +15,7 @@ earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-ag
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login [brew]
 code-server      瀏覽器開的 VS Code [brew]
 tailscale        私人 VPN,連自己的機器 [cask]
+openssh-server   sshd:讓別台 ssh 進這台(WSL 改聽 2222,避開 Windows 的 22)（裝不了：macOS 內建 sshd，在系統設定的共享開啟遠端登入）
 cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [brew]
 herdr            終端機多工,同時開多個 coding agent [official]
 ttyd             把終端機開成網頁,ttyd-serve 用 [brew]
@@ -44,7 +45,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "custom"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "openssh-server", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -55,7 +56,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapclient node codegraph headless-chrome playwright-cli agent-config
 
 ## 略過(裝不了)
-earlyoom snapserver windows-mcp
+earlyoom openssh-server snapserver windows-mcp
 
 ## 套件清單
 apt/pkg: 
@@ -87,6 +88,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
@@ -552,6 +554,7 @@ skip_env() {  # skip_env <工具> <原因>
 }
 
 skip_env 'earlyoom' 'earlyoom 與記憶體、CPU 的保護都靠 Linux 的 systemd，只裝在 Linux'
+skip_env 'openssh-server' 'macOS 內建 sshd，在系統設定的共享開啟遠端登入'
 skip_env 'snapserver' 'voice-out 靠 systemd user service 開關，這台沒有 systemd，朗讀服務放跑 agent 的 Linux 主機'
 skip_env 'windows-mcp' 'windows-mcp 操作的是 Windows 桌面，只裝在 Windows 主機；WSL 的 agent 透過 MCP 叫用 Windows 那份'
 

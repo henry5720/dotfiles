@@ -15,6 +15,7 @@ earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-ag
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login [script]
 code-server      瀏覽器開的 VS Code [official]
 tailscale        私人 VPN,連自己的機器 [official]（不建議：網路借 Android 那份 Tailscale app，再裝一份會變成 tailnet 上兩個節點）
+openssh-server   sshd:讓別台 ssh 進這台(WSL 改聽 2222,避開 Windows 的 22) [apt]
 cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
 herdr            終端機多工,同時開多個 coding agent [official]
 ttyd             把終端機開成網頁,ttyd-serve 用 [mise]
@@ -44,7 +45,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
     machineUse = "custom"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "openssh-server", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -52,13 +53,13 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     codexModel = ""
 
 ## 要裝
-zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapclient node codegraph playwright-cli agent-config
+zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server tailscale openssh-server cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapclient node codegraph playwright-cli agent-config
 
 ## 略過(裝不了)
 earlyoom snapserver headless-chrome windows-mcp
 
 ## 套件清單
-apt/pkg: git curl jq python3 poppler-utils ffmpeg libatomic1 snapclient vim zsh
+apt/pkg: git curl jq python3 poppler-utils ffmpeg libatomic1 openssh-server snapclient vim zsh
 brew: 
 brew cask: 
 winget: 
@@ -95,6 +96,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
@@ -757,7 +759,7 @@ set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl jq python3 poppler-utils ffmpeg libatomic1 snapclient vim zsh; do
+for pkg in git curl jq python3 poppler-utils ffmpeg libatomic1 openssh-server snapclient vim zsh; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
     || missing="$missing $pkg"
 done

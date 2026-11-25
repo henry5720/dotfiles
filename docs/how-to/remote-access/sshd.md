@@ -4,7 +4,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 服務 | sshd；Linux、Windows、macOS 聽 22，Termux 聽 8022 |
+| 服務 | sshd；Linux、Windows、macOS 聽 22，WSL 聽 2222，Termux 聽 8022 |
 | 連線 | 一律走 tailnet，不開到公網，見 [remote-access〈判準〉](README.md#判準) |
 | 操作者 | 人（terminal、VS Code Remote-SSH）或 agent（ssh 指令、`ssh -R` 轉發） |
 | 用完收什麼 | 只是臨時讓人連進來的話，照下表「關」那欄關掉 |
@@ -14,6 +14,7 @@
 | 平台 | 暫時開 | 關 | 常駐 | port |
 |---|---|---|---|---|
 | [Linux（有 root）](#linux有-root) | `sudo systemctl start ssh` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 22 |
+| [WSL](#wsl) | `sudo systemctl start ssh.socket` | `sudo systemctl stop ssh.socket ssh.service` | 裝好預設就常駐 | 2222 |
 | [Linux（沒有 root）](#linux沒有-root) | `/usr/sbin/sshd -D -f ~/.sshd/sshd_config` | Ctrl+C | 要管理員 | 自選 ≥ 1024 |
 | [Termux](#termux) | `sshd` | `pkill sshd` | Termux:Boot | 8022 |
 | [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 |
@@ -53,6 +54,32 @@ ss -ltn 'sport = :22'                           # 確認在聽 22
 
 出處：[Ubuntu Server〈OpenSSH server〉](https://ubuntu.com/server/docs/how-to/security/openssh-server/)、
 [sshd now uses socket-based activation](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)。
+
+## WSL
+
+選單勾 openssh-server，`chezmoi apply` 會用 apt 裝好，再寫 `/etc/ssh/sshd_config.d/50-wsl-port.conf`（`Port 2222`），
+daemon-reload 後重啟 `ssh.socket`。
+
+- **為什麼是 2222**：同一台的 Windows 自己的 sshd 已經佔 22。WSL2 預設的 NAT 模式會把 WSL 裡聽的 port 轉到 Windows 的 localhost，
+  兩邊都聽 22 會撞號。
+- **別台怎麼連**：`ssh <主機>-wsl`。ssh config 裡這個 Host 先跳到那台 Windows，再連它的 `localhost:2222`，
+  所以對外的入口還是只有 Windows 的 22，WSL 重開換了 IP 也不影響。
+
+```bash
+sudo systemctl start ssh.socket                 # 暫時開
+sudo systemctl stop ssh.socket ssh.service      # 關（只停 ssh.service 的話，下一條連線又會把它叫起來）
+sudo systemctl enable --now ssh.socket          # 常駐（裝好就是這樣）
+systemctl status ssh.socket                     # 確認在跑
+ss -ltn 'sport = :2222'                         # 確認在聽 2222
+```
+
+- **port 由 `ssh.socket` 決定**：Ubuntu 22.10 之後，systemd 開機或 daemon-reload 時讀 `sshd_config`（含 `sshd_config.d/`）
+  產生 `ssh.socket` 的 port。手動改 port 後要 `sudo systemctl daemon-reload && sudo systemctl restart ssh.socket`，
+  只重啟 `ssh.service` 不會換 port。
+- WSL 閒置太久，整個 VM 可能會被關掉，sshd 常駐擋不了；連不上時先從 Windows 打 `wsl` 把它叫起來。
+
+出處：[sshd now uses socket-based activation](https://discourse.ubuntu.com/t/sshd-now-uses-socket-based-activation-ubuntu-22-10-and-later/30189)、
+[WSL〈Accessing network applications with WSL〉](https://learn.microsoft.com/en-us/windows/wsl/networking#accessing-linux-networking-apps-from-windows-localhost)。
 
 ## Linux（沒有 root）
 

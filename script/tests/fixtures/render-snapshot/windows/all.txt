@@ -15,6 +15,7 @@ earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-ag
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login [mise]
 code-server      瀏覽器開的 VS Code（裝不了：code-server 官方不出 Windows 版，到 WSL 裝）
 tailscale        私人 VPN,連自己的機器 [winget]
+openssh-server   sshd:讓別台 ssh 進這台(WSL 改聽 2222,避開 Windows 的 22)（裝不了：Windows 內建 OpenSSH Server，啟用要系統管理員權限，在設定的選用功能裡開）
 cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
 herdr            終端機多工,同時開多個 coding agent [mise]
 ttyd             把終端機開成網頁,ttyd-serve 用 [mise]
@@ -42,7 +43,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     discordBotToken = ""
     wakatimeApiKey = ""
     machineUse = "custom"
-    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
+    tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "openssh-server", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -57,7 +58,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 starship eza fzf bat ripgrep vim fastfetch bottom gh tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapclient node codegraph headless-chrome playwright-cli agent-config windows-mcp
 
 ## 略過(裝不了)
-zsh btop earlyoom code-server snapserver
+zsh btop earlyoom code-server openssh-server snapserver
 
 ## 套件清單
 apt/pkg: 
@@ -362,6 +363,7 @@ Write-Host (T 'LSB6c2g6V2luZG93cyDnmoQgc2hlbGwg5pivIFBvd2VyU2hlbGzvvIzoo5zlhajjg
 Write-Host (T 'LSBidG9wOmJ0b3Ag55qEIHJlbGVhc2Ug5Y+q5pyJIExpbnV4IOeJiO+8jOaUueWLviBib3R0b20=')
 Write-Host (T 'LSBlYXJseW9vbTplYXJseW9vbSDoiIfoqJjmhrbpq5TjgIFDUFUg55qE5L+d6K236YO96Z2gIExpbnV4IOeahCBzeXN0ZW1k77yM5Y+q6KOd5ZyoIExpbnV4')
 Write-Host (T 'LSBjb2RlLXNlcnZlcjpjb2RlLXNlcnZlciDlrpjmlrnkuI3lh7ogV2luZG93cyDniYjvvIzliLAgV1NMIOijnQ==')
+Write-Host (T 'LSBvcGVuc3NoLXNlcnZlcjpXaW5kb3dzIOWFp+W7uiBPcGVuU1NIIFNlcnZlcu+8jOWVn+eUqOimgeezu+e1seeuoeeQhuWToeasiumZkO+8jOWcqOioreWumueahOmBuOeUqOWKn+iDveijoemWiw==')
 Write-Host (T 'LSBzbmFwc2VydmVyOnNuYXBzZXJ2ZXIg5rKS5pyJIFdpbmRvd3Mg54mI77yM5pyX6K6A5pyN5YuZ5pS+6LeRIGFnZW50IOeahCBMaW51eCDkuLvmqZ8=')
 exit 0
 

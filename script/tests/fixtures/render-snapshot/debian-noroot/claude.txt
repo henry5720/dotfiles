@@ -15,6 +15,7 @@ earlyoom         記憶體快滿先砍最肥的程序；ssh、tailscale、ssm-ag
 gh               GitHub CLI(官方 apt 源),裝完 gh auth login [mise]
 code-server      瀏覽器開的 VS Code [mise]
 tailscale        私人 VPN,連自己的機器 [script]
+openssh-server   sshd:讓別台 ssh 進這台(WSL 改聽 2222,避開 Windows 的 22)（裝不了：要 root：sshd 是系統服務，用 apt 裝）
 cloudflared      Cloudflare Tunnel:把服務開給 tailnet 外的人 [mise]
 herdr            終端機多工,同時開多個 coding agent [official]
 ttyd             把終端機開成網頁,ttyd-serve 用 [mise]
@@ -79,6 +80,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
+.chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl

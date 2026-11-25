@@ -114,9 +114,10 @@ class ToolStatusTest(unittest.TestCase):
                                "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "windows-mcp": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "snapserver": "裝不了",
-                                "snapclient": "裝不了", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
+                                "snapclient": "裝不了", "earlyoom": "裝不了", "windows-mcp": "裝不了",
+                                "openssh-server": "裝不了"}),
             "mac": (MAC, {"snapserver": "裝不了",
-                          "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
+                          "earlyoom": "裝不了", "windows-mcp": "裝不了", "openssh-server": "裝不了"}),
         }
         for name, (env, marks) in expected.items():
             with self.subTest(env=name):
@@ -138,8 +139,8 @@ class ToolStatusTest(unittest.TestCase):
                                                      "snapclient", "earlyoom", "windows-mcp"}),
                                    ("arm", ARM, {"headless-chrome", "windows-mcp"}),
                                    ("fedora", FEDORA, {"headless-chrome", "snapserver", "snapclient",
-                                                       "earlyoom", "windows-mcp"}),
-                                   ("mac", MAC, {"snapserver", "earlyoom", "windows-mcp"})):
+                                                       "earlyoom", "windows-mcp", "openssh-server"}),
+                                   ("mac", MAC, {"snapserver", "earlyoom", "windows-mcp", "openssh-server"})):
             with self.subTest(env=name):
                 out = self.init(env, "full").stdout
                 self.assertIn('    machineUse = "full"', out)
@@ -395,7 +396,7 @@ exit 0
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
                                "claude", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
-                               "earlyoom", "bottom", "windows-mcp"})
+                               "earlyoom", "bottom", "windows-mcp", "openssh-server"})
 
     def test_android_codex_is_pkg(self):
         # #348:Termux 的 codex 走 termux-packages 的 codex,不跑官方 installer;設定目錄 ~/.codex 跟著部署
@@ -633,9 +634,12 @@ exit 0
                             r"(?<![\w-])earlyoom(?![\w-])")
 
     def run_earlyoom(self, data=None):
-        """跑渲染出來的 install-earlyoom:sudo、systemctl 是假的,寫 /etc 的改寫到 self.dir/root 底下。"""
-        script = f"{SCRIPTS}/run_onchange_after_install-earlyoom.sh.tmpl"
-        text = self.chezmoi({}, "execute-template", data={"tools": ["earlyoom"], **(data or {})},
+        return self.run_setup("earlyoom", data=data)
+
+    def run_setup(self, tool, env=None, data=None):
+        """跑渲染出來的 install-<tool>:sudo、systemctl 是假的,寫 /etc 的改寫到 self.dir/root 底下。"""
+        script = f"{SCRIPTS}/run_onchange_after_install-{tool}.sh.tmpl"
+        text = self.chezmoi(env or {}, "execute-template", data={"tools": [tool], **(data or {})},
                             stdin=(self.source / script).read_text(encoding="utf-8")).stdout
         self.assert_sh(text)
         root = self.dir / "root"
@@ -716,6 +720,25 @@ exec "$cmd" "$@"
         restarted = [c for c in calls if re.search(r"\b(restart|stop|reload-or-restart|try-restart)\b", c)
                      and "earlyoom" not in c]
         self.assertEqual(restarted, [])
+
+    # ===============================================================
+    # openssh-server(#398):WSL 改聽 2222,避開 Windows sshd 的 22
+    # ===============================================================
+    def test_openssh_server_setup_only_on_wsl(self):
+        script = f"{SCRIPTS}/run_onchange_after_install-openssh-server.sh.tmpl"
+        self.assertEqual(self.render(WSL, script, ["vim"]).strip(), "")
+        for name, env in (("ubuntu", {}), ("fedora", FEDORA), ("mac", MAC), ("android", ANDROID)):
+            with self.subTest(env=name):
+                self.assertEqual(self.render(env, script, ["openssh-server"]).strip(), "")
+
+    def test_openssh_server_wsl_listens_on_2222_and_reruns_cleanly(self):
+        for _ in range(2):   # 重跑:不重複寫、不報錯
+            run, root, calls = self.run_setup("openssh-server", env=WSL)
+            self.assertEqual(run.returncode, 0, run.stderr)
+        conf = (root / "etc/ssh/sshd_config.d/50-wsl-port.conf").read_text(encoding="utf-8").splitlines()
+        self.assertEqual([l for l in conf if not l.startswith("#")], ["Port 2222"])
+        # socket activation:generator 在 daemon-reload 時讀 sshd_config,之後重啟 ssh.socket 才換 port
+        self.assertLess(calls.index("systemctl daemon-reload"), calls.index("systemctl restart ssh.socket"))
 
     def test_earlyoom_numbers_come_from_chezmoidata(self):
         # 改 .chezmoidata 的 yaml,渲染出來的腳本跟著變(run_onchange 下次 apply 重跑)
