@@ -7,10 +7,20 @@
        1. PATH 從登錄重讀一次:mise 是 before_ 的 install-packages-windows 剛用 winget 裝的,
           winget 改的是使用者 Path,chezmoi 這個 process 繼承的 PATH 還沒有它
        2. 還是找不到 mise 就印一行、exit 0
-       3. mise install(順便建 shims;PowerShell profile 把 %LOCALAPPDATA%\mise\shims 加進 PATH)。
+       3. %LOCALAPPDATA%\mise\shims 加到使用者 Path 最前面,已經有就不動(#400):ssh 進 Windows 預設是 cmd,
+          不讀 PowerShell profile,只看使用者 Path。mise 官方說 cmd.exe 與不讀 profile 的程式要把 shims 放進
+          使用者 Path(https://mise.jdx.dev/dev-tools/shims.html);我們用 winget 裝 mise,用不到官方 install.ps1 的
+          MISE_INSTALL_SHIMS_PATH=1,做法照抄它的 Add-ToUserPath(https://mise.jdx.dev/install.ps1):
+          直接讀寫 HKCU\Environment,讀原始值、寫回 REG_EXPAND_SZ。不用 [Environment]::SetEnvironmentVariable
+          (set-mcp-env 那支用它):5.1 的 .NET Framework 讀 User 範圍會把 %USERPROFILE% 這類變數展開、寫回成 REG_SZ,
+          winget 等寫進去的 %VARS% 會被改成寫死的路徑。
+          shortcut:沒有廣播 WM_SETTINGCHANGE,ssh 與新登入讀得到,從已經開著的檔案總管開的程式要登出再登入才讀得到;
+          要的話照官方 install.ps1 補 SendMessageTimeout。
+          PowerShell profile 也會把 shims 加進 PATH,但它先看已經有沒有,這裡加過就不會再加一次。
+       4. mise install(順便建 shims)。
           要打 GitHub API(aqua backend;未登入每小時 60 次),被限流時設 GITHUB_TOKEN 再 apply。
           裝失敗只印一行、exit 0:不然 apply 中止。代價是不會自動重試,要自己跑 mise install。
-       4. mise prune:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報 No version is set for shim(#330)。
+       5. mise prune:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報 No version is set for shim(#330)。
           清單變了才跑(run_onchange_)。自己 mise use -g 的與專案 mise.toml 要的版本都留著
           (mise 記著載入過的設定檔),只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
           install 失敗也照跑;prune 失敗只印一行、exit 0。
@@ -26,6 +36,13 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [En
 if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
     Write-Host (T '{{ "找不到 mise,CLI 工具沒裝。先 winget install --id jdx.mise --exact,開新的 PowerShell 再 chezmoi apply" | b64enc }}')
     exit 0
+}
+
+$shims = Join-Path $env:LOCALAPPDATA 'mise\shims'
+$parts = @((Get-Item -LiteralPath 'HKCU:\Environment').GetValue('Path', '', 'DoNotExpandEnvironmentNames') -split ';' | Where-Object { $_ })
+if (@($parts | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_).TrimEnd('\') }) -notcontains $shims) {
+    Set-ItemProperty -LiteralPath 'HKCU:\Environment' -Name Path -Type ExpandString -Value ((@($shims) + $parts) -join ';')
+    Write-Host ((T '{{ "已把 {0} 加到使用者 Path 最前面(新開的 cmd、ssh 才讀得到)" | b64enc }}') -f $shims)
 }
 
 mise install
