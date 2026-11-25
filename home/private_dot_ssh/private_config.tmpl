@@ -18,8 +18,8 @@ Host github.com
 #   不寫短名:短名只有同一個 tailnet 的機器解析得到。公司 tailnet(tail29dcee)的機器分享給
 #     個人 tailnet 的 laptop 之後,laptop 上 lianghua 解析失敗、pos2-dev 解析到區網的同名機器(#307)。
 #   不寫 IP:機器重新註冊 tailscale 就換 IP,名稱不變。
-# henry-laptop、henry-desktop 在個人 tailnet(tail0fed08),只有個人 tailnet 的機器連得到;
-# 公司那邊(company-ec2)連不到,要用時由那台開 ssh -R。laptop 留短名。
+# henry-laptop、henry-desktop、company-ec2 在個人 tailnet(tail0fed08);lianghua、pos2-dev
+# 是公司 tailnet 分享過來的。laptop 留短名。
 # Windows 端要跑 OpenSSH server,admin 金鑰必須放在
 #   C:\ProgramData\ssh\administrators_authorized_keys
 Host henry-laptop
@@ -89,7 +89,7 @@ Host openab
 # 指令見 docs/how-to/remote-access/README.md;以前的 company-ec2-attach／-socks／-chrome 別名拿掉了(#278)。
 # company-henry.pem 是公司發的;沒有它的機器用自己的 id_ed25519(ssh 會跳過不存在的檔)。
 Host company-ec2
-    HostName aws-ec2-henry.tail29dcee.ts.net
+    HostName company-ec2.tail0fed08.ts.net
     User ubuntu
     IdentityFile ~/.ssh/company-henry.pem
     IdentityFile ~/.ssh/id_ed25519

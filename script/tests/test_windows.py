@@ -265,9 +265,10 @@ class WindowsDeployTest(unittest.TestCase):
         # 短名只有同一個 tailnet 解析得到;公司 tailnet 的機器分享到個人 tailnet 後要完整名稱(#307)
         out = self.render("home/private_dot_ssh/private_config.tmpl", [])
         hostnames = dict(re.findall(r"^Host (\S+)\n    HostName (\S+)$", out, re.M))
-        for host, device in (("lianghua", "lianghua"), ("pos2-dev", "pos2-dev"), ("company-ec2", "aws-ec2-henry")):
+        for host in ("lianghua", "pos2-dev"):
             with self.subTest(host=host):
-                self.assertEqual(hostnames[host], f"{device}.tail29dcee.ts.net")
+                self.assertEqual(hostnames[host], f"{host}.tail29dcee.ts.net")
+        self.assertEqual(hostnames["company-ec2"], "company-ec2.tail0fed08.ts.net")
 
     # ===============================================================
     # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的
