@@ -44,7 +44,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 | 工具 | 做什麼 | 連結 |
 |---|---|---|
 | tailscale | 私人網路，連自己的機器 | [tailscale](https://tailscale.com/kb) |
-| openssh-server | sshd：讓別台 ssh 進這台（WSL 聽 2222） | [開 sshd](how-to/remote-access/sshd.md) |
+| openssh-server | sshd：讓別台 ssh 進這台（WSL 聽 2222） | [OpenSSH](https://www.openssh.com/manual.html) |
 | cloudflared | Cloudflare Tunnel：把服務開給 tailnet 外的人 | [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) |
 | code-server | 瀏覽器開的 VS Code | [code-server](https://coder.com/docs/code-server) |
 | ttyd | 把 terminal 開成網頁，`ttyd-serve` 用它 | [ttyd](https://github.com/tsl0922/ttyd) |

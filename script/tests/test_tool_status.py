@@ -111,7 +111,8 @@ class ToolStatusTest(unittest.TestCase):
             "wsl": (WSL, {"headless-chrome": "裝不了", "tailscale": "不建議",
                            "snapserver": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
             "proot": (PROOT, {"headless-chrome": "裝不了", "tailscale": "不建議",
-                               "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了"}),
+                               "snapserver": "裝不了", "snapclient": "不建議", "earlyoom": "裝不了", "windows-mcp": "裝不了",
+                               "openssh-server": "裝不了"}),
             "arm": (ARM, {"headless-chrome": "裝不了", "windows-mcp": "裝不了"}),
             "fedora": (FEDORA, {"headless-chrome": "裝不了", "snapserver": "裝不了",
                                 "snapclient": "裝不了", "earlyoom": "裝不了", "windows-mcp": "裝不了",
@@ -136,7 +137,7 @@ class ToolStatusTest(unittest.TestCase):
         for name, env, dropped in (("wsl", WSL, {"headless-chrome", "tailscale", "snapserver",
                                                  "earlyoom", "windows-mcp"}),
                                    ("proot", PROOT, {"headless-chrome", "tailscale", "snapserver",
-                                                     "snapclient", "earlyoom", "windows-mcp"}),
+                                                     "snapclient", "earlyoom", "windows-mcp", "openssh-server"}),
                                    ("arm", ARM, {"headless-chrome", "windows-mcp"}),
                                    ("fedora", FEDORA, {"headless-chrome", "snapserver", "snapclient",
                                                        "earlyoom", "windows-mcp", "openssh-server"}),
@@ -633,9 +634,6 @@ exit 0
         self.assertNotRegex(self.render({}, f"{SCRIPTS}/run_onchange_before_install-packages.sh.tmpl", ["vim"]),
                             r"(?<![\w-])earlyoom(?![\w-])")
 
-    def run_earlyoom(self, data=None):
-        return self.run_setup("earlyoom", data=data)
-
     def run_setup(self, tool, env=None, data=None):
         """跑渲染出來的 install-<tool>:sudo、systemctl 是假的,寫 /etc 的改寫到 self.dir/root 底下。"""
         script = f"{SCRIPTS}/run_onchange_after_install-{tool}.sh.tmpl"
@@ -678,7 +676,7 @@ exec "$cmd" "$@"
                 self.assertEqual(self.render(env, script, ["earlyoom"]).strip(), "")
 
     def test_earlyoom_protects_reserved_and_resident_services(self):
-        run, root, _ = self.run_earlyoom()
+        run, root, _ = self.run_setup("earlyoom")
         self.assertEqual(run.returncode, 0, run.stderr)
         etc = root / "etc/systemd/system"
         # 常駐服務:system.slice 整層;保留服務的保底量也要掛在 system.slice 才拿得到
@@ -694,7 +692,7 @@ exec "$cmd" "$@"
                     self.assertIn(line, conf)
 
     def test_earlyoom_config_thresholds_and_avoid_list(self):
-        run, root, _ = self.run_earlyoom()
+        run, root, _ = self.run_setup("earlyoom")
         self.assertEqual(run.returncode, 0, run.stderr)
         text = (root / "etc/default/earlyoom").read_text(encoding="utf-8")
         line = next(l for l in text.splitlines() if l.startswith("EARLYOOM_ARGS="))
@@ -712,7 +710,7 @@ exec "$cmd" "$@"
             self.assertFalse(avoid.search(comm), comm)
 
     def test_earlyoom_applies_without_restarting_services(self):
-        run, _, calls = self.run_earlyoom()
+        run, _, calls = self.run_setup("earlyoom")
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("systemctl daemon-reload", calls)
         self.assertIn("systemctl enable earlyoom.service", calls)
@@ -740,11 +738,23 @@ exec "$cmd" "$@"
         # socket activation:generator 在 daemon-reload 時讀 sshd_config,之後重啟 ssh.socket 才換 port
         self.assertLess(calls.index("systemctl daemon-reload"), calls.index("systemctl restart ssh.socket"))
 
+    def test_openssh_server_wsl_port_comes_from_chezmoidata(self):
+        # sshd 聽的 port 和連過去的 Host *-wsl 讀同一個值,改一處兩邊跟著變
+        data = {"opensshServer": {"wslPort": 2022}}
+        run, root, _ = self.run_setup("openssh-server", env=WSL, data=data)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        conf = (root / "etc/ssh/sshd_config.d/50-wsl-port.conf").read_text(encoding="utf-8").splitlines()
+        self.assertEqual([l for l in conf if not l.startswith("#")], ["Port 2022"])
+        ssh = self.chezmoi({}, "execute-template", data=data,
+                           stdin=(self.source / "home/private_dot_ssh/private_config.tmpl").read_text(encoding="utf-8")).stdout
+        block = ssh.split("Host *-wsl\n", 1)[1].split("\n\n", 1)[0]
+        self.assertIn("    Port 2022", block.splitlines())
+
     def test_earlyoom_numbers_come_from_chezmoidata(self):
         # 改 .chezmoidata 的 yaml,渲染出來的腳本跟著變(run_onchange 下次 apply 重跑)
         data = {"earlyoom": {"reservedUnits": ["ssh.service"], "reservedMemoryMin": "256M", "cpuWeight": 500,
                              "residentMemoryLow": "20%", "args": "-m 3 -s 5 --avoid ^(sshd)$"}}
-        run, root, _ = self.run_earlyoom(data=data)
+        run, root, _ = self.run_setup("earlyoom", data=data)
         self.assertEqual(run.returncode, 0, run.stderr)
         etc = root / "etc/systemd/system"
         slice_conf = (etc / "system.slice.d/50-earlyoom.conf").read_text(encoding="utf-8")

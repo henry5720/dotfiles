@@ -52,6 +52,7 @@ chezmoi edit-config && chezmoi apply   # 改 API key、密碼、Git 身分
 | [Windows 上的 skill](docs/how-to/windows-skills.md) | agent-config 的 skill 哪些在 Windows 不能用、卡在哪 |
 | [WSL 網路](docs/how-to/windows.md#wsl-網路mirrored-與-nat-portproxy) | mirrored 模式、NAT 時的 port 轉發 |
 | [Hyper-V](docs/how-to/hyper-v.md) | 在 Windows 上開一台 Windows VM：建 VM、不登入微軟帳號、NAT 與橋接、主機傳檔進 VM |
+| [Oracle VPS](docs/how-to/oracle-vps.md) | 判斷某台 Oracle 主機是哪個帳號（tenancy）的、哪些不能動 |
 
 **coding agent**
 

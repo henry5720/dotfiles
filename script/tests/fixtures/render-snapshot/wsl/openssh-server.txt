@@ -213,7 +213,7 @@ clean_codex()
 ### .chezmoiscripts/run_onchange_after_install-openssh-server.sh.tmpl
 #!@BIN@/sh
 # 選裝工具 openssh-server 在 WSL 的設定(選單見 .chezmoi.toml.tmpl,#398)。套件本身由 install-packages 用 apt 裝。
-# Windows 的 sshd 佔 22,WSL 改聽 2222;別台經那台 Windows 跳進來(預設 NAT 模式把 WSL 的 port 轉到 Windows 的 localhost)。
+# Windows 的 sshd 佔 22,WSL 改聽 2222(.chezmoidata/openssh-server.yaml);別台經那台 Windows 跳進來(預設 NAT 模式把 WSL 的 port 轉到 Windows 的 localhost)。
 # Ubuntu 22.10 起 sshd 是 socket activation:port 由 systemd generator 讀 sshd_config(含 sshd_config.d)產生 ssh.socket,
 # 所以改完要 daemon-reload 再重啟 ssh.socket。為什麼這樣設、開關指令見 docs/how-to/remote-access/sshd.md。
 # 設定片段整份覆寫,重跑結果一樣。
@@ -227,9 +227,9 @@ conf=/etc/ssh/sshd_config.d/50-wsl-port.conf
 $SUDO mkdir -p "$(dirname "$conf")"
 printf '# chezmoi 管理(install-openssh-server):Windows 的 sshd 佔 22\nPort 2222\n' | $SUDO tee "$conf" >/dev/null
 
-# 2. 生效:systemd 沒在跑(容器)就留著設定,開機後生效
+# 2. 生效:systemd 沒在跑(容器、沒開 systemd 的 WSL)就只寫設定
 if [ ! -d /run/systemd/system ]; then
-  echo "systemd 沒在跑,sshd 的 port 2222 已寫入 $conf,開機後生效"
+  echo "systemd 沒在跑,只把 Port 2222 寫進 $conf;要有 systemd(ssh.socket),或手動起 sshd,才會聽 2222"
   exit 0
 fi
 $SUDO systemctl daemon-reload

@@ -16,6 +16,7 @@ Host github.com
 # ===============================================================
 # HostName 寫 MagicDNS 完整名稱(<裝置名>.<tailnet>.ts.net):短名只有同一個 tailnet 解析得到(#307),
 # IP 重新註冊就換。新增主機也要加進第 6 節。
+# 例外:henry-laptop 的 HostName 是短名,只有同在這個 tailnet(tail0fed08)的機器解析得到。
 Host henry-laptop
     HostName henry-laptop
     User henry
@@ -66,22 +67,23 @@ Host henry-laptop-wsl
     ProxyJump henry-laptop
     HostKeyAlias henry-laptop-wsl
 
+# Port 跟 WSL 那台 sshd 聽的同一個值(.chezmoidata/openssh-server.yaml)
 Host *-wsl
     HostName localhost
-    Port 2222
+    Port {{ .opensshServer.wslPort }}
     User henry
 
 # ===============================================================
 # 5. 公網
 # ===============================================================
-# Oracle 有兩個帳號(tenancy),Always Free 額度各算各的。
+# Oracle 有兩個帳號(tenancy),Always Free 額度各算各的;判斷某台屬於哪個帳號見 docs/how-to/oracle-vps.md。
 
 # 我的(tenancy A)。Console 上叫 a1-2c12g。跑著 keepalive(~/bin/oci-keepalive.sh)防閒置回收,別停
 Host henry-a1
     HostName 129.80.13.225
     User ubuntu
 
-# 別人的(tenancy B),不要動。a1-fleet-1:hermes gateway、ollama、nginx
+# 別人的(tenancy B),不要動,見 docs/how-to/oracle-vps.md。a1-fleet-1:hermes gateway、ollama、nginx
 Host hermes
     HostName 150.136.179.96
     User henry

@@ -60,10 +60,12 @@ ss -ltn 'sport = :22'                           # 確認在聽 22
 選單勾 openssh-server，`chezmoi apply` 會用 apt 裝好，再寫 `/etc/ssh/sshd_config.d/50-wsl-port.conf`（`Port 2222`），
 daemon-reload 後重啟 `ssh.socket`。
 
-- **為什麼是 2222**：同一台的 Windows 自己的 sshd 已經佔 22。WSL2 預設的 NAT 模式會把 WSL 裡聽的 port 轉到 Windows 的 localhost，
+- **為什麼是 2222**（值在 [`home/.chezmoidata/openssh-server.yaml`](../../../home/.chezmoidata/openssh-server.yaml)，ssh config 的 `Host *-wsl` 也讀它）：同一台的 Windows 自己的 sshd 已經佔 22。WSL2 預設的 NAT 模式會把 WSL 裡聽的 port 轉到 Windows 的 localhost，
   兩邊都聽 22 會撞號。
 - **別台怎麼連**：`ssh <主機>-wsl`。ssh config 裡這個 Host 先跳到那台 Windows，再連它的 `localhost:2222`，
   所以對外的入口還是只有 Windows 的 22，WSL 重開換了 IP 也不影響。
+- **mirrored 網路模式不一樣**：WSL 改成 mirrored 模式（`.wslconfig` 的 `networkingMode=mirrored`）時，2222 會直接開在 Windows 的網卡上，
+  別台不經那台 Windows 也連得到，入口不再只有 Windows 的 22。
 
 ```bash
 sudo systemctl start ssh.socket                 # 暫時開
