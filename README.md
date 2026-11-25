@@ -21,6 +21,10 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply henry5720
 macOS、Windows 主機、免回答的裝法、事前準備、各種機器會裝什麼，見[新機器設定](docs/new-machine-setup.md)；
 Termux 見[平板：原生 Termux 與 proot Ubuntu](docs/new-machine-setup.md#平板原生-termux-與-proot-ubuntu)。
 
+> [!WARNING]
+> 沒 fork 直接用這份，又勾了 openssh-server（或裝在原生 Termux），每次 `chezmoi apply` 都會把作者 GitHub 帳號上的公鑰加進 `~/.ssh/authorized_keys`，作者的 key 就能登入你的機器。
+> fork 之後改 [`home/.chezmoidata/github.yaml`](home/.chezmoidata/github.yaml) 的 `githubUser`，見[fork 前要改什麼](docs/architecture.md#fork-前要改什麼)。
+
 ## 裝完之後
 
 | 想做什麼 | 看哪份 |

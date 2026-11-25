@@ -46,8 +46,8 @@ docs/                           文件（見 README 的文件索引）
 
 ## fork 前要改什麼
 
-- [ ] 安裝指令 `chezmoi init --apply henry5720` 裡的 GitHub 帳號
-- [ ] agent-config 的 remote（`home/.chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl`）
+- [ ] GitHub 帳號：改 [`home/.chezmoidata/github.yaml`](../home/.chezmoidata/github.yaml) 的 `githubUser`。agent-config 的 remote、`authorized_keys` 抓誰的公鑰都讀它
+- [ ] 安裝指令 `chezmoi init --apply henry5720` 裡的帳號要自己改：這行在 chezmoi 拉 repo 之前就要打，讀不到上一項的 data 檔
 - [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
 - [ ] ssh config 裡的 Tailscale 主機與平板
 - [ ] 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles

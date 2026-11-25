@@ -75,6 +75,7 @@ winget:
 idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 渲染成空的腳本
+.chezmoiscripts/run_after_authorized-keys-from-github.sh.tmpl
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
@@ -90,7 +91,6 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
-.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-openssh-server.sh.tmpl

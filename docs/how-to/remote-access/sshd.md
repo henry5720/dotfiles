@@ -35,6 +35,19 @@
 Windows 帳號是不是管理員：`net localgroup administrators` 的清單裡有沒有它。
 `icacls` 回找不到 `Administrators` 時換成 SID `*S-1-5-32-544`（2026-11-20 繁中 Windows 11 用 `Administrators` 可以）。
 
+## GitHub 上的公鑰自動加進來
+
+Linux、WSL 勾了 openssh-server，以及原生 Termux，每次 `chezmoi apply` 都抓 `https://github.com/<githubUser>.keys`，
+把還沒有的 key 加進 `~/.ssh/authorized_keys`（權限 600）。帳號在 [`home/.chezmoidata/github.yaml`](../../../home/.chezmoidata/github.yaml)。
+apply 會印「已加入 github.com/<帳號> 的公鑰…這些 key 可以登入這台」。
+
+- 新機器的 key 貼到 GitHub 的 [SSH keys](https://github.com/settings/keys)（為了 git push 本來就要貼），其他台下次 apply 就認得它。
+- 只加不刪：GitHub 上拿掉的 key 不會從各台移除，要收回就到那台刪掉那一行。手動加的 key 不會被洗掉。
+- 抓不到（離線、GitHub 掛）或抓到的不像公鑰，apply 照樣成功，只印警告，`authorized_keys` 不動。
+- Windows 不自動加：管理員帳號的 `administrators_authorized_keys` 要系統管理員權限，照[公鑰放哪、權限](#公鑰放哪權限)手動放。
+
+腳本：[`run_after_authorized-keys-from-github`](../../../home/.chezmoiscripts/run_after_authorized-keys-from-github.sh.tmpl)。
+
 ## Linux（有 root）
 
 Debian、Ubuntu 的服務叫 `ssh`，沒裝先 `sudo apt install openssh-server`。
@@ -137,8 +150,7 @@ logcat -s 'sshd:*'       # 連不上時看 log
   ```
 
   Termux:Boot 要跟 Termux 本體同一個來源（同一把簽章）。
-- 公鑰：加進 `~/.ssh/authorized_keys`。原生 Termux 上 chezmoi apply 會把 `~/.ssh/henry5720.pub` 自動加進去
-  （[`run_onchange_after_termux-authorized-keys`](../../../home/.chezmoiscripts/run_onchange_after_termux-authorized-keys.sh.tmpl)）。
+- 公鑰：`chezmoi apply` 會自動加，見[GitHub 上的公鑰自動加進來](#github-上的公鑰自動加進來)。
 
 出處：[Termux Wiki〈Remote Access〉](https://wiki.termux.com/wiki/Remote_Access)、[termux-boot README](https://github.com/termux/termux-boot#how-to-use)。
 

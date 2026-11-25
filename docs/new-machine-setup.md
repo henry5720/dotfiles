@@ -172,7 +172,8 @@ Get-Content $HOME\.ssh\id_ed25519.pub
 公鑰加到要連的地方：
 
 - GitHub 的 [SSH keys](https://github.com/settings/keys)。`ssh -T git@github.com` 回 `successfully authenticated` 就對了。
-- 要連的主機：放哪、權限照[公鑰放哪、權限](how-to/remote-access/sshd.md#公鑰放哪權限)。Windows 的管理員帳號不在 `~/.ssh`。
+- 要連的主機：Linux、WSL 勾了 openssh-server 的、原生 Termux，下次 `chezmoi apply` 會從 GitHub 自動加，見[GitHub 上的公鑰自動加進來](how-to/remote-access/sshd.md#github-上的公鑰自動加進來)。
+  其他照[公鑰放哪、權限](how-to/remote-access/sshd.md#公鑰放哪權限)手動放；Windows 的管理員帳號不在 `~/.ssh`。
 
 push 自動走 SSH：chezmoi 部署的 `~/.gitconfig` 有 `url."git@github.com:".pushInsteadOf`，
 HTTPS clone 下來的 repo push 時改寫成 `git@github.com:`，remote 不用改。以前用 SSH clone 的機器
@@ -380,7 +381,7 @@ SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo�
 ## 設定驗證
 
 ```bash
-chezmoi verify
+chezmoi verify --exclude scripts   # 不看腳本：authorized_keys 那支每次 apply 都跑，永遠算沒對齊
 opencode
 npx --yes oh-my-opencode-slim@latest doctor
 ```

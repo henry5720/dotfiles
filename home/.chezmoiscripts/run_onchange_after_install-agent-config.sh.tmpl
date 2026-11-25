@@ -13,7 +13,7 @@
 set -eu
 
 dir=$HOME/.config/skillshare
-remote=${AGENT_CONFIG_REMOTE:-https://github.com/henry5720/agent-config.git}
+remote=${AGENT_CONFIG_REMOTE:-https://github.com/{{ .githubUser }}/agent-config.git}
 
 # 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
 if [ -d "$dir/.git" ]; then

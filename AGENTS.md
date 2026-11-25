@@ -69,7 +69,7 @@ chezmoi 照完整路徑的字母序跑腳本,分了資料夾,靠檔名排的順�
 
 ```bash
 chezmoi diff                                    # 輸出空的 = 家目錄與 repo 一致
-chezmoi verify                                  # 同上,只看 exit code
+chezmoi verify --exclude scripts                # 同上,只看 exit code(每次 apply 都跑的 run_ 腳本永遠算沒對齊)
 chezmoi --no-tty execute-template --init \
   < home/.chezmoi.toml.tmpl                     # config 樣板能不能渲染
 bash -n script/*/*.sh                           # 腳本語法(shellcheck 未安裝)

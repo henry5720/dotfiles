@@ -781,6 +781,100 @@ exec "$cmd" "$@"
         self.assertIn("    Port 2022", block)
         self.assertIn("    HostName 127.0.0.1", block)
 
+    # ===============================================================
+    # authorized_keys(#402):從 github.com/<githubUser>.keys 抓公鑰,只加不刪
+    # ===============================================================
+    AUTH_KEYS = f"{SCRIPTS}/run_after_authorized-keys-from-github.sh.tmpl"
+    KEY_A = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    KEY_B = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb="
+
+    def run_auth_keys(self, body=None, fail=False, env=None, data=None):
+        """跑渲染出來的腳本,curl 是假的:回 body,或 fail=True 時像連不到一樣 exit 6。回傳 (run, curl 收到的參數)。"""
+        text = self.chezmoi(env or WSL, "execute-template", data={"tools": ["openssh-server"], **(data or {})},
+                            stdin=(self.source / self.AUTH_KEYS).read_text(encoding="utf-8")).stdout
+        self.assert_sh(text)
+        bindir = self.dir / "bin"
+        bindir.mkdir(exist_ok=True)
+        (self.dir / "keys").write_text(body or "", encoding="utf-8")
+        log = self.dir / "curl.log"
+        (bindir / "curl").write_text(
+            f'#!/bin/sh\necho "$*" >> {log}\n' + ("exit 6\n" if fail else f"cat {self.dir / 'keys'}\n"),
+            encoding="utf-8")
+        (bindir / "curl").chmod(0o755)
+        path = self.dir / "s.sh"
+        path.write_text(text, encoding="utf-8")
+        run = subprocess.run(["sh", str(path)], env={"PATH": f"{bindir}:/usr/bin:/bin", "HOME": str(self.dir)},
+                             capture_output=True, text=True)
+        return run, log.read_text(encoding="utf-8") if log.exists() else ""
+
+    def auth_lines(self):
+        return (self.dir / ".ssh/authorized_keys").read_text(encoding="utf-8").splitlines()
+
+    def test_authorized_keys_only_with_openssh_server_or_native_termux(self):
+        for name, env, tools in (("wsl", WSL, ["openssh-server"]), ("ubuntu", {}, ["openssh-server"]),
+                                 ("android", ANDROID, []), ("android-vim", ANDROID, ["vim"])):
+            with self.subTest(env=name):
+                self.assertIn("github.com", self.render(env, self.AUTH_KEYS, tools))
+        for name, env, tools in (("wsl", WSL, ["vim"]), ("ubuntu", {}, []), ("fedora", FEDORA, ["openssh-server"]),
+                                 ("mac", MAC, ["openssh-server"]), ("proot", PROOT, ["openssh-server"]),
+                                 ("windows", {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}},
+                                  ["openssh-server"])):
+            with self.subTest(env=name):
+                self.assertEqual(self.render(env, self.AUTH_KEYS, tools).strip(), "")
+
+    def test_authorized_keys_adds_github_keys_once_with_strict_modes(self):
+        body = f"{self.KEY_A}\n{self.KEY_B}\n"
+        for _ in range(2):   # 每次 apply 都跑:第二次不重複加
+            run, curl = self.run_auth_keys(body)
+            self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("https://github.com/henry5720.keys", curl)
+        self.assertEqual(self.auth_lines(), [self.KEY_A, self.KEY_B])
+        self.assertEqual((self.dir / ".ssh").stat().st_mode & 0o777, 0o700)
+        self.assertEqual((self.dir / ".ssh/authorized_keys").stat().st_mode & 0o777, 0o600)
+        self.assertIn("已加入 github.com/henry5720 的公鑰", run.stdout)
+        self.assertIn("這些 key 可以登入這台", run.stdout)
+
+    def test_authorized_keys_keeps_hand_added_and_matches_key_body_only(self):
+        ssh = self.dir / ".ssh"
+        ssh.mkdir(mode=0o755)
+        manual = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm desktop-windows"
+        # 手動加的 key、同一把 KEY_A 但註解不同;最後一行沒換行
+        (ssh / "authorized_keys").write_text(f"{manual}\n{self.KEY_A} old-comment", encoding="utf-8")
+        (ssh / "authorized_keys").chmod(0o644)
+        run, _ = self.run_auth_keys(f"{self.KEY_A}\n{self.KEY_B}\n")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(self.auth_lines(), [manual, f"{self.KEY_A} old-comment", self.KEY_B])
+        self.assertEqual((ssh / "authorized_keys").stat().st_mode & 0o777, 0o600)
+
+    def test_authorized_keys_offline_or_bad_response_warns_and_writes_nothing(self):
+        cases = (("連不到", None, True), ("空清單", "", False),
+                 ("HTML 錯誤頁", "<!DOCTYPE html>\n<html><body>Unicorn!</body></html>\n", False),
+                 ("混一行不是公鑰", f"{self.KEY_A}\nNot Found\n", False))
+        for name, body, fail in cases:
+            with self.subTest(case=name):
+                ssh = self.dir / ".ssh"
+                ssh.mkdir(mode=0o700, exist_ok=True)
+                (ssh / "authorized_keys").write_text("existing\n", encoding="utf-8")
+                run, _ = self.run_auth_keys(body, fail=fail)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertIn("警告", run.stdout + run.stderr)
+                self.assertNotIn("已加入", run.stdout)
+                self.assertEqual(self.auth_lines(), ["existing"])
+
+    def test_github_user_comes_from_chezmoidata(self):
+        # 帳號只放 .chezmoidata 一處:authorized_keys 的來源與 agent-config 的 remote(sh、ps1)都跟著換
+        data = {"githubUser": "someone"}
+        _, curl = self.run_auth_keys(self.KEY_A, data=data)
+        self.assertIn("https://github.com/someone.keys", curl)
+        for script, env in (("run_onchange_after_install-agent-config.sh.tmpl", {}),
+                            ("run_onchange_after_install-agent-config.ps1.tmpl",
+                             {"chezmoi": {"os": "windows", "kernel": {"osrelease": ""}}})):
+            with self.subTest(script=script):
+                text = self.chezmoi(env, "execute-template", data={"tools": ["agent-config"], **data},
+                                    stdin=(self.source / SCRIPTS / script).read_text(encoding="utf-8")).stdout
+                self.assertIn("https://github.com/someone/agent-config.git", text)
+                self.assertNotIn("henry5720", text)
+
     def test_earlyoom_numbers_come_from_chezmoidata(self):
         # 改 .chezmoidata 的 yaml,渲染出來的腳本跟著變(run_onchange 下次 apply 重跑)
         data = {"earlyoom": {"reservedUnits": ["ssh.service"], "reservedMemoryMin": "256M", "cpuWeight": 500,

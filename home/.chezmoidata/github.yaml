@@ -1,0 +1,5 @@
+# GitHub 帳號(#402)。用在兩處,fork 的人改這一行:
+# - authorized_keys 從 https://github.com/<帳號>.keys 抓公鑰(run_after_authorized-keys-from-github)
+# - agent-config 的 remote(run_onchange_after_install-agent-config 的 sh、ps1)
+# 安裝指令 chezmoi init --apply <帳號> 讀不到這份(chezmoi 拉 repo 之前就要打),那行要自己改。
+githubUser: henry5720
