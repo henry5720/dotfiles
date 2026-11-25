@@ -295,9 +295,12 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertEqual(aliases, {"henry-desktop-wsl", "henry-laptop-wsl"})
 
     @unittest.skipUnless(shutil.which("ssh"), "沒有 ssh client")
-    def test_vm1_jumps_through_lianghua(self):
-        g = self.ssh_g(self.render("home/private_dot_ssh/private_config.tmpl", []), "vm-1")
-        self.assertEqual((g["hostname"], g["user"], g["proxyjump"]), ("172.22.123.179", "user-1", "lianghua"))
+    def test_vms_jump_through_lianghua(self):
+        out = self.render("home/private_dot_ssh/private_config.tmpl", [])
+        for host, ip in (("vm-1", "172.22.123.179"), ("vm-2", "172.22.119.172")):
+            with self.subTest(host=host):
+                g = self.ssh_g(out, host)
+                self.assertEqual((g["hostname"], g["user"], g["proxyjump"]), (ip, "user-1", "lianghua"))
 
     # ===============================================================
     # Windows 的 .ps1 腳本:winget 裝 app、mise 裝 CLI、最後列出略過的

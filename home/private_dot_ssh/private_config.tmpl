@@ -51,9 +51,15 @@ Host pos2-dev
 # ===============================================================
 # 4. 跳板後面的機器
 # ===============================================================
-# 量華的 Hyper-V 測試機。IP 在 Default Switch 上,VM 重開機可能會變:連不到先到 lianghua 查 IP。
+# 量華的 Hyper-V 測試機。IP 在 Default Switch 上,VM 重開機可能會變:連不到先到 lianghua 查 IP
+# (Get-VM 列出每台的 IP)。vm-2 是從 vm-1 複製的,帳號同樣是 user-1。
 Host vm-1
     HostName 172.22.123.179
+    User user-1
+    ProxyJump lianghua
+
+Host vm-2
+    HostName 172.22.119.172
     User user-1
     ProxyJump lianghua
 
