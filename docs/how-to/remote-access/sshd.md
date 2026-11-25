@@ -19,7 +19,7 @@
 | [Windows](#windows) | `Start-Service sshd` | `Stop-Service sshd` | `Set-Service -Name sshd -StartupType 'Automatic'` | 22 |
 | [macOS](#macos) | 系統設定 → 一般 → 共享 → 遠端登入 | 同一處關掉 | 開了就常駐 | 22 |
 
-公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../../home/private_dot_ssh/private_config.tmpl)。只在一台用的臨時主機（例如 IP 會變的 VM）寫在那台的 `~/.ssh/config.local`，不進 git，`chezmoi apply` 也不會蓋掉。
+公鑰放哪、權限怎麼設見[公鑰放哪、權限](#公鑰放哪權限)。連的那一方的 `~/.ssh/config` 要寫對 `User` 和 `Port`，見 [`home/private_dot_ssh/private_config.tmpl`](../../../home/private_dot_ssh/private_config.tmpl)。常用的主機都寫在那份（IP 可能會變的在註解標出來）；只在一台臨時用的才寫在那台的 `~/.ssh/config.local`，不進 git，`chezmoi apply` 也不會蓋掉。
 
 ## 公鑰放哪、權限
 
