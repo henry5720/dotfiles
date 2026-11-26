@@ -33,6 +33,7 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 | 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 | ✅ |
 | 12 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 | |
 | 13 | 改到 agent-config | `skillshare status`;在 agent 裡打 `/` 與看 MCP 清單 | targets 已同步、指令檔到位;看得到 skill 與 MCP | ◐ 只驗 `skillshare status` |
+| 14 | 改到 `register-herdr-server.ps1` | 勾 herdr 後 apply,登出再登入;`Get-CimInstance Win32_Process \| ? Name -like herdr*` 看 `server` 那行的 `SessionId`;桌面 terminal 跑 `herdr status`;別台 `herdr --machine <這台> workspace list` | 工作排程有 `herdr-server`;server 只有一個、`SessionId` ≥ 1;沒有多出視窗;`herdr status` 與 `--machine` 都連得上 | |
 
 互動登入、實際開一個 agent session 要人做,agent 不代做。
 

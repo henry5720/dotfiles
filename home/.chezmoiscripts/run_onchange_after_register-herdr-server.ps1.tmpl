@@ -1,0 +1,32 @@
+{{- /* 選裝工具 herdr 的 Windows 版(#416):登入時以一般權限起 herdr server。沒勾就渲染成空的,chezmoi 不跑。
+       帳號在 Administrators 群組時,經 OpenSSH 拉起的 server 是 elevated、跑在 session 0,桌面的 terminal 連不上
+       (docs/tools/herdr.md〈Windows 桌面的 terminal 連不上 herdr〉)。登入時先起好一般權限的 server,
+       別台 `herdr --machine` 連過來就用它,不會再經 ssh 拉一個 elevated 的。
+       排程(工作排程器,不是 Startup 資料夾:那在 AppData 第 7 層,.chezmoiignore 的白名單只排到第 6 層):
+       - 觸發:這個使用者登入時。帳號名取目前 token 的(<電腦>\<使用者>):ssh 進來時 USERDOMAIN 是 WORKGROUP,不是電腦名稱。
+         Principal 用 Interactive、Limited:跑在登入的 session、一般權限,
+         從 ssh 的 elevated shell 跑 apply 也一樣
+       - 動作:conhost --headless 跑 mise shim 的 `herdr server`(官方的 headless server,TUI 自己起的也是這個指令),
+         不開視窗;shim 跟著 mise 換版本。直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停
+       - 不限執行時間(預設 72 小時會被停掉)、已在跑就不再起一個;已經有 server 在跑時,新的這個會自己結束
+       註冊完馬上跑一次,這次登入就生效。laptop 用 --session 測過(#416):process 在 session 2、一般權限的 client 連得上。
+       任何一步失敗只印一行、exit 0(同 Windows 其他腳本)。取消勾選不會刪排程,同「取消勾選不會解除安裝」。 */ -}}
+{{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
+{{- if has "herdr" $installing -}}
+{{ includeTemplate "ps1-winps-modules" . }}
+{{ includeTemplate "ps1-text" . }}
+$herdr = Join-Path $env:LOCALAPPDATA 'mise\shims\herdr.exe'
+$user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+try {
+    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr)
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName 'herdr-server' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+    Start-ScheduledTask -TaskName 'herdr-server' -ErrorAction Stop
+    Write-Host (T '{{ "herdr server 改由登入時的排程 herdr-server 起(一般權限)" | b64enc }}')
+} catch {
+    Write-Host ((T '{{ "herdr-server 排程註冊失敗:{0}。步驟見 docs/tools/herdr.md" | b64enc }}') -f $_.Exception.Message)
+}
+exit 0
+{{- end }}

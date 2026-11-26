@@ -100,7 +100,8 @@ wsl --shutdown
 從別台 `herdr --machine` 或 `herdr machine add` 經 ssh 把 server 拉起來，server 和每個 pane 都繼承這個權限。
 Linux 沒有這個問題，經 ssh 起 server 是官方設計。
 
-所以 Windows 的 herdr server 要在那台登入桌面後，從一般 terminal 跑 `herdr` 起。
+所以 Windows 的 herdr server 要以一般權限、在登入的 session 起。勾了 herdr 的 Windows，`chezmoi apply` 會註冊工作排程 `herdr-server`：
+登入時用 `conhost --headless` 跑 `herdr server`，不開視窗（#416）。還沒有這個排程的機器，登入桌面後從一般 terminal 跑 `herdr`。
 `[server] allow_unelevated_clients` 不開：它讓一般權限的 client 操作 elevated server，等於開一條提權的路，pane 也還是 elevated。
 
 已經是 elevated 的 server，修法（停用各 client 的 profile、停 server、從桌面重起）見 agent-config 的
