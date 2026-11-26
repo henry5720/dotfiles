@@ -54,6 +54,7 @@
 | `context7ApiKey`、`graphifyApiKey`、`discordBotToken` | Linux：`~/.config/zsh/env.zsh`（全部留空或沒勾 zsh 就不部署）；Windows：使用者環境變數 `CONTEXT7_API_KEY`、`GRAPHIFY_API_KEY`、`DISCORD_TOKEN` | 開新的 zsh；Windows 重開 agent |
 | `codeServerPassword` | `~/.config/code-server/config.yaml`（沒勾 code-server 就不部署） | 重啟 code-server |
 | `gitUserName`、`gitUserEmail` | `~/.gitconfig` | — |
+| `homeRepo`（home repo 的位置，不是憑證） | `~/.config/git/config` 的 `includeIf`、`~/.config/opencode/opencode.json` 的 `external_directory`、`~/.local/bin/codegraph-setup-repo` | — |
 
 - 不要直接改右欄的檔案：下次 `chezmoi apply` 會被蓋回 `chezmoi.toml` 裡的值。
 - `~/.config/chezmoi/chezmoi.toml` 有明文的 key，不要 `cat` 出來貼給別人或 agent。

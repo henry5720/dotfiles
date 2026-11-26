@@ -101,6 +101,7 @@ Windows 跟它裡面的 WSL 是兩台機器，各自 clone、各自 `chezmoi ini
    ```
 
    跟 Linux 一樣問用途、出選單（[用途與憑證](how-to/machine-use.md)），Enter 是精簡；git 身分不問。
+   home repo 的位置照問：放在 `D:\code` 就填 `D:\code`（`/` 也行），在 `%USERPROFILE%\code` 就直接 Enter。
    要跳 UAC 的（pwsh 7、tailscale）會跳出來要你按「是」。
    部署了什麼、裝完怎麼用，見[Windows 主機](how-to/windows.md)；之後要加減工具打 `tools`。
 6. 開一次 Windows Terminal 再關掉，再跑一次 `chezmoi apply`：pwsh 7 是上一步才裝的，Terminal 開過才會
@@ -203,6 +204,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
   zsh、starship 提示列也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。
+- home repo 的位置：預設 `~/code`，每台都問（Windows 也問）。共用 git hook、OpenCode 不用問就能讀的目錄、`codegraph-setup-repo` 掃的目錄都照它。
 
 各用途預設勾哪些、勾哪個工具會問哪個憑證、config 怎麼存用途，見[用途與憑證](how-to/machine-use.md)。
 
@@ -215,6 +217,7 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 ```
 
 `--promptDefaults` 讓沒帶的問題都用預設值；用途的提示文字要一字不差。精簡用不到憑證，所以只剩 git email 要給。
+home repo 不在 `~/code` 就再加 `--promptString "home repo 的位置=<路徑>"`。
 之後勾了用得到憑證的工具，`tools` 會在那時問。
 
 憑證只在終端機的 chezmoi prompt 輸入，不要交給 coding agent，不要貼到文件或 repo。值存在
@@ -330,7 +333,7 @@ skillshare plugin add https://github.com/DietrichGebert/ponytail.git --plugin po
 ### 4.6 各 repo 的 codegraph setup
 
 codegraph index 是每個 repo 自己的狀態，不會隨 dotfiles 一起搬。先把需要工作的 repo
-放回 `~/code`，再對每個 repo 執行：
+放回 home repo（預設 `~/code`），再對每個 repo 執行：
 
 ```bash
 codegraph-setup-repo ~/code/<repo>

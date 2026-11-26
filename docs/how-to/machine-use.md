@@ -123,3 +123,4 @@ macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個�
 
 沒勾的不問、也不寫進 config；之後勾了，`tools` 會在那時問。取消勾選不刪存過的值。
 Git 身分（`git user.name`、`git user.email`）每台都問，Windows 主機除外（不部署 `.gitconfig`）。
+home repo 的位置（預設 `~/code`）每台都問，Windows 主機也問。

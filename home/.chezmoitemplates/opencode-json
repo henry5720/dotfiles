@@ -15,7 +15,7 @@
   "permission": {
     "external_directory": {
       "*": "ask",
-      "~/code/**": "allow",
+      {{ printf "%s**" (includeTemplate "home-repo" .) | toJson }}: "allow",
       "/tmp/**": "allow",
       "~/.local/share/chezmoi/**": "allow"
     }

@@ -161,7 +161,9 @@
        憑證刻意不帶現值當預設 —— 預設值會明文印在提示上;反正已經存過的不會再問。
        之後要改:`chezmoi edit-config` 改 [data] 那一行再 apply。
        每一項是 (key 提示文字 預設值 工具);預設值空字串 = 沒有預設。
-       Windows 照同一套規則,只有 git 身分(空的那兩項)不問:Windows 不部署 .gitconfig(.chezmoiignore 的 Windows 白名單)。 */ -}}
+       Windows 照同一套規則,只有 git 身分(空的那兩項)不問:Windows 不部署 .gitconfig(.chezmoiignore 的 Windows 白名單)。
+       homeRepo(home repo 的位置,#411)不是憑證,也照這套「存過不再問」;Windows 也問(opencode.json 用得到)。
+       用的地方讀 .chezmoitemplates/home-repo,不直接讀 key;預設值 ~/code 兩邊一起改。 */ -}}
 {{- $answers := dict -}}
 {{- $answerKeys := list -}}
 {{- range $q := list
@@ -172,9 +174,10 @@
       (list "discordBotToken" "Discord bot token，給 discord MCP（可留空）" "" (list "agent-config"))
       (list "wakatimeApiKey" "WakaTime API key（可留空）" "" (list "wakatime"))
       (list "gitUserName" "git user.name" "henry" (list))
-      (list "gitUserEmail" "git user.email" "" (list)) -}}
+      (list "gitUserEmail" "git user.email" "" (list))
+      (list "homeRepo" "home repo 的位置" "~/code" (list)) -}}
 {{-   $key := index $q 0 -}}
-{{-   $needed := and (not (index $q 3)) (not $windows) -}}
+{{-   $needed := and (not (index $q 3)) (or (not $windows) (eq $key "homeRepo")) -}}
 {{-   range index $q 3 }}{{ if has . $tools }}{{ $needed = true }}{{ end }}{{ end -}}
 {{-   if hasKey $ $key -}}
 {{-     $_ := set $answers $key (index $ $key) -}}

@@ -40,13 +40,13 @@ MCP server ──── agent-config 的 mcp.yaml,skillshare 寫進 Claude / Cod
 | chezmoi 檔案 | 部署到 | 做什麼 |
 |---|---|---|
 | `home/dot_config/git/ignore` | `~/.config/git/ignore` | 全機器忽略 `.codegraph/`(git 預設就讀這路徑) |
-| `home/dot_config/git/config` | `~/.config/git/config` | `includeIf "gitdir:~/code/"` 帶進 `config-code` |
+| `home/dot_config/git/config.tmpl` | `~/.config/git/config` | `includeIf "gitdir:<home repo>/"` 帶進 `config-code` |
 | `home/dot_config/git/config-code` | 同目錄 | `core.hooksPath = ~/.config/git/hooks` |
 | `home/dot_config/git/hooks/executable_post-checkout` | `~/.config/git/hooks/post-checkout` | 新 worktree:複製主索引 + sync |
 | `home/dot_config/git/hooks/executable_post-merge` | `~/.config/git/hooks/post-merge` | `git pull` / `merge` 後 sync |
 
-- 只有 `~/code/` 底下的 repo 生效。`includeIf` 比對的是 **gitdir**,herdr 放在
-  `~/.herdr/worktrees/<repo>/<slug>/` 的 worktree,gitdir 是 `~/code/<repo>/.git/worktrees/<slug>`,所以也算。
+- 只有 home repo(`chezmoi init` 問的位置,預設 `~/code`)底下的 repo 生效。`includeIf` 比對的是 **gitdir**,herdr 放在
+  `~/.herdr/worktrees/<repo>/<slug>/` 的 worktree,gitdir 是 `<home repo>/<repo>/.git/worktrees/<slug>`,所以也算。
 - git 同時讀 `~/.config/git/config` 和 `~/.gitconfig`,身分設定留在 `~/.gitconfig`,不用動。
 - 改 `core.hooksPath` 會讓 repo 自己的 `.git/hooks/` 失效。設定當時 `~/code` 的 12 個 repo 加 8 個子 repo,
   `.git/hooks/` 全部只有 `.sample`,沒踩掉東西。

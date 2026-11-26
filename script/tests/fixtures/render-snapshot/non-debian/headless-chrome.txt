@@ -38,6 +38,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 [data]
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
+    homeRepo = "~/code"
     machineUse = "custom"
     tools = ["headless-chrome"]
     toolsSchema = 3

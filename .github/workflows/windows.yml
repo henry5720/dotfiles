@@ -110,6 +110,7 @@ jobs:
               '--promptString', 'Graphify API key（可留空）='
               '--promptString', 'Discord bot token，給 discord MCP（可留空）='
               '--promptString', 'WakaTime API key（可留空）='
+              '--promptString', 'home repo 的位置=D:\code'
               '--promptChoice', "$env:USE_PROMPT=f"
               '--promptMultichoice', "$env:TOOLS_PROMPT=$($labels -join '/')"
             )

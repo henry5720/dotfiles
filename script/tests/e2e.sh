@@ -174,7 +174,8 @@ GIT_FLAGS=(
   --promptString 'git user.name=e2e'
   --promptString 'git user.email=e2e@example.com'
 )
-INIT_FLAGS=("${SECRET_FLAGS[@]}" "${GIT_FLAGS[@]}")
+# home repo 的位置(#411)每台都問,給預設值
+INIT_FLAGS=("${SECRET_FLAGS[@]}" "${GIT_FLAGS[@]}" --promptString 'home repo 的位置=~/code')
 
 # ===============================================================
 # 共用檢查
@@ -802,11 +803,11 @@ scenario_ubuntu() {
   check "免回答安裝那一行的用途提示跟樣板一致(new-machine-setup、no-root-machine)" \
     "for f in docs/new-machine-setup.md docs/how-to/no-root-machine.md; do grep -qF -e $(printf '%q' "--promptChoice \"$(use_choice minimal)\"") ~/.local/share/chezmoi/\$f || { echo \"\$f 沒有\"; exit 1; }; done"
   # 用途那題的選項是字母 f/m/c,直接 Enter 用預設(#222)。--no-tty 時答案從 stdin 一行一題讀:
-  # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)
+  # 用途、選單(Enter = 預設勾選)、git user.name(Enter = henry)、home repo 的位置(Enter = ~/code)
   check "用途那題打 m 得到 minimal" \
-    "printf 'm\\n\\n\\n' | chezmoi --config /tmp/use-m.toml init --no-tty --promptString 'git user.email=e2e@example.com' && $(printf "$use_is" minimal /tmp/use-m.toml) && grep -qxF '$LEAN_TOML' /tmp/use-m.toml"
+    "printf 'm\\n\\n\\n\\n' | chezmoi --config /tmp/use-m.toml init --no-tty --promptString 'git user.email=e2e@example.com' && $(printf "$use_is" minimal /tmp/use-m.toml) && grep -qxF '$LEAN_TOML' /tmp/use-m.toml"
   check "用途那題直接 Enter 得到 minimal" \
-    "printf '\\n\\n\\n' | chezmoi --config /tmp/use-enter.toml init --no-tty --promptString 'git user.email=e2e@example.com' && $(printf "$use_is" minimal /tmp/use-enter.toml)"
+    "printf '\\n\\n\\n\\n' | chezmoi --config /tmp/use-enter.toml init --no-tty --promptString 'git user.email=e2e@example.com' && $(printf "$use_is" minimal /tmp/use-enter.toml)"
   check "用途不是三個之一時報 invalid choice" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice server)") 2>&1 | grep -q 'invalid choice'"
   # 存用途的機器:預設組合改了(這裡用「config 裡的 tools 是舊的」模擬),init 就跟上
@@ -1223,12 +1224,12 @@ scenario_termux() {
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/termux-reload-settings.sh\")'"
   check "reload 失敗只印警告(容器沒有 Android 的 app_process)" \
     "grep -q 'termux-reload-settings 失敗' ~/e2e-init.log"
-  # 用途與選單跟 Linux 一樣會問(#274):--no-tty 時答案從 stdin 一行一題讀(用途、選單、git user.name),
+  # 用途與選單跟 Linux 一樣會問(#274):--no-tty 時答案從 stdin 一行一題讀(用途、選單、git user.name、home repo 的位置),
   # 提示文字會印出來。另一份 config,不動上面裝好的那份。
   check "init 出用途與選裝工具選單(打 m、選單 Enter 得到精簡)" \
-    "out=\$(printf 'm\\n\\n\\n' | chezmoi --config ~/q-use.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -qF $(printf '%q' "$USE_PROMPT") <<<\"\$out\" && grep -qF $(printf '%q' "$TOOLS_PROMPT") <<<\"\$out\" && grep -qx '    machineUse = \"minimal\"' ~/q-use.toml && grep -qxF '$TERMUX_TOML' ~/q-use.toml"
+    "out=\$(printf 'm\\n\\n\\n\\n' | chezmoi --config ~/q-use.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -qF $(printf '%q' "$USE_PROMPT") <<<\"\$out\" && grep -qF $(printf '%q' "$TOOLS_PROMPT") <<<\"\$out\" && grep -qx '    machineUse = \"minimal\"' ~/q-use.toml && grep -qxF '$TERMUX_TOML' ~/q-use.toml"
   check "選單列全部工具,Termux 裝不了的標原因(tailscale 提示裝 Android app)" \
-    "out=\$(printf 'c\\n\\n\\n' | chezmoi --config ~/q-menu.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -q 'claude .*（裝不了：' <<<\"\$out\" && grep -q 'tailscale .*（裝不了：.*Android app' <<<\"\$out\" && grep -q 'agent-config .*（裝不了：' <<<\"\$out\""
+    "out=\$(printf 'c\\n\\n\\n\\n' | chezmoi --config ~/q-menu.toml init --no-tty --promptString 'git user.email=e2e@example.com' 2>&1); grep -q 'claude .*（裝不了：' <<<\"\$out\" && grep -q 'tailscale .*（裝不了：.*Android app' <<<\"\$out\" && grep -q 'agent-config .*（裝不了：' <<<\"\$out\""
   check "config 存精簡、tools 跟 Ubuntu 的精簡一樣" \
     "grep -qxF '$TERMUX_TOML' ~/.config/chezmoi/chezmoi.toml && grep -qx '    machineUse = \"minimal\"' ~/.config/chezmoi/chezmoi.toml"
   check "沒裝 tailscale、btop" "! command -v tailscale && ! command -v btop"
