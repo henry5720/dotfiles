@@ -91,6 +91,21 @@ wsl --shutdown
 再重新開啟 WSL 與 Herdr。這個指令會停止所有 WSL process,包括 Herdr panes、dev server
 與 Docker command,不能在尚未保存工作時執行。
 
+### Windows 桌面的 terminal 連不上 herdr
+
+症狀：在 Windows 桌面開一般 terminal 跑 `herdr`，回 elevated server 拒絕 unelevated client（存取被拒）；
+或 pane 的提示列是 Administrator、GUI 程式看不到、junction 顯示「未受信任的掛接點」。
+
+原因：帳號在 Administrators 群組，從 OpenSSH 登入拿到的是完整（elevated）權限，跑在 session 0。
+從別台 `herdr --machine` 或 `herdr machine add` 經 ssh 把 server 拉起來，server 和每個 pane 都繼承這個權限。
+Linux 沒有這個問題，經 ssh 起 server 是官方設計。
+
+所以 Windows 的 herdr server 要在那台登入桌面後，從一般 terminal 跑 `herdr` 起。
+`[server] allow_unelevated_clients` 不開：它讓一般權限的 client 操作 elevated server，等於開一條提權的路，pane 也還是 elevated。
+
+已經是 elevated 的 server，修法（停用各 client 的 profile、停 server、從桌面重起）見 agent-config 的
+[`herdr-workflow` skill〈server〉](https://github.com/henry5720/agent-config/blob/main/skills/herdr-workflow/server.md)。
+
 ## 更多
 
 - [herdr](https://github.com/herdrdev/herdr)：官方 README 與設定
