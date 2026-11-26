@@ -15,7 +15,6 @@ codex-config-provider.toml、codex-commit-attribution.md 來。
    - [model_providers.codex-lb-gcp](含子 table)、[[skills.config]]、舊版 chezmoi 的橫幅丟掉,其餘 table 原樣留著
 3. 照 Linux 的順序輸出:repo 的頂層 key、developer_instructions、留著的頂層 key、provider、留著的 table
 4. 安全檢查:repo 不管的部分解析後跟現有內容一樣,不一樣就讓 apply 失敗,不寫壞檔案
-樣板自己的字一律去掉 \r:Windows 的 Git 預設 core.autocrlf=true,source checkout 成 CRLF(見 skillshare 的 modify_config.yaml)。
 */ -}}
 {{- $managed := list "model" "model_provider" "model_reasoning_effort" "approval_policy" "sandbox_mode" "approvals_reviewer" "developer_instructions" -}}
 {{- $provider := "codex-lb-gcp" -}}
@@ -27,7 +26,7 @@ codex-config-provider.toml、codex-commit-attribution.md 來。
 {{- $prior := get (fromToml $existing) "developer_instructions" | default "" -}}
 {{- if not (kindIs "string" $prior) }}{{ fail "developer_instructions 必須是字串" }}{{ end -}}
 {{- $prior = regexReplaceAll "(?s)(?:\n\n)?<!-- chezmoi:codex-commit-attribution:start -->.*?<!-- chezmoi:codex-commit-attribution:end -->" $prior "" -}}
-{{- $guide := regexReplaceAll "\n+$" (includeTemplate "codex-commit-attribution.md" . | replace "\r" "") "" -}}
+{{- $guide := regexReplaceAll "\n+$" (includeTemplate "codex-commit-attribution.md" .) "" -}}
 {{- $instructions := $guide -}}
 {{- if $prior }}{{ $instructions = printf "%s\n\n%s" $prior $guide }}{{ end -}}
 {{- /* 2. 括號只數字串與註解以外的;三引號數到偶數個才算字串結束。
@@ -89,7 +88,7 @@ codex-config-provider.toml、codex-commit-attribution.md 來。
 {{- $tail := slice $out $skillsAt | join "" | trimAll "\n" -}}
 {{- $candidate := list -}}
 {{- range $part := list $head $tail }}{{ if trim $part }}{{ $candidate = append $candidate $part }}{{ end }}{{ end -}}
-{{- $result := printf "%s\n%s\n\n%s\n" (regexReplaceAll "\n+$" (includeTemplate "codex-config-top.toml" . | replace "\r" "") "") $preambleText (regexReplaceAll "\n+$" (includeTemplate "codex-config-provider.toml" . | replace "\r" "") "") -}}
+{{- $result := printf "%s\n%s\n\n%s\n" (regexReplaceAll "\n+$" (includeTemplate "codex-config-top.toml" .) "") $preambleText (regexReplaceAll "\n+$" (includeTemplate "codex-config-provider.toml" .) "") -}}
 {{- if $candidate }}{{ $result = printf "%s\n%s\n" $result (join "\n\n" $candidate) }}{{ end -}}
 {{- /* 4. */ -}}
 {{- $cmp := list -}}

@@ -197,10 +197,10 @@ check_alias() {
   check "$1" "$(zsh_ok "a=\${aliases[$2]-未定義}; [[ $3 ]] || { print -ru2 -- \"實際:$2 → \$a\"; false }")"
 }
 
-# Codex 權限三個 key 由 modify_ 釘死(#148);不測 sandbox 行為,容器裡的結果不代表實機。
+# Codex 權限只釘 approvals_reviewer(#148、#204),approval_policy、sandbox_mode 用 codex 預設;不測 sandbox 行為,容器裡的結果不代表實機。
 check_codex_permissions() {
-  check "modify_ 產物:~/.codex/config.toml 權限是 on-request + workspace-write + auto_review" \
-    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert (c[\"approval_policy\"],c[\"sandbox_mode\"],c[\"approvals_reviewer\"])==(\"on-request\",\"workspace-write\",\"auto_review\")' ~/.codex/config.toml"
+  check "modify_ 產物:~/.codex/config.toml 權限是 auto_review,approval_policy、sandbox_mode 沒寫" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"approvals_reviewer\"]==\"auto_review\" and not ({\"approval_policy\",\"sandbox_mode\"} & set(c))' ~/.codex/config.toml"
 }
 
 check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
@@ -1544,7 +1544,7 @@ noroot_full_checks() {
   # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),playwright-extension-attach 不部署
   check_playwright_extension_attach no
   check_remote_access yes
-  check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
+  check "modify-template 照常產出 ~/.claude/settings.json(用家目錄的 jq 讀)" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -q 'mise' <<<\"\$out\""

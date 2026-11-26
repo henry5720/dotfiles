@@ -15,13 +15,14 @@
 # MCP server 不歸這裡管,由 skillshare 寫(清單在 agent-config 的 mcp.yaml)。
 # 所有 [mcp_servers.*] 都當成別人的 table 原樣保留,不然每次 apply 都會刪掉 skillshare 寫的。
 #
-# 權限三個 key(approval_policy、sandbox_mode、approvals_reviewer)也由這裡管:sandbox 照常擋
-# .git 寫入與連網,越界的請求先交給 auto_review 審,審不過才問人。
-#   - 每次 apply 都蓋回,不是「沒有才寫」:codex 自己會寫 approvals_reviewer = "user"(來源查不到)。
-#     依據(2026-10-09 實測,codex 0.161.0):TUI 的 /permissions 只在當次 session 有效,不會寫回這份檔。
+# 權限只寫 approvals_reviewer = "auto_review":sandbox 照常擋 .git 寫入與連網,越界的請求先交給
+# auto_review 審,審不過才問人。approval_policy、sandbox_mode 用 codex 預設(信任過的專案就是
+# on-request + workspace-write);model、model_reasoning_effort 也用預設(#204)。
+#   - managed_top_keys 裡沒寫值的 key 每次 apply 都丟掉:TUI 的 /permissions、/model 會把選擇寫回
+#     這份檔(codex 0.171.0 原始碼,tui/src/chatwidget/permission_popups.rs),丟掉才會回到預設。
 #   - Termux 的 codex 沒有 sandbox:shell 指令不設防地跑、不發核准請求,改檔反而每次都要審。
-#     這組 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
-#   - personal profile(personal.config.toml)不寫權限 key,--profile personal 疊在這份上就吃到同一組。
+#     這個 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
+#   - personal profile(personal.config.toml)的權限 key 由那份腳本丟掉,--profile personal 疊在這份上就吃到同一組。
 #
 # ⚠️ 不歸 repo 管的頂層 key(例如 notify)寫在第一個 table 之前。那些 key 只能
 # 留在頂層區:一旦排到 [model_providers.codex-lb-gcp] 後面,TOML 就會把它當成那個 table

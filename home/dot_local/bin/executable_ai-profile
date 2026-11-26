@@ -76,7 +76,7 @@ def main():
             env.pop("OPENCODE_CONFIG_DIR", None)
             env.pop("OPENCODE_TUI_CONFIG", None)
             env.pop("OPENCODE_CONFIG_CONTENT", None)
-            env["OH_MY_OPENCODE_SLIM_PRESET"] = "teamsync-astra"
+            env["OH_MY_OPENCODE_SLIM_PRESET"] = "teamsync"
         os.execvpe(binary, [binary, *args], env)
     if tool == "opencode" and args[:2] in (["auth", "login"], ["providers", "login"]):
         for key in ("OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OPENCODE_TUI_CONFIG", "OPENCODE_CONFIG_CONTENT", "OH_MY_OPENCODE_SLIM_PRESET"):

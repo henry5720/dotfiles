@@ -1,0 +1,5 @@
+# 工作目錄一律 LF(#204):Windows 的 Git 預設 core.autocrlf=true,沒有這行 source 會 checkout 成 CRLF,
+# 樣板輸出跟著帶 \r。已經 clone 的機器要重新 checkout 一次才生效,見 docs/agents/verification.md。
+* text=auto eol=lf
+# .wslconfig 一直是 CRLF 存的(Windows 讀),原樣保留、不轉換;改 LF 要先在實機驗 wsl 讀得到
+home/dot_wslconfig -text

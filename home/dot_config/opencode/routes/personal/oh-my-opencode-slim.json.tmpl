@@ -8,5 +8,9 @@
 {{- range $name, $agent := $council -}}
 {{- $_ := set $agent "model" (regexReplaceAll "^[^/]+/" (index $agent "model") "openai/") -}}
 {{- end -}}
+{{- /* 個人 route(#204 查證,oh-my-opencode-slim 3.0.x 文件):
+       - 不帶 ACP agent 的設定:公司那份的 wrapperModel 走 codex-lb-gcp。disabled_tools 列 acp_run 會連 ACP wrapper agent 一起拿掉。
+       - fallback.enabled=false:預設是遇到額度用完、限流、401 時換 preset 裡的下一個 model。
+         原 commit(0b37d6d、6c45c6e)沒寫理由;推測是個人 route 全走同一個 ChatGPT 帳號,換 model 也是同一份額度。 */ -}}
 {{- $route := dict "$schema" (index $company "$schema") "preset" "personal" "presets" (dict "personal" $agents) "council" (dict "default_preset" "personal" "presets" (dict "personal" $council)) "disabled_tools" (list "acp_run") "fallback" (dict "enabled" false) "autoUpdate" (index $company "autoUpdate") -}}
 {{ toPrettyJson $route }}

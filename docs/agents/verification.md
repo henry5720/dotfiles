@@ -36,6 +36,21 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 
 互動登入、實際開一個 agent session 要人做,agent 不代做。
 
+`.gitattributes`(#204)加進來之前就 clone 的 Windows 機器,source 還是 CRLF。**這一次不要直接 `chezmoi update`**:
+它是 pull 加 apply,pull 只重寫有變的檔,沒變的那些(`skillshare-pinned`、`codex-commit-attribution.md`…)還帶 `\r`,
+apply 就會把 `\r` 寫進 skillshare 的 `config.yaml`、Codex 的 `developer_instructions`。先確認 `chezmoi git -- status` 是乾淨的,再:
+
+```powershell
+chezmoi git -- pull
+chezmoi git -- rm --cached -r -q .
+chezmoi git -- reset --hard
+chezmoi apply
+```
+
+source 從 CRLF 變 LF,所有 `run_onchange_*.ps1` 的內容雜湊都會變,這次 apply 會各重跑一次(都是「已安裝就跳過」);
+部署出去的一般檔(mise 設定、starship、PowerShell profile…)也改寫成 LF 一次。已經照順序做錯、`\r` 寫進去了的話,
+補做重新 checkout 再 `chezmoi apply` 一次就恢復。
+
 在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
 `chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
 `chezmoi update` 換回來,不然那台會一直拉舊分支。

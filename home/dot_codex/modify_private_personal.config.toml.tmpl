@@ -20,7 +20,8 @@ for line in existing.splitlines():
     stripped = line.strip()
     if stripped.startswith("["):
         table = tuple(stripped.strip("[]").split("."))
-    if not table and any(stripped.startswith(key + " ") or stripped.startswith(key + "=") for key in ("model", "model_provider", "forced_login_method")):
+    # 權限 key 也丟掉:用 --profile personal 時,TUI 的 /permissions 會寫進這份,蓋過 base 的 auto_review(#204)。
+    if not table and any(stripped.startswith(key + " ") or stripped.startswith(key + "=") for key in ("model", "model_provider", "forced_login_method", "approval_policy", "sandbox_mode", "approvals_reviewer")):
         continue
     lines.append(line)
 candidate = []

@@ -343,7 +343,7 @@ if (-not (Test-Path $codex)) {
 exit 0
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
-# hash: c1e3e346a20d9b5e3cd603d12508e33085eab792cefa69dc9d49f1ac968873b6
+# hash: 74b09b2f8729ec45c21a16f6a758161398ea3f2b8c1bc9a46cc48ee76182b810
 # pinned: fbf70241bdd22fdcb9b28bca395118e1e96520474b2458fdefdaccd052b76e0b
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }

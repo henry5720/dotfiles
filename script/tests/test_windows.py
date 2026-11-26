@@ -183,7 +183,7 @@ class WindowsDeployTest(unittest.TestCase):
         # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
         fresh = self.render_opencode_json(None)
         self.assertEqual(fresh["mcp"], {})
-        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim"])
+        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim@3.0.7"])
         self.assertEqual(fresh["provider"]["codex-lb-gcp"]["options"]["apiKey"], "fixture")
         self.assertEqual(fresh["model"], "codex-lb-gcp/gpt-6.1-sol")
         self.assertEqual(fresh["small_model"], "codex-lb-gcp/gpt-6-luna")
@@ -214,7 +214,8 @@ class WindowsDeployTest(unittest.TestCase):
     def test_windows_codex_config_pins_values_and_keeps_codex_state(self):
         out = self.codex_windows(CODEX_EXISTING)
         config, before = tomllib.loads(out), tomllib.loads(CODEX_EXISTING)
-        self.assertEqual(config["model"], "gpt-6.1-sol")
+        for key in ("model", "model_reasoning_effort", "approval_policy", "sandbox_mode"):
+            self.assertNotIn(key, config)  # 用 codex 預設(#204)
         self.assertEqual(config["model_provider"], "codex-lb-gcp")
         self.assertEqual(config["approvals_reviewer"], "auto_review")
         self.assertEqual(config["model_providers"]["codex-lb-gcp"]["experimental_bearer_token"], "fixture")
@@ -651,23 +652,15 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertEqual(only_claude, self.render(script, ["agent-config", "claude", "fzf"]))
 
     # ===============================================================
-    # Windows 的 Git 預設 core.autocrlf=true:source checkout 成 CRLF,modify-template 的輸出不能跟著帶 \r
+    # source 一律 LF(.gitattributes,#204):樣板自己的換行不能漏進輸出
     # ===============================================================
-    def crlf_source(self):
-        """repo 的 home/ 複製一份、文字檔換成 CRLF,模擬 Windows 上 autocrlf=true 的 checkout。"""
-        src = Path(self.tmp.name) / "crlf-source"
-        (src / "home").mkdir(parents=True)
-        (src / ".chezmoiroot").write_bytes((ROOT / ".chezmoiroot").read_bytes())
-        for f in (ROOT / "home").rglob("*"):
-            dest = src / f.relative_to(ROOT)
-            if f.is_dir():
-                dest.mkdir(parents=True, exist_ok=True)
-                continue
-            data = f.read_bytes()
-            if b"\0" not in data:
-                data = data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
-            dest.write_bytes(data)
-        return src
+    def test_gitattributes_forces_lf_checkout(self):
+        # Windows 的 Git 預設 core.autocrlf=true;.gitattributes 的 eol=lf 蓋過它,樣板就不用逐處拿掉 \r
+        out = subprocess.run(["git", "-C", str(ROOT), "check-attr", "text", "eol", "--",
+                              "home/.chezmoitemplates/tool-menu", "home/AppData/Roaming/skillshare/modify_config.yaml"],
+                             capture_output=True, text=True, check=True).stdout
+        self.assertEqual(out.count(": eol: lf"), 2, out)
+        self.assertEqual(out.count(": text: auto"), 2, out)
 
     def cat_bytes(self, target, existing, tools, source):
         """把 existing(bytes)放到 target,回傳 chezmoi cat 算出的 bytes。"""
@@ -681,28 +674,24 @@ class WindowsDeployTest(unittest.TestCase):
             json.dumps({"chezmoi": info, "tools": tools, "codexLbApiKey": "fixture"}), "cat", str(path),
         ], stdin=subprocess.DEVNULL, capture_output=True, check=True).stdout
 
-    def test_windows_skillshare_config_keeps_skillshare_bytes_from_crlf_checkout(self):
-        # skillshare 存的檔案(LF)已經是釘的內容:CRLF 或 LF 的 checkout 渲染出來都要逐 byte 一樣,chezmoi diff 才是空的
+    def test_windows_skillshare_config_keeps_skillshare_bytes(self):
+        # skillshare 存的檔案(LF)已經是釘的內容:渲染出來要逐 byte 一樣,chezmoi diff 才是空的
         saved = SKILLSHARE_FIXTURE.read_bytes()
         tools = ["agent-config", "claude", "codex", "opencode"]
-        for name, source in (("lf", ROOT), ("crlf", self.crlf_source())):
-            with self.subTest(checkout=name):
-                once = self.cat_bytes(SKILLSHARE_CONFIG, saved, tools, source)
-                self.assertEqual(once, saved)
-                self.assertEqual(self.cat_bytes(SKILLSHARE_CONFIG, once, tools, source), once)
+        once = self.cat_bytes(SKILLSHARE_CONFIG, saved, tools, ROOT)
+        self.assertEqual(once, saved)
+        self.assertEqual(self.cat_bytes(SKILLSHARE_CONFIG, once, tools, ROOT), once)
 
-    def test_windows_opencode_json_has_no_cr_from_crlf_checkout(self):
-        # toPrettyJson 的輸出是 LF;樣板自己的換行不能漏進來(CRLF checkout 會在檔尾多一個 \r\n)
+    def test_windows_opencode_json_ends_with_one_newline(self):
+        # toPrettyJson 自己以換行結尾;樣板自己的換行不能漏進來
         target = ".config/opencode/opencode.json"
         lf = self.cat_bytes(target, b"", ["opencode"], ROOT)
         self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
-        self.assertEqual(self.cat_bytes(target, b"", ["opencode"], self.crlf_source()), lf)
 
-    def test_windows_codex_config_same_from_crlf_checkout(self):
-        # 樣板自己的字(釘的 TOML、commit 指引)不能帶 \r 進來;codex 存的是 LF
+    def test_windows_codex_config_has_no_cr(self):
+        # codex 存的是 LF,輸出也要是 LF
         lf = self.cat_bytes(".codex/config.toml", CODEX_EXISTING.encode(), ["codex"], ROOT)
         self.assertNotIn(b"\r", lf)
-        self.assertEqual(self.cat_bytes(".codex/config.toml", CODEX_EXISTING.encode(), ["codex"], self.crlf_source()), lf)
 
     def test_windows_ps1_render_ascii_only(self):
         # 第一次 apply 用 5.1 跑(config 的 interpreters.ps1),它讀沒有 BOM 的檔案用 ANSI 字碼頁
@@ -752,7 +741,7 @@ class WindowsDeployTest(unittest.TestCase):
         data = {"tools": ["codex"], "codexLbApiKey": "fixture"}
         self.chezmoi("windows", "apply", "--exclude", "scripts", data=data)
         config = tomllib.loads((self.home / ".codex/config.toml").read_text(encoding="utf-8"))
-        self.assertEqual(config["sandbox_mode"], "workspace-write")
+        self.assertEqual(config["approvals_reviewer"], "auto_review")
         self.chezmoi("windows", "verify", "--exclude", "scripts", data=data)
 
     def test_windows_apply_deploys_tools_and_mise_list(self):
@@ -996,14 +985,9 @@ class WindowsDeployTest(unittest.TestCase):
                     self.render_claude_settings(existing)
                 self.assertIn("settings.json 必須是 JSON 物件", error.exception.stderr.decode())
 
-    def test_windows_claude_settings_has_no_cr_from_crlf_checkout(self):
-        crlf = self.crlf_source()
+    def test_windows_claude_settings_ends_with_one_newline(self):
         lf = self.render_claude_settings(None)
         self.assertTrue(lf.endswith(b"}\n") and not lf.endswith(b"\n\n"))
-        self.assertEqual(self.render_claude_settings(None, crlf), lf)
-        changed = '{"attribution": {"commit": "old"}}'
-        self.assertEqual(self.render_claude_settings(changed, crlf),
-                         self.render_claude_settings(changed))
 
 
 if __name__ == "__main__":

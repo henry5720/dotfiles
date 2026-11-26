@@ -116,30 +116,28 @@ class AiProfileTest(unittest.TestCase):
             cfg.write_text("", encoding="utf-8")
             rendered = json.loads(subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
         roles = rendered["presets"]["personal"]
-        self.assertEqual(set(roles), {"orchestrator", "oracle", "council", "explorer", "librarian", "designer", "fixer"})
+        self.assertEqual(set(roles), {"orchestrator", "oracle", "council", "explorer", "designer", "fixer"})
         self.assertEqual(roles["orchestrator"]["model"], "openai/gpt-6.1-sol")
-        self.assertEqual(roles["oracle"]["model"], "openai/gpt-6-astra")
+        self.assertEqual(roles["oracle"]["model"], "openai/gpt-6.1-sol")
         self.assertTrue(all(role["model"].startswith("openai/") for role in roles.values()))
         self.assertNotIn("acpAgents", rendered); self.assertEqual(rendered["fallback"]["enabled"], False)
-        self.assertEqual(rendered["autoUpdate"], True)
-        self.assertIn("@3.0.3/", rendered["$schema"])
+        self.assertEqual(rendered["autoUpdate"], False)
+        self.assertIn("@3.0.7/", rendered["$schema"])
         company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
-        self.assertEqual(company["autoUpdate"], True)
-        company_orchestrator = company["presets"]["teamsync-astra"]["orchestrator"]
-        self.assertEqual(roles["orchestrator"]["skills"], company_orchestrator["skills"])
-        self.assertEqual(roles["orchestrator"]["mcps"], company_orchestrator["mcps"])
-        for name in ("oracle", "librarian"):
-            self.assertEqual(roles[name]["skills"], company["presets"]["teamsync-astra"][name]["skills"])
-            self.assertEqual(roles[name]["mcps"], company["presets"]["teamsync-astra"][name]["mcps"])
+        self.assertEqual(company["autoUpdate"], False)
+        # skills、mcps 沒寫的用 OMO 預設;有寫的(oracle 的 skills)照搬
+        for name in ("orchestrator", "oracle"):
+            for key in ("skills", "mcps"):
+                self.assertEqual(roles[name].get(key), company["presets"]["teamsync"][name].get(key), (name, key))
 
     def test_personal_omo_include_inherits_changed_company_metadata(self):
         with tempfile.TemporaryDirectory() as d:
             source = Path(d); company_path = source / "dot_config/opencode/oh-my-opencode-slim.json"
             company_path.parent.mkdir(parents=True)
             company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
-            company["presets"]["teamsync-astra"]["orchestrator"]["skills"] = ["fixture-common-skill"]
-            company["presets"]["teamsync-astra"]["orchestrator"]["mcps"] = ["fixture-common-mcp"]
-            company["presets"]["teamsync-astra"]["orchestrator"]["variant"] = "fixture-variant"
+            company["presets"]["teamsync"]["orchestrator"]["skills"] = ["fixture-common-skill"]
+            company["presets"]["teamsync"]["orchestrator"]["mcps"] = ["fixture-common-mcp"]
+            company["presets"]["teamsync"]["orchestrator"]["variant"] = "fixture-variant"
             company_path.write_text(json.dumps(company), encoding="utf-8")
             template = source / "route.tmpl"
             template.write_bytes((ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes())
@@ -157,7 +155,7 @@ class AiProfileTest(unittest.TestCase):
             company_path.parent.mkdir(parents=True)
             company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
             company["preset"] = "fixture-active"
-            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync-astra"]))
+            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync"]))
             company["presets"]["fixture-active"]["orchestrator"]["model"] = "codex-lb-gcp/fixture-main"
             company["presets"]["fixture-active"]["explorer"]["model"] = "codex-lb-gcp/fixture-small"
             company["council"]["default_preset"] = "fixture-council"
