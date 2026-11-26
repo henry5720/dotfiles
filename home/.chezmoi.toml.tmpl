@@ -163,7 +163,7 @@
        每一項是 (key 提示文字 預設值 工具);預設值空字串 = 沒有預設。
        Windows 照同一套規則,只有 git 身分(空的那兩項)不問:Windows 不部署 .gitconfig(.chezmoiignore 的 Windows 白名單)。
        homeRepo(home repo 的位置,#411)不是憑證,也照這套「存過不再問」;Windows 也問(opencode.json 用得到)。
-       用的地方讀 .chezmoitemplates/home-repo,不直接讀 key。 */ -}}
+       用的地方讀 .chezmoitemplates/home-repo,不直接讀 key;預設值 ~/code 兩邊一起改。 */ -}}
 {{- $answers := dict -}}
 {{- $answerKeys := list -}}
 {{- range $q := list

@@ -74,7 +74,10 @@ class HomeRepoTest(unittest.TestCase):
 
     def test_git_includeif_follows_home_repo(self):
         for home_repo, want in ((None, "~/code/"), ("D:\\code", "D:/code/"), ("~/home-repo/", "~/home-repo/"),
-                                ("/srv/code", "/srv/code/")):
+                                ("/srv/code", "/srv/code/"),
+                                # 結尾多個斜線只留一個;只剩根目錄、~、磁碟機時照樣補一個
+                                ("~/code//", "~/code/"), ("D:\\code\\\\", "D:/code/"),
+                                ("~", "~/"), ("D:\\", "D:/"), ("/", "/")):
             with self.subTest(home_repo=home_repo):
                 self.assertEqual(self.includeif(home_repo), [f'[includeIf "gitdir:{want}"]'])
 
