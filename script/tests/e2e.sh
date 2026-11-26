@@ -1544,7 +1544,7 @@ noroot_full_checks() {
   # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),playwright-extension-attach 不部署
   check_playwright_extension_attach no
   check_remote_access yes
-  check "modify_ 用家目錄的 jq 照常產出 ~/.claude/settings.json" \
+  check "modify-template 照常產出 ~/.claude/settings.json(用家目錄的 jq 讀)" \
     "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -q 'mise' <<<\"\$out\""
