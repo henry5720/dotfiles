@@ -42,6 +42,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     graphifyApiKey = ""
     discordBotToken = ""
     wakatimeApiKey = ""
+    homeRepo = "~/code"
     machineUse = "custom"
     tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "earlyoom", "gh", "code-server", "tailscale", "openssh-server", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapserver", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3

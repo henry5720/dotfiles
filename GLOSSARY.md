@@ -170,6 +170,10 @@ _Avoid_: 外掛、optional packages、模組
 `chezmoi init` 第一個問題的答案：完整、精簡或自訂（config 存英文代號 `full`、`minimal`、`custom`；init 時按字母 `f`、`m`、`c`）。決定選單預設勾哪些選裝工具；選完沒改勾選就只認用途，預設組合改了會跟著變。每台都問，Windows 主機也是。
 _Avoid_: profile（跟 `ai-profile` 撞名）、角色、模式
 
+**home repo**:
+放工作 repo 的資料夾，預設 `~/code`。`chezmoi init` 問一次、存在 config 的 `homeRepo`，每台都問，Windows 主機也是。共用 git hook、OpenCode 不用問就能讀的目錄、`codegraph-setup-repo` 掃的目錄都照它。
+_Avoid_: code 目錄、workspace、`CODE_HOME`
+
 **預設組合**:
 一個用途預設勾好的選裝工具。完整是選單上全部，精簡是 zsh、starship、eza、fzf、bat、ripgrep、vim、fastfetch（只放 shell 體驗），自訂是空的。都扣掉這台環境「不建議」和「裝不了」的工具（例如 WSL 的 tailscale，WSL、ARM 的 headless-chrome，Windows 的 zsh）；判斷有沒有改過勾選也用扣完的組合比。
 _Avoid_: preset、套餐

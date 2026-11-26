@@ -85,6 +85,7 @@ jobs:
               --promptString 'Discord bot token，給 discord MCP（可留空）='
               --promptString 'WakaTime API key（可留空）='
               --promptString 'git user.name=ci'
+              --promptString 'home repo 的位置=~/code'
               --promptChoice "$USE_PROMPT=f"
               --promptMultichoice "$TOOLS_PROMPT=$labels"
             )

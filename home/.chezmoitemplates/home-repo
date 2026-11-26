@@ -1,0 +1,3 @@
+{{- /* home repo 的位置(init 問的 homeRepo,#411),結尾固定一個 /。用法:{{ includeTemplate "home-repo" . }}
+       沒有這個 key 的舊 config 當 ~/code;\ 換成 /(Windows 填 D:\code 也行)。~ 原樣留著,要展開的自己換。 */ -}}
+{{- default "~/code" (index . "homeRepo") | replace "\\" "/" | trimSuffix "/" | printf "%s/" -}}

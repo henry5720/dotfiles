@@ -14,7 +14,7 @@ set -euo pipefail
 SHARED_HOOKS="$HOME/.config/git/hooks"
 HOOKS=(post-checkout post-merge)
 
-# 要處理哪些 repo。優先序:命令列參數 > 清單檔 > 掃 ~/code 底下已經有索引的。
+# 要處理哪些 repo。優先序:命令列參數 > 清單檔 > 掃 home repo 底下已經有索引的。
 #
 # 清單放在 repo 外(`~/.config/codegraph/repos`,一行一個路徑,`#` 開頭是註解),
 # 理由跟 API key 走 `~/.config/chezmoi/chezmoi.toml` 一樣 —— 這個 dotfiles repo
@@ -29,8 +29,9 @@ if [ ${#repos[@]} -eq 0 ] && [ -f "$REPO_LIST" ]; then
 	done < "$REPO_LIST"
 fi
 if [ ${#repos[@]} -eq 0 ]; then
-	# 沒有清單檔:掃 ~/code 底下已經建過索引的,當成「維護現有的」
-	for d in "$HOME"/code/*/; do
+	# 沒有清單檔:掃 home repo(chezmoi 的 homeRepo,預設 ~/code)底下已經建過索引的,當成「維護現有的」。
+	# 引號裡的 ~ 不會展開,渲染時換成 $HOME
+	for d in "{{ regexReplaceAllLiteral "^~/" (includeTemplate "home-repo" .) "$HOME/" }}"*/; do
 		[ -d "${d}.codegraph" ] && repos+=("${d%/}")
 	done
 fi

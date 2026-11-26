@@ -6,7 +6,7 @@ Windows 本身就是開發機。怎麼裝見[新機器設定](../new-machine-set
 ## 部署什麼
 
 `chezmoi init` 跟其他 OS 一樣問用途、出選裝工具選單（見[用途與憑證](machine-use.md)）；勾到要憑證的工具才問憑證，
-git 身分不問（Windows 不部署 `.gitconfig`）。部署的檔案只有 `home/.chezmoiignore` Windows 段白名單上的：
+git 身分不問（Windows 不部署 `.gitconfig`），home repo 的位置照問（`opencode.json` 用）。部署的檔案只有 `home/.chezmoiignore` Windows 段白名單上的：
 
 | repo 裡的檔案 | 部署到 | 用途 |
 |---|---|---|

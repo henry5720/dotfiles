@@ -5,12 +5,12 @@
 # user.name / user.email / core.editor 都在 ~/.gitconfig,那份也由 chezmoi
 # 納管(home/dot_gitconfig.tmpl),值在 chezmoi init 時問,不進這個公開 repo。
 
-# ~/code 底下的 repo 共用一份 git hooks。
+# home repo(chezmoi init 問的 homeRepo,預設 ~/code)底下的 repo 共用一份 git hooks。
 #
 # 比對的是 **gitdir** 不是工作目錄,所以 herdr 把 worktree 放在 ~/.herdr/ 也算得進來
-# —— 那些 worktree 的 gitdir 是 ~/code/<repo>/.git/worktrees/<名字>。
-# path 是相對路徑,相對於這個檔案所在的目錄。
-[includeIf "gitdir:~/code/"]
+# —— 那些 worktree 的 gitdir 是 <home repo>/<repo>/.git/worktrees/<名字>。
+# path 是相對路徑,相對於這個檔案所在的目錄。開頭的 ~/ 由 git 自己展開。
+[includeIf "gitdir:{{ includeTemplate "home-repo" . }}"]
 	path = config-code
 
 # 新 repo 預設分支叫 main,跟 GitHub 一致。沒設的話 `git init`(包括 skillshare init

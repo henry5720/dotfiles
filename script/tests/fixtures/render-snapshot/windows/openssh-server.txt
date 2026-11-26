@@ -36,6 +36,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
 
 ## init 存下的設定
 [data]
+    homeRepo = "~/code"
     machineUse = "custom"
     tools = ["openssh-server"]
     toolsSchema = 3

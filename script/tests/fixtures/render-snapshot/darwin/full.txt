@@ -44,6 +44,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     wakatimeApiKey = ""
     gitUserName = "e2e"
     gitUserEmail = "e2e@example.com"
+    homeRepo = "~/code"
     machineUse = "full"
     tools = ["zsh", "starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "btop", "bottom", "gh", "code-server", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config"]
     toolsSchema = 3

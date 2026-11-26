@@ -26,7 +26,7 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 | 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` | |
 | 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 | |
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 | |
-| 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;結束後 `chezmoi diff` 沒有輸出 | ◐ 只驗不互動的 init |
+| 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;home repo 的位置沒存過才問;結束後 `chezmoi diff` 沒有輸出 | ◐ 只驗不互動的 init |
 | 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 | ✅ |
 | 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` | ◐ 只驗已經有企業版 MSI 的 Chrome 時 winget 跳過、`playwright-cli --version` 跑得起來 |
 | 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 | ✅ |
