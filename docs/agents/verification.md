@@ -36,6 +36,14 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 
 互動登入、實際開一個 agent session 要人做,agent 不代做。
 
+`.gitattributes`(#204)加進來之前就 clone 的 Windows 機器,source 還是 CRLF:`chezmoi update` 只重寫有變的檔,
+沒變的那些照樣帶 `\r`,`chezmoi diff` 會整行都是差異。先確認 `chezmoi git -- status` 是乾淨的,再在 source 重新 checkout 一次:
+
+```powershell
+chezmoi git -- rm --cached -r -q .
+chezmoi git -- reset --hard
+```
+
 在 Windows 上測還沒 merge 的分支:`chezmoi init --branch <分支> henry5720`(已經裝過就
 `chezmoi git -- checkout <分支>` 再 `chezmoi update`)。merge 後 `chezmoi git -- checkout main` 再
 `chezmoi update` 換回來,不然那台會一直拉舊分支。

@@ -269,7 +269,7 @@ installer 時，它偵測到已部署的 config 會保留 config，這裡是用 
 bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 Node）：
 
 ```bash
-npx --yes oh-my-opencode-slim@latest install --no-tui --skills=yes --background-subagents=no --companion=no
+npx --yes oh-my-opencode-slim@3.0.7 install --no-tui --skills=yes --background-subagents=no --companion=no
 ```
 
 OmO 的 `@claude-code` ACP adapter 由 config 以 `npx` 按需啟動，不需要
@@ -383,7 +383,7 @@ SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo�
 ```bash
 chezmoi verify --exclude scripts   # 不看腳本：authorized_keys 那支每次 apply 都跑，永遠算沒對齊
 opencode
-npx --yes oh-my-opencode-slim@latest doctor
+npx --yes oh-my-opencode-slim@3.0.7 doctor
 ```
 
 `opencode` 裡的互動驗證同 4.4。`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出

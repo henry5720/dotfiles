@@ -1,6 +1,8 @@
 {{- /* ~/.config/opencode/opencode.json 裡由這個 repo 管的部分(mcp 以外),Linux 與 Windows 共用(#318)。
-       用的地方是 dot_config/opencode/modify_private_opencode.json.tmpl:Linux 用 jq 合併,Windows 用 modify-template。
-       "mcp": {} 只是佔位,讓 key 留在原本的位置;model、small_model 跟 oh-my-opencode-slim.json 正在用的 preset。 */ -}}
+       用的地方是 dot_config/opencode/modify_private_opencode.json.tmpl(modify-template,所有平台同一份,#204)。
+       "mcp": {} 只是佔位,那份 modify 換成現有檔案裡的;model、small_model 跟 oh-my-opencode-slim.json 正在用的 preset。
+       oh-my-opencode-slim 固定 3.0.7(oh-my-opencode-slim.json 的 autoUpdate 也關掉):3.0.8 起要 OpenCode 2.3 以上
+       (package.json 的 engines),這裡還是 OpenCode 1。升 OpenCode 2 時一起解除(#407)。 */ -}}
 {{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
 {{- $active := index (index $company "presets") (index $company "preset") -}}
 {{- $main := index (index $active "orchestrator") "model" -}}
@@ -75,6 +77,6 @@
   "lsp": true,
   "plugin": [
     "opencode-wakatime",
-    "oh-my-opencode-slim"
+    "oh-my-opencode-slim@3.0.7"
   ]
 }

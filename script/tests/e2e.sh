@@ -197,10 +197,10 @@ check_alias() {
   check "$1" "$(zsh_ok "a=\${aliases[$2]-未定義}; [[ $3 ]] || { print -ru2 -- \"實際:$2 → \$a\"; false }")"
 }
 
-# Codex 權限三個 key 由 modify_ 釘死(#148);不測 sandbox 行為,容器裡的結果不代表實機。
+# Codex 權限只釘 approvals_reviewer(#148、#204),approval_policy、sandbox_mode 用 codex 預設;不測 sandbox 行為,容器裡的結果不代表實機。
 check_codex_permissions() {
-  check "modify_ 產物:~/.codex/config.toml 權限是 on-request + workspace-write + auto_review" \
-    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert (c[\"approval_policy\"],c[\"sandbox_mode\"],c[\"approvals_reviewer\"])==(\"on-request\",\"workspace-write\",\"auto_review\")' ~/.codex/config.toml"
+  check "modify_ 產物:~/.codex/config.toml 權限是 auto_review,approval_policy、sandbox_mode 沒寫" \
+    "python3 -c 'import tomllib,sys; c=tomllib.load(open(sys.argv[1],\"rb\")); assert c[\"approvals_reviewer\"]==\"auto_review\" and not ({\"approval_policy\",\"sandbox_mode\"} & set(c))' ~/.codex/config.toml"
 }
 
 check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>

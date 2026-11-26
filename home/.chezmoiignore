@@ -30,14 +30,14 @@
 !.codex/config.toml
 {{ end -}}
 {{ if has "opencode" $tools -}}
-# OpenCode 的設定(#318),勾了才部署。opencode.json 在 Windows 渲染成 modify-template(Linux 那份是 sh + jq)。
+# OpenCode 的設定(#318),勾了才部署。opencode.json 是 modify-template(所有平台同一份,#204)。
 # routes/personal 不放:給 opencode-personal(ai-profile,只有 Linux)用,裡面還有 symlink。
 !.config/opencode
 !.config/opencode/opencode.json
 !.config/opencode/oh-my-opencode-slim.json
 {{ end -}}
 {{ if has "claude" $tools -}}
-# Claude Code 的設定(#319),勾了才部署。settings.json 在 Windows 渲染成 modify-template(Linux 那份是 sh + jq)。
+# Claude Code 的設定(#319),勾了才部署。settings.json 是 modify-template(所有平台同一份,#204)。
 # plugins/claude-hud 不放:claude-hud 由 skillshare 的 plugin 裝,那份設定跟著它走,這張不處理。
 !.claude
 !.claude/settings.json

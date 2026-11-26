@@ -15,6 +15,7 @@ CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
 OPENCODE_PERSONAL = ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl"
 CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
+MODIFY_TARGETS = {CLAUDE: ".claude/settings.json", OPENCODE: ".config/opencode/opencode.json"}
 
 
 class CommitAttributionTest(unittest.TestCase):
@@ -43,13 +44,24 @@ class CommitAttributionTest(unittest.TestCase):
             text=True, capture_output=True, check=True,
         ).stdout
 
+    def run_modify(self, template, existing=""):
+        # modify-template(#204 起所有平台):把現有內容放到暫存家目錄,用 chezmoi cat 算出 apply 會寫的內容
+        path = self.home / MODIFY_TARGETS[template]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(existing, encoding="utf-8")
+        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "opencode"]}
+        return subprocess.run([
+            "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(self.cfg),
+            "--destination", str(self.home), "--override-data", json.dumps(override), "cat", str(path),
+        ], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True).stdout
+
     def test_claude_sets_commit_attribution_and_preserves_other_settings(self):
         existing = {
             "attribution": {"commit": "old", "pr": "Keep PR attribution"},
             "hooks": {"SessionStart": [{"hooks": [{"command": "keep-hook"}]}]},
             "enabledPlugins": {"other-plugin": True},
         }
-        first = self.run_script(CLAUDE, json.dumps(existing))
+        first = self.run_modify(CLAUDE, json.dumps(existing))
         result = json.loads(first)
         self.assertEqual(result["attribution"], {
             "commit": "Co-Authored-By: Claude Code <noreply@anthropic.com>",
@@ -57,7 +69,7 @@ class CommitAttributionTest(unittest.TestCase):
         })
         self.assertEqual(result["hooks"], existing["hooks"])
         self.assertTrue(result["enabledPlugins"]["other-plugin"])
-        self.assertEqual(self.run_script(CLAUDE, first), first)
+        self.assertEqual(self.run_modify(CLAUDE, first), first)
 
     def test_codex_appends_attribution_and_preserves_multiline_instructions(self):
         existing = (
@@ -93,7 +105,7 @@ class CommitAttributionTest(unittest.TestCase):
 
     def test_opencode_routes_load_one_shared_commit_guide_and_keep_mcp(self):
         existing = {"mcp": {"fixture": {"type": "remote", "url": "https://example.com/mcp"}}}
-        first = self.run_script(OPENCODE, json.dumps(existing))
+        first = self.run_modify(OPENCODE, json.dumps(existing))
         work = json.loads(first)
         personal = json.loads(self.render(OPENCODE_PERSONAL))
         expected = [str(self.home / ".config/opencode/commit-instructions.md")]
@@ -101,7 +113,7 @@ class CommitAttributionTest(unittest.TestCase):
         self.assertEqual(personal["instructions"], expected)
         self.assertEqual(work["mcp"], existing["mcp"])
         self.assertEqual(personal["enabled_providers"], ["openai"])
-        self.assertEqual(self.run_script(OPENCODE, first), first)
+        self.assertEqual(self.run_modify(OPENCODE, first), first)
 
     def test_scoped_apply_deploys_attribution_settings(self):
         # 指令檔(CLAUDE.md、AGENTS.md、commit 指引)內容在 agent-config,symlink 由 test_instruction_symlinks 驗,這裡只驗 Settings。

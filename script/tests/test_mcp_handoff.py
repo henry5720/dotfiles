@@ -13,9 +13,12 @@ ROOT = Path(__file__).resolve().parents[2]
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
+MODIFY_TARGETS = {OPENCODE: ".config/opencode/opencode.json"}
 CLEANUP = ROOT / "home/.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl"
 LEGACY_CHROME = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
-PERMISSIONS = {"approval_policy": "on-request", "sandbox_mode": "workspace-write", "approvals_reviewer": "auto_review"}
+PERMISSIONS = {"approvals_reviewer": "auto_review"}
+# 這幾個 key 不寫、用 codex 預設;TUI 寫回的值每次 apply 都丟掉(#204)
+DEFAULTED = ("model", "model_reasoning_effort", "approval_policy", "sandbox_mode")
 
 
 class McpHandoffTest(unittest.TestCase):
@@ -33,6 +36,17 @@ class McpHandoffTest(unittest.TestCase):
     def run_script(self, template, interpreter, stdin=""):
         env = os.environ.copy(); env["HOME"] = str(self.home)
         return subprocess.run([interpreter, "-c", self.render(template)], input=stdin, env=env, text=True, capture_output=True, check=True).stdout
+
+    def run_modify(self, template, existing=""):
+        # modify-template(#204 起所有平台):把現有內容放到暫存家目錄,用 chezmoi cat 算出 apply 會寫的內容
+        path = self.home / MODIFY_TARGETS[template]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(existing, encoding="utf-8")
+        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "opencode"]}
+        return subprocess.run([
+            "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(self.cfg),
+            "--destination", str(self.home), "--override-data", json.dumps(override), "cat", str(path),
+        ], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=True).stdout
 
     def test_env_zsh_exports_only_filled_mcp_keys(self):
         # skillshare 的 MCP 設定只留 fromEnv／bearerToken 參照，值從 env.zsh 來；兩個都空就整份不部署。
@@ -68,13 +82,16 @@ class McpHandoffTest(unittest.TestCase):
     def test_codex_pins_permission_keys_at_top_level(self):
         # codex 自己寫的 "user" 要被換掉,它自己的頂層 key 與 table 照留;輸出再餵一次要一樣。
         existing = (
-            'approvals_reviewer = "user"\nnotify = ["herdr"]\n\n'
+            'approvals_reviewer = "user"\napproval_policy = "never"\nsandbox_mode = "read-only"\n'
+            'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\nnotify = ["herdr"]\n\n'
             '[projects."/x"]\ntrust_level = "trusted"\n'
         )
         first = self.run_script(CODEX, "sh", existing)
         config = tomllib.loads(first)
         for key, value in PERMISSIONS.items():
             self.assertEqual(config[key], value)  # 解析後是頂層 key,不在 provider table 底下
+        for key in DEFAULTED:
+            self.assertNotIn(key, config)
         self.assertEqual(config["notify"], ["herdr"])
         self.assertEqual(config["projects"], {"/x": {"trust_level": "trusted"}})
         self.assertNotIn("approvals_reviewer", config["model_providers"]["codex-lb-gcp"])
@@ -83,10 +100,14 @@ class McpHandoffTest(unittest.TestCase):
     def test_codex_personal_has_no_permission_keys(self):
         output = tomllib.loads(self.run_script(CODEX_PERSONAL, "sh"))
         self.assertFalse(set(PERMISSIONS) & set(output))
+        # TUI 的 /permissions 在 --profile personal 時寫進這份,要丟掉,不然蓋過 base 的 auto_review
+        written = 'approvals_reviewer = "user"\napproval_policy = "never"\nsandbox_mode = "read-only"\n'
+        output = tomllib.loads(self.run_script(CODEX_PERSONAL, "sh", written))
+        self.assertFalse({"approvals_reviewer", "approval_policy", "sandbox_mode"} & set(output))
 
     def test_opencode_keeps_mcp_and_resets_other_keys(self):
         existing = {"model": "drifted", "mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}}}
-        output = json.loads(self.run_script(OPENCODE, "sh", json.dumps(existing)))
+        output = json.loads(self.run_modify(OPENCODE, json.dumps(existing)))
         self.assertEqual(output["mcp"], existing["mcp"])
         self.assertEqual(output["model"], "codex-lb-gcp/gpt-6.1-sol")
 
@@ -97,21 +118,21 @@ class McpHandoffTest(unittest.TestCase):
             company_path.parent.mkdir(parents=True)
             company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
             company["preset"] = "fixture-active"
-            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync-astra"]))
+            company["presets"]["fixture-active"] = json.loads(json.dumps(company["presets"]["teamsync"]))
             company["presets"]["fixture-active"]["orchestrator"]["model"] = "codex-lb-gcp/fixture-main"
             company["presets"]["fixture-active"]["explorer"]["model"] = "codex-lb-gcp/fixture-small"
             company_path.write_text(json.dumps(company), encoding="utf-8")
-            # modify_ 腳本引用的共用片段(sh-jq-path)也要在這份暫時的 source 裡
+            # modify-template 引用的共用片段(opencode-json)也要在這份暫時的 source 裡
             shutil.copytree(ROOT / "home/.chezmoitemplates", source / ".chezmoitemplates")
             rendered = subprocess.check_output([
                 "chezmoi", "--source", str(source), "--config", str(self.cfg),
                 "--destination", str(self.home), "execute-template",
             ], input=OPENCODE.read_bytes()).decode()
-            env = os.environ.copy(); env["HOME"] = str(self.home)
-            output = json.loads(subprocess.run(
-                ["sh", "-c", rendered], input='{}', env=env, text=True,
-                capture_output=True, check=True,
-            ).stdout)
+            # 第二輪:chezmoi 跑 modify-template 時會帶 .chezmoi.stdin,execute-template 不會,用 override 補上
+            output = json.loads(subprocess.check_output([
+                "chezmoi", "--source", str(source), "--config", str(self.cfg), "--destination", str(self.home),
+                "--override-data", json.dumps({"chezmoi": {"stdin": "{}"}}), "execute-template",
+            ], input=rendered.encode()).decode())
         self.assertEqual(output["model"], "codex-lb-gcp/fixture-main")
         self.assertEqual(output["small_model"], "codex-lb-gcp/fixture-small")
 

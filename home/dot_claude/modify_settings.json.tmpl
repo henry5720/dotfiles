@@ -1,14 +1,25 @@
 {{- /* chezmoi:template:left-delimiter="[[" right-delimiter="]]" */ -}}
 [[- /*
-這個檔案的樣板用 [[ ]]:Windows 分支要輸出一份 {{ }} 的 modify-template,換了分隔符就不用一個個跳脫。
-釘的兩個值兩平台共用下面的變數,只寫一次。
+這個檔案的樣板用 [[ ]]:第一輪渲染出一份 {{ }} 的 modify-template(chezmoi 拿現有檔案當 .chezmoi.stdin 再跑一次),
+換了分隔符就不用一個個跳脫。所有平台同一份(#319 先用在 Windows,#204 起 Linux、macOS、Termux 也用,不再靠 sh + jq)。
+
+~/.claude/settings.json 這份大部分不該納管:herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
+autoMode.environment 一整塊機器描述,都是工具自己寫進去、而且會一直變的東西。所以走 modify_,
+只釘必要的 plugin 開關與 commit attribution。
+
+釘的是「關掉官方 chrome-devtools plugin」。那個 plugin 的設定在
+~/.claude/plugins/cache/claude-plugins-official/chrome-devtools-mcp/<版本>/.claude-plugin/plugin.json,
+args 只有 ["chrome-devtools-mcp@<版本>"] —— 沒有 --browser-url,在 WSL 上跑不起來。
+不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
+
+不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,會一直迭代,
+那種東西記在 docs/new-machine-setup.md 的重建清單裡就好。attribution 只釘 commit,PR 標記與其他工具自行寫入的設定照留。
+
+兩個值都已經對時原樣輸出 stdin:Claude 自己改寫過檔案(縮排、key 順序)後 chezmoi diff 仍是空的;
+要改時才解析再輸出,這時 key 照字母排。比較時都轉成 JSON:值的型別不對(數字、null)時 eq 不會報錯。
 */ -]]
 [[- $plugin := "chrome-devtools-mcp@claude-plugins-official" -]]
 [[- $commit := "Co-Authored-By: Claude Code <noreply@anthropic.com>" -]]
-[[- if eq .chezmoi.os "windows" -]]
-[[- /* Windows(#319):跑不了下面的 sh + jq,渲染成 modify-template(chezmoi 拿現有檔案當 .chezmoi.stdin 再跑一次),
-       做同一件事。兩個值都已經對時原樣輸出 stdin:Claude 自己改寫過檔案(縮排、key 順序)後 chezmoi diff 仍是空的;
-       要改時才解析再輸出,這時 key 照字母排。比較時都轉成 JSON:值的型別不對(數字、null)時 eq 不會報錯。 */ -]]
 {{- /* chezmoi:modify-template */ -}}
 {{- $plugin := [[ $plugin | toJson ]] -}}
 {{- $commit := [[ $commit | toJson ]] -}}
@@ -28,33 +39,3 @@
 {{-   $_ = set $settings "enabledPlugins" $plugins -}}
 {{-   toPrettyJson "  " $settings -}}
 {{- end -}}
-[[- else -]]
-#![[ lookPath "sh" ]]
-# shebang 用 lookPath:Termux 沒有 /bin/sh,而 chezmoi 是 Go、繞過 termux-exec,寫死 /bin/sh 會 fork/exec 失敗。
-# ~/.claude/settings.json 這份大部分不該納管:herdr 與 codegraph 的 hook、claude-hud 的 statusLine、
-# autoMode.environment 一整塊機器描述,都是工具自己寫進去、而且會一直變的東西。
-# 所以同樣走 modify_,只釘必要的 plugin 開關與 commit attribution。
-#
-# 釘的是「關掉官方 chrome-devtools plugin」。那個 plugin 的設定在
-# ~/.claude/plugins/cache/claude-plugins-official/chrome-devtools-mcp/*/.claude-plugin/plugin.json,
-# args 只有 ["chrome-devtools-mcp@<版本>"] —— 沒有 --browser-url,在 WSL 上跑不起來。
-# 不關掉的話它會跟 skillshare 寫的那台 MCP server 同時出現,同一組工具兩份,Claude 有一半機率挑到壞的。
-#
-# 不釘整個 enabledPlugins:其他 plugin 開關是「裝了什麼」的清單,
-# 會一直迭代,那種東西記在 docs/new-machine-setup.md 的重建清單裡就好。
-# attribution 只釘 commit，PR 標記與其他工具自行寫入的設定照留。
-
-set -eu
-[[ template "sh-jq-path" . ]]
-
-# 1. 吃現有內容;檔案不存在時(新機器)stdin 是空的。
-existing=$(cat)
-[ -n "$existing" ] || existing='{}'
-
-# 2. 固定 plugin 開關與共同作者；其餘設定原樣保留。
-printf '%s' "$existing" | jq '
-  .enabledPlugins["[[ $plugin ]]"] = false
-  | .attribution |= (if type == "object" then . else {} end)
-  | .attribution.commit = "[[ $commit ]]"
-'
-[[ end -]]

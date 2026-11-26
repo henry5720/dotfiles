@@ -2,10 +2,9 @@
        裝法是這台會走的那個(apt、mise、official、winget…,#335);裝不了的不標裝法。
        不建議／裝不了的最後再加「（<label>：原因）」,label 是「不建議」或「裝不了」(都是裝法判斷 tool-install 算的)。
        裝法名是小寫英文,不含 /、'、=(ADR 0004)。
-       .chezmoi.toml.tmpl 拿它出選單;script/tests/e2e.sh 的 menu_choice 也渲染它組 --promptMultichoice 的值,排版只寫在這裡。
-       Windows 的 Git 預設 core.autocrlf=true,tool-menu 會是 CRLF:先拿掉 \r,不然它跟著說明跑進選單文字。 */ -}}
+       .chezmoi.toml.tmpl 拿它出選單;script/tests/e2e.sh 的 menu_choice 也渲染它組 --promptMultichoice 的值,排版只寫在這裡。 */ -}}
 {{- $status := (includeTemplate "tool-install" . | fromJson).tools -}}
-{{- range splitList "\n" (includeTemplate "tool-menu" . | replace "\r" "") -}}
+{{- range splitList "\n" (includeTemplate "tool-menu" .) -}}
 {{-   $name := index (splitList " " .) 0 -}}
 {{-   if $name -}}
 {{-     $label := printf "%-16s %s" $name (trimPrefix (printf "%s " $name) .) -}}
