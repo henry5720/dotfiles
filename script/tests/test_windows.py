@@ -50,6 +50,8 @@ WINDOWS_SCRIPTS = {
     ".chezmoiscripts/sync-skillshare.ps1",
     # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
     ".chezmoiscripts/install-wakatime.ps1",
+    # herdr(#416):登入時以一般權限起 herdr server;沒勾時渲染成空的,但仍是 managed
+    ".chezmoiscripts/register-herdr-server.ps1",
     # MCP 的 API key(context7、graphify)設成使用者環境變數;沒填 key 時渲染成空的,但仍是 managed
     ".chezmoiscripts/set-mcp-env.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
@@ -525,6 +527,26 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertLess(out.index("$env:CODEX_NON_INTERACTIVE = '1'"), out.index("& $installer"))
 
     # ===============================================================
+    # herdr(#416):登入時以一般權限起 herdr server
+    # ===============================================================
+    HERDR_SERVER_SCRIPT = SCRIPTS / "run_onchange_after_register-herdr-server.ps1.tmpl"
+
+    def test_windows_herdr_server_script_empty_when_not_ticked(self):
+        for tools in ([], WINDOWS_LEAN, ["claude", "codex"]):
+            with self.subTest(tools=tools):
+                self.assertEqual(self.render(self.HERDR_SERVER_SCRIPT, tools).strip(), "")
+
+    def test_windows_herdr_server_runs_unelevated_at_logon_without_window(self):
+        # 經 OpenSSH 起的 server 是 elevated、session 0,桌面 terminal 連不上;排程要跑在登入的 session、一般權限
+        out = self.render(self.HERDR_SERVER_SCRIPT, ["herdr"])
+        self.assertIn("-LogonType Interactive -RunLevel Limited", out)
+        self.assertIn("New-ScheduledTaskTrigger -AtLogOn -User $user", out)
+        self.assertIn("$user = [Security.Principal.WindowsIdentity]::GetCurrent().Name", out)
+        self.assertIn("-Execute 'conhost.exe' -Argument ('--headless \"{0}\" server' -f $herdr)", out)
+        self.assertIn("-ExecutionTimeLimit ([TimeSpan]::Zero)", out)
+        self.assertTrue(out.rstrip().endswith("exit 0"))
+
+    # ===============================================================
     # wakatime(#324):wakatime-cli 放官方位置,有勾的 agent 裝 plugin
     # ===============================================================
     WAKATIME_SCRIPT = SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl"
@@ -700,6 +722,7 @@ class WindowsDeployTest(unittest.TestCase):
                             (SCRIPTS / "run_onchange_after_install-official.ps1.tmpl", ["claude", "codex"]),
                             (SCRIPTS / "run_onchange_after_install-wakatime.ps1.tmpl", ["wakatime", "claude", "codex"]),
                             (SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"]),
+                            (SCRIPTS / "run_onchange_after_register-herdr-server.ps1.tmpl", ["herdr"]),
                             (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):

@@ -80,6 +80,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 ## 渲染成空的腳本
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-wakatime.ps1.tmpl
+.chezmoiscripts/run_onchange_after_register-herdr-server.ps1.tmpl
 .chezmoiscripts/run_onchange_after_set-mcp-env.ps1.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 .chezmoiscripts/run_onchange_after_zz-env-skipped.ps1.tmpl
