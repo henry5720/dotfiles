@@ -146,7 +146,38 @@ google-chrome --remote-debugging-port=9222 --user-data-dir="$HOME/.local/state/c
 
 不想每次打：Chrome 捷徑的「目標」後面加 `--remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\chrome-agent"`，之後雙擊就開。
 
-**連線**：個人電腦的 9222 → 已配置主機的 9222（`-R`，[怎麼打](README.md#ssh-轉發怎麼讀)）。只能走 ssh，見[能怎麼連](#能怎麼連)。
+**Windows：agent 從 ssh 叫起（你不用在桌面開）**：在那台建一次固定的 scheduled task `chrome-agent`，之後 agent 從 ssh 跑
+`schtasks /run /tn chrome-agent`，Chrome 就開在你登入的桌面。直接從 ssh 開 Chrome 不行：ssh 起的程式在 session 0（沒有桌面），
+Chrome 照樣聽 9222，但你看不到視窗、也登入不了（[Session 0 isolation](https://techcommunity.microsoft.com/blog/askperf/application-compatibility---session-0-isolation/372361)）。
+從 ssh 要開有畫面的程式，微軟 Q&A 的建議也是 Task Scheduler（[Run executable via SSH](https://learn.microsoft.com/en-us/answers/questions/960134/run-executable-via-ssh)）。
+
+```powershell
+# 建 task，只要一次（桌面的 PowerShell 或 ssh 進去都行）。沒有觸發條件，只會被 /run 叫起
+$chrome = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+$chromeArgs = "--remote-debugging-port=9222 --user-data-dir=`"$env:LOCALAPPDATA\chrome-agent`" --no-first-run --no-default-browser-check"
+$action = New-ScheduledTaskAction -Execute $chrome -Argument $chromeArgs
+# Interactive：只在你登入著時跑，開在你的桌面；Limited：不拿系統管理員權限
+$principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
+# 不限執行時間（預設 72 小時會被收掉）；已經在跑就不再開一支
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName chrome-agent -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+```
+
+```bash
+# agent（已配置主機）：叫起 Chrome，再自己把個人電腦的 9222 拉過來（-L，你不用開 -R）
+ssh <個人電腦> schtasks /run /tn chrome-agent
+ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9222:127.0.0.1:9222 <個人電腦>
+```
+
+- 怎麼確認：你的桌面跳出 Chrome 視窗，agent 照下面〈接上〉的 `curl` 有回應。2026-11-26 在 henry-laptop 實測：Chrome 開在 session 2（不是 0）、9222 在聽。
+- 你沒登入那台時 `/run` 不會開 Chrome（Interactive 的限制）。
+- 不要了：`Unregister-ScheduledTask -TaskName chrome-agent -Confirm:$false`。
+- 坑：
+  - `-UserId "$env:USERDOMAIN\$env:USERNAME"` 從 ssh 跑會報 `No mapping between account names and security IDs`；
+    `[Security.Principal.WindowsIdentity]::GetCurrent().Name` 可以（2026-11-26 henry-laptop）。
+  - 自己改寫時變數別叫 `$args`、`$profile`：那是 PowerShell 的自動變數，會被蓋掉。
+
+**連線**：個人電腦的 9222 → 已配置主機的 9222。你在桌面開的，由你開 `-R`；用上面的 task 叫起的，由 agent 開 `-L`（[怎麼打](README.md#ssh-轉發怎麼讀)）。只能走 ssh，見[能怎麼連](#能怎麼連)。
 
 **已配置主機（agent）接上**：
 
@@ -162,12 +193,12 @@ playwright-cli -s=<session> tab-list
 ```
 
 - 怎麼確認：`tab-list` 列得出你開著的分頁。2026-11-05 在 henry-laptop 實測：`tab-new` 兩次後列出三個分頁。
-- 收：agent `playwright-cli -s=<session> detach`；你關掉 ssh。Chrome 和登入留著，下次照上面再開就沿用。
+- 收：agent `playwright-cli -s=<session> detach`；開 ssh 轉發的那一方（你的 `-R` 或 agent 的 `-L`）關掉它。Chrome 和登入留著，下次照上面再開就沿用。
 - 坑：
   - **這個 profile 的 Chrome 已經開著時，再帶 `--remote-debugging-port` 啟動會被轉給舊的那支、新參數全部被忽略、也不報錯**：
     9222 就是不通。先 `curl 127.0.0.1:9222/json/version`（Windows：`curl.exe`）看是不是已經在了；不是就把那個視窗關掉重開。
   - ssh 印 `remote port forwarding failed`：已配置主機的 9222 被佔著（另一台電腦還開著，或 headless 在跑）。
-  - 從 ssh session 啟動的 Chrome，session 一結束就被 Windows 一起收掉：Chrome 要從桌面的終端機開。
+  - 從 ssh 直接啟動的 Chrome 開在 session 0：9222 通、你卻看不到視窗，ssh 一斷還會被一起收掉。從桌面的終端機開，或用上面的 `chrome-agent` task。
   - Windows 要有連到已配置主機的 ssh Host：chezmoi 會部署 `~\.ssh\config`，key 要自己放到 `~\.ssh`，先 `ssh <host> hostname` 確認。
 
 ## 插件：獨立 profile、日常 profile 都能裝
