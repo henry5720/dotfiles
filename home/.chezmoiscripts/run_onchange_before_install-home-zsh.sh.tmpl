@@ -1,0 +1,28 @@
+{{- /* apt 用不了的 Linux(裝法判斷 tool-install 的環境有 noroot 或 non-debian)、勾了 zsh 才跑 */ -}}
+{{- $env := (includeTemplate "tool-install" . | fromJson).env -}}
+{{- if and (eq .chezmoi.os "linux") (or (has "noroot" $env) (has "non-debian" $env)) (has "zsh" (index . "tools")) -}}
+#!{{ lookPath "sh" }}
+# apt 用不了的 Linux(沒有 root,或非 Debian 系)把 zsh 裝到家目錄(選裝工具表上 zsh 的 script 裝法)。
+# 其他機器渲染成空的:有 root 的 Debian 系、Termux 由 install-packages 用 apt／pkg 裝,macOS 內建。
+# 不交給 mise:zsh 用 zsh-bin,不用 conda 版(會帶 CONDA_PREFIX,以前 p10k 因此一直多顯示 anaconda)。
+# 以前這支也裝 jq(modify_ 要它),#421 起 modify_ 改用 chezmoi 內建的 fromJson、fromToml,只剩 zsh。
+#
+# 名字帶 before_:沿用以前的位置,在部署 shell 設定之前裝好。系統已經有的不裝。
+set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-home-zsh" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
+bin=$HOME/.local/bin
+
+# zsh-bin 官方說不用 root、靜態連結,裝到 ~/.local(~/.local/bin/zsh)。
+# -e no:不碰 /etc/shells。安裝腳本釘版本,裡面有每個 tarball 的 sha256。
+# 沒辦法 chsh,改由 ~/.bashrc 在互動式 bash 啟動時切過去(home/modify_dot_bashrc.tmpl)。
+# 裝不起來不擋 apply(zsh 是選裝工具,不是 apply 要的):略過、apply 最後列出,下次 apply 重試(ADR 0006)。
+zsh_install='https://raw.githubusercontent.com/romkatv/zsh-bin/v6.1.1/install'
+if command -v zsh >/dev/null 2>&1 || [ -x "$bin/zsh" ]; then
+  :
+elif zsh_bin=$(curl -fsSL "$zsh_install") && sh -c "$zsh_bin" -- -d "$HOME/.local" -e no -q; then
+  echo "zsh 用 zsh-bin 裝到 ~/.local/bin"
+else
+  skip_fail zsh "zsh-bin 沒裝起來(網路?),下次 chezmoi apply 會重試。手動:sh -c \"\$(curl -fsSL $zsh_install)\" -- -d ~/.local -e no"
+fi
+{{ end -}}

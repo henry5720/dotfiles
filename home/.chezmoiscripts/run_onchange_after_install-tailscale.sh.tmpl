@@ -46,7 +46,7 @@ echo "不會執行 tailscale up;請自行登入與設定。"
 #    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。勾了 zsh 的話,之後開 zsh 時
 #    tailscaled 沒在跑就背景起來(.zshrc);沒勾 zsh 就沒有 .zshrc,提示裡給手動啟動的指令。
 #    登入要人打開網址核准,記進略過彙整。
-#    跟 jq、ttyd 一樣抓最新版,chezmoi 不負責更新。下載失敗不讓 apply 失敗(沒有 root 時整個 apply 照樣
+#    跟 ttyd 一樣抓最新版,chezmoi 不負責更新。下載失敗不讓 apply 失敗(沒有 root 時整個 apply 照樣
 #    exit 0),記進略過彙整。
 bin=$HOME/.local/bin
 state=$HOME/.local/state/tailscale

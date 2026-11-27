@@ -87,7 +87,7 @@ make_fixtures() {
   git -C "$tmp/ac" -c user.name=e2e -c user.email=e2e@example.com commit -qm init
   git clone -q --bare "$tmp/ac" "$tmp/agent-config.git"
   rm -rf "$tmp/ac"
-  # zsh_ok 的 tty 版用(兩邊都有 python3)。檔名不能叫 tty.py,會蓋掉標準庫的 tty
+  # zsh_ok 的 tty 版用(python3 由 e2e 自己裝,不是基底)。檔名不能叫 tty.py,會蓋掉標準庫的 tty
   cat > "$tmp/zsh-tty.py" <<'PY'
 import pty, subprocess, sys
 # 在 pty 裡跑指令(stdin 是終端機),stdout 丟掉,stderr 原樣印出,回傳它的 exit code

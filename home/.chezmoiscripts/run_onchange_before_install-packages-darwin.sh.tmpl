@@ -1,4 +1,13 @@
 {{- if eq .chezmoi.os "darwin" -}}
+{{- /* 選裝工具照裝法判斷(.chezmoitemplates/tool-install,#333):formula 是 lists.brew、app 是 lists.cask(例如 tailscale);
+       誰走哪個寫在 .chezmoidata/tool-table.yaml */}}
+{{- $install := includeTemplate "tool-install" . | fromJson }}
+{{- $brews := concat .packages.darwin.brews $install.lists.brew }}
+{{- /* 有工具要交給 mise(node、uv、npm 工具,#386)就用 brew 裝 mise 本身,install-mise 再照清單裝 */}}
+{{- if includeTemplate "mise-tools" . }}{{ $brews = append $brews "mise" }}{{ end }}
+{{- $casks := concat .packages.darwin.casks $install.lists.cask }}
+{{- /* 基底沒有 brew 的套件(#421),什麼都沒勾就沒東西要 brew 裝:渲染成空的,沒裝 Homebrew 的機器也不會停在找 brew */}}
+{{- if or $brews $casks -}}
 #!{{ lookPath "sh" }}
 # macOS 的系統套件:照 chezmoi 官方「Install packages declaratively」的 brew bundle 範例
 # (https://www.chezmoi.io/user-guide/advanced/install-packages-declaratively/),
@@ -7,10 +16,10 @@
 # 其他 OS 渲染成空的,chezmoi 不跑;Linux／Termux 是 install-packages 那支。
 #
 # 跟官方範例不同的地方:
-# - 名字帶 before_:跟 install-packages 一樣在 modify_ 之前跑(modify_ 現在只用 chezmoi 內建 template 與 Xcode CLT 的 python3,不靠 brew)。
+# - 名字帶 before_:跟 install-packages 一樣在部署設定檔之前跑。
 # - brew bundle 失敗(例如 brew 的目錄沒有寫入權限)不讓 apply 停,略過、apply 最後列出、下次 apply 重試(ADR 0006)。
-#   基底列的 jq 也一起:macOS 上 chezmoi 要的 git、curl、python3 來自系統與 Xcode CLT,不是 brew,
-#   jq 只有 install-wakatime 查 plugin 時用,沒有它那一步自己會略過。
+#   macOS 上 chezmoi 要的 git、curl 來自系統與 Xcode CLT,不是 brew,所以這裡只有選裝工具。
+# - 要 brew 裝的一個都沒有(什麼都沒勾)就渲染成空的,不跑。
 # - shebang 用 sh(這個 repo 的規則);heredoc 在 sh 一樣能用。
 # - 找不到 brew 時直接停:Homebrew 是前置步驟(要管理員密碼、互動),不由 chezmoi 裝,見 docs/new-machine-setup.md。
 # - app(cask)不放進 brew bundle,一個一個 brew install --cask,失敗只印略過、不中斷(見第 3 步)。
@@ -30,20 +39,16 @@ command -v brew >/dev/null 2>&1 || {
   exit 1
 }
 
+{{- if $brews }}
+
 # 2. 裝 formula
-{{- /* 選裝工具照裝法判斷(.chezmoitemplates/tool-install,#333):formula 是 lists.brew、app 是 lists.cask(例如 tailscale);
-       誰走哪個寫在 .chezmoidata/tool-table.yaml */}}
-{{- $install := includeTemplate "tool-install" . | fromJson }}
-{{- $brews := concat .packages.darwin.brews $install.lists.brew }}
-{{- /* 有工具要交給 mise(node、uv、npm 工具,#386)就用 brew 裝 mise 本身,install-mise 再照清單裝 */}}
-{{- if includeTemplate "mise-tools" . }}{{ $brews = append $brews "mise" }}{{ end }}
-{{- $casks := concat .packages.darwin.casks $install.lists.cask }}
 brew bundle --file=/dev/stdin <<EOF ||
 {{ range $brews | uniq -}}
 brew {{ . | quote }}
 {{ end -}}
 EOF
   skip_fail "brew 套件 {{ $brews | uniq | join " " }}" "brew bundle 有套件沒裝好(原因看上面 brew 的訊息,常見是 brew 的目錄沒有寫入權限,照它印的 chown 修);修好後再 chezmoi apply 會重試"
+{{- end }}
 {{- /* app(cask)一個一個裝,失敗只印略過:同一個 app 從官網或 App Store 裝過時,brew 會因為
        /Applications 已經有它而失敗,不能讓整個 apply 停下來(spec #271 user story 5)。
        已經由 brew 裝過的 cask,brew install 只警告、exit 0。 */}}
@@ -53,4 +58,5 @@ EOF
 brew install --cask {{ . | quote }} ||
   echo "略過 {{ . }}(brew 裝不起來,常見原因是 /Applications 已經有同一個 app,例如從官網或 App Store 裝過):要 brew 管就先刪掉那份再 chezmoi apply,不用就取消勾選"
 {{- end }}
+{{ end -}}
 {{ end -}}

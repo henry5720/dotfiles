@@ -91,14 +91,14 @@ toolTable:
     # ---------------------------------------------------------------
     # shell 體驗
     # ---------------------------------------------------------------
-    # 沒有 root 或非 Debian 系:install-home-jq-zsh 用 zsh-bin 裝到 ~/.local;改預設 shell 是 set-default-shell
+    # 沒有 root 或非 Debian 系:install-home-zsh 用 zsh-bin 裝到 ~/.local;改預設 shell 是 set-default-shell
     zsh:
       docs: https://github.com/romkatv/zsh-bin
       checked: 2026-11-20
       install: {linux: [apt, script], darwin: [builtin], android: [pkg]}
       apt: [zsh]
       pkg: [zsh]
-      script: {name: install-home-jq-zsh}
+      script: {name: install-home-zsh}
       rules:
         - when: [windows]
           state: unsupported
@@ -378,6 +378,12 @@ toolTable:
           url: https://chatgpt.com/codex/install.ps1
           env: {CODEX_NON_INTERACTIVE: "1"}
           installed: {paths: ["Join-Path $env:LOCALAPPDATA 'Programs\\OpenAI\\Codex\\bin\\codex.exe'"]}
+      deps:
+        # ai-profile(codex-work、codex-personal 這些入口)是 python3 腳本
+        python3:
+          install: {linux: [apt, system], darwin: [system], android: [pkg]}
+          apt: [python3]
+          pkg: [python]               # Termux 的 python 套件提供 python3 指令
     # Windows 沒有 install.ps1,走 mise 的 npm backend(#318):opencode-ai 是 OpenCode 1,跟 Linux 同一個大版本;
     # allow_builds 放行它自己的 postinstall,不然 bin\opencode.exe 是佔位檔
     opencode:
@@ -392,6 +398,12 @@ toolTable:
           installed: {cmds: [opencode], paths: ["$HOME/.opencode/bin/opencode"]}
       mise: {tool: "npm:opencode-ai", options: {allow_builds: [opencode-ai]}}
       needsNode: [linux, darwin, android, windows]   # oh-my-opencode-slim 用 npx 跑
+      deps:
+        # ai-profile(opencode-work、opencode-personal 這些入口)是 python3 腳本
+        python3:
+          install: {linux: [apt, system], darwin: [system], android: [pkg]}
+          apt: [python3]
+          pkg: [python]               # Termux 的 python 套件提供 python3 指令
       rules:
         # 查證(#348):官方只出 macOS、Windows、Linux 版;npm 的 opencode-ai 寫了 os: darwin、linux、win32,
         # Termux 的 Node 是 process.platform = android,npm 不裝
@@ -419,6 +431,9 @@ toolTable:
           install: {linux: [apt, system, mise]}
           apt: [ffmpeg]
           mise: {tool: ffmpeg}
+        python3:                      # voice-out-speak 是 python3 腳本;snapserver 只裝在有 root 的 Debian 系
+          install: {linux: [apt]}
+          apt: [python3]
       needsUv: [linux]                # voice-out-speak 用 uv tool run 跑 edge-tts
       rules:
         - when: [windows]
@@ -485,7 +500,8 @@ toolTable:
           state: unsupported
           reason: Node 官方 binary 要系統函式庫 libatomic.so.1（Debian 系的套件是 libatomic1），這台沒有
           aptFix: [libatomic1]
-    # runtime(#341):Python 交給 uv,uv 自己下載專案要的 Python;系統 python3 只給 chezmoi 腳本。
+    # runtime(#341):Python 交給 uv,uv 自己下載專案要的 Python;系統 python3 只給自寫的指令(ai-profile、voice-out-speak),
+    # 寫成用到它的工具的依賴套件(#421)。
     # Linux、Windows、macOS 走 mise(ADR 0005 的 runtime,macOS 從 brew 改來,#386),Termux 照例外走 pkg。勾了 needsUv 的工具也會連帶裝
     uv:
       docs: https://docs.astral.sh/uv/getting-started/installation/

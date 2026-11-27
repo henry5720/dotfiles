@@ -62,10 +62,10 @@ def parse_cell(text):
     mise = mise[:mise.index("")] if "" in mise else mise   # 空行之後是 [settings](#386)
     scripts = {s.removeprefix(".chezmoiscripts/"): False for s in sec["渲染成空的腳本"] if s}
     scripts |= {s.removeprefix(".chezmoiscripts/"): True for s in sec["會跑的腳本"] if s}
-    jq_zsh = text.partition("### .chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl")[2]
+    home_zsh = text.partition("### .chezmoiscripts/run_onchange_before_install-home-zsh.sh.tmpl")[2]
     return {"tools": json.loads(tools.partition(" = ")[2]),
             "installing": " ".join(sec["要裝"]).split(), "skipped": " ".join(sec["略過(裝不了)"]).split(), "packages": packages, "mise": set(mise),
-            "scripts": scripts, "zsh-bin": "zsh_install=" in jq_zsh.partition("\n### ")[0]}
+            "scripts": scripts, "zsh-bin": "zsh_install=" in home_zsh.partition("\n### ")[0]}
 
 
 def mac_mise(env, lists):
@@ -423,8 +423,7 @@ class ToolTableTest(unittest.TestCase):
             elif env in ("darwin", "windows", "non-debian"):
                 want = {"apt/pkg": []}
             else:
-                base = b["ubuntu"] if env != "debian-noroot" else [p for p in b["ubuntu"] if p != "jq"]
-                want = {"apt/pkg": base + lists["apt"] + lists["aptNeedsRoot"]}
+                want = {"apt/pkg": b["ubuntu"] + lists["apt"] + lists["aptNeedsRoot"]}
             want["brew"] = b["darwin"]["brews"] + lists["brew"] + mac_mise(env, lists) if env == "darwin" else []
             want["brew cask"] = b["darwin"]["casks"] + lists["cask"] if env == "darwin" else []
             want["winget"] = list(dict.fromkeys(b["windows"]["winget"] + lists["winget"])) if env == "windows" else []
@@ -461,12 +460,13 @@ class ToolTableTest(unittest.TestCase):
         # 卻照裝 uv、照跑 install-snapserver。改成照表:snapserver 走 apt 裝不了,它的依賴與腳本都不動
         snap = self.snap["debian-noroot", "snapserver"]
         self.assertEqual(self.resolved["debian-noroot", "snapserver"]["tools"]["snapserver"]["state"], "unsupported")
-        self.assertEqual(snap["packages"]["apt/pkg"], ["git", "curl", "python3"])
+        self.assertEqual(snap["packages"]["apt/pkg"], ["git", "curl"])
         self.assertEqual(snap["mise"], set())
         self.assertFalse(snap["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
         # 有 root 照舊:apt 裝 snapserver、ffmpeg,mise 裝 uv,跑 install-snapserver
         root = self.snap["debian-root", "snapserver"]
-        self.assertEqual(root["packages"]["apt/pkg"], ["git", "curl", "jq", "python3", "snapserver", "ffmpeg"])
+        # python3 是 voice-out-speak 的依賴套件(#421)
+        self.assertEqual(root["packages"]["apt/pkg"], ["git", "curl", "snapserver", "ffmpeg", "python3"])
         self.assertEqual(root["mise"], {'"uv" = "latest"'})
         self.assertTrue(root["scripts"]["run_onchange_after_install-snapserver.sh.tmpl"])
 

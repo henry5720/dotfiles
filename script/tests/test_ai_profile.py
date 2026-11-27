@@ -179,19 +179,25 @@ class AiProfileTest(unittest.TestCase):
         self.assertEqual(omo["$schema"], company["$schema"])
 
     def test_personal_codex_config_renders_valid_and_idempotent_toml(self):
-        with tempfile.TemporaryDirectory() as d:
-            cfg = Path(d) / "data.toml"
-            cfg.write_text('[data.aiPersonal]\ncodexModel="gpt-6-astra"\n', encoding="utf-8")
-            template = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
-            script = subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=template.read_bytes())
+        # modify-template(#421):把現有內容放到暫存家目錄,用 chezmoi cat 算出 apply 會寫的內容
+        cfg = self.root / "data.toml"
+        cfg.write_text('[data.aiPersonal]\ncodexModel="gpt-6-astra"\n', encoding="utf-8")
+        target = self.home / ".codex/personal.config.toml"
+        target.parent.mkdir(parents=True)
+
+        def cat(existing):
+            target.write_text(existing, encoding="utf-8")
+            return subprocess.check_output([
+                "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(cfg), "--destination", str(self.home),
+                "--override-data", json.dumps({"chezmoi": {"homeDir": str(self.home)}, "tools": ["codex"]}), "cat", str(target),
+            ], stdin=subprocess.DEVNULL).decode()
+
         existing = '[skills]\nstate = "keep"\n\n[[skills.config]]\npath = "/tmp/other/SKILL.md"\nenabled = true\n\n'
-        first = subprocess.check_output(["sh", "-c", script.decode()], input=existing.encode()).decode()
-        second = subprocess.check_output(["sh", "-c", script.decode()], input=first.encode()).decode()
-        self.assertEqual(first, second)
+        first = cat(existing)
+        self.assertEqual(cat(first), first)
         parsed = tomllib.loads(first)
         self.assertEqual(parsed["model"], "gpt-6-astra")
         self.assertEqual(parsed["skills"]["state"], "keep")
         self.assertEqual(parsed["skills"]["config"], [{"path": "/tmp/other/SKILL.md", "enabled": True}])
-
 
 if __name__ == "__main__": unittest.main()

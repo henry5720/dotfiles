@@ -54,7 +54,7 @@ zsh starship eza fzf bat ripgrep vim fastfetch
 
 
 ## 套件清單
-apt/pkg: git curl openssh jq python bat eza fastfetch fzf ripgrep starship vim zsh
+apt/pkg: git curl openssh bat eza fastfetch fzf ripgrep starship vim zsh
 brew: 
 brew cask: 
 winget: 
@@ -78,7 +78,7 @@ winget:
 .chezmoiscripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl
 .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.sh.tmpl
-.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-openssh-server.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
@@ -175,7 +175,7 @@ rm -f "$d/root-skipped"
 # 選裝工具 zsh 的一部分:把預設 shell 換成 zsh。沒勾 zsh 就渲染成空的,chezmoi 不跑。
 # zsh 由 run_onchange_before_install-packages 先裝好。
 # 沒有 root(.chezmoitemplates/has-root)或非 Debian 系 Linux 渲染成空的:zsh 是 zsh-bin 裝到家目錄的
-# (run_onchange_before_install-home-jq-zsh),不在 /etc/shells,不 chsh,改由 ~/.bashrc 在互動式 bash
+# (run_onchange_before_install-home-zsh),不在 /etc/shells,不 chsh,改由 ~/.bashrc 在互動式 bash
 # 啟動時 exec zsh(home/modify_dot_bashrc.tmpl)。
 # run_once_:跑成功一次就不再跑;已經是 zsh 的機器直接結束,不叫 sudo。
 set -eu
@@ -201,11 +201,10 @@ termux-reload-settings || echo "警告:termux-reload-settings 失敗,重開 Term
 # 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
 # 這台裝不了的勾了也不裝。
 #
-# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。zsh 改由 run_onchange_before_install-home-zsh
 # 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
-# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
-# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git)。
 # run_onchange_:清單沒變就不會再跑;清單變了、或上次有選裝工具的套件裝失敗(sh-retry)才重跑,而且只裝缺的。
 set -eu
 
@@ -242,9 +241,9 @@ skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
 }
 
 base="" tools=""
-for pkg in git curl openssh jq python bat eza fastfetch fzf ripgrep starship vim zsh; do
+for pkg in git curl openssh bat eza fastfetch fzf ripgrep starship vim zsh; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' && continue
-  case " git curl openssh jq python " in
+  case " git curl openssh " in
     *" $pkg "*) base="$base $pkg" ;;
     *) tools="$tools $pkg" ;;
   esac
