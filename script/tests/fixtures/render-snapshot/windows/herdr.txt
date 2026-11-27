@@ -87,6 +87,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 會跑的腳本
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
+.chezmoiscripts/run_onchange_after_register-herdr-server.ps1.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
 
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
@@ -118,6 +119,25 @@ if ($LASTEXITCODE -ne 0) {
 mise prune --yes
 if ($LASTEXITCODE -ne 0) {
     Write-Host (T 'bWlzZSBwcnVuZSDmspLot5Hlrows5Y+W5raI5Yu+6YG455qE5bel5YW35Y+v6IO96YKE55WZ6JGXIHNoaW0s5LmL5b6M6Ieq5bex6LeROm1pc2UgcHJ1bmU=')
+}
+exit 0
+
+### .chezmoiscripts/run_onchange_after_register-herdr-server.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
+function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+
+$herdr = Join-Path $env:LOCALAPPDATA 'mise\shims\herdr.exe'
+$user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+try {
+    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr)
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+    Register-ScheduledTask -TaskName 'herdr-server' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+    Start-ScheduledTask -TaskName 'herdr-server' -ErrorAction Stop
+    Write-Host (T 'aGVyZHIgc2VydmVyIOaUueeUseeZu+WFpeaZgueahOaOkueoiyBoZXJkci1zZXJ2ZXIg6LW3KOS4gOiIrOasiumZkCk=')
+} catch {
+    Write-Host ((T 'aGVyZHItc2VydmVyIOaOkueoi+iou+WGiuWkseaVlzp7MH3jgILmraXpqZ/oposgZG9jcy90b29scy9oZXJkci5tZA==') -f $_.Exception.Message)
 }
 exit 0
 

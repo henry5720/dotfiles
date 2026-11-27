@@ -97,21 +97,25 @@ Windows 重開機後沒有 server，第一個開 herdr 的那一方決定它的�
 
 | 誰先開 | server | 會怎樣 |
 |---|---|---|
-| 別台 `herdr --machine`、TUI 點那台（預設） | 完整管理員權限、session 0 | shell、agent、git、裝東西都能用，不跳 UAC |
-| 在那台桌面用一般 terminal 跑 `herdr` | 一般權限、登入的 session | 能操作桌面；要管理員權限的事改走 ssh |
+| 你登入桌面（勾了 herdr 的 Windows 由排程 `herdr-server` 自動起） | 一般權限、登入的 session | 能操作桌面：GUI、定位、剪貼簿；要管理員權限的事走 ssh |
+| 還沒登入，就先從別台 `herdr --machine`、TUI 點那台 | 完整管理員權限、session 0 | shell、agent、git 能用；桌面上的東西都碰不到 |
 
 差別來自 Windows：帳號在 Administrators 群組時，從 OpenSSH 登入拿到的是完整權限、跑在沒有桌面的 session 0，
 herdr 的 server 和 pane 都繼承它。Linux 沒有這個差別，經 ssh 起 server 是官方設計。
 
-**維持預設就好**，平常從 EC2 操作不受影響。遇到下面這些才要把那一台改成從桌面起：
+勾了 herdr 的 Windows，`chezmoi apply` 會註冊工作排程 `herdr-server`：登入時用 `conhost --headless` 跑 `herdr server`，
+不開視窗（#416）。所以**重開機後先登入一次**，之後從 EC2 照常操作。停在登入畫面的 VM 也一樣，要先登入。
+
+已經先從別台點、變成 session 0 的 server，看得出來的症狀：
 
 - 在那台桌面用一般 terminal 連 herdr，回 elevated server 拒絕 unelevated client（存取被拒）
 - pane 裡開的 GUI 程式（RPA、有視窗的瀏覽器）桌面上看不到，windows-mcp 從 pane 起抓不到畫面
+- pane 裡跑定位（PMS 打卡的 `gps.ps1`）只拿到 IP 推估，不是 Wi‑Fi 定位
 - pane 裡走 junction 回「未受信任的掛接點」
 
-改法由 agent 照 agent-config 的
+要換回來由 agent 照 agent-config 的
 [`herdr-workflow` skill〈server〉](https://github.com/henry5720/agent-config/blob/main/skills/herdr-workflow/server.md) 做，
-你只要在它停 server 前按一次 Enter（會關掉那台所有 pane）。改完之後重開機，又先從別台點那台，就會回到預設。
+你只要在它停 server 前按一次 Enter（會關掉那台所有 pane）。
 
 `[server] allow_unelevated_clients` 不開：它只讓一般 terminal 連得上，pane 還是完整管理員權限、session 0。
 
