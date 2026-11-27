@@ -39,7 +39,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 |---|---|
 | Git Bash（勾 agent-config 就有） | daily-worklog（`find "$HOME"`）、wizard、diagnosing-bugs 的 HITL 腳本（都是 bash） |
 | mise 裝的工具（完整或自己勾） | playwright-cli（`playwright-cli`）、compress-video（`ffmpeg`；SKILL.md「沒有 ffmpeg」只寫 apt、brew）、herdr、herdr-workflow（`herdr`）、find-skills（`node` 的 `npx`） |
-| 其他 | skillshare（skillshare 本體已裝；附的 `run.sh` 用不到）、pms-tracking（pms MCP） |
+| 其他 | skillshare（skillshare 本體已裝；附的 `run.sh` 用不到）、pms-workflow（pms MCP；打卡定位用 Windows PowerShell 5.1） |
 
 只靠 `git`、`gh` 或純文字的：archive-branches、ask-matt、caveman、code-review、codebase-design、
 domain-modeling、grill-me、grill-with-docs、grilling、handoff、humanizer-zh、implement、implement-spec、
