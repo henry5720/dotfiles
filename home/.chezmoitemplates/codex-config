@@ -115,7 +115,8 @@ TOML 就會把它當成那個 table 的欄位,語意整個改掉。所以第 2 �
 {{- $tail := slice $out $skillsAt | join "" | trimAll "\n" -}}
 {{- /* 4. */ -}}
 {{- $skills := "" -}}
-{{- if ne .chezmoi.os "windows" -}}
+{{- /* glob 會先 chdir 到 destination,destination 不存在(例如 apply --dry-run --destination 一個新目錄)就報錯,先看它在不在 */ -}}
+{{- if and (ne .chezmoi.os "windows") (stat .chezmoi.destDir) (stat (joinPath .chezmoi.homeDir ".codex/skills")) -}}
 {{- /* glob 不跟進 symlink 的目錄,所以列 skills/* 再自己看 SKILL.md 在不在(stat 會跟進) */ -}}
 {{-   range $skill := glob (joinPath .chezmoi.homeDir ".codex/skills/*") | sortAlpha -}}
 {{-     $md := joinPath $skill "SKILL.md" -}}
