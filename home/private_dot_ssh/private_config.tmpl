@@ -15,16 +15,22 @@ Host github.com
 # 2. Tailscale:個人 tailnet(tail0fed08)
 # ===============================================================
 # HostName 寫 MagicDNS 完整名稱(<裝置名>.<tailnet>.ts.net):短名只有同一個 tailnet 解析得到(#307),
-# IP 重新註冊就換。新增主機也要加進第 6 節。
-# 例外:henry-laptop 的 HostName 是短名,只有同在這個 tailnet(tail0fed08)的機器解析得到。
-Host henry-laptop
-    HostName henry-laptop
-    User henry
-
+# IP 重新註冊就換;remote-access 的 serve 模式也用它組 https 網址。
+# Host 另給短別名(desktop、laptop),兩個都能連;Tailscale 的機器名稱不改(#419)。新增主機也要加進第 6 節。
 # 公司 tailnet 的 desktop-ifmbqh5 是另一台,不是它
-Host henry-desktop
+Host desktop henry-desktop
     HostName henry-desktop.tail0fed08.ts.net
     User henry
+
+Host laptop henry-laptop
+    HostName henry-laptop.tail0fed08.ts.net
+    User henry
+
+# Termux 的 sshd 聽 8022,帳號是 Termux 的 app 使用者
+Host phone
+    HostName phone.tail0fed08.ts.net
+    Port 8022
+    User u0_a358
 
 # 公司的機器,在個人 tailnet。Host 不帶轉發:每條連線都帶的話第二條搶不到 port,
 # 要轉發另打一條,見 docs/how-to/remote-access/README.md。
@@ -116,6 +122,6 @@ Host company-ec2-public
 # ===============================================================
 # userspace tailscale 沒有網卡,連線和解析都經 tailscaled(見 .chezmoitemplates/tailscale-userspace)。
 # 跳板後面的機器不用列:跳板那一段已經經過這裡,它們自己是跳板上的 localhost 或區網 IP。
-Host henry-laptop henry-desktop lianghua pos2-dev company-ec2
+Host desktop henry-desktop laptop henry-laptop phone lianghua pos2-dev company-ec2
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}

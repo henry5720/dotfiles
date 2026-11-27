@@ -205,7 +205,7 @@ getent hosts "$magic_dns_name"
 |---|---|---|
 | dev server | app 自己的登入 | 可以，對方看到的就是你的網站 |
 | ttyd | **它自己沒有密碼**，`ttyd-serve` 每次產一組 | 可以，`ttyd-serve` 起、`remote-access funnel` 開，見 [ttyd-serve](ttyd-serve.md) |
-| Windows-MCP | Bearer key，每次起 server 換新、收掉時再換 | 可以，見 [windows-mcp](windows-mcp.md) |
+| Windows-MCP | Bearer key，固定一把，`remote-access key rotate` 才換 | 可以，見 [windows-mcp](windows-mcp.md) |
 | code-server | 自己的固定密碼 | **不要**：它能開 terminal，等於整台機器，只靠一組固定密碼 |
 | 瀏覽器（CDP 9222、`show` 9377） | **沒有** | **不要**：拿到網址等於拿到那支 Chrome 的所有登入；CDP 還會擋外來的 `Host`。只走 ssh，見[瀏覽器〈能怎麼連〉](browser.md#能怎麼連) |
 | 瀏覽器插件 9555 | connect 網址裡的隨機路徑，加上人在插件畫面按允許 | 可以，只用一次性 tcp tunnel：`playwright-extension-attach --tunnel` 開，connect 網址就是鑰匙，用完就收掉。見[瀏覽器〈tailnet 外〉](browser.md#tailnet-外一次性-tunnel) |
