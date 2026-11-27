@@ -90,7 +90,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 if ! { curl -fsSL -o "$tmp/ts.tgz" "$url" && tar -xzf "$tmp/ts.tgz" -C "$tmp" &&
   src=$(echo "$tmp"/tailscale_*_"$arch") && "$src/tailscale" version >/dev/null; }; then
-  skip_fail tailscale "下載失敗($url),沒有裝 userspace tailscale,下次 chezmoi apply 會重試"
+  skip_fail tailscale "下載失敗($url),沒有裝 userspace tailscale,下次 chezmoi apply 會重試。也可以手動:下載那個 tgz,把裡面的 tailscale、tailscaled 放進 ~/.local/bin,再照下面登入
+    $login_hint"
   exit 0
 fi
 mkdir -p "$bin" "$state"

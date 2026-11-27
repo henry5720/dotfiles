@@ -21,7 +21,9 @@ Windows 的 `.ps1` 跟 `install-mise` 則印一行、exit 0，但不會進最後
   `run_onchange_` 下次 apply 就會重跑。重跑一開始先刪標記，這次又失敗才再留。
 - 彙整腳本 `run_after_zz-root-skipped-summary` 從只在「沒有 root、或勾了裝不了的工具」的機器渲染，改成每台 Linux、macOS、Termux 都有，因為任何機器都可能裝失敗。
 - macOS 的基底只有 jq 走 brew。chezmoi 要用的 git、curl、python3 來自系統與 Xcode CLT，所以 `brew bundle` 整包（含 jq）都算選裝那一類：
-  brew 壞了也不擋 apply。jq 只有 `install-wakatime` 查 plugin 時用到，#421 會把它拿出基底。
+  brew 壞了也不擋 apply。jq 只有 `install-wakatime` 查 plugin 有沒有裝時用到：沒有 jq 就當成沒裝、重跑一次 plugin 的安裝指令，
+  失敗才記裝失敗。#421 會把 jq 拿出基底。
+- `brew bundle` 不回報是哪幾個 formula 沒裝好，所以 macOS 的彙整列的是那次 bundle 的全部 formula，哪個真的失敗看上面 brew 的訊息。
 
 ## Considered Options
 
@@ -35,7 +37,9 @@ Windows 的 `.ps1` 跟 `install-mise` 則印一行、exit 0，但不會進最後
 
 ## 代價
 
-- **彙整腳本每台都有。** 它是 `run_after_`，每次 apply 都跑，沒東西可印就什麼都不印。`chezmoi verify` 本來就要 `--exclude scripts`。
+- **彙整腳本每台都有。** 它是 `run_after_`，每次 apply 都跑，沒東西可印就什麼都不印；`chezmoi status` 每台都會一直多一行
+  `R .chezmoiscripts/zz-root-skipped-summary.sh`（以前只有可能略過東西的機器才有）。`chezmoi verify` 本來就要 `--exclude scripts`，
+  e2e、macOS CI 檢查「沒有待跑的腳本」時都排除它。
 - **重試標記不會自己過期。** 一直裝不起來的工具（例如 Intel macOS 上某個 brew 編不過的 formula），每次 apply 都會重跑那支腳本、再列一次。
   這是刻意的：要讓它停，就取消勾選。
 - **macOS 的 cask 不重試。** cask 最常見的失敗是 `/Applications` 已經有同一個 app（官網或 App Store 裝的），重試只會每次再失敗一次，所以維持印一行略過。
