@@ -11,7 +11,9 @@
 
 1. **那台 Windows 裝 Windows-MCP**：裝了 dotfiles 的在 PowerShell 打 `tools` 勾 windows-mcp，見 [Windows 主機〈windows-mcp〉](../windows.md#windows-mcp)；
    沒裝 dotfiles 的照 [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) 的 README 裝。那台要能 ssh 進去、有登入桌面。
-2. **agent 這台產生 key**：`remote-access key init`，再開新的 session（`~/.zshenv` 從 `~/.config/windows-mcp/auth.env` 讀 key）。
+2. **先接受 host key**：新機器，或 ssh config 的 HostName 剛改成全名時，先手動跑一次 `ssh <host> true`，回答 `yes`。
+   `remote-access` 用 `BatchMode=yes` 連，不會問 host key，known_hosts 裡沒有這個名字就直接 `Host key verification failed`。
+3. **agent 這台產生 key**：`remote-access key init`，再開新的 session（`~/.zshenv` 從 `~/.config/windows-mcp/auth.env` 讀 key）。
 
 ## 常用指令
 
