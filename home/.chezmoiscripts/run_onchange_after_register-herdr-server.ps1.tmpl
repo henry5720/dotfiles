@@ -1,6 +1,6 @@
 {{- /* 選裝工具 herdr 的 Windows 版(#416):登入時以一般權限起 herdr server。沒勾就渲染成空的,chezmoi 不跑。
        帳號在 Administrators 群組時,經 OpenSSH 拉起的 server 是 elevated、跑在 session 0,桌面的 terminal 連不上
-       (docs/tools/herdr.md〈Windows 桌面的 terminal 連不上 herdr〉)。登入時先起好一般權限的 server,
+       (docs/tools/herdr.md〈Windows：誰先開 herdr，決定 server 的權限〉)。登入時先起好一般權限的 server,
        別台 `herdr --machine` 連過來就用它,不會再經 ssh 拉一個 elevated 的。
        排程(工作排程器,不是 Startup 資料夾:那在 AppData 第 7 層,.chezmoiignore 的白名單只排到第 6 層):
        - 觸發:這個使用者登入時。帳號名取目前 token 的(<電腦>\<使用者>):ssh 進來時 USERDOMAIN 是 WORKGROUP,不是電腦名稱。
