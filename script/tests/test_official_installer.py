@@ -86,8 +86,8 @@ class OfficialInstallerTest(unittest.TestCase):
                     self.assertTrue(out.startswith("#!"))
                     self.assertIn("set -eu", out)
                     self.assertIn(f"if {installed}; then", out)
-                    self.assertIn(f'curl -fsSL -o "$tmp/{tool}.sh" {url}\n', out)
-                    self.assertIn(f"  {run}\n", out)
+                    self.assertIn(f'curl -fsSL -o "$tmp/{tool}.sh" {url} &&\n', out)
+                    self.assertIn(f"    {run} ||\n    skip_fail {tool} ", out)
                     # 跳過判斷在下載之前
                     self.assertLess(out.index(installed), out.index(url))
                     others = [u for t, (_, u, _) in SH_EXPECT.items() if t != tool]

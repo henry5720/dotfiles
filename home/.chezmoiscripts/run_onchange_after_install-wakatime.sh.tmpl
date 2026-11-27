@@ -13,7 +13,10 @@
 # (os 是 linux 或 darwin;Termux 用 linux 版),
 # 再 symlink 成 ~/.wakatime/wakatime-cli。各 agent／編輯器的 WakaTime plugin 預設找這支、
 # 還會自己更新它,已經有了就不重抓。
+# 每一步裝失敗都只略過那一步,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-wakatime" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 {{ template "sh-jq-path" . }}
 {{ template "sh-arch" . }}
 # 1. wakatime-cli。Apple Silicon 的 uname -m 是 arm64,不是 aarch64
@@ -31,12 +34,13 @@ else
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/wakatime.zip" \
-    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip"
-  python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp"
-  mkdir -p "$dir"
-  install -m 755 "$tmp/wakatime-cli-$asset" "$bin"
+    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip" &&
+    python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp" &&
+    mkdir -p "$dir" &&
+    install -m 755 "$tmp/wakatime-cli-$asset" "$bin" ||
+    skip_fail wakatime-cli "從 GitHub release 下載或解壓失敗,下次 chezmoi apply 會重試"
 fi
-ln -sfn "$bin" "$dir/wakatime-cli"
+[ ! -x "$bin" ] || ln -sfn "$bin" "$dir/wakatime-cli"
 
 # 2. 舊版放在 ~/.local/bin/wakatime-cli,刪掉,只留官方位置那支
 if [ -f "$HOME/.local/bin/wakatime-cli" ] && [ ! -L "$HOME/.local/bin/wakatime-cli" ]; then
@@ -52,12 +56,14 @@ fi
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
 claude=$(command -v claude || echo "$HOME/.local/bin/claude")
 if [ ! -x "$claude" ]; then
-  echo "找不到 claude,跳過 Claude Code 的 WakaTime plugin"
+  # 勾了 claude 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "Claude Code 的 WakaTime plugin" "找不到 claude(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-code-wakatime@wakatime")' >/dev/null; then
   echo "Claude Code 的 WakaTime plugin 已安裝,跳過"
 else
-  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null
-  "$claude" plugin install claude-code-wakatime@wakatime </dev/null
+  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null &&
+    "$claude" plugin install claude-code-wakatime@wakatime </dev/null ||
+    skip_fail "Claude Code 的 WakaTime plugin" "claude plugin 指令失敗,下次 chezmoi apply 會重試"
 fi
 {{- end }}
 {{- if has "codex" (splitList " " (includeTemplate "tools-to-install" .)) }}
@@ -68,12 +74,14 @@ fi
 #    plugin 一樣用 ~/.wakatime 的 wakatime-cli 與 ~/.wakatime.cfg,hook 也用 node 跑。
 codex=$(command -v codex || echo "$HOME/.local/bin/codex")
 if [ ! -x "$codex" ]; then
-  echo "找不到 codex,跳過 Codex CLI 的 WakaTime plugin"
+  # 勾了 codex 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "Codex CLI 的 WakaTime plugin" "找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginId == "codex-cli-wakatime@wakatime")' >/dev/null; then
   echo "Codex CLI 的 WakaTime plugin 已安裝,跳過"
 else
-  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null
-  "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
+  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null &&
+    "$codex" plugin add codex-cli-wakatime@wakatime </dev/null ||
+    skip_fail "Codex CLI 的 WakaTime plugin" "codex plugin 指令失敗,下次 chezmoi apply 會重試"
 fi
 {{- end }}
 {{- if has "code-server" (splitList " " (includeTemplate "tools-to-install" .)) }}
@@ -85,11 +93,13 @@ fi
 cs=$(command -v code-server || echo "$HOME/.local/bin/code-server")
 [ -x "$cs" ] || cs="$HOME/.local/share/mise/shims/code-server"
 if [ ! -x "$cs" ]; then
-  echo "找不到 code-server,跳過 code-server 的 WakaTime 擴充"
+  # 勾了 code-server 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "code-server 的 WakaTime 擴充" "找不到 code-server(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$cs" --list-extensions </dev/null | grep -qix 'wakatime.vscode-wakatime'; then
   echo "code-server 的 WakaTime plugin 已安裝,跳過"
 else
-  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null
+  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null ||
+    skip_fail "code-server 的 WakaTime 擴充" "code-server --install-extension 失敗,下次 chezmoi apply 會重試"
 fi
 {{- end }}
 {{ end -}}

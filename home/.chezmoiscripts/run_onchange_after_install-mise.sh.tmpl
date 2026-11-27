@@ -15,9 +15,11 @@
 {{ $list | trim | comment "#   " }}
 #
 # 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
-# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 裝失敗不讓 apply 停(不然排在後面的 after 腳本全不會跑):略過、apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 # 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-mise" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 
 # 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)。
 #    macOS 的 mise 由 install-packages-darwin 的 brew bundle 先裝好;chezmoi 跑腳本時的 PATH 不一定有 Homebrew
@@ -31,14 +33,16 @@ if [ ! -x "$mise" ]; then
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/install.sh" https://mise.run
-  sh "$tmp/install.sh"
+  if ! { curl -fsSL -o "$tmp/install.sh" https://mise.run && sh "$tmp/install.sh"; }; then
+    skip_fail "mise 與它的工具" "mise 的官方 installer(https://mise.run)沒跑完,下次 chezmoi apply 會重試"
+    exit 0
+  fi
   mise="$HOME/.local/bin/mise"
 fi
 
 # 2. 照清單裝(順便建 shims)
 if ! "$mise" install; then
-  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+  skip_fail "mise 的工具" "mise install 有工具沒裝好(被 GitHub API 限流時設 GITHUB_TOKEN),下次 chezmoi apply 會重試,或自己跑 $mise install"
 fi
 
 # 3. 刪掉沒有設定檔要的版本:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報

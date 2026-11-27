@@ -5,7 +5,10 @@
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/tool-table.yaml 的 tailscale)。
 # 不會執行 tailscale up,登入與設定自己來。
+# 下載或 installer 失敗略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-tailscale" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 
 # 1. 系統層的 tailscaled 已經在跑(例如管理員裝好的機器)就整段跳過:不裝、不 enable、不走 userspace,
 #    所以不需要 root。
@@ -24,8 +27,10 @@ else
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/install.sh" https://tailscale.com/install.sh
-  sh "$tmp/install.sh"
+  if ! { curl -fsSL -o "$tmp/install.sh" https://tailscale.com/install.sh && sh "$tmp/install.sh"; }; then
+    skip_fail tailscale "官方 installer(https://tailscale.com/install.sh)沒跑完,下次 chezmoi apply 會重試"
+    exit 0
+  fi
 fi
 
 # 3. 開機自動啟動 tailscaled。PID 1 不是 systemd(沒開 systemd 的 WSL、容器)就跳過,不算失敗
@@ -36,7 +41,6 @@ else
 fi
 echo "不會執行 tailscale up;請自行登入與設定。"
 {{- else }}
-{{ template "sh-skip" . }}
 # 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
 #    改走 userspace 模式(tailscaled 變成只給這個使用者用的 proxy,不用 root):官方 static tarball 的
 #    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。勾了 zsh 的話,之後開 zsh 時
@@ -86,8 +90,7 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 if ! { curl -fsSL -o "$tmp/ts.tgz" "$url" && tar -xzf "$tmp/ts.tgz" -C "$tmp" &&
   src=$(echo "$tmp"/tailscale_*_"$arch") && "$src/tailscale" version >/dev/null; }; then
-  skip_root tailscale "下載失敗($url),沒有裝 userspace tailscale。網路好了手動:下載那個 tgz,把裡面的 tailscale、tailscaled 放進 ~/.local/bin,再照下面登入
-    $login_hint"
+  skip_fail tailscale "下載失敗($url),沒有裝 userspace tailscale,下次 chezmoi apply 會重試"
   exit 0
 fi
 mkdir -p "$bin" "$state"

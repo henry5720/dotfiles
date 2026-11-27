@@ -618,12 +618,12 @@ scenario_ubuntu() {
   check "再 init 一次不問選單(沒給任何 prompt 旗標也能跑完)" "chezmoi init --no-tty"
   check "用途存自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
   check "選擇沒變" "grep -qF 'tools = [\"zsh\", \"starship\", \"eza\", \"fzf\", \"bat\", \"ripgrep\", \"vim\", \"fastfetch\", \"btop\", \"bottom\", \"earlyoom\", \"gh\", \"code-server\", \"tailscale\", \"cloudflared\", \"herdr\", \"claude\", \"codex\", \"snapserver\", \"snapclient\", \"codegraph\", \"headless-chrome\", \"playwright-cli\", \"agent-config\"]' ~/.config/chezmoi/chezmoi.toml"
-  check "沒有腳本待跑(chezmoi status 無 R)" "! chezmoi status | grep -E '^.?R'"
+  check "沒有腳本待跑(chezmoi status 無 R)" "! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、apt 沒被呼叫" \
     "before=\$(grep -c '^Commandline:' /var/log/apt/history.log); chezmoi apply --no-tty && [ \"\$(grep -c '^Commandline:' /var/log/apt/history.log)\" = \"\$before\" ]"
-  check "chezmoi verify 通過" "chezmoi verify"
+  check "chezmoi verify 通過" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   # tools = init --prompt + apply。--prompt 只重問選單:憑證與 git 身分已經存過就不問,
   # 所以不給任何 prompt 旗標也不會卡在 stdin。--promptDefaults = 選單直接 Enter(保留現在的勾選)。
@@ -636,7 +636,7 @@ scenario_ubuntu() {
   check "gitUserEmail 保留 e2e@example.com" "grep -qx '    gitUserEmail = \"e2e@example.com\"' ~/.config/chezmoi/chezmoi.toml"
   check "tools 保留原本的勾選" "grep -qxFf /tmp/tools-before ~/.config/chezmoi/chezmoi.toml"
   check "用途保留自訂" "grep -qx '    machineUse = \"custom\"' ~/.config/chezmoi/chezmoi.toml"
-  check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+  check "之後沒有腳本待跑" "! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   # 不經選單、直接用 chezmoi edit-config 改 [data] tools 那一行再 apply,也要能裝。
   # edit-config 只是開編輯器,這裡直接 sed config 模擬。
@@ -657,7 +657,7 @@ scenario_ubuntu() {
   step "config 的 tools 加上 wakatime" \
     "sed -i 's/^    tools = \\[\\(.*\\)\\]\$/    tools = [\\1, \"wakatime\"]/' ~/.config/chezmoi/chezmoi.toml && grep -q '\"wakatime\"\\]\$' ~/.config/chezmoi/chezmoi.toml"
   check "只有 wakatime 的安裝腳本待跑" \
-    "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
+    "[ \"\$(chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary)\" = \"\$(chezmoi status | grep -E '^.?R.*install-wakatime')\" ] && chezmoi status | grep -qE '^.?R.*install-wakatime'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check_tool wakatime
   # zsh 外掛不再裝(#176):不 clone、zshrc 也不載入
@@ -670,7 +670,7 @@ scenario_ubuntu() {
   check "zsh 沒載入 WakaTime 外掛" "$(zsh_ok '(( ! ${+functions[_wakatime_heartbeat]} ))')"
   # claude 等 agent 第一次就勾了,補勾 wakatime 之後 plugin 才裝上
   for a in "${!WAKA_PLUGIN[@]}"; do check_waka_plugin "$a"; done
-  check "plugin 寫進的設定跟 modify_ 不打架(chezmoi verify 通過)" "chezmoi verify"
+  check "plugin 寫進的設定跟 modify_ 不打架(chezmoi verify 通過)" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
   check_codex_permissions
   check "modify_ 釘的 chrome-devtools plugin 開關還在" \
     "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
@@ -678,7 +678,7 @@ scenario_ubuntu() {
   check "wakatime 腳本重跑 exit 0、plugin 都跳過不重裝" \
     "out=\$(chezmoi execute-template < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-wakatime.sh.tmpl | sh 2>&1) && echo \"\$out\" && ! grep -q 'Successfully' <<<\"\$out\" && [ \"\$(grep -c 'plugin 已安裝,跳過' <<<\"\$out\")\" = ${#WAKA_PLUGIN[@]} ]"
   check_no_tool ttyd
-  check "之後再 apply 沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+  check "之後再 apply 沒有腳本待跑" "! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
   # 第一次沒勾 wakatime,所以 WakaTime key 沒問過、config 裡沒有(#213);勾了之後 init 才問
   check "(對照)第一次沒勾 wakatime:config 裡沒有 wakatimeApiKey" "! grep -q wakatimeApiKey ~/.config/chezmoi/chezmoi.toml"
   check "之後 init 不給 WakaTime key:會問(--no-tty 讀到 EOF 失敗)" \
@@ -693,7 +693,7 @@ scenario_ubuntu() {
   check "(對照)加進去了" "grep -q gemini ~/.config/skillshare/config.yaml"
   check "apply exit 0" "chezmoi apply --no-tty"
   check "手動加的 target 被蓋掉" "$SS_TARGETS_IS '[\"claude\",\"codex\"]' && ! grep -q gemini ~/.config/skillshare/config.yaml"
-  check "chezmoi verify 通過" "chezmoi verify"
+  check "chezmoi verify 通過" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   # 新機器只勾一部分時不部署哪些檔:不用另開容器,用 --override-data 換 tools 看 chezmoi 會管哪些檔
   bold "▶ 沒勾的 client 不部署設定目錄"
@@ -713,7 +713,7 @@ scenario_ubuntu() {
   check "chezmoi 不再管 ~/.codex" "! chezmoi managed | grep -q '^\\.codex'"
   check "已經同步出去的檔案留著(~/.codex 的設定、AGENTS.md、~/.agents/skills)" \
     "[ -f ~/.codex/config.toml ] && [ -e ~/.codex/AGENTS.md ] && [ -e ~/.agents/skills/e2e-hello ]"
-  check "chezmoi verify 通過" "chezmoi verify"
+  check "chezmoi verify 通過" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   # mise 只把工具從清單拿掉的話 shim 還在,打指令報 No version is set for shim(#330):install-mise 跑完 install 再 prune
   bold "▶ 取消勾選 bottom(mise 管的工具)"
@@ -727,7 +727,7 @@ scenario_ubuntu() {
     "out=\$(zsh -i -c btm 2>&1); echo \"\$out\" | tail -n 3; ! grep -q 'No version is set' <<<\"\$out\" && grep -q 'command not found: btm' <<<\"\$out\""
   check "自己 mise use -g 的 jq 留著、其他 mise 工具照常" "$SHIMS/jq --version && $SHIMS/fzf --version && $SHIMS/btop --version"
   check "清單沒變:install-mise 不再待跑(不會再 prune)" "! chezmoi status | grep -q install-mise"
-  check "chezmoi verify 通過" "chezmoi verify"
+  check "chezmoi verify 通過" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   bold "▶ 套件清單加一個套件"
   step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
@@ -913,13 +913,26 @@ scenario_ubuntu() {
   local wsl_hc='{"tools":["headless-chrome","fzf"],"chezmoi":{"kernel":{"osrelease":"5.15.167.4-microsoft-standard-WSL2"}}}'
   check "WSL 勾了 headless-chrome:略過腳本只記它與原因、彙整腳本(有 root 也)渲染出來,語法對" \
     "chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl > /tmp/rec.sh && sh -n /tmp/rec.sh && [ \"\$(grep -c '^skip_env ' /tmp/rec.sh)\" = 1 ] && grep -q \"^skip_env 'headless-chrome' '.*WSL\" /tmp/rec.sh && chezmoi execute-template --override-data '$wsl_hc' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum.sh && sh -n /tmp/sum.sh && grep -q 這台裝不了 /tmp/sum.sh"
-  check "(對照)沒有裝不了的勾選:略過腳本、有 root 時的彙整腳本都渲染成空的" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl | tr -d '[:space:]')\" ] && [ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl | tr -d '[:space:]')\" ]"
+  check "(對照)沒有裝不了的勾選:略過腳本渲染成空的;彙整腳本每台都有(任何機器都可能裝失敗,ADR 0006),語法對" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_onchange_after_record-env-skipped.sh.tmpl | tr -d '[:space:]')\" ] && chezmoi execute-template --override-data '{\"tools\":[\"headless-chrome\"]}' < $scripts/run_after_zz-root-skipped-summary.sh.tmpl > /tmp/sum0.sh && sh -n /tmp/sum0.sh && grep -q 這次裝失敗 /tmp/sum0.sh"
   # 真的 apply 一次(#272):WSL 勾一個裝不了的 headless-chrome,apply 照樣 exit 0,最後列出略過與原因。
   # 用另一份 config、目的地、狀態檔,不動這台主要的那份;腳本照樣在這台跑(彙整檔在真的 $HOME)。
   # 只勾 headless-chrome:其他選裝腳本都不跑,套件腳本的基底前面已經裝好、不用連網。
   check "WSL 勾 headless-chrome 跑 init --apply:exit 0,彙整列出它和原因,有 root 那段不出現" \
     "mkdir -p /tmp/wsl-home && chezmoi init --apply --config /tmp/wsl-apply.toml --destination /tmp/wsl-home --persistent-state /tmp/wsl-apply.boltdb --no-tty --override-data '$wsl' $(printf '%q ' "${INIT_FLAGS[@]}") --promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice headless-chrome "$wsl")") > /tmp/wsl-apply.log 2>&1; rc=\$?; tail -n 8 /tmp/wsl-apply.log; [ \$rc = 0 ] && grep -qxF '$(toml_list headless-chrome)' /tmp/wsl-apply.toml && sed -n '/^== 這台裝不了,以下選裝工具已略過/,\$p' /tmp/wsl-apply.log | grep -q -- '^- headless-chrome:WSL' && ! grep -q '^== 沒有 root' /tmp/wsl-apply.log && [ ! -e ~/.local/state/dotfiles/env-skipped ]"
+
+  # 裝失敗(ADR 0006、#420):選裝工具的 apt 套件裝不起來,apply 照樣 exit 0、最後列出、留重試標記;
+  # 修好再 apply 會重跑(重試標記讓腳本內容變了),標記清掉。/usr/local/bin 放假的 dpkg-query、apt-get:
+  # 旗標檔在的時候 ffmpeg 算沒裝、apt-get install 它就失敗,其他照轉給真的(sudo 的 secure_path 也先找 /usr/local/bin)。
+  # 用另一份 config、目的地、狀態檔,只勾 ffmpeg(有 root 走 apt、沒有 setup 腳本)。
+  local fail_flags="--config /tmp/fail-apply.toml --destination /tmp/fail-home --persistent-state /tmp/fail-apply.boltdb --no-tty"
+  step "裝假的 dpkg-query、apt-get(旗標檔在時 ffmpeg 裝失敗)" \
+    "printf '%s\\n' '#!/bin/sh' '[ -e /tmp/e2e-fail-ffmpeg ] && [ \"\$1\" = -W ] && case \" \$* \" in *\" ffmpeg \"*) exit 1;; esac' 'exec /usr/bin/dpkg-query \"\$@\"' | sudo tee /usr/local/bin/dpkg-query >/dev/null && printf '%s\\n' '#!/bin/sh' '[ -e /tmp/e2e-fail-ffmpeg ] && case \" \$* \" in *\" install \"*\" ffmpeg \"*) echo \"E: e2e 假裝 ffmpeg 裝失敗\" >&2; exit 100;; esac' 'exec /usr/bin/apt-get \"\$@\"' | sudo tee /usr/local/bin/apt-get >/dev/null && sudo chmod 755 /usr/local/bin/dpkg-query /usr/local/bin/apt-get && touch /tmp/e2e-fail-ffmpeg && mkdir -p /tmp/fail-home"
+  check "選裝工具裝失敗:init --apply exit 0,彙整列出 ffmpeg,留下重試標記" \
+    "chezmoi init --apply $fail_flags $(printf '%q ' "${INIT_FLAGS[@]}") --promptChoice $(printf '%q' "$(use_choice custom)") --promptMultichoice $(printf '%q' "$(menu_choice ffmpeg)") > /tmp/fail-apply.log 2>&1; rc=\$?; tail -n 8 /tmp/fail-apply.log; [ \$rc = 0 ] && sed -n '/^== 這次裝失敗/,\$p' /tmp/fail-apply.log | grep -q -- '^- 選裝工具的套件 ffmpeg:' && [ -e ~/.local/state/dotfiles/retry/install-packages ] && [ ! -e ~/.local/state/dotfiles/install-failed ]"
+  check "修好再 apply:裝失敗的腳本重跑、重試標記清掉、不再列裝失敗" \
+    "rm -f /tmp/e2e-fail-ffmpeg && chezmoi apply $fail_flags > /tmp/fail-apply2.log 2>&1; rc=\$?; tail -n 8 /tmp/fail-apply2.log; [ \$rc = 0 ] && [ ! -e ~/.local/state/dotfiles/retry/install-packages ] && ! grep -q '這次裝失敗' /tmp/fail-apply2.log"
+  in_ctr "sudo rm -f /usr/local/bin/dpkg-query /usr/local/bin/apt-get /tmp/e2e-fail-ffmpeg"
 
   # 非 Debian 系 Linux(例如 Fedora):要 apt 的東西安靜略過。用 --override-data 蓋 osRelease 模擬
   # (id 與 idLike 都要蓋,不然留著容器本身 Ubuntu 的 idLike=debian)。
@@ -1150,7 +1163,7 @@ scenario_ubuntu() {
   # Linux 的 codegraph 也是 mise 裝的(npm backend,#342),跟 btop 一樣被 prune
   check "mise 裝的 btop、codegraph 取消勾選後被 mise prune 拿掉,shim 也不在" \
     "! ls -d ~/.local/share/mise/shims/btop ~/.local/share/mise/shims/codegraph ~/.local/share/mise/installs/btop ~/.local/share/mise/installs/npm-*codegraph* 2>/dev/null | grep -q ."
-  check "之後沒有腳本待跑" "! chezmoi status | grep -E '^.?R'"
+  check "之後沒有腳本待跑" "! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 }
 
 # ===============================================================
@@ -1248,7 +1261,7 @@ scenario_termux() {
 
   bold "▶ 第二次 apply"
   check "除了每次都跑的 authorized_keys,沒有腳本待跑" \
-    "[ \"\$(chezmoi status | grep -E '^.?R')\" = \"\$(chezmoi status | grep -E '^.?R.*authorized-keys-from-github')\" ]"
+    "[ \"\$(chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary)\" = \"\$(chezmoi status | grep -E '^.?R.*authorized-keys-from-github')\" ]"
   check "換 shell 腳本已記為跑過、第二次不會再跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/set-default-shell.sh\")' && ! chezmoi status | grep -q set-default-shell"
   check "第二次 apply exit 0、pkg 沒被呼叫" \
@@ -1502,8 +1515,8 @@ noroot_tailscale_checks() {
   check "tailscale 已經裝過:腳本重跑不下載、exit 0" \
     "rm -f /tmp/e2e-curl.log && chezmoi execute-template --override-data '{\"tools\":[\"tailscale\"]}' < ~/.local/share/chezmoi/home/.chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl > /tmp/ts-\$(id -un).sh && out=\$(PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts-\$(id -un).sh 2>&1) && echo \"\$out\" && grep -q '已經裝過' <<<\"\$out\" && [ ! -e /tmp/e2e-curl.log ]; r=\$?; rm -f ~/.local/state/dotfiles/root-skipped; exit \$r"
   # 同一支渲染好的腳本,換一個空的 HOME 跑:沒裝過、curl 失敗
-  check "tailscale 下載失敗:記進略過彙整、exit 0、不留半套" \
-    "rm -rf /tmp/ts-home-\$(id -un) && mkdir -p /tmp/ts-home-\$(id -un) && out=\$(HOME=/tmp/ts-home-\$(id -un) PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts-\$(id -un).sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home-\$(id -un)/.local/state/dotfiles/root-skipped && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscale ] && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home-\$(id -un); exit \$r"
+  check "tailscale 下載失敗:記成裝失敗、留重試標記、exit 0、不留半套" \
+    "rm -rf /tmp/ts-home-\$(id -un) && mkdir -p /tmp/ts-home-\$(id -un) && out=\$(HOME=/tmp/ts-home-\$(id -un) PATH=/opt/e2e-stub/curl-log:\$PATH sh /tmp/ts-\$(id -un).sh 2>&1) && echo \"\$out\" && grep -q '^- tailscale:.*下載失敗' /tmp/ts-home-\$(id -un)/.local/state/dotfiles/install-failed && [ -e /tmp/ts-home-\$(id -un)/.local/state/dotfiles/retry/install-tailscale ] && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscale ] && [ ! -e /tmp/ts-home-\$(id -un)/.local/bin/tailscaled ]; r=\$?; rm -rf /tmp/ts-home-\$(id -un); exit \$r"
   # 之後拿到 root:~/.local/bin 的 userspace 版不算已安裝(它沒有系統 unit,systemctl enable 會失敗),要走官方 installer。
   # 用會成功的 sudo stub 渲染成有 root 那版,curl stub 記錄呼叫(一定失敗,腳本停在下載)
   check "有 root 時不把 ~/.local/bin 的 userspace tailscale 當成已安裝,改跑官方 installer" \

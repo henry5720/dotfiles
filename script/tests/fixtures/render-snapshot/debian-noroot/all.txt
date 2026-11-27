@@ -125,12 +125,12 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ### .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 #!@BIN@/sh
-# 略過彙整。只有可能略過東西的機器才有這支:沒有 root 的 Linux,或勾了這台裝不了的選裝工具
-# (其他機器渲染成空的,chezmoi diff／status 不會一直看到它)。
+# 略過彙整。每台 Linux、macOS、Termux 都有這支:任何機器都可能裝失敗(網路、套件管理員壞了,ADR 0006)。
 # 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
-#   env-skipped   這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
-#   root-skipped  沒有 root 略過的步驟(skip_root)
-# 這支在 apply 最後分兩段各印一次再刪掉;沒有 root 那段放最後。
+#   env-skipped     這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
+#   install-failed  這次裝失敗的選裝工具(skip_fail);重試標記在 retry/,不在這裡刪
+#   root-skipped    沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分段各印一次再刪掉;沒有 root 那段放最後。
 # 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
 # run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
 set -eu
@@ -142,6 +142,12 @@ if [ -s "$d/env-skipped" ]; then
   cat "$d/env-skipped"
 fi
 rm -f "$d/env-skipped"
+if [ -s "$d/install-failed" ]; then
+  echo
+  echo "== 這次裝失敗,以下已略過(錯誤訊息在上面;其餘照常裝好,修好原因後再 chezmoi apply 會重試):"
+  cat "$d/install-failed"
+fi
+rm -f "$d/install-failed"
 if [ -s "$d/root-skipped" ]; then
   echo
   echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
@@ -282,13 +288,44 @@ clean_codex()
 # remote 走 HTTPS:agent-config 是公開 repo,新機器還沒放 SSH key 也 clone 得下來;
 # push 由 ~/.gitconfig 的 pushInsteadOf 改走 SSH。
 # AGENT_CONFIG_REMOTE 只給測試換成本機 repo 用(script/tests/e2e.sh)。
+# 裝失敗(下載、init、sync)略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+
+retrying=
+retry_key=install-agent-config
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 
 dir=$HOME/.config/skillshare
 remote=${AGENT_CONFIG_REMOTE:-https://github.com/henry5720/agent-config.git}
 
-# 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
-if [ -d "$dir/.git" ]; then
+# 1. 已經 init 過就跳過(之後要更新用 skillshare pull)。重試時不跳:上次可能 init 完、install 或 sync 失敗
+if [ -d "$dir/.git" ] && [ -z "$retrying" ]; then
   echo "agent-config 已安裝($dir),跳過。更新:skillshare pull && skillshare sync --all"
   exit 0
 fi
@@ -299,8 +336,11 @@ if [ ! -x "$ss" ]; then
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh
-  INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"
+  if ! { curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh &&
+    INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"; }; then
+    skip_fail agent-config "skillshare 的官方 installer 沒跑完,下次 chezmoi apply 會重試"
+    exit 0
+  fi
 fi
 
 # 3. 從 remote init,再把 skills 與 MCP 裝進各個 client。
@@ -308,9 +348,10 @@ fi
 #    targets 由 config.yaml 決定(照勾的 client 產生,見 .chezmoitemplates/skillshare-pinned):
 #    config 已經在時 init 不會照 --targets 加,這裡明講 --no-targets。
 [ -f "$dir/config.yaml" ] || { echo "找不到 $dir/config.yaml" >&2; exit 1; }
-"$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets
-"$ss" install -g
-"$ss" sync --all
+{ [ -d "$dir/.git" ] || "$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets; } &&
+  "$ss" install -g &&
+  "$ss" sync --all ||
+  skip_fail agent-config "skillshare init、install 或 sync 沒跑完(錯誤在上面),下次 chezmoi apply 會重試,或自己跑 skillshare install -g && skillshare sync --all"
 
 ### .chezmoiscripts/run_onchange_after_install-mise.sh.tmpl
 #!@BIN@/sh
@@ -343,9 +384,39 @@ fi
 #   "vim" = "latest"
 #
 # 要打 GitHub API(aqua、github backend;未登入每小時 60 次)。被限流時設 GITHUB_TOKEN 再 apply。
-# 裝失敗只印一行、exit 0:不然 apply 中止,排在後面的 after 腳本全不會跑。代價是不會自動重試,要自己跑 mise install。
+# 裝失敗不讓 apply 停(不然排在後面的 after 腳本全不會跑):略過、apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 # 取消勾選的工具由 3. 的 mise prune 移除(#330)。連 mise 一起清掉:mise implode。
 set -eu
+
+retrying=
+retry_key=install-mise
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 
 # 1. 沒有 mise 就用官方 installer 裝到 ~/.local/bin/mise(https://mise.jdx.dev/installing-mise.html)。
 #    macOS 的 mise 由 install-packages-darwin 的 brew bundle 先裝好;chezmoi 跑腳本時的 PATH 不一定有 Homebrew
@@ -354,14 +425,16 @@ if [ ! -x "$mise" ]; then
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉,sh 讀到空的就 exit 0
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/install.sh" https://mise.run
-  sh "$tmp/install.sh"
+  if ! { curl -fsSL -o "$tmp/install.sh" https://mise.run && sh "$tmp/install.sh"; }; then
+    skip_fail "mise 與它的工具" "mise 的官方 installer(https://mise.run)沒跑完,下次 chezmoi apply 會重試"
+    exit 0
+  fi
   mise="$HOME/.local/bin/mise"
 fi
 
 # 2. 照清單裝(順便建 shims)
 if ! "$mise" install; then
-  echo "mise install 有工具沒裝好,之後自己跑:$mise install"
+  skip_fail "mise 的工具" "mise install 有工具沒裝好(被 GitHub API 限流時設 GITHUB_TOKEN),下次 chezmoi apply 會重試,或自己跑 $mise install"
 fi
 
 # 3. 刪掉沒有設定檔要的版本:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報
@@ -377,6 +450,36 @@ fi
 #!@BIN@/sh
 # 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
 set -eu
+
+retrying=
+retry_key=install-official
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -384,32 +487,36 @@ trap 'rm -rf "$tmp"' EXIT
 if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
   echo "claude 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/claude.sh" https://claude.ai/install.sh
-  bash "$tmp/claude.sh"
+  curl -fsSL -o "$tmp/claude.sh" https://claude.ai/install.sh &&
+    bash "$tmp/claude.sh" ||
+    skip_fail claude "官方 installer(https://claude.ai/install.sh)沒跑完,下次 chezmoi apply 會重試"
 fi
 
 # codex
 if command -v codex >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; then
   echo "codex 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/codex.sh" https://chatgpt.com/codex/install.sh
-  CODEX_NON_INTERACTIVE="1" PATH="$HOME/.local/bin:$PATH" bash "$tmp/codex.sh"
+  curl -fsSL -o "$tmp/codex.sh" https://chatgpt.com/codex/install.sh &&
+    CODEX_NON_INTERACTIVE="1" PATH="$HOME/.local/bin:$PATH" bash "$tmp/codex.sh" ||
+    skip_fail codex "官方 installer(https://chatgpt.com/codex/install.sh)沒跑完,下次 chezmoi apply 會重試"
 fi
 
 # herdr
 if command -v herdr >/dev/null 2>&1; then
   echo "herdr 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/herdr.sh" https://herdr.dev/install.sh
-  sh "$tmp/herdr.sh"
+  curl -fsSL -o "$tmp/herdr.sh" https://herdr.dev/install.sh &&
+    sh "$tmp/herdr.sh" ||
+    skip_fail herdr "官方 installer(https://herdr.dev/install.sh)沒跑完,下次 chezmoi apply 會重試"
 fi
 
 # opencode
 if command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ]; then
   echo "opencode 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/opencode.sh" https://opencode.ai/install
-  bash "$tmp/opencode.sh" --no-modify-path
+  curl -fsSL -o "$tmp/opencode.sh" https://opencode.ai/install &&
+    bash "$tmp/opencode.sh" --no-modify-path ||
+    skip_fail opencode "官方 installer(https://opencode.ai/install)沒跑完,下次 chezmoi apply 會重試"
 fi
 
 ### .chezmoiscripts/run_onchange_after_install-ssh-client.sh.tmpl
@@ -428,6 +535,8 @@ bin=$HOME/.local/bin
 #   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
 #              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
 skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
   echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -437,6 +546,12 @@ skip_env() {  # skip_env <工具> <原因>
   echo "略過 $1(這台裝不了):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
 }
 
 # 哪一步失敗都不讓 apply 失敗(沒有 root 時整個 apply 照樣 exit 0):清掉半套、記進略過彙整、結束。
@@ -505,7 +620,38 @@ done
 # 選裝工具 tailscale(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # 只給 Linux:macOS 由 install-packages-darwin 用 brew cask 裝官方 app(.chezmoidata/tool-table.yaml 的 tailscale)。
 # 不會執行 tailscale up,登入與設定自己來。
+# 下載或 installer 失敗略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+
+retrying=
+retry_key=install-tailscale
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 
 # 1. 系統層的 tailscaled 已經在跑(例如管理員裝好的機器)就整段跳過:不裝、不 enable、不走 userspace,
 #    所以不需要 root。
@@ -522,23 +668,6 @@ if tailscale_running; then
   echo "系統層的 tailscaled 已經在跑,跳過"
   exit 0
 fi
-# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
-# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
-# 兩種原因記在不同檔,彙整分開列:
-#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
-#              (#339;可以多行,第二行起自己縮排)
-#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
-skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
-  echo "略過 $1(沒有 root):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
-}
-skip_env() {  # skip_env <工具> <原因>
-  echo "略過 $1(這台裝不了):$2"
-  mkdir -p "$HOME/.local/state/dotfiles"
-  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
-}
-
 # 2. 沒有 root(.chezmoitemplates/has-root):官方 installer 要加 apt 來源、tailscaled 要開 TUN,都做不了。
 #    改走 userspace 模式(tailscaled 變成只給這個使用者用的 proxy,不用 root):官方 static tarball 的
 #    tailscale、tailscaled 放 ~/.local/bin,狀態放 ~/.local/state/tailscale。勾了 zsh 的話,之後開 zsh 時
@@ -583,8 +712,7 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 if ! { curl -fsSL -o "$tmp/ts.tgz" "$url" && tar -xzf "$tmp/ts.tgz" -C "$tmp" &&
   src=$(echo "$tmp"/tailscale_*_"$arch") && "$src/tailscale" version >/dev/null; }; then
-  skip_root tailscale "下載失敗($url),沒有裝 userspace tailscale。網路好了手動:下載那個 tgz,把裡面的 tailscale、tailscaled 放進 ~/.local/bin,再照下面登入
-    $login_hint"
+  skip_fail tailscale "下載失敗($url),沒有裝 userspace tailscale,下次 chezmoi apply 會重試"
   exit 0
 fi
 mkdir -p "$bin" "$state"
@@ -610,7 +738,38 @@ skip_root tailscale "$login_hint"
 # (os 是 linux 或 darwin;Termux 用 linux 版),
 # 再 symlink 成 ~/.wakatime/wakatime-cli。各 agent／編輯器的 WakaTime plugin 預設找這支、
 # 還會自己更新它,已經有了就不重抓。
+# 每一步裝失敗都只略過那一步,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+
+retrying=
+retry_key=install-wakatime
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 # apt 用不了的機器,jq 可能是 run_onchange_before_install-home-jq-zsh 抓到 ~/.local/bin 的,
 # 而 chezmoi 跑腳本時的 PATH 不一定有它:找不到 jq 就把 ~/.local/bin 加進 PATH。
 command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
@@ -633,12 +792,13 @@ else
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/wakatime.zip" \
-    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip"
-  python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp"
-  mkdir -p "$dir"
-  install -m 755 "$tmp/wakatime-cli-$asset" "$bin"
+    "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip" &&
+    python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp" &&
+    mkdir -p "$dir" &&
+    install -m 755 "$tmp/wakatime-cli-$asset" "$bin" ||
+    skip_fail wakatime-cli "從 GitHub release 下載或解壓失敗,下次 chezmoi apply 會重試"
 fi
-ln -sfn "$bin" "$dir/wakatime-cli"
+[ ! -x "$bin" ] || ln -sfn "$bin" "$dir/wakatime-cli"
 
 # 2. 舊版放在 ~/.local/bin/wakatime-cli,刪掉,只留官方位置那支
 if [ -f "$HOME/.local/bin/wakatime-cli" ] && [ ! -L "$HOME/.local/bin/wakatime-cli" ]; then
@@ -652,12 +812,14 @@ fi
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
 claude=$(command -v claude || echo "$HOME/.local/bin/claude")
 if [ ! -x "$claude" ]; then
-  echo "找不到 claude,跳過 Claude Code 的 WakaTime plugin"
+  # 勾了 claude 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "Claude Code 的 WakaTime plugin" "找不到 claude(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-code-wakatime@wakatime")' >/dev/null; then
   echo "Claude Code 的 WakaTime plugin 已安裝,跳過"
 else
-  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null
-  "$claude" plugin install claude-code-wakatime@wakatime </dev/null
+  "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null &&
+    "$claude" plugin install claude-code-wakatime@wakatime </dev/null ||
+    skip_fail "Claude Code 的 WakaTime plugin" "claude plugin 指令失敗,下次 chezmoi apply 會重試"
 fi
 
 # 4. Codex CLI 的 WakaTime plugin:照 wakatime/codex-cli-wakatime README 的兩行指令裝。
@@ -666,12 +828,14 @@ fi
 #    plugin 一樣用 ~/.wakatime 的 wakatime-cli 與 ~/.wakatime.cfg,hook 也用 node 跑。
 codex=$(command -v codex || echo "$HOME/.local/bin/codex")
 if [ ! -x "$codex" ]; then
-  echo "找不到 codex,跳過 Codex CLI 的 WakaTime plugin"
+  # 勾了 codex 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "Codex CLI 的 WakaTime plugin" "找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginId == "codex-cli-wakatime@wakatime")' >/dev/null; then
   echo "Codex CLI 的 WakaTime plugin 已安裝,跳過"
 else
-  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null
-  "$codex" plugin add codex-cli-wakatime@wakatime </dev/null
+  "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null &&
+    "$codex" plugin add codex-cli-wakatime@wakatime </dev/null ||
+    skip_fail "Codex CLI 的 WakaTime plugin" "codex plugin 指令失敗,下次 chezmoi apply 會重試"
 fi
 
 # 5. code-server 的 WakaTime 擴充:code-server FAQ 的 --install-extension,預設從 Open VSX 抓
@@ -681,11 +845,13 @@ fi
 cs=$(command -v code-server || echo "$HOME/.local/bin/code-server")
 [ -x "$cs" ] || cs="$HOME/.local/share/mise/shims/code-server"
 if [ ! -x "$cs" ]; then
-  echo "找不到 code-server,跳過 code-server 的 WakaTime 擴充"
+  # 勾了 code-server 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
+  skip_fail "code-server 的 WakaTime 擴充" "找不到 code-server(它這次也沒裝好),下次 chezmoi apply 會重試"
 elif "$cs" --list-extensions </dev/null | grep -qix 'wakatime.vscode-wakatime'; then
   echo "code-server 的 WakaTime plugin 已安裝,跳過"
 else
-  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null
+  "$cs" --install-extension WakaTime.vscode-wakatime </dev/null ||
+    skip_fail "code-server 的 WakaTime 擴充" "code-server --install-extension 失敗,下次 chezmoi apply 會重試"
 fi
 
 ### .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
@@ -702,6 +868,8 @@ set -eu
 #   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
 #              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
 skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
   echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -711,6 +879,12 @@ skip_env() {  # skip_env <工具> <原因>
   echo "略過 $1(這台裝不了):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
 }
 
 skip_env 'earlyoom' '要 root：要改系統服務的記憶體設定'
@@ -753,6 +927,36 @@ fi
 # 沒有 root 的 Debian 系那支就不再把 jq、zsh 算成缺的套件。
 # 系統已經有的不裝;用到 jq 的腳本找不到它時會把 ~/.local/bin 加進 PATH(.chezmoitemplates/sh-jq-path)。
 set -eu
+
+retrying=
+retry_key=install-home-jq-zsh
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 bin=$HOME/.local/bin
 
 # 1. jq:jqlang/jq 官方有靜態 binary,放 ~/.local/bin。沒有它 modify_ 會失敗,所以裝不起來就讓 apply 停下來,
@@ -779,14 +983,14 @@ fi
 # 2. zsh(勾了選裝工具 zsh 才有這段):zsh-bin 官方說不用 root、靜態連結,裝到 ~/.local(~/.local/bin/zsh)。
 #    -e no:不碰 /etc/shells。安裝腳本釘版本,裡面有每個 tarball 的 sha256。
 #    沒辦法 chsh,改由 ~/.bashrc 在互動式 bash 啟動時切過去(home/modify_dot_bashrc.tmpl)。
-#    裝不起來不擋 apply(zsh 不是 apply 要的),印手動指令。
+#    裝不起來不擋 apply(zsh 是選裝工具,不是 apply 要的):略過、apply 最後列出,下次 apply 重試(ADR 0006)。
 zsh_install='https://raw.githubusercontent.com/romkatv/zsh-bin/v6.1.1/install'
 if command -v zsh >/dev/null 2>&1 || [ -x "$bin/zsh" ]; then
   :
 elif zsh_bin=$(curl -fsSL "$zsh_install") && sh -c "$zsh_bin" -- -d "$HOME/.local" -e no -q; then
   echo "zsh 用 zsh-bin 裝到 ~/.local/bin"
 else
-  echo "zsh-bin 沒裝起來(網路?)。手動:sh -c \"\$(curl -fsSL $zsh_install)\" -- -d ~/.local -e no" >&2
+  skip_fail zsh "zsh-bin 沒裝起來(網路?),下次 chezmoi apply 會重試。手動:sh -c \"\$(curl -fsSL $zsh_install)\" -- -d ~/.local -e no"
 fi
 
 ### .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
@@ -801,28 +1005,24 @@ fi
 #
 # 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
 # 也在 modify_ 腳本之前(它們要 jq、python3)。
-# run_onchange_:清單沒變就不會再跑;清單變了才重跑,而且只裝缺的。
+# run_onchange_:清單沒變就不會再跑;清單變了、或上次有選裝工具的套件裝失敗(sh-retry)才重跑,而且只裝缺的。
 set -eu
 
 # 1. 算出缺哪些套件;一個都不缺就結束(不叫 sudo、不連 mirror)。Termux 也是 dpkg。
 missing=""
-for pkg in git curl python3; do
-  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' \
-    || missing="$missing $pkg"
-done
-[ -n "$missing" ] || exit 0
 
-# 2. 有缺才裝
-echo "安裝缺少的套件:$missing"
+retrying=
+retry_key=install-packages
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
 
-# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印缺哪些與 apt 的指令,apply 繼續。
-# jq、zsh 不在這裡(第 1 步已經排除),由 run_onchange_before_install-home-jq-zsh 裝到家目錄。
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:
 #   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
 #              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
 skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
   echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -833,5 +1033,31 @@ skip_env() {  # skip_env <工具> <原因>
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
 }
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
 
-skip_root 系統套件 "沒裝$missing(apt 裝到系統要 root);apt 的指令是 sudo apt-get install -y$missing"
+base="" tools=""
+for pkg in git curl python3; do
+  dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' && continue
+  case " git curl python3 " in
+    *" $pkg "*) base="$base $pkg" ;;
+    *) tools="$tools $pkg" ;;
+  esac
+done
+[ -n "$base$tools" ] || exit 0
+
+# 2. 有缺才裝:先基底(失敗就停),再選裝工具的套件(失敗就略過)
+echo "安裝缺少的套件:$base$tools"
+
+# 沒有 root(.chezmoitemplates/has-root):apt 用不了,缺的套件略過、印缺哪些與 apt 的指令,apply 繼續。
+# jq、zsh 不在這裡(第 1 步已經排除),由 run_onchange_before_install-home-jq-zsh 裝到家目錄。
+skip_root 系統套件 "沒裝$base$tools(apt 裝到系統要 root);apt 的指令是 sudo apt-get install -y$base$tools"
+exit 0
+# shellcheck disable=SC2086 # 要拆成多個參數
+[ -z "$base" ] || install_pkgs $base
+# shellcheck disable=SC2086
+[ -z "$tools" ] || install_pkgs $tools || skip_fail "選裝工具的套件$tools" "修好套件管理員後再 chezmoi apply 會重試,或自己跑 $fix$tools"

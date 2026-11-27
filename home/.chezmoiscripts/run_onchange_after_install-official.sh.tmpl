@@ -8,7 +8,7 @@
 
        1. 已經有就不重裝:PATH 上有那個指令,或表上的檔案在(chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin)
        2. 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝。
-          set -eu:下載或 installer 失敗就整支失敗、apply 停下來報錯,跟以前一工具一支時一樣
+       3. 下載或 installer 失敗:那個工具略過(skip_fail),其他照裝,apply 最後列出,下次 apply 重試(ADR 0006)
        各工具 installer 自己的細節(code-server 設定檔、opencode 的 --no-modify-path…)寫在表那一筆旁邊。 */ -}}
 {{- $install := includeTemplate "tool-install" . | fromJson -}}
 {{- $run := list -}}
@@ -22,6 +22,8 @@
 #!{{ lookPath "sh" }}
 # 官方 installer(選單見 .chezmoi.toml.tmpl,網址見 .chezmoidata/tool-table.yaml)
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-official" "home" $.chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 {{- range $name := $run }}
@@ -36,8 +38,9 @@ trap 'rm -rf "$tmp"' EXIT
 if {{ join " || " $checks }}; then
   echo "{{ $name }} 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/{{ $name }}.sh" {{ $o.url }}
-  {{ join "" $env }}{{ $o.shell }} "$tmp/{{ $name }}.sh"{{ range (get $o "args" | default list) }} {{ . }}{{ end }}
+  curl -fsSL -o "$tmp/{{ $name }}.sh" {{ $o.url }} &&
+    {{ join "" $env }}{{ $o.shell }} "$tmp/{{ $name }}.sh"{{ range (get $o "args" | default list) }} {{ . }}{{ end }} ||
+    skip_fail {{ $name }} "官方 installer({{ $o.url }})沒跑完,下次 chezmoi apply 會重試"
 fi
 {{- end }}
 {{ end -}}

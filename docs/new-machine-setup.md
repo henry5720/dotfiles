@@ -238,6 +238,9 @@ macOS 有勾的工具能用 brew 裝的都交給 `brew bundle`（app 是 cask，
 
 勾了 zsh 和 starship 的話，apply 完重開終端機（或 `exec zsh`）就是 zsh + starship 提示列。原生 Termux 到這裡就結束了。
 
+有選裝工具這次沒裝起來（網路斷、brew 或 apt 壞了），apply 照樣跑完，最後一段「這次裝失敗」列出是哪幾個，錯誤訊息在上面的輸出。
+修好原因後再跑一次 `chezmoi apply` 就會補裝。基底套件（git、curl 這類）裝失敗才會讓 apply 停下來。
+
 ### 沒有 root 的機器
 
 不能 `sudo` 的帳號也是同一行裝好，要 root 的步驟記進略過彙整。會自動處理什麼、tailscale 登入、連已配置主機的專用 key、字型，見[沒有 root 的機器](how-to/no-root-machine.md)。

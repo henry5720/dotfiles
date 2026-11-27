@@ -7,7 +7,10 @@
 # 沒有本機 Chrome 照樣能 attach 遠端瀏覽器(#260、#349),所以不跟 headless-chrome 綁。
 #
 # 檔名刻意不叫 install-playwright-cli:要排在 install-mise 之後。
+# 沒裝好、ffmpeg 下載失敗都略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "npm-install-playwright-cli" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 
 # 1. mise 的 shims 排最前面(chezmoi 跑腳本時不會讀 .zshrc;macOS 上 #383 裝的 brew playwright-cli 可能還在 PATH 上)。
 #    install-mise 已經照清單裝好 npm:@playwright/cli
@@ -21,16 +24,17 @@ version_ok() {
   [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" = "$min" ]
 }
 
-# 3. 確認版本。latest 低於下限或沒裝好就只印一行、exit 0,同 install-mise:apply 不中止
+# 3. 確認版本。latest 低於下限或沒裝好就略過,同 install-mise:apply 不中止
 if ! version_ok; then
-  echo "playwright-cli 沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),之後自己跑:mise install" >&2
+  skip_fail playwright-cli "沒裝好或低於 $min(現在是 $(playwright-cli --version 2>/dev/null || echo 沒有)),下次 chezmoi apply 會重試,或自己跑 mise install"
   exit 0
 fi
 
 # 4. 錄影(video-start)要 playwright 自己的 ffmpeg,版本跟著 CLI 內建的 playwright-core 走(0.1.23 是 ffmpeg-1013)。
 #    用 CLI 自己的 install-browser 裝(等同 playwright 官方的 `playwright install ffmpeg`),下載到
 #    ~/.cache/ms-playwright、不用 root;已經有就不重下載。
-playwright-cli install-browser ffmpeg
+playwright-cli install-browser ffmpeg ||
+  skip_fail "playwright-cli 的 ffmpeg" "install-browser ffmpeg 失敗,錄影(video-start)不能用;下次 chezmoi apply 會重試"
 
 # 5. 沒有本機 Chrome 只提醒,不算失敗:open 會失敗,attach 遠端瀏覽器照樣能用。路徑是 Playwright 的 chrome channel 找的那支
 {{ if eq .chezmoi.os "darwin" -}}
