@@ -150,7 +150,7 @@ def package_lists(rendered):
     sh = rendered.get(".chezmoiscripts/run_onchange_before_install-packages.sh.tmpl", "")
     m = re.search(r"^for pkg in (.*); do$", sh, re.M)
     lines.append("apt/pkg: " + (m.group(1) if m else ""))
-    m = re.search(r'^command -v node .*missing="\$missing (.*)"$', sh, re.M)
+    m = re.search(r'^command -v node .*tools="\$tools (.*)"$', sh, re.M)
     if m:
         lines.append("pkg(node): " + m.group(1))
     darwin = rendered.get(".chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl", "")

@@ -64,7 +64,6 @@ winget:
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_after_authorized-keys-from-github.sh.tmpl
-.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
@@ -87,8 +86,41 @@ winget:
 .chezmoiscripts/run_onchange_before_install-packages.sh.tmpl
 
 ## 會跑的腳本
+.chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
 .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
+
+### .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
+#!@BIN@/sh
+# 略過彙整。每台 Linux、macOS、Termux 都有這支:任何機器都可能裝失敗(網路、套件管理員壞了,ADR 0006)。
+# 各腳本略過時(.chezmoitemplates/sh-skip)把「略過什麼、為什麼」記進 ~/.local/state/dotfiles/:
+#   env-skipped     這台裝不了的選裝工具(skip_env,原因在 .chezmoidata/tool-table.yaml)
+#   install-failed  這次裝失敗的選裝工具(skip_fail);重試標記在 retry/,不在這裡刪
+#   root-skipped    沒有 root 略過的步驟(skip_root)
+# 這支在 apply 最後分段各印一次再刪掉;沒有 root 那段放最後。
+# 檔名 zz-:chezmoi 依 target 名稱(去掉 run_after_ 這類前綴)排序,排在所有 after_ 腳本後面。
+# run_after_:每次 apply 都跑,沒有略過的步驟就什麼都不印。
+set -eu
+
+d="$HOME/.local/state/dotfiles"
+if [ -s "$d/env-skipped" ]; then
+  echo
+  echo '== 這台裝不了,以下選裝工具已略過(其餘照常裝好;要改勾選打 tools):'
+  cat "$d/env-skipped"
+fi
+rm -f "$d/env-skipped"
+if [ -s "$d/install-failed" ]; then
+  echo
+  echo "== 這次裝失敗,以下已略過(錯誤訊息在上面;其餘照常裝好,修好原因後再 chezmoi apply 會重試):"
+  cat "$d/install-failed"
+fi
+rm -f "$d/install-failed"
+if [ -s "$d/root-skipped" ]; then
+  echo
+  echo "== 沒有 root,以下步驟已略過(其餘照常裝好)。每項寫了缺什麼、為什麼要 root 與對應的指令:"
+  cat "$d/root-skipped"
+fi
+rm -f "$d/root-skipped"
 
 ### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 #!/usr/bin/env python3
@@ -220,12 +252,45 @@ clean_codex()
 # 其他 OS 渲染成空的,chezmoi 不跑;Linux／Termux 是 install-packages 那支。
 #
 # 跟官方範例不同的地方:
-# - 名字帶 before_:跟 install-packages 一樣要在 modify_ 腳本之前跑完(它們要 jq)。
+# - 名字帶 before_:跟 install-packages 一樣在 modify_ 之前跑(modify_ 現在只用 chezmoi 內建 template 與 Xcode CLT 的 python3,不靠 brew)。
+# - brew bundle 失敗(例如 brew 的目錄沒有寫入權限)不讓 apply 停,略過、apply 最後列出、下次 apply 重試(ADR 0006)。
+#   基底列的 jq 也一起:macOS 上 chezmoi 要的 git、curl、python3 來自系統與 Xcode CLT,不是 brew,
+#   jq 只有 install-wakatime 查 plugin 時用,沒有它那一步自己會略過。
 # - shebang 用 sh(這個 repo 的規則);heredoc 在 sh 一樣能用。
 # - 找不到 brew 時直接停:Homebrew 是前置步驟(要管理員密碼、互動),不由 chezmoi 裝,見 docs/new-machine-setup.md。
 # - app(cask)不放進 brew bundle,一個一個 brew install --cask,失敗只印略過、不中斷(見第 3 步)。
-# run_onchange_:清單沒變就不會再跑;brew bundle 本身也只裝缺的。
+# run_onchange_:清單沒變、上次也沒裝失敗(sh-retry)就不會再跑;brew bundle 本身也只裝缺的。
 set -eu
+
+retrying=
+retry_key=install-packages-darwin
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
+
+# 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
+# apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
+# 兩種原因記在不同檔,彙整分開列:
+#   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
+#              (#339;可以多行,第二行起自己縮排)
+#   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
+skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
+  echo "略過 $1(沒有 root):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/root-skipped"
+}
+skip_env() {  # skip_env <工具> <原因>
+  echo "略過 $1(這台裝不了):$2"
+  mkdir -p "$HOME/.local/state/dotfiles"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
+}
+
 
 # 1. 找 brew。chezmoi 跑腳本時的 PATH 不一定有 Homebrew(Apple Silicon 在 /opt/homebrew,Intel 在 /usr/local)
 if ! command -v brew >/dev/null 2>&1; then
@@ -239,7 +304,7 @@ command -v brew >/dev/null 2>&1 || {
 }
 
 # 2. 裝 formula
-brew bundle --file=/dev/stdin <<EOF
+brew bundle --file=/dev/stdin <<EOF ||
 brew "jq"
 brew "bat"
 brew "eza"
@@ -248,3 +313,4 @@ brew "fzf"
 brew "ripgrep"
 brew "starship"
 EOF
+  skip_fail "brew 套件 jq bat eza fastfetch fzf ripgrep starship" "brew bundle 有套件沒裝好(原因看上面 brew 的訊息,常見是 brew 的目錄沒有寫入權限,照它印的 chown 修);修好後再 chezmoi apply 會重試"

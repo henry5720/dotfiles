@@ -1,0 +1,14 @@
+{{- /* 裝失敗的重試(ADR 0006):run_onchange_ 腳本 exit 0 之後,內容沒變就不會再跑,裝失敗的東西永遠補不回來。
+       skip_fail(.chezmoitemplates/sh-skip)留下 ~/.local/state/dotfiles/retry/<key>;下次渲染這裡看到它,
+       多印一行帶時間的註解,腳本內容跟著變,chezmoi 就會重跑。重跑一開始先刪掉標記,這次又失敗才再留。
+       不改成每次 apply 都跑:brew bundle 每跑一次都會先 brew update,很慢;只有失敗過才重跑。
+       腳本裡 $retrying 非空 = 這次是重試(例如已經做到一半的步驟不要當成做完了)。
+       用法:{{ includeTemplate "sh-retry" (dict "key" "<腳本名>" "home" .chezmoi.homeDir) }},放在 set -eu 後面。 */ -}}
+{{- with stat (joinPath .home ".local/state/dotfiles/retry" .key) }}
+# 上次 apply 有東西裝失敗(標記時間 {{ .modTime }}),這次重跑
+retrying=1
+{{- else }}
+retrying=
+{{- end }}
+retry_key={{ .key }}
+rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"

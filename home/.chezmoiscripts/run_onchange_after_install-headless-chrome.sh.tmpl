@@ -6,7 +6,10 @@
 # 選裝工具 headless Chrome(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # agent 在這台開 headless Chrome 用(指令見 docs/how-to/remote-access/browser.md):查原因時開在 9222 給 chrome-devtools-mcp。
 # Chrome 只有官方 .deb(Ubuntu 的 chromium 是 snap)。字型由套件腳本先裝(選裝工具表的依賴套件)。
+# 下載或 apt 裝失敗略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-headless-chrome" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 {{ template "sh-apt" . }}
 # 1. 已經有就不重裝
 if command -v google-chrome >/dev/null 2>&1; then
@@ -18,8 +21,9 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 deb=$tmp/google-chrome-stable_current_amd64.deb
-curl -fsSL -o "$deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-chmod 644 "$deb"
-apt_get update
-apt_get install -y "$deb"
+curl -fsSL -o "$deb" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
+  chmod 644 "$deb" &&
+  apt_get update &&
+  apt_get install -y "$deb" ||
+  skip_fail headless-chrome "下載或 apt 裝官方 .deb 失敗,下次 chezmoi apply 會重試"
 {{ end -}}

@@ -10,7 +10,10 @@
 # gh pr edit / gh issue view 會直接報棄用錯誤(cli/cli#12320)。
 # 步驟照官方 docs/install_linux.md(cli/cli)。另加 pin:Ubuntu 26.04 的 apt 會優先挑
 # amd64v3 變體的 Ubuntu 版,即使官方源的版本號比較新。
+# 下載或 apt 裝失敗略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-gh" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 {{ template "sh-apt" . }}
 key=/etc/apt/keyrings/githubcli-archive-keyring.gpg
 list=/etc/apt/sources.list.d/github-cli.list
@@ -27,7 +30,10 @@ fi
 #    key 先下載到暫存檔:接 pipe 的話 curl 失敗會被吞掉,留下空的 keyring
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-curl -fsSL -o "$tmp/keyring.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg
+if ! curl -fsSL -o "$tmp/keyring.gpg" https://cli.github.com/packages/githubcli-archive-keyring.gpg; then
+  skip_fail gh "下載官方 apt 源的 key 失敗,下次 chezmoi apply 會重試"
+  exit 0
+fi
 $SUDO mkdir -p -m 755 /etc/apt/keyrings
 $SUDO install -m 644 "$tmp/keyring.gpg" "$key"
 echo "deb [arch=$(dpkg --print-architecture) signed-by=$key] https://cli.github.com/packages stable main" \
@@ -35,7 +41,9 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=$key] https://cli.github.
 printf 'Package: gh\nPin: origin cli.github.com\nPin-Priority: 600\n' | $SUDO tee "$pin" >/dev/null
 
 # 3. 安裝
-apt_get update
-apt_get install -y gh
+if ! { apt_get update && apt_get install -y gh; }; then
+  skip_fail gh "apt 從官方源裝 gh 失敗,下次 chezmoi apply 會重試,或自己跑 sudo apt-get update && sudo apt-get install -y gh"
+  exit 0
+fi
 echo "gh 已安裝。登入:gh auth login"
 {{ end -}}

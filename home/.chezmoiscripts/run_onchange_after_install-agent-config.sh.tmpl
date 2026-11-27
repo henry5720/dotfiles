@@ -10,13 +10,16 @@
 # remote 走 HTTPS:agent-config 是公開 repo,新機器還沒放 SSH key 也 clone 得下來;
 # push 由 ~/.gitconfig 的 pushInsteadOf 改走 SSH。
 # AGENT_CONFIG_REMOTE 只給測試換成本機 repo 用(script/tests/e2e.sh)。
+# 裝失敗(下載、init、sync)略過,apply 最後列出,下次 apply 重試(sh-retry,ADR 0006)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-agent-config" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 
 dir=$HOME/.config/skillshare
 remote=${AGENT_CONFIG_REMOTE:-https://github.com/{{ .githubUser }}/agent-config.git}
 
-# 1. 已經 init 過就跳過(之後要更新用 skillshare pull)
-if [ -d "$dir/.git" ]; then
+# 1. 已經 init 過就跳過(之後要更新用 skillshare pull)。重試時不跳:上次可能 init 完、install 或 sync 失敗
+if [ -d "$dir/.git" ] && [ -z "$retrying" ]; then
   echo "agent-config 已安裝($dir),跳過。更新:skillshare pull && skillshare sync --all"
   exit 0
 fi
@@ -27,8 +30,11 @@ if [ ! -x "$ss" ]; then
   # 先下載再跑:接 pipe 的話 curl 失敗會被吞掉(shell 讀到空的就 exit 0),apply 看起來成功卻什麼都沒裝
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh
-  INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"
+  if ! { curl -fsSL -o "$tmp/install.sh" https://raw.githubusercontent.com/runkids/skillshare/main/install.sh &&
+    INSTALL_DIR="$HOME/.local/bin" sh "$tmp/install.sh"; }; then
+    skip_fail agent-config "skillshare 的官方 installer 沒跑完,下次 chezmoi apply 會重試"
+    exit 0
+  fi
 fi
 
 # 3. 從 remote init,再把 skills 與 MCP 裝進各個 client。
@@ -36,7 +42,8 @@ fi
 #    targets 由 config.yaml 決定(照勾的 client 產生,見 .chezmoitemplates/skillshare-pinned):
 #    config 已經在時 init 不會照 --targets 加,這裡明講 --no-targets。
 [ -f "$dir/config.yaml" ] || { echo "找不到 $dir/config.yaml" >&2; exit 1; }
-"$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets
-"$ss" install -g
-"$ss" sync --all
+{ [ -d "$dir/.git" ] || "$ss" init --git-root root --remote "$remote" --no-copy --no-skill --no-targets; } &&
+  "$ss" install -g &&
+  "$ss" sync --all ||
+  skip_fail agent-config "skillshare init、install 或 sync 沒跑完(錯誤在上面),下次 chezmoi apply 會重試,或自己跑 skillshare install -g && skillshare sync --all"
 {{ end -}}

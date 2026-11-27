@@ -4,6 +4,8 @@
 #   skip_root  沒有 root,略過要 root 的步驟。說明只寫事實:缺什麼、為什麼要 root、對應的指令,怎麼補由使用者決定
 #              (#339;可以多行,第二行起自己縮排)
 #   skip_env   這台裝不了的選裝工具(原因在 .chezmoidata/tool-table.yaml),由 record-env-skipped 呼叫
+#   skip_fail  裝失敗:這台裝得了、這次卻沒裝起來(網路、套件管理員壞了)。錯誤訊息照樣印在上面,
+#              這裡只記哪個沒裝、怎麼補;同時留重試標記,下次 apply 重跑這支(呼叫端要先 include sh-retry)
 skip_root() {  # skip_root <略過什麼> <缺什麼、為什麼要 root、指令>
   echo "略過 $1(沒有 root):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
@@ -13,4 +15,10 @@ skip_env() {  # skip_env <工具> <原因>
   echo "略過 $1(這台裝不了):$2"
   mkdir -p "$HOME/.local/state/dotfiles"
   printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/env-skipped"
+}
+skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
+  echo "略過 $1(這次裝失敗,錯誤訊息在上面):$2"
+  mkdir -p "$HOME/.local/state/dotfiles/retry"
+  printf -- '- %s:%s\n' "$1" "$2" >> "$HOME/.local/state/dotfiles/install-failed"
+  : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
 }

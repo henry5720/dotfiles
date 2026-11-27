@@ -11,6 +11,8 @@
 # 沒有 root 的 Debian 系那支就不再把 jq、zsh 算成缺的套件。
 # 系統已經有的不裝;用到 jq 的腳本找不到它時會把 ~/.local/bin 加進 PATH(.chezmoitemplates/sh-jq-path)。
 set -eu
+{{ includeTemplate "sh-retry" (dict "key" "install-home-jq-zsh" "home" .chezmoi.homeDir) }}
+{{ template "sh-skip" . }}
 bin=$HOME/.local/bin
 
 # 1. jq:jqlang/jq 官方有靜態 binary,放 ~/.local/bin。沒有它 modify_ 會失敗,所以裝不起來就讓 apply 停下來,
@@ -38,14 +40,14 @@ fi
 # 2. zsh(勾了選裝工具 zsh 才有這段):zsh-bin 官方說不用 root、靜態連結,裝到 ~/.local(~/.local/bin/zsh)。
 #    -e no:不碰 /etc/shells。安裝腳本釘版本,裡面有每個 tarball 的 sha256。
 #    沒辦法 chsh,改由 ~/.bashrc 在互動式 bash 啟動時切過去(home/modify_dot_bashrc.tmpl)。
-#    裝不起來不擋 apply(zsh 不是 apply 要的),印手動指令。
+#    裝不起來不擋 apply(zsh 是選裝工具,不是 apply 要的):略過、apply 最後列出,下次 apply 重試(ADR 0006)。
 zsh_install='https://raw.githubusercontent.com/romkatv/zsh-bin/v6.1.1/install'
 if command -v zsh >/dev/null 2>&1 || [ -x "$bin/zsh" ]; then
   :
 elif zsh_bin=$(curl -fsSL "$zsh_install") && sh -c "$zsh_bin" -- -d "$HOME/.local" -e no -q; then
   echo "zsh 用 zsh-bin 裝到 ~/.local/bin"
 else
-  echo "zsh-bin 沒裝起來(網路?)。手動:sh -c \"\$(curl -fsSL $zsh_install)\" -- -d ~/.local -e no" >&2
+  skip_fail zsh "zsh-bin 沒裝起來(網路?),下次 chezmoi apply 會重試。手動:sh -c \"\$(curl -fsSL $zsh_install)\" -- -d ~/.local -e no"
 fi
 {{- end }}
 {{ end -}}
