@@ -60,7 +60,7 @@ WSL2 另外做兩件事（都在 Windows 那側）：
 ### macOS
 
 1. 照 [Homebrew 官網](https://brew.sh/)的指令裝 Homebrew（要管理員密碼，會順便裝 Xcode Command Line Tools，
-   git、python3 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
+   git 由它提供），裝完照它印的 **Next steps** 把 `brew shellenv` 加進 `~/.zprofile`，開新的終端機。
    chezmoi 不裝 Homebrew：它要互動輸入密碼。套件之後由 chezmoi 用 `brew bundle` 裝。
 2. 要連自己的機器就在選單勾 tailscale（完整會勾），chezmoi 用 brew cask `tailscale-app` 裝官方 app，裝完自己開 app 登入。
    已經從官網或 App Store 裝過的不用勾：勾了 brew 會因為 `/Applications/Tailscale.app` 已經在而裝不起來，
@@ -200,7 +200,7 @@ chezmoi 官方的[新機器一行指令](https://www.chezmoi.io/user-guide/daily
 `chezmoi init` 會問：
 
 - **用途（只有 Linux 與 macOS）**：完整、精簡或自訂，決定下一題預設勾哪些。按一個字母 `f`／`m`／`c`（按下就送出，不用 Enter），直接 Enter 是精簡；config 存 `full`／`minimal`／`custom`。選錯用途時在下一題的選單按 Ctrl+C，整個 init 不存檔，重來一次（Esc 會照目前勾選送出，不是取消）。
-- **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl、jq、python3，
+- **選裝工具選單（只有 Linux 與 macOS）**：空白鍵勾選、Enter 確定，已照用途勾好，可以再調。基底只有 git、curl，
   zsh、starship 提示列也是選裝工具，要在這裡勾。
 - 憑證：只問勾了的工具用得到的，精簡一個都不問。
 - Git 身分：`git user.name`（預設 `henry`）與 `git user.email`，每台都問。

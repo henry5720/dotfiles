@@ -20,9 +20,8 @@ Windows 的 `.ps1` 跟 `install-mise` 則印一行、exit 0，但不會進最後
 - 腳本開頭 include `.chezmoitemplates/sh-retry`：渲染時用 `stat` 看標記在不在，在就多印一行帶時間的註解，腳本內容跟著變，
   `run_onchange_` 下次 apply 就會重跑。重跑一開始先刪標記，這次又失敗才再留。
 - 彙整腳本 `run_after_zz-root-skipped-summary` 從只在「沒有 root、或勾了裝不了的工具」的機器渲染，改成每台 Linux、macOS、Termux 都有，因為任何機器都可能裝失敗。
-- macOS 的基底只有 jq 走 brew。chezmoi 要用的 git、curl、python3 來自系統與 Xcode CLT，所以 `brew bundle` 整包（含 jq）都算選裝那一類：
-  brew 壞了也不擋 apply。jq 只有 `install-wakatime` 查 plugin 有沒有裝時用到：沒有 jq 就當成沒裝、重跑一次 plugin 的安裝指令，
-  失敗才記裝失敗。#421 會把 jq 拿出基底。
+- macOS 的基底沒有要 brew 裝的：chezmoi 要用的 git、curl 來自系統與 Xcode CLT，所以 `brew bundle` 整包都算選裝那一類，
+  brew 壞了也不擋 apply。（當時基底還有 jq 走 brew，#421 把 jq、python3 拿出基底，`install-wakatime` 查 plugin 改用 grep。）
 - `brew bundle` 不回報是哪幾個 formula 沒裝好，所以 macOS 的彙整列的是那次 bundle 的全部 formula，哪個真的失敗看上面 brew 的訊息。
 
 ## Considered Options

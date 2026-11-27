@@ -34,7 +34,6 @@ sh -c "$(curl -fsLS get.chezmoi.io/lb)" -- init --apply --promptDefaults \
 
 | 項目 | 沒有 root 時怎麼做 |
 |---|---|
-| jq | 系統沒有就從 GitHub release 裝到 `~/.local/bin`；非 Debian 系 Linux 也一樣 |
 | zsh（勾了才有） | 用 [zsh-bin](https://github.com/romkatv/zsh-bin)（5.8）裝到 `~/.local`；有 root、非 Debian 系也一樣 |
 | bash 切 zsh | 不 `chsh`：`~/.bashrc` 最後加一段（`dotfiles:互動式 bash 切到 zsh` 標記之間），互動式 bash 一啟動就 `exec zsh`；`bash -c`、scp 這類非互動的留在 bash。要拿掉就刪那段、取消勾選 zsh |
 | `~/.profile` | 沒有 `~/.profile`、`~/.bash_profile`、`~/.bash_login` 時補一個：把 `~/.local/bin` 加進 PATH、source `~/.bashrc`，讓 `bash -l` 開的終端機也找得到 chezmoi、也會切過去 |
@@ -64,7 +63,7 @@ Claude Code、Codex、OpenCode、herdr、WakaTime、agent-config 用各自的官
 
 | 彙整裡的項目 | 寫了什麼 |
 |---|---|
-| 系統套件（基底的 git、curl、python3，與 libatomic1 這類沒有 mise 替代的） | 缺哪些套件與 apt 的指令 `sudo apt-get install -y …` |
+| 系統套件（基底的 git、curl，codex、opencode 的 python3 這類依賴套件，與 libatomic1 這類沒有 mise 替代的） | 缺哪些套件與 apt 的指令 `sudo apt-get install -y …` |
 | tailscale | 只剩登入，見[第 2 步](#2-登入-tailscale)。下載失敗時這筆會寫原因與手動下載方式 |
 | ssh | 解不開 openssh-client 時才有；寫哪一步失敗，與 `sudo apt-get install -y openssh-client` |
 
