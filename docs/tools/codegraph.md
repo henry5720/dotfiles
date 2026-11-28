@@ -133,7 +133,7 @@ codegraph impact  <symbol> -p ~/code/<repo>
 |---|---|---|
 | `~/.claude.json` 的 `mcpServers.codegraph` | 在 | chezmoi 不管 `~/.claude.json` |
 | `~/.claude/settings.json` 的 `codegraph prompt-hook` + `permissions.allow` | 在 | `modify_settings.json.tmpl` 只釘 chrome-devtools plugin 開關與 commit attribution,其餘照留 |
-| `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | 會改到 agent-config | 這份是指向 agent-config `instructions/agents-md/AGENTS.md` 的 symlink,寫進去就是改 source |
+| `~/.claude/CLAUDE.md` 的 `<!-- CODEGRAPH_START -->` 區塊 | 會改到 agent-config | 這份是指向 agent-config `extras/agents-md/AGENTS.md` 的 symlink,寫進去就是改 source |
 
 - 第一列:它沒有「只裝 hook、不寫 MCP」的選項。內容跟 `mcp.yaml` 一字不差時 skillshare 列為 `unchanged`,不會衝突,
   但也不會認領;要讓 skillshare 接手就 `skillshare mcp import codegraph --from claude`

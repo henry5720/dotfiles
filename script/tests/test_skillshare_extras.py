@@ -2,7 +2,7 @@
 """chezmoi 釘進 skillshare config.yaml 的部分:targets 段與指令檔(Instructions)的 extras 段,都照選單勾的 client 產生。
 另外驗沒勾的 client 不部署它的設定目錄(.chezmoiignore)。
 
-指令檔內容在 agent-config 的 instructions/,由那邊的 tests/ 驗;這裡只驗 config.yaml 釘的內容與 extras 連出來的位置。
+指令檔內容在 agent-config 的 extras/,由那邊的 tests/ 驗;這裡只驗 config.yaml 釘的內容與 extras 連出來的位置。
 """
 import json
 import os
@@ -17,10 +17,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "home/dot_config/skillshare/modify_config.yaml.tmpl"
 # Windows 版(#321):skillshare 讀 %AppData%\skillshare\config.yaml,同一個行為的 modify-template
 WINDOWS_CONFIG = "AppData/Roaming/skillshare/config.yaml"
-AGENTS_MD = ".config/skillshare/instructions/agents-md/AGENTS.md"
-AGENT_COMMIT = ".config/skillshare/instructions/agent-commit/instructions.md"
-OPENCODE_COMMIT = ".config/skillshare/instructions/opencode-commit/commit-instructions.md"
-PSTACK_MODELS = ".config/skillshare/instructions/pstack-models/pstack-models.md"
+AGENTS_MD = ".config/skillshare/extras/agents-md/AGENTS.md"
+AGENT_COMMIT = ".config/skillshare/extras/agent-commit/instructions.md"
+OPENCODE_COMMIT = ".config/skillshare/extras/opencode-commit/commit-instructions.md"
+PSTACK_MODELS = ".config/skillshare/extras/pstack-models/pstack-models.md"
 # 勾了哪個 client 才有哪幾個連結;任一個 agent 都有 agent-commit
 LINKS = {
     # 一份 AGENTS.md,Claude 讀的檔名是 CLAUDE.md
@@ -134,6 +134,8 @@ class SkillshareConfigTest(unittest.TestCase):
             "~/.claude", "~/.codex", "~/.config/opencode", "~/.config/opencode/routes/personal",
             "~/.config/agent-commit", "~/.claude/rules", "~/.config/opencode",
         ])
+        # 來源用 skillshare 預設的 ~/.config/skillshare/extras/<name>/,不寫 source
+        self.assertNotIn("source:", self.section(out, "extras"))
 
     def test_only_opencode_has_no_target_but_its_extras(self):
         out = self.run_script(["opencode", "agent-config"])
@@ -203,7 +205,7 @@ class SkillshareConfigTest(unittest.TestCase):
     def test_windows_paths_use_appdata_and_backslashes(self):
         out = self.run_windows(ALL)
         self.assertIn("      path: ~\\.claude\\skills\n", out)
-        self.assertIn("    source: ~\\AppData\\Roaming\\skillshare\\instructions\\agents-md\n", out)
+        self.assertNotIn("source:", self.section(out, "extras"))
         self.assertIn("  skills: ~\\AppData\\Roaming\\skillshare\\skills\n", out)
         self.assertNotIn("/", out)
         self.assertNotIn(".config\\skillshare", out)

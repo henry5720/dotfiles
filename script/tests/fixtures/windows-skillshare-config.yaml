@@ -18,7 +18,6 @@ targets:
 
 extras:
   - name: agents-md
-    source: ~\AppData\Roaming\skillshare\instructions\agents-md
     file: AGENTS.md
     targets:
       - path: ~\.claude
@@ -26,17 +25,14 @@ extras:
       - path: ~\.codex
       - path: ~\.config\opencode
   - name: agent-commit
-    source: ~\AppData\Roaming\skillshare\instructions\agent-commit
     file: instructions.md
     targets:
       - path: ~\.config\agent-commit
   - name: pstack-models
-    source: ~\AppData\Roaming\skillshare\instructions\pstack-models
     file: pstack-models.md
     targets:
       - path: ~\.claude\rules
   - name: opencode-commit
-    source: ~\AppData\Roaming\skillshare\instructions\opencode-commit
     file: commit-instructions.md
     targets:
       - path: ~\.config\opencode
