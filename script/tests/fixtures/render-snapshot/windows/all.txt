@@ -352,7 +352,7 @@ function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64
 $herdr = Join-Path $env:LOCALAPPDATA 'mise\shims\herdr.exe'
 $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 try {
-    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr)
+    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr) -WorkingDirectory $HOME
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

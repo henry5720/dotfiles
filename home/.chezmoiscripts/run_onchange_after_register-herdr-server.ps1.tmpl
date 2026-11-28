@@ -7,7 +7,8 @@
          Principal 用 Interactive、Limited:跑在登入的 session、一般權限,
          從 ssh 的 elevated shell 跑 apply 也一樣
        - 動作:conhost --headless 跑 mise shim 的 `herdr server`(官方的 headless server,TUI 自己起的也是這個指令),
-         不開視窗;shim 跟著 mise 換版本。直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停
+         不開視窗;shim 跟著 mise 換版本。
+         工作目錄設 $HOME:沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡(starship 還會掃到逾時)。直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停
        - 不限執行時間(預設 72 小時會被停掉)、已在跑就不再起一個;已經有 server 在跑時,新的這個會自己結束
        註冊完馬上跑一次,這次登入就生效。laptop 用 --session 測過(#416):process 在 session 2、一般權限的 client 連得上。
        任何一步失敗只印一行、exit 0(同 Windows 其他腳本)。取消勾選不會刪排程,同「取消勾選不會解除安裝」。 */ -}}
@@ -18,7 +19,7 @@
 $herdr = Join-Path $env:LOCALAPPDATA 'mise\shims\herdr.exe'
 $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 try {
-    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr)
+    $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless "{0}" server' -f $herdr) -WorkingDirectory $HOME
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries

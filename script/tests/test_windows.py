@@ -544,6 +544,8 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("$user = [Security.Principal.WindowsIdentity]::GetCurrent().Name", out)
         self.assertIn("-Execute 'conhost.exe' -Argument ('--headless \"{0}\" server' -f $herdr)", out)
         self.assertIn("-ExecutionTimeLimit ([TimeSpan]::Zero)", out)
+        # 沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡
+        self.assertIn("-WorkingDirectory $HOME", out)
         self.assertTrue(out.rstrip().endswith("exit 0"))
 
     # ===============================================================
