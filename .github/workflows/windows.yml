@@ -246,7 +246,7 @@ jobs:
           "沒有重新下載($(@($before).Count) 個檔),diff 沒有輸出"
 
       # 12. 裝失敗(#422,ADR 0006):mise 的清單多一個不存在的工具,install-mise 的 mise install 失敗。
-      #     先清掉 scriptState,讓 run_onchange_ 腳本全部重跑(等於第一次 apply):apply 要照樣成功、最後列出
+      #     先清掉 entryState(run_onchange_ 跑過的紀錄;scriptState 是 run_once_ 的),讓 run_onchange_ 腳本全部重跑:apply 要照樣成功、最後列出
       #     「這次裝失敗」、留下重試標記、install-failed 印完刪掉。拿掉那個工具再 apply 一次(不清 state):
       #     install-mise 因為標記讓內容變了而重跑,跑完標記清掉、不再列出。精簡那組跑就好,做法兩組一樣
       - name: 裝失敗會列出、下次 apply 重試
@@ -257,7 +257,7 @@ jobs:
           $state = "$HOME\.local\state\dotfiles"
           $broken = "$HOME\.config\mise\conf.d\ci-broken.toml"
           '[tools]', '"github:henry5720/ci-tool-that-does-not-exist" = "1.0.0"' | Set-Content -Encoding ascii $broken
-          chezmoi state delete-bucket --bucket=scriptState
+          chezmoi state delete-bucket --bucket=entryState
           chezmoi apply --no-tty 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\fail.log"
           if ($LASTEXITCODE -ne 0) { Write-Error '裝失敗讓 apply 停了'; exit 1 }
           $log = Get-Content -Encoding utf8 "$env:RUNNER_TEMP\fail.log"
