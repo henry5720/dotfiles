@@ -1,1 +1,3 @@
-{{ .chezmoi.homeDir }}/.config/opencode/cli.json
+{{- /* cli.json 由 OpenCode 2 第一次開 TUI 時建、herdr integration 再補 plugin；還沒有就不連，免得留斷的 symlink(#442) */ -}}
+{{- $target := joinPath .chezmoi.homeDir ".config/opencode/cli.json" -}}
+{{- if stat $target }}{{ $target }}{{ end -}}
