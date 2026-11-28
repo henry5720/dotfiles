@@ -4,6 +4,8 @@
 目標是 agent 的設定（規則、skills、MCP）都由 skillshare 管：dashboard、`status`、`doctor` 看得到指令檔，
 連結斷了也檢查得出來。
 
+後續：來源從 `instructions/<名字>/` 改成 skillshare 預設的 `extras/<名字>/`，`config.yaml` 不再寫 `source:`（[agent-config#164](https://github.com/henry5720/agent-config/issues/164)）。下面保留決定當時的路徑。
+
 給模型讀的指令檔（Instructions）分三半管：
 
 | 管什麼 | 在哪 | 怎麼更新 |

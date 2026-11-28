@@ -14,14 +14,11 @@
        Claude Code),連到 Claude Code 每個 session 都會載入的 ~/.claude/rules。
 
        路徑照 OS 產生(#321),段落內只用下面 $p 的名字:
-       - 來源在 skillshare 的設定目錄底下:Linux、macOS 是 ~/.config/skillshare,
-         Windows 是 %AppData%\skillshare(skillshare 的 BaseDir;這裡假設 %AppData% 在家目錄底下的預設位置)
        - Windows 整串換成反斜線:skillshare 的 preserve_tilde_on_save 存檔時用 OS 的分隔符折回 ~,
          存成 ~\.claude\skills;釘成斜線的話它存一次就出 diff。~ 開頭的路徑兩種寫法它都展開得了
        - 目標(各 client 讀的位置)在 Windows 也是家目錄底下同樣的相對路徑;opencode 的 routes/personal
          給只有 Linux 的 opencode-personal 用,Windows 不部署那個目錄(#318),也不連 */ -}}
 {{- $p := dict
-      "dir"            "~/.config/skillshare"
       "claudeSkills"   "~/.claude/skills"
       "claudeAgents"   "~/.claude/agents"
       "codexSkills"    "~/.agents/skills"
@@ -31,7 +28,6 @@
       "opencode"       "~/.config/opencode"
       "opencodeRoute"  "~/.config/opencode/routes/personal"
       "agentCommit"    "~/.config/agent-commit" -}}
-{{- if eq .chezmoi.os "windows" }}{{ $_ := set $p "dir" "~/AppData/Roaming/skillshare" }}{{ end -}}
 {{- if eq .chezmoi.os "windows" -}}
 {{-   range $k, $v := $p }}{{ $_ := set $p $k (replace "/" "\\" $v) }}{{ end -}}
 {{- end -}}
