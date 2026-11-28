@@ -1,7 +1,7 @@
 {{- /* skillshare config.yaml 裡由 chezmoi 釘的兩段:targets 與 extras,照選單勾的 client 產生。
        dot_config/skillshare/modify_config.yaml.tmpl 拿它整段換掉現有的;
        run_onchange_after_sync-skillshare.sh.tmpl 拿它的 hash 判斷要不要重新 sync。
-       欄位順序照 skillshare 存檔的樣子(targets 底下 skills 再 agents;extras 是 name、source、file、targets),
+       欄位順序照 skillshare 存檔的樣子(targets 底下 skills 再 agents;extras 是 name、file、targets),
        段內也不放註解(它存檔會拿掉),它改寫後再 apply 才不會出現只有排版不同的 diff。
        沒有 target 時 skillshare 存成 `targets: {}`;沒有 extras 時它整段不寫,這裡也不輸出。
 
@@ -32,7 +32,6 @@
       "opencodeRoute"  "~/.config/opencode/routes/personal"
       "agentCommit"    "~/.config/agent-commit" -}}
 {{- if eq .chezmoi.os "windows" }}{{ $_ := set $p "dir" "~/AppData/Roaming/skillshare" }}{{ end -}}
-{{- $_ := set $p "instructions" (printf "%s/instructions/" $p.dir) -}}
 {{- if eq .chezmoi.os "windows" -}}
 {{-   range $k, $v := $p }}{{ $_ := set $p $k (replace "/" "\\" $v) }}{{ end -}}
 {{- end -}}
@@ -60,7 +59,6 @@ targets: {}
 {{- if or $claude $codex $opencode }}
 extras:
   - name: agents-md
-    source: {{ $p.instructions }}agents-md
     file: AGENTS.md
     targets:
 {{- if $claude }}
@@ -77,20 +75,17 @@ extras:
 {{- end }}
 {{- end }}
   - name: agent-commit
-    source: {{ $p.instructions }}agent-commit
     file: instructions.md
     targets:
       - path: {{ $p.agentCommit }}
 {{- if $claude }}
   - name: pstack-models
-    source: {{ $p.instructions }}pstack-models
     file: pstack-models.md
     targets:
       - path: {{ $p.claudeRules }}
 {{- end }}
 {{- if $opencode }}
   - name: opencode-commit
-    source: {{ $p.instructions }}opencode-commit
     file: commit-instructions.md
     targets:
       - path: {{ $p.opencode }}

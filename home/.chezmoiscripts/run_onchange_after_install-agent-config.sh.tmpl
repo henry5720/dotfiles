@@ -2,7 +2,7 @@
 #!{{ lookPath "sh" }}
 # 選裝工具 agent-config(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # skillshare 把 agent-config repo 的 skills 裝進有勾的 Claude／Codex(targets),MCP 寫進三個 client。
-# 指令檔(CLAUDE.md／AGENTS.md、commit 指引)由 config.yaml 的 extras 段連到 ~/.config/skillshare/instructions/,
+# 指令檔(CLAUDE.md／AGENTS.md、commit 指引)由 config.yaml 的 extras 段連到 ~/.config/skillshare/extras/,
 # 最後的 sync --all 會一起建好。
 #
 # 是 after_:要等 ~/.config/skillshare/config.yaml(dot_config/skillshare/modify_config.yaml.tmpl)先部署,

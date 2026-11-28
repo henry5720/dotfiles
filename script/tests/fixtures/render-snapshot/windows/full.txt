@@ -108,6 +108,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-install-failed-summary.ps1.tmpl
+.chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
@@ -128,6 +129,11 @@ if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) {
 }
 Remove-Item -Force -ErrorAction SilentlyContinue $f
 exit 0
+
+### .chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
+$gitconfig = Join-Path $HOME '.gitconfig'
+if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig | Out-Null }
 
 ### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
@@ -431,7 +437,7 @@ exit 0
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 # hash: 74b09b2f8729ec45c21a16f6a758161398ea3f2b8c1bc9a46cc48ee76182b810
-# pinned: fbf70241bdd22fdcb9b28bca395118e1e96520474b2458fdefdaccd052b76e0b
+# pinned: 81f0c0154bd2b4a5fde5ac5a702ae480afe9ff0f624a30e2e7b2422b0c743ed5
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 

@@ -72,7 +72,7 @@ agent-config(skillshare)                               ├─→ Claude Code / C
 
 | | 是什麼 | 檔案實際在哪 | 怎麼更新 |
 |---|---|---|---|
-| **規則** | 你希望 agent 怎麼做事 | agent-config 的 `instructions/`,skillshare extras 連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
+| **規則** | 你希望 agent 怎麼做事 | agent-config 的 `extras/`,skillshare extras 連到各 client | 改完在 agent-config commit,其他機器 `skillshare pull`,見[規則](#規則) |
 | **skill** | 一套做某件事的步驟,用到才載入 | agent-config,skillshare 同步到各 client | `skillshare update --all`,見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md) |
 | **MCP** | 給 agent 接外部服務的通道 | agent-config 的 `mcp.yaml`,skillshare 寫進各 client 設定檔 | `skillshare sync mcp -g`,見 agent-config 的 [docs/mcp/README.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md) |
 | **plugin** | 一整包擴充(可同時含 skill、MCP、指令、subagent) | 宣告在 config.yaml 的 `plugins:`,裝進 `~/.claude/plugins/` 等 | `skillshare plugin update`,見 [plugin](#plugin) |
@@ -92,16 +92,16 @@ agent-config(skillshare)                               ├─→ Claude Code / C
 下面是三個 client 都勾的樣子;沒勾的 client 沒有它那幾條,`agent-commit` 勾任一個 agent 就有:
 
 ```text
-agent-config/instructions/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
+agent-config/extras/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
    ├── ~/.claude/CLAUDE.md                          (claude)
    ├── ~/.codex/AGENTS.md                           (codex)
    ├── ~/.config/opencode/AGENTS.md                 (opencode)
    └── ~/.config/opencode/routes/personal/AGENTS.md (opencode)
-agent-config/instructions/agent-commit/instructions.md
+agent-config/extras/agent-commit/instructions.md
    └── ~/.config/agent-commit/instructions.md
-agent-config/instructions/pstack-models/pstack-models.md
+agent-config/extras/pstack-models/pstack-models.md
    └── ~/.claude/rules/pstack-models.md             (claude;pstack 每個角色用哪個模型)
-agent-config/instructions/opencode-commit/commit-instructions.md
+agent-config/extras/opencode-commit/commit-instructions.md
    └── ~/.config/opencode/commit-instructions.md    (opencode;opencode.json 的 instructions 引用它)
 ```
 
@@ -142,7 +142,7 @@ targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、cod
 
 | 想做什麼 | 怎麼做 |
 |---|---|
-| 改 agent 的行為規則 | 改 agent-config 的 `instructions/agents-md/AGENTS.md`,在 agent-config commit |
+| 改 agent 的行為規則 | 改 agent-config 的 `extras/agents-md/AGENTS.md`,在 agent-config commit |
 | 新機器套用規則、要重裝什麼 | 照[新機器設定 Runbook](new-machine-setup.md) 跑 `chezmoi init --apply` |
 | 裝／更新 skill、寫自己的 skill、接 MCP | skill 見 agent-config 的 [docs/skills/README.md](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md),MCP 見 [docs/mcp/README.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md) |
 | 只給某個專案用的 skill | 放 `<那個repo>/.claude/skills/<名字>/` |

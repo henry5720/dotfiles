@@ -7,7 +7,7 @@
 # 所以只釘 targets 與 extras 兩段(內容在 .chezmoitemplates/skillshare-pinned,照勾的 client 產生),
 # 其餘照 skillshare 寫的留著;新機器(檔案不存在)才從整份基底開始。
 # 兩段每次 apply 都整段換掉:手動 `skillshare target add` 加的 target 會被蓋掉,真相只在 repo。
-# extras 是給模型讀的指令檔(Instructions):內容在 agent-config 的 instructions/,
+# extras 是給模型讀的指令檔(Instructions):內容在 agent-config 的 extras/<名字>/(skillshare 預設的來源,不寫 source),
 # 由 skillshare 連到各 client 讀的位置(決策見 docs/adr/0003-*.md)。
 # 兩段變了,run_onchange_after_sync-skillshare 會在 apply 後跑 skillshare sync --all。
 # 取消勾選 client 時,已經同步出去的 skill 與連結留著(跟「取消勾選不會解除安裝」一致)。

@@ -177,7 +177,7 @@ $SUDO chsh -s "$zsh_path" "$(id -un)"
 #!@BIN@/sh
 # 選裝工具 agent-config(選單見 .chezmoi.toml.tmpl)。沒勾就渲染成空的,chezmoi 不跑。
 # skillshare 把 agent-config repo 的 skills 裝進有勾的 Claude／Codex(targets),MCP 寫進三個 client。
-# 指令檔(CLAUDE.md／AGENTS.md、commit 指引)由 config.yaml 的 extras 段連到 ~/.config/skillshare/instructions/,
+# 指令檔(CLAUDE.md／AGENTS.md、commit 指引)由 config.yaml 的 extras 段連到 ~/.config/skillshare/extras/,
 # 最後的 sync --all 會一起建好。
 #
 # 是 after_:要等 ~/.config/skillshare/config.yaml(dot_config/skillshare/modify_config.yaml.tmpl)先部署,
@@ -868,8 +868,8 @@ skip_env 'windows-mcp' 'windows-mcp 操作的是 Windows 桌面，只裝在 Wind
 # 或 modify_config.yaml.tmpl 本身改了,就讓 skillshare 照新的設定重新同步。
 # 只有 config.yaml 換掉不會動到各 client 那份:新勾的 client 要 sync 才拿到 skills、MCP,
 # 指令檔要 sync extras 才會建、改、拆連結;有這支,勾選或「改連到哪」只要 chezmoi apply 一步。
-# hash: bf6a245c354145ae5d84fdd6eabfe14f8514fa065a41b1cf7424d84ebd980323
-# pinned: e286115b6da156a2dc1aa5eb4cba898e63a9abdb240bf945bfe25f91196f82c8
+# hash: 595d4c63a7b584485c68b41f057f4fe08a5cd1eda4df2cf99aa50a971cf9122b
+# pinned: 45b1a1a300c3cff2c2083e5f4ec1c5a6050004767ee0c99b184464ee01251b2b
 #
 # 新機器上 install-agent-config(字母序在前)的 sync --all 已經做過,這裡再跑一次無害。
 set -eu
