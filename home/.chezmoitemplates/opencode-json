@@ -1,8 +1,9 @@
 {{- /* ~/.config/opencode/opencode.json 裡由這個 repo 管的部分(mcp 以外),Linux 與 Windows 共用(#318)。
        用的地方是 dot_config/opencode/modify_private_opencode.json.tmpl(modify-template,所有平台同一份,#204)。
-       "mcp": {} 只是佔位,那份 modify 換成現有檔案裡的;model、small_model 跟 oh-my-opencode-slim.json 正在用的 preset。
-       oh-my-opencode-slim 固定 3.0.7(oh-my-opencode-slim.json 的 autoUpdate 也關掉):3.0.8 起要 OpenCode 2.3 以上
-       (package.json 的 engines),這裡還是 OpenCode 1。升 OpenCode 2 時一起解除(#407)。 */ -}}
+       "mcp": {} 只是佔位,那份 modify 換成現有檔案裡的;model、agents.title(V1 的 small_model)跟 oh-my-opencode-slim.json 正在用的 preset。
+       OpenCode 2 的鍵(#407):V1 的 agent、provider、plugin、permission、small_model 都標 deprecated,
+       寫法照 `opencode debug config` 把 V1 設定換算出來的結果。內建 explore、general 交給 oh-my-opencode-slim 的
+       replaceBuiltinSubagents(預設 true)藏起來,這裡不再關。 */ -}}
 {{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
 {{- $active := index (index $company "presets") (index $company "preset") -}}
 {{- $main := index (index $active "orchestrator") "model" -}}
@@ -11,30 +12,29 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [{{ printf "%s/.config/opencode/commit-instructions.md" .chezmoi.homeDir | toJson }}],
   "model": {{ $main | toJson }},
-  "small_model": {{ $small | toJson }},
-  "permission": {
-    "external_directory": {
-      "*": "ask",
-      {{ printf "%s**" (includeTemplate "home-repo" .) | toJson }}: "allow",
-      "/tmp/**": "allow",
-      "~/.local/share/chezmoi/**": "allow"
-    }
-  },
-  "provider": {
+  "permissions": [
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+    { "action": "external_directory", "resource": {{ printf "%s**" (includeTemplate "home-repo" .) | toJson }}, "effect": "allow" },
+    { "action": "external_directory", "resource": "/tmp/**", "effect": "allow" },
+    { "action": "external_directory", "resource": "~/.local/share/chezmoi/**", "effect": "allow" }
+  ],
+  "providers": {
     "codex-lb-gcp": {
-      "npm": "@ai-sdk/openai",
+      "package": "aisdk:@ai-sdk/openai",
       "name": "TeamSync",
-      "options": {
+      "settings": {
         "baseURL": "https://codex.teamsync.com.tw/backend-api/codex",
         "apiKey": "{{ .codexLbApiKey }}"
       },
       "models": {
         "gpt-6-astra": {
           "name": "GPT-6 Astra",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
+          "capabilities": {
+            "tools": true,
+            "input": ["text", "image"],
+            "output": ["text"],
+            "reasoning": { "supported": true, "effort": ["low", "medium", "high"] }
+          },
           "limit": {
             "context": 272000,
             "output": 128000
@@ -42,10 +42,12 @@
         },
         "gpt-6.1-sol": {
           "name": "GPT-6.1 Sol",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
+          "capabilities": {
+            "tools": true,
+            "input": ["text", "image"],
+            "output": ["text"],
+            "reasoning": { "supported": true, "effort": ["low", "medium", "high"] }
+          },
           "limit": {
             "context": 272000,
             "output": 128000
@@ -53,10 +55,12 @@
         },
         "gpt-6-luna": {
           "name": "GPT-6 Luna",
-          "reasoning": true,
-          "tool_call": true,
-          "attachment": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
+          "capabilities": {
+            "tools": true,
+            "input": ["text", "image"],
+            "output": ["text"],
+            "reasoning": { "supported": true, "effort": ["low", "medium", "high"] }
+          },
           "limit": {
             "context": 272000,
             "output": 128000
@@ -66,17 +70,12 @@
     }
   },
   "mcp": {},
-  "agent": {
-    "explore": {
-      "disable": true
-    },
-    "general": {
-      "disable": true
-    }
+  "agents": {
+    "title": { "model": {{ $small | toJson }} }
   },
   "lsp": true,
-  "plugin": [
+  "plugins": [
     "opencode-wakatime",
-    "oh-my-opencode-slim@3.0.7"
+    "oh-my-opencode-slim"
   ]
 }

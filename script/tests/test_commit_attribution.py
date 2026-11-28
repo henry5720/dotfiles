@@ -105,7 +105,7 @@ class CommitAttributionTest(unittest.TestCase):
         self.assertEqual(work["instructions"], expected)
         self.assertEqual(personal["instructions"], expected)
         self.assertEqual(work["mcp"], existing["mcp"])
-        self.assertEqual(personal["enabled_providers"], ["openai"])
+        self.assertEqual(personal["policies"][-1], {"action": "provider.use", "resource": "openai", "effect": "allow"})
         self.assertEqual(self.run_modify(OPENCODE, first), first)
 
     def test_scoped_apply_deploys_attribution_settings(self):

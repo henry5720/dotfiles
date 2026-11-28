@@ -268,15 +268,11 @@ WSL 通常優先用 Docker Desktop + WSL integration，腳本在 WSL 會先要�
 裝的是 Google 官方的 `.deb`，外加中文和 emoji 字型（沒裝的話截圖會是方框）。agent 查原因時用
 查原因時開在 9222 給 chrome-devtools MCP，指令見[瀏覽器](how-to/remote-access/browser.md#headlessagent-自己的瀏覽器)。
 
-### 4.2 安裝／同步 oh-my-opencode-slim
+### 4.2 oh-my-opencode-slim
 
-chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset。執行 OmO
-installer 時，它偵測到已部署的 config 會保留 config，這裡是用 installer 安裝／同步
-bundled skills（要先有 `npx`：勾了 `opencode` 會一併裝 Node）：
-
-```bash
-npx --yes oh-my-opencode-slim@3.0.7 install --no-tui --skills=yes --background-subagents=no --companion=no
-```
+chezmoi 已經管理 OpenCode core config 與 oh-my-opencode-slim agent preset，不用跑 OmO installer：
+`opencode.json` 的 `plugins` 已經列了它，第一次開 `opencode` 時自己下載；3.0.8 起 bundled skills
+在 plugin 裡註冊，不再複製到 skills 目錄（[安裝文件](https://github.com/alvinunreal/oh-my-opencode-slim/blob/master/docs/installation.md)）。
 
 OmO 的 `@claude-code` ACP adapter 由 config 以 `npx` 按需啟動，不需要
 `npm i -g @agentclientprotocol/claude-agent-acp`。有勾 `herdr` 而且想要 live pane 才執行：
@@ -389,7 +385,7 @@ SSH private key 永遠不進 repo。Claude OAuth 永遠不搬移、不進 repo�
 ```bash
 chezmoi verify --exclude scripts   # 不看腳本：authorized_keys 那支每次 apply 都跑，永遠算沒對齊
 opencode
-npx --yes oh-my-opencode-slim@3.0.7 doctor
+npx --yes oh-my-opencode-slim@latest doctor
 ```
 
 `opencode` 裡的互動驗證同 4.4。`doctor` 是需要時可補跑的 OmO 診斷。`chezmoi verify` 若報出

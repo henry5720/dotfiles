@@ -85,7 +85,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 "gh" = "latest"
 "herdr" = "latest"
 "node" = "lts"
-"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+"npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
 "npm:@playwright/cli" = "latest"
 "ripgrep" = "latest"
 "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
@@ -213,7 +213,7 @@ exit 0
 #   "gh" = "latest"
 #   "herdr" = "latest"
 #   "node" = "lts"
-#   "npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+#   "npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
 #   "npm:@playwright/cli" = "latest"
 #   "ripgrep" = "latest"
 #   "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }

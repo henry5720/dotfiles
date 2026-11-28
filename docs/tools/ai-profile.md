@@ -28,13 +28,16 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
 - **`codex-personal`** = `codex --profile personal`，只用官方 `openai` provider。
   `login`／`logout` 原生轉送、不加 `--profile`。
 - **`opencode-personal`** 把 `OPENCODE_CONFIG_DIR` 指到 `~/.config/opencode/routes/personal/`，
-  OMO preset 設成 `personal`，並用 `OPENCODE_CONFIG_CONTENT` 強制 `enabled_providers = ["openai"]`
+  OMO preset 設成 `personal`，並用 `OPENCODE_CONFIG_CONTENT` 的 `policies` 只放行 `openai` provider（OpenCode 2 取代 `enabled_providers` 的寫法）
   —— project 的 gateway、model mapping 因此不生效。原本 inline 的 `OPENCODE_CONFIG_CONTENT`
   只保留非 routing 欄位。
+- OpenCode 2 起 `OPENCODE_CONFIG_DIR` 取代 global 那層設定目錄，所以 wrapper 另外用 `OPENCODE_CONFIG`
+  把 global 的 `opencode.json`（plugins、MCP）疊回來；並加 `--standalone` 自己起 server，
+  不連公司入口起的共用背景服務（連上的話會照公司設定跑，上面這些環境變數都不生效）。
 - route view 裡的 `skills`、`oh-my-opencode-slim`、`tui.jsonc` 都是整個連回 global 的 symlink，
   `AGENTS.md` 則由 chezmoi 的 `symlink_AGENTS.md.tmpl` 連到 agent-config 的同一份全域指令檔；不另外放同名 skill，
   避免 loader collision。個人 OMO 設定沿用公司 preset 的
-  roles/council，只把 provider 前綴改成 `openai/`；schema 與 `autoUpdate` 跟公司一致（固定 3.0.7、關閉，理由見 `.chezmoitemplates/opencode-json`）。
+  roles/council，只把 provider 前綴改成 `openai/`；schema 與 `autoUpdate` 跟公司一致（`@latest`、開啟）。
 - 其餘 argv、cwd、project/native loader 語意照原樣。provider 相關的環境變數**不會**被清掉，
   wrapper 只拿掉 `OPENCODE_*` 那幾個 route 變數（`opencode-personal auth login` 時）。
 

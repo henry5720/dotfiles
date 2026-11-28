@@ -69,7 +69,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal
 [tools]
 "zoxide" = "latest"
 "node" = "lts"
-"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+"npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
 
 # 專案只放 .nvmrc、.node-version 也照它切 node 版本(預設是空的,只認 mise.toml;#386,
 # https://mise.jdx.dev/configuration/settings.html#idiomatic_version_file_enable_tools)。
@@ -110,7 +110,7 @@ exit 0
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
 #   "zoxide" = "latest"
 #   "node" = "lts"
-#   "npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }
+#   "npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 

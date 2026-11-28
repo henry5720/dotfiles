@@ -2,10 +2,17 @@
 {{- $agents := index (index $company "presets") (index $company "preset") -}}
 {{- $main := regexReplaceAll "^[^/]+/" (index (index $agents "orchestrator") "model") "" -}}
 {{- $small := regexReplaceAll "^[^/]+/" (index (index $agents "explorer") "model") "" -}}
+{{- /* OpenCode 2(#407):policies 是 V1 enabled_providers 的換算(`opencode debug config`),只留 openai;
+       agents.title 是 V1 的 small_model */ -}}
 {
   "$schema": "https://opencode.ai/config.json",
   "instructions": [{{ printf "%s/.config/opencode/commit-instructions.md" .chezmoi.homeDir | toJson }}],
-  "enabled_providers": ["openai"],
+  "policies": [
+    { "action": "provider.use", "resource": "*", "effect": "deny" },
+    { "action": "provider.use", "resource": "openai", "effect": "allow" }
+  ],
   "model": {{ printf "openai/%s" $main | quote }},
-  "small_model": {{ printf "openai/%s" $small | quote }}
+  "agents": {
+    "title": { "model": {{ printf "openai/%s" $small | quote }} }
+  }
 }

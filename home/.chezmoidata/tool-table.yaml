@@ -384,19 +384,24 @@ toolTable:
           install: {linux: [apt, system], darwin: [system], android: [pkg]}
           apt: [python3]
           pkg: [python]               # Termux 的 python 套件提供 python3 指令
-    # Windows 沒有 install.ps1,走 mise 的 npm backend(#318):opencode-ai 是 OpenCode 1,跟 Linux 同一個大版本;
-    # allow_builds 放行它自己的 postinstall,不然 bin\opencode.exe 是佔位檔
+    # OpenCode 2(#407):官方 installer 換成 /v2/install(舊的 /install 只裝 OpenCode 1),一樣裝到 ~/.opencode/bin。
+    # Windows 沒有 install.ps1,走 mise 的 npm backend(#318):npm 的 opencode-ai 只有 OpenCode 1,OpenCode 2 是 @opencode/cli;
+    # allow_builds 放行它自己的 postinstall,不然 bin\opencode.exe 是佔位檔。官方寫 "Windows package managers are not supported",
+    # 能不能裝要 Windows 實機驗(#407)
     opencode:
       docs: https://opencode.ai/docs/
-      checked: 2026-11-20
+      checked: 2026-11-28
       install: {linux: [official], darwin: [official], windows: [mise]}
       official:
         sh:
-          url: https://opencode.ai/install
+          url: https://opencode.ai/v2/install
           shell: bash
           args: [--no-modify-path]   # 不准改 shell 設定檔,PATH 由 chezmoi 管的 .zshrc 負責
-          installed: {cmds: [opencode], paths: ["$HOME/.opencode/bin/opencode"]}
-      mise: {tool: "npm:opencode-ai", options: {allow_builds: [opencode-ai]}}
+          # 看 opencode2 不看 opencode:只有 OpenCode 2 的 installer、npm 套件會放 opencode2,
+          # 裝著 OpenCode 1 的機器才會重跑 installer 升上去。
+          # shortcut: 官方把 opencode2 叫 legacy shim,哪天拿掉就改回看 opencode
+          installed: {cmds: [opencode2], paths: ["$HOME/.opencode/bin/opencode2"]}
+      mise: {tool: "npm:@opencode/cli", options: {allow_builds: ["@opencode/cli"]}}
       needsNode: [linux, darwin, android, windows]   # oh-my-opencode-slim 用 npx 跑
       deps:
         # ai-profile(opencode-work、opencode-personal 這些入口)是 python3 腳本
@@ -405,7 +410,7 @@ toolTable:
           apt: [python3]
           pkg: [python]               # Termux 的 python 套件提供 python3 指令
       rules:
-        # 查證(#348):官方只出 macOS、Windows、Linux 版;npm 的 opencode-ai 寫了 os: darwin、linux、win32,
+        # 查證(#348、#407):官方只出 macOS、Windows、Linux 版;npm 的 opencode-ai、@opencode/cli 都寫了 os: darwin、linux、win32,
         # Termux 的 Node 是 process.platform = android,npm 不裝
         - when: [android]
           state: unsupported

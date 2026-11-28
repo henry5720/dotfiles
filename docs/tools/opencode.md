@@ -8,15 +8,18 @@
 
 ```text
 opencode.json
-  ├─ provider、model、agent、plugin、instructions… ── 本 repo 說了算,每次 apply 整份蓋回 repo 版
+  ├─ providers、model、agents、plugins、instructions… ── 本 repo 說了算,每次 apply 整份蓋回 repo 版
   └─ mcp ──────────────────────────────────────────── skillshare 寫(agent-config 的 mcp.yaml),apply 原樣保留
 ```
 
 `modify_` 的做法:整份照 repo 的版本輸出,只有 `mcp` 換回現有檔案裡的那段
 (誰寫哪一段見 agent-config 的[〈誰寫哪一段〉](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md#誰寫哪一段))。
 
-- `plugin`(`opencode-wakatime`、`oh-my-opencode-slim`)是 opencode 自己的 plugin,跟 Claude 的 `/plugin` 無關。
-- `model`、`small_model` 取自 `oh-my-opencode-slim.json` 目前 preset 的 orchestrator 與 explorer。
+- 鍵名照 OpenCode 2(#407):V1 的 `provider`、`agent`、`plugin`、`permission`、`small_model` 都標 deprecated。
+  不知道 V1 的鍵在 V2 怎麼寫時,把 V1 設定丟給 `opencode debug config`,它會印出換算後的 V2 寫法。
+- `plugins`(`opencode-wakatime`、`oh-my-opencode-slim`)是 opencode 自己的 plugin,跟 Claude 的 `/plugin` 無關。
+- `model`、`agents.title.model`(V1 的 `small_model`)取自 `oh-my-opencode-slim.json` 目前 preset 的 orchestrator 與 explorer。
+- 內建的 `explore`、`general` 由 oh-my-opencode-slim 的 `replaceBuiltinSubagents`(預設 true)藏起來,這裡不關。
 - `instructions` 引用 `~/.config/opencode/commit-instructions.md`,那是指到 agent-config 的 symlink,
   見 [架構〈規則〉](../architecture.md#規則)。
 - 要加 MCP 不是改這裡,見 agent-config 的 [docs/mcp.md](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md)。
@@ -51,6 +54,9 @@ opencode mcp list                                        # 看有沒有 connecte
 
 - ⚠️ installer 或 opencode 自己寫進 `mcp` 以外的設定,下次 `chezmoi apply` 會被蓋回 repo 版,**而且不出聲**。
   要留住就改 repo 那份再 apply。
+- 剛 apply 完、第一次跑 `opencode debug agents` 看不到 oh-my-opencode-slim 的 agent(只有 build、plan、explore、general):
+  OpenCode 2 的背景服務在 plugin 還沒下載完時就起來了。等 `~/.cache/opencode/npm/oh-my-opencode-slim@latest` 出現,
+  `opencode service restart` 再看。2026-11-28 在 company-ec2 實測(#407)。
 
 ## 更多
 

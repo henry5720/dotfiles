@@ -543,12 +543,12 @@ else
 fi
 
 # opencode
-if command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ]; then
+if command -v opencode2 >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode2" ]; then
   echo "opencode 已安裝,跳過"
 else
-  curl -fsSL -o "$tmp/opencode.sh" https://opencode.ai/install &&
+  curl -fsSL -o "$tmp/opencode.sh" https://opencode.ai/v2/install &&
     bash "$tmp/opencode.sh" --no-modify-path ||
-    skip_fail opencode "官方 installer(https://opencode.ai/install)沒跑完,下次 chezmoi apply 會重試"
+    skip_fail opencode "官方 installer(https://opencode.ai/v2/install)沒跑完,下次 chezmoi apply 會重試"
 fi
 
 ### .chezmoiscripts/run_onchange_after_install-snapclient.sh.tmpl

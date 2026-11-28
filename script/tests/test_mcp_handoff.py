@@ -154,7 +154,7 @@ class McpHandoffTest(unittest.TestCase):
                 "--override-data", json.dumps({"chezmoi": {"stdin": "{}"}}), "execute-template",
             ], input=rendered.encode()).decode())
         self.assertEqual(output["model"], "codex-lb-gcp/fixture-main")
-        self.assertEqual(output["small_model"], "codex-lb-gcp/fixture-small")
+        self.assertEqual(output["agents"]["title"]["model"], "codex-lb-gcp/fixture-small")
 
     def test_cleanup_removes_only_verbatim_legacy_entries(self):
         pinned = ["-y", "chrome-devtools-mcp@1.10.1"] + LEGACY_CHROME[2:]
