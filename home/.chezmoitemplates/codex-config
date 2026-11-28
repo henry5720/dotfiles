@@ -39,8 +39,8 @@ TOML 就會把它當成那個 table 的欄位,語意整個改掉。所以第 2 �
 3. 輸出順序:repo 的頂層 key、developer_instructions、留著的頂層 key、provider、留著的 table
 4. obsidian-wiki 那包 skill 停用(Windows 沒有這包,不做):codex 這側用不到,但 description 每個 request 都要進 context
    (實測 ~1,680 tokens,codex 還會印 "descriptions were shortened" 的 warning)。用 symlink 的實際位置認(路徑含 obsidian_wiki),
-   不寫死清單,wiki 套件增刪 skill 時不用回來改。chezmoi 的樣板函式沒有 realpath,所以 symlink 交給 readlink -f
-   (coreutils、macOS 12.3 起的 readlink、Termux 都有)。要恢復:把這段拿掉,或把該 skill 移出 obsidian-wiki 的安裝目錄
+   不寫死清單,wiki 套件增刪 skill 時不用回來改。chezmoi 的樣板函式沒有 realpath,所以交給 sh 的 cd && pwd -P
+   (POSIX,舊版 macOS、busybox 也能用;readlink -f 在 macOS 12.3 以前沒有,而且 symlink 斷掉會失敗)。要恢復:把這段拿掉,或把該 skill 移出 obsidian-wiki 的安裝目錄
 5. 安全檢查:repo 不管的部分解析後跟現有內容一樣,不一樣就讓 apply 失敗,不寫壞檔案
 */ -}}
 {{- $managed := list "model" "model_provider" "model_reasoning_effort" "approval_policy" "sandbox_mode" "approvals_reviewer" "developer_instructions" -}}
@@ -120,10 +120,12 @@ TOML 就會把它當成那個 table 的欄位,語意整個改掉。所以第 2 �
 {{- /* glob 不跟進 symlink 的目錄,所以列 skills/* 再自己看 SKILL.md 在不在(stat 會跟進) */ -}}
 {{-   range $skill := glob (joinPath .chezmoi.homeDir ".codex/skills/*") | sortAlpha -}}
 {{-     $md := joinPath $skill "SKILL.md" -}}
-{{-     $real := $skill -}}
-{{-     if eq (lstat $skill).type "symlink" }}{{ $real = output "readlink" "-f" $skill | trim }}{{ end -}}
-{{-     if and (contains "obsidian_wiki" $real) (stat $md) -}}
-{{-       $skills = printf "%s\n[[skills.config]]\npath = %s\nenabled = false\n" $skills (toJson $md | replace "\\u003c" "<" | replace "\\u003e" ">" | replace "\\u0026" "&") -}}
+{{- /* SKILL.md 在(stat 跟進 symlink)才解路徑:斷掉的 symlink 直接跳過,不讓 output 失敗中止 apply */ -}}
+{{-     if stat $md -}}
+{{-       $real := output "sh" "-c" "cd \"$1\" && pwd -P" "sh" $skill | trim -}}
+{{-       if contains "obsidian_wiki" $real -}}
+{{-         $skills = printf "%s\n[[skills.config]]\npath = %s\nenabled = false\n" $skills (toJson $md | replace "\\u003c" "<" | replace "\\u003e" ">" | replace "\\u0026" "&") -}}
+{{-       end -}}
 {{-     end -}}
 {{-   end -}}
 {{-   if $skills }}{{ $skills = printf "# %s\n# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n# %s\n%s" (repeat 60 "=") (repeat 60 "=") $skills }}{{ end -}}

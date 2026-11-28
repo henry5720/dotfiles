@@ -10,6 +10,8 @@
 # 名字帶 before_:沿用以前的位置,在部署 shell 設定之前裝好。系統已經有的不裝。
 set -eu
 {{ includeTemplate "sh-retry" (dict "key" "install-home-zsh" "home" .chezmoi.homeDir) }}
+# 改名前(install-home-jq-zsh)留下的重試標記沒人會讀,順手刪掉
+rm -f "$HOME/.local/state/dotfiles/retry/install-home-jq-zsh"
 {{ template "sh-skip" . }}
 bin=$HOME/.local/bin
 

@@ -813,6 +813,8 @@ retrying=
 retry_key=install-home-zsh
 rm -f "$HOME/.local/state/dotfiles/retry/$retry_key"
 
+# 改名前(install-home-jq-zsh)留下的重試標記沒人會讀,順手刪掉
+rm -f "$HOME/.local/state/dotfiles/retry/install-home-jq-zsh"
 # 略過的步驟:印一行「略過什麼、為什麼」,同時記進彙整檔,
 # apply 最後由 run_after_zz-root-skipped-summary 一次印出來。呼叫完要不要 exit 0 由呼叫端決定。
 # 兩種原因記在不同檔,彙整分開列:

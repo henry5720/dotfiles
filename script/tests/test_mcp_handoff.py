@@ -70,6 +70,24 @@ class McpHandoffTest(unittest.TestCase):
         synced = first + "\n[mcp_servers.gh_grep]\nurl = 'https://mcp.grep.app'\n"
         self.assertEqual(self.run_modify(CODEX, synced), synced)
 
+    def test_codex_skips_broken_symlink_skill(self):
+        # skill 移除後留下斷掉的 symlink(目標的父目錄也不在):不能讓 apply 失敗,其他 skill 照常判斷(#427 review)
+        wiki = self.home / "obsidian_wiki/skills/wiki-query"; wiki.mkdir(parents=True); (wiki / "SKILL.md").write_text("x")
+        skills = self.home / ".codex/skills"; skills.mkdir(parents=True)
+        (skills / "wiki-query").symlink_to(wiki)
+        (skills / "gone").symlink_to(self.home / "removed-pack/skills/gone")
+        out = self.run_modify(CODEX)
+        self.assertIn('path = "' + str(skills / "wiki-query/SKILL.md") + '"\nenabled = false', out)
+        self.assertNotIn("gone", out)
+
+    def test_codex_resolves_skills_dir_that_is_a_symlink(self):
+        # ~/.codex/skills 本身是 symlink、底下是實體目錄:實際位置照樣認得出 obsidian_wiki(舊版 realpath 的行為)
+        pack = self.home / "obsidian_wiki/skills"; (pack / "wiki-query").mkdir(parents=True)
+        (pack / "wiki-query/SKILL.md").write_text("x")
+        (self.home / ".codex").mkdir(); (self.home / ".codex/skills").symlink_to(pack)
+        out = self.run_modify(CODEX)
+        self.assertIn("wiki-query/SKILL.md\"\nenabled = false", out)
+
     def test_codex_keeps_wakatime_plugin_tables(self):
         # install-wakatime 腳本跑 `codex plugin add` 寫進來的兩個 table(#173),apply 要原樣留著。
         first = self.run_modify(CODEX)
