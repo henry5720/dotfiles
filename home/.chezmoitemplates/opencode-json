@@ -3,7 +3,10 @@
        "mcp": {} 只是佔位,那份 modify 換成現有檔案裡的;model、agents.title(V1 的 small_model)跟 oh-my-opencode-slim.json 正在用的 preset。
        OpenCode 2 的鍵(#407):V1 的 agent、provider、plugin、permission、small_model 都標 deprecated,
        寫法照 `opencode debug config` 把 V1 設定換算出來的結果。內建 explore、general 交給 oh-my-opencode-slim 的
-       replaceBuiltinSubagents(預設 true)藏起來,這裡不再關。 */ -}}
+       replaceBuiltinSubagents(預設 true)藏起來,這裡不再關。
+       headers.originator:codex-lb 只把帶 Codex originator 的請求當 Codex 用戶端,沒帶的常回
+       `model_not_found … not supported when using Codex with a ChatGPT account`(#407 用記錄 proxy 逐個 header 試出來的;
+       V2 的 User-Agent 是 opencode/…,不像 V1 碰巧過得了)。 */ -}}
 {{- $company := include (joinPath .chezmoi.sourceDir "dot_config/opencode/oh-my-opencode-slim.json") | fromJson -}}
 {{- $active := index (index $company "presets") (index $company "preset") -}}
 {{- $main := index (index $active "orchestrator") "model" -}}
@@ -22,6 +25,7 @@
     "codex-lb-gcp": {
       "package": "aisdk:@ai-sdk/openai",
       "name": "TeamSync",
+      "headers": { "originator": "codex_cli_rs" },
       "settings": {
         "baseURL": "https://codex.teamsync.com.tw/backend-api/codex",
         "apiKey": "{{ .codexLbApiKey }}"
