@@ -644,6 +644,8 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("-ExecutionTimeLimit ([TimeSpan]::Zero)", out)
         # 沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡
         self.assertIn("-WorkingDirectory $HOME", out)
+        # 從 ssh(elevated)註冊的排程,擁有者是 Administrators;不設 DACL,之後一般權限的 apply 改不動
+        self.assertIn('SetSecurityDescriptor("D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;$sid)", 0)', out)
         self.assertTrue(out.rstrip().endswith("exit 0"))
 
     # ===============================================================
