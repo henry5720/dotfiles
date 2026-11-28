@@ -1513,7 +1513,7 @@ noroot_tailscale_checks() {
     "[ -x ~/.local/bin/tailscale ] && [ -x ~/.local/bin/tailscaled ] && ~/.local/bin/tailscale version && [ -d ~/.local/state/tailscale ]"
   # 勾了 tailscale、沒有 root、系統 tailscaled 沒在跑 = userspace:走 tailnet 的 Host 都帶 ProxyCommand(#301)
   check "ssh config:tailnet 主機都經 userspace tailscale 的 ProxyCommand" \
-    "for h in henry-laptop henry-desktop lianghua pos2-dev company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
+    "for h in henry-laptop henry-desktop tablet lianghua pos2-dev nettop company-ec2; do ssh -G \$h | grep -qE \"^proxycommand \$HOME/.local/bin/tailscale --socket=\$HOME/.local/state/tailscale/tailscaled.sock nc \" || { echo \"\$h 沒有 ProxyCommand\"; exit 1; }; done"
   check "ssh config:其他 Host 沒有 ProxyCommand(company-ec2-public、github.com)" \
     "! ssh -G company-ec2-public | grep -qi '^proxycommand' && ! ssh -G github.com | grep -qi '^proxycommand'"
   # WSL 的 Host 是跳板上的 127.0.0.1:只有 ProxyJump 那台 Windows 經 tailscaled,它自己不套 ProxyCommand(#397)。

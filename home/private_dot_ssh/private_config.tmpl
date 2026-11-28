@@ -32,6 +32,11 @@ Host phone
     Port 8022
     User u0_a358
 
+Host tablet
+    HostName tablet.tail0fed08.ts.net
+    Port 8022
+    User u0_a301
+
 # 公司的機器,在個人 tailnet。Host 不帶轉發:每條連線都帶的話第二條搶不到 port,
 # 要轉發另打一條,見 docs/how-to/remote-access/README.md。
 # company-henry.pem 是公司發的;沒有它的機器用 id_ed25519(ssh 會跳過不存在的檔)。
@@ -43,9 +48,9 @@ Host company-ec2
     IdentitiesOnly yes
 
 # ===============================================================
-# 3. Tailscale:公司 tailnet(tail29dcee)分享進來的
+# 3. Tailscale:別的 tailnet 分享進來的
 # ===============================================================
-# 公司收回分享,這節全部連不到。
+# 公司 tailnet(tail29dcee):公司收回分享,這兩台就連不到。
 Host lianghua
     HostName lianghua.tail29dcee.ts.net
     User user
@@ -53,6 +58,11 @@ Host lianghua
 Host pos2-dev
     HostName pos2-dev.tail29dcee.ts.net
     User user
+
+# tail9e2c6a
+Host nettop
+    HostName nettop.tail9e2c6a.ts.net
+    User henry
 
 # ===============================================================
 # 4. 跳板後面的機器
@@ -122,6 +132,6 @@ Host company-ec2-public
 # ===============================================================
 # userspace tailscale 沒有網卡,連線和解析都經 tailscaled(見 .chezmoitemplates/tailscale-userspace)。
 # 跳板後面的機器不用列:跳板那一段已經經過這裡,它們自己是跳板上的 localhost 或區網 IP。
-Host desktop henry-desktop laptop henry-laptop phone lianghua pos2-dev company-ec2
+Host desktop henry-desktop laptop henry-laptop phone tablet lianghua pos2-dev nettop company-ec2
     ProxyCommand {{ .chezmoi.homeDir }}/.local/bin/tailscale --socket={{ .chezmoi.homeDir }}/.local/state/tailscale/tailscaled.sock nc %h %p
 {{- end }}
