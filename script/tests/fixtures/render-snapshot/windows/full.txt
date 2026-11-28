@@ -23,11 +23,12 @@ wakatime         wakatime-cli:把寫程式的時間送到 WakaTime(有勾的 age
 claude           Claude Code CLI [official]
 codex            Codex CLI [official]
 opencode         OpenCode CLI(會一併裝 Node) [mise]
+pi               pi coding agent CLI(會一併裝 Node) [mise]
 ffmpeg           影音轉檔、抽音軌與影格 [mise]
 uv               Python 套件與專案管理(uv run、uv tool run;要的 Python 由 uv 自己下載;勾了 snapserver、agent-config 也會自動裝) [mise]
 snapserver       Snapcast 朗讀串流服務:agent 的回覆唸到個人電腦,voice-out on、off 開關(會一併裝 ffmpeg、uv)（裝不了：snapserver 沒有 Windows 版，朗讀服務放跑 agent 的 Linux 主機）
 snapclient       Snapcast 的 CLI 播放端:在個人電腦收聽已配置主機的朗讀串流 [mise]
-node             Node LTS（Linux、macOS、Windows 用 mise 裝，Termux 用 pkg；勾了 playwright-cli、opencode、wakatime 也會自動裝） [mise]
+node             Node LTS（Linux、macOS、Windows 用 mise 裝，Termux 用 pkg；勾了 playwright-cli、opencode、pi、wakatime 也會自動裝） [mise]
 codegraph        程式碼索引給 agent 查(mise 裝官方 release) [mise]
 headless-chrome  沒有畫面的 Chrome,給 agent 開網頁 [winget]
 playwright-cli   agent 操作瀏覽器(開本機 Chrome,或 attach 遠端瀏覽器,會一併裝 Node) [mise]
@@ -43,7 +44,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     wakatimeApiKey = ""
     homeRepo = "~/code"
     machineUse = "full"
-    tools = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "bottom", "gh", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "ffmpeg", "uv", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
+    tools = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch", "bottom", "gh", "tailscale", "cloudflared", "herdr", "ttyd", "wakatime", "claude", "codex", "opencode", "pi", "ffmpeg", "uv", "snapclient", "node", "codegraph", "headless-chrome", "playwright-cli", "agent-config", "windows-mcp"]
     toolsSchema = 3
 
     # 個人 Codex 使用的非秘密模型資料。
@@ -55,7 +56,7 @@ windows-mcp      讓 agent 操作 Windows 桌面(截圖、點擊、打字)的 MC
     args = ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
 
 ## 要裝
-starship eza fzf bat ripgrep vim fastfetch bottom gh tailscale cloudflared herdr ttyd wakatime claude codex opencode ffmpeg uv snapclient node codegraph headless-chrome playwright-cli agent-config windows-mcp
+starship eza fzf bat ripgrep vim fastfetch bottom gh tailscale cloudflared herdr ttyd wakatime claude codex opencode pi ffmpeg uv snapclient node codegraph headless-chrome playwright-cli agent-config windows-mcp
 
 ## 略過(裝不了)
 
@@ -85,6 +86,7 @@ winget: jdx.mise Microsoft.PowerShell Microsoft.WindowsTerminal Git.Git Google.C
 "herdr" = "latest"
 "node" = "lts"
 "npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
+"npm:@earendil-works/pi-coding-agent" = "latest"
 "npm:@playwright/cli" = "latest"
 "ripgrep" = "latest"
 "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
@@ -219,6 +221,7 @@ exit 0
 #   "herdr" = "latest"
 #   "node" = "lts"
 #   "npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }
+#   "npm:@earendil-works/pi-coding-agent" = "latest"
 #   "npm:@playwright/cli" = "latest"
 #   "ripgrep" = "latest"
 #   "github:badaix/snapcast" = { version = "latest", asset_pattern = "snapclient_win64.zip", filter_bins = "snapclient.exe" }
@@ -453,7 +456,7 @@ exit 0
 
 ### .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
 # hash: 74b09b2f8729ec45c21a16f6a758161398ea3f2b8c1bc9a46cc48ee76182b810
-# pinned: 81f0c0154bd2b4a5fde5ac5a702ae480afe9ff0f624a30e2e7b2422b0c743ed5
+# pinned: 8d6dfcb7288d618544b49b2e97eacbee58e295f8b950b3cacaf7e0b1c580a992
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 

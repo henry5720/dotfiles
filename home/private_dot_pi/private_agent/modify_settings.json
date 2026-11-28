@@ -1,0 +1,27 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+~/.pi/agent/settings.json:只釘預設 provider、模型、思考強度與 packages,其餘照 pi 自己寫的保留
+(pi 會寫 lastChangelogVersion,在介面裡換模型也會改這個檔)。
+provider codex-lb 定義在同目錄的 models.json。packages 是 pi 啟動時自己裝的擴充(版本釘住,升級改這裡);
+整個陣列照這裡釘,`pi install` 自己加的會在下次 apply 被拿掉,要長期用就加到這裡。
+四個值都已經對時原樣輸出 stdin:pi 改寫過檔案(縮排、key 順序)後 chezmoi diff 仍是空的;
+要改時才解析再輸出,這時 key 照字母排。比較時都轉成 JSON:值的型別不對時 eq 不會報錯。
+*/ -}}
+{{- $pinned := dict
+      "defaultProvider" "codex-lb"
+      "defaultModel" "gpt-6.1-sol"
+      "defaultThinkingLevel" "medium"
+      "packages" (list "npm:pi-subagents@0.90.0" "npm:cc-safety-net@2.9.0") -}}
+{{- $settings := dict -}}
+{{- if trim .chezmoi.stdin }}{{ $settings = fromJson .chezmoi.stdin }}{{ end -}}
+{{- if not (kindIs "map" $settings) }}{{ fail "~/.pi/agent/settings.json 必須是 JSON 物件({...}),先手動修好再 apply" }}{{ end -}}
+{{- $same := true -}}
+{{- range $k, $v := $pinned -}}
+{{-   if ne (get $settings $k | toJson) ($v | toJson) }}{{ $same = false }}{{ end -}}
+{{- end -}}
+{{- if and $same (trim .chezmoi.stdin) -}}
+{{-   .chezmoi.stdin -}}
+{{- else -}}
+{{-   range $k, $v := $pinned }}{{ $_ := set $settings $k $v }}{{ end -}}
+{{-   toPrettyJson "  " $settings -}}
+{{- end -}}

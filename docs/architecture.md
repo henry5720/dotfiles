@@ -48,14 +48,14 @@ docs/                           文件（見 README 的文件索引）
 
 - [ ] GitHub 帳號：改 [`home/.chezmoidata/github.yaml`](../home/.chezmoidata/github.yaml) 的 `githubUser`。agent-config 的 remote、`authorized_keys` 抓誰的公鑰都讀它
 - [ ] 安裝指令 `chezmoi init --apply henry5720` 裡的帳號要自己改：這行在 chezmoi 拉 repo 之前就要打，讀不到上一項的 data 檔
-- [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、agent-config）
+- [ ] AI provider、model 與 agent 規則（`home/dot_codex/`、`home/dot_config/opencode/`、`home/private_dot_pi/`、agent-config）
 - [ ] ssh config 裡的 Tailscale 主機與平板
 - [ ] 已有設定的機器先備份；不要未檢查就部署別人的個人 dotfiles
 - [ ] 憑證不進 git，`chezmoi init` 時才問、存在 `~/.config/chezmoi/chezmoi.toml`；不信任或共用的機器不要填真實憑證
 
 ## AI agent 環境:誰管什麼
 
-用 Claude Code、Codex、opencode 時,身上會掛四種東西:規則、skill、MCP、plugin。
+用 Claude Code、Codex、opencode、pi 時,身上會掛四種東西:規則、skill、MCP、plugin。
 它們**放在不同地方、用不同指令更新**,搞混就會出現「我明明更新了怎麼沒變」。
 為什麼這樣分,見 [AI agent 環境:為什麼這樣分](architecture/agent-principles.md)。
 
@@ -63,7 +63,7 @@ docs/                           文件（見 README 的文件索引）
 dotfiles(chezmoi)
   ├─ 裝 skillshare、放它的 config.yaml(之後只釘 targets、extras 段)─→ agent-config
   └─ client 本身的設定 ──────────────────────────────┐
-agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode
+agent-config(skillshare)                               ├─→ Claude Code / Codex / OpenCode / pi
   ├─ 規則內容與連結(extras)、skills、MCP ──────────────┘
   └─ plugin(skillshare plugin,記在本機 config.yaml)──→ Claude Code 等
 ```
@@ -89,14 +89,15 @@ agent-config(skillshare)                               ├─→ Claude Code / C
 只有一份真的檔案,其他都是 skillshare extras 建的 symlink;連到哪寫在本 repo 的
 `home/.chezmoitemplates/skillshare-pinned`,照選單勾了哪些 client 產生,由
 `home/dot_config/skillshare/modify_config.yaml.tmpl` 釘進 config.yaml(決策見 [ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md))。
-下面是三個 client 都勾的樣子;沒勾的 client 沒有它那幾條,`agent-commit` 勾任一個 agent 就有:
+下面是四個 client 都勾的樣子;沒勾的 client 沒有它那幾條,`agent-commit` 勾任一個 agent 就有:
 
 ```text
 agent-config/extras/agents-md/AGENTS.md   ← 真的檔案,只有這份要改
    ├── ~/.claude/CLAUDE.md                          (claude)
    ├── ~/.codex/AGENTS.md                           (codex)
    ├── ~/.config/opencode/AGENTS.md                 (opencode)
-   └── ~/.config/opencode/routes/personal/AGENTS.md (opencode)
+   ├── ~/.config/opencode/routes/personal/AGENTS.md (opencode)
+   └── ~/.pi/agent/AGENTS.md                        (pi)
 agent-config/extras/agent-commit/instructions.md
    └── ~/.config/agent-commit/instructions.md
 agent-config/extras/pstack-models/pstack-models.md
@@ -118,8 +119,9 @@ agent-config 在本機 clone 在 `~/.config/skillshare/`,symlink 指的就是那
 
 新機器不用為規則另外做事:選裝工具 `agent-config` 的 after 腳本 clone 完 agent-config 後跑 `skillshare sync --all`,
 連結一起建好。沒勾 `agent-config` 的機器沒有 skillshare,也不放 `config.yaml`,各 client 不會有這幾個檔。
-targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、codex → `codex`,opencode 不加 target
-(OpenCode 也讀前兩份,再加一份同一支 skill 會出現三次)。用 `skillshare target add` 手動加的 target,下次 `chezmoi apply` 會被蓋掉。
+targets(skills 同步到哪)也照勾的 client 產生:claude → `claude`、codex → `codex`;opencode → `opencode`、
+pi → `pi`。OpenCode 也讀前兩份、pi 也讀 `~/.agents/skills`:讀得到的那份有人同步時(opencode 看 claude 或 codex、pi 看 codex)
+它們的 skills 關掉(`enabled: false`,再同步一份會重複),target 只為了讓 MCP sync 寫得到它們。用 `skillshare target add` 手動加的 target,下次 `chezmoi apply` 會被蓋掉。
 
 ### plugin
 

@@ -532,7 +532,7 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: 官方沒有 Android 版；npm 版裝得上，但執行時要下載 Android 版，release 沒有
-        # 走 npm backend 的工具共用這條(YAML anchor,playwright-cli 用 *needs-node-libatomic 引用)
+        # 走 npm backend 的工具共用這條(YAML anchor,playwright-cli、pi 用 *needs-node-libatomic 引用)
         - &needs-node-libatomic
           when: [no-libatomic]
           state: unsupported
@@ -587,6 +587,18 @@ toolTable:
         - when: [android]
           state: unsupported
           reason: Playwright 只支援 Linux、macOS、Windows，原生 Termux 的 Node 一跑就報 Unsupported platform：android
+        - *needs-node-libatomic
+    # pi(@earendil-works/pi-coding-agent)是 npm 套件,跟 codegraph、playwright-cli 一樣走 mise 的 npm backend、連帶 mise 的 Node。
+    # 不用官方 pi.dev/install.sh:它會從 /dev/tty 問「要不要現在開 pi」、偵測到別的裝法時問要不要遷移。更新跑 mise upgrade
+    # (pi update 預設會用 npm 另裝一份;官方 CLI 文件的 PI_SELF_UPDATE_COMMAND 可以改成交給 mise,這裡沒設)。
+    # Termux:官方有 docs/termux.md(pkg 的 nodejs 再 npm install -g),這個 repo 還沒有「pkg 的 Node + npm」這種裝法,所以裝不了
+    pi:
+      docs: https://pi.dev
+      checked: 2026-11-28
+      install: {linux: [mise], darwin: [mise], windows: [mise]}
+      mise: {tool: "npm:@earendil-works/pi-coding-agent"}
+      needsNode: [linux, darwin, windows]
+      rules:
         - *needs-node-libatomic
     # install-agent-config 用官方 installer 裝 skillshare,再從 agent-config 的 remote init、install、sync。
     # skillshare init 從 remote clone 要系統的 git(#321),Windows 基底沒裝

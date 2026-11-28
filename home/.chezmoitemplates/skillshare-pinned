@@ -1,13 +1,15 @@
 {{- /* skillshare config.yaml 裡由 chezmoi 釘的兩段:targets 與 extras,照選單勾的 client 產生。
        dot_config/skillshare/modify_config.yaml.tmpl 拿它整段換掉現有的;
        run_onchange_after_sync-skillshare.sh.tmpl 拿它的 hash 判斷要不要重新 sync。
-       欄位順序照 skillshare 存檔的樣子(targets 底下 skills 再 agents;extras 是 name、file、targets),
+       欄位順序照 skillshare 存檔的樣子(targets 底下 skills 再 agents、skills 底下 path 再 enabled;extras 是 name、file、targets),
        段內也不放註解(它存檔會拿掉),它改寫後再 apply 才不會出現只有排版不同的 diff。
        沒有 target 時 skillshare 存成 `targets: {}`;沒有 extras 時它整段不寫,這裡也不輸出。
 
        targets:claude → skills 與 agents;codex → skills(Codex 的 subagent 是 TOML,native agents
-       target 不能轉檔,要用時得走 extras 的 codex-agents extension);opencode 不加 target ——
-       OpenCode 本來就會讀 ~/.claude/skills 與 ~/.agents/skills,再加一個同一支 skill 會出現三次。
+       target 不能轉檔,要用時得走 extras 的 codex-agents extension);opencode、pi 也加 target,讓 MCP sync 寫得到它們。
+       OpenCode 本來就會讀 ~/.claude/skills 與 ~/.agents/skills、pi 只讀 ~/.agents/skills,那兩份有人同步時(opencode:勾了
+       claude 或 codex;pi:勾了 codex)skills 關掉(enabled: false),不然同一支 skill 會重複出現
+       (skillshare 文件 targets.md〈Skills Off〉);沒有時照常同步到自己的目錄,不然一支 skill 都沒有。
        extras:agents-md 是一份 AGENTS.md 給各 client,Claude 讀的檔名是 CLAUDE.md;
        agent-commit 任一個 agent 都要;agent-commit、opencode-commit 的目標路徑要對上
        AGENTS.md 與 opencode.json 引用的位置;pstack-models 只給 claude(官方 pstack 只支援 Cursor 與
@@ -26,6 +28,9 @@
       "claudeRules"    "~/.claude/rules"
       "codex"          "~/.codex"
       "opencode"       "~/.config/opencode"
+      "opencodeSkills" "~/.config/opencode/skills"
+      "pi"             "~/.pi/agent"
+      "piSkills"       "~/.pi/agent/skills"
       "opencodeRoute"  "~/.config/opencode/routes/personal"
       "agentCommit"    "~/.config/agent-commit" -}}
 {{- if eq .chezmoi.os "windows" -}}
@@ -35,7 +40,8 @@
 {{- $claude := has "claude" $tools -}}
 {{- $codex := has "codex" $tools -}}
 {{- $opencode := has "opencode" $tools -}}
-{{- if or $claude $codex }}
+{{- $pi := has "pi" $tools -}}
+{{- if or $claude $codex $opencode $pi }}
 targets:
 {{- if $claude }}
   claude:
@@ -49,10 +55,26 @@ targets:
     skills:
       path: {{ $p.codexSkills }}
 {{- end }}
+{{- if $opencode }}
+  opencode:
+    skills:
+      path: {{ $p.opencodeSkills }}
+{{- if or $claude $codex }}
+      enabled: false
+{{- end }}
+{{- end }}
+{{- if $pi }}
+  pi:
+    skills:
+      path: {{ $p.piSkills }}
+{{- if $codex }}
+      enabled: false
+{{- end }}
+{{- end }}
 {{- else }}
 targets: {}
 {{- end }}
-{{- if or $claude $codex $opencode }}
+{{- if or $claude $codex $opencode $pi }}
 extras:
   - name: agents-md
     file: AGENTS.md
@@ -69,6 +91,9 @@ extras:
 {{- if ne .chezmoi.os "windows" }}
       - path: {{ $p.opencodeRoute }}
 {{- end }}
+{{- end }}
+{{- if $pi }}
+      - path: {{ $p.pi }}
 {{- end }}
   - name: agent-commit
     file: instructions.md
