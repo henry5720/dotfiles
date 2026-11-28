@@ -146,8 +146,8 @@ google-chrome --remote-debugging-port=9222 --user-data-dir="$HOME/.local/state/c
 
 不想每次打：Chrome 捷徑的「目標」後面加 `--remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\chrome-agent"`，之後雙擊就開。
 
-**Windows：agent 從 ssh 叫起（你不用在桌面開）**：在那台建一次固定的 scheduled task `chrome-agent`，之後 agent 從 ssh 跑
-`schtasks /run /tn chrome-agent`，Chrome 就開在你登入的桌面。直接從 ssh 開 Chrome 不行：ssh 起的程式在 session 0（沒有桌面），
+**Windows：agent 從 ssh 叫起（你不用在桌面開）**：在那台建一次固定的 scheduled task `chrome-agent`，之後 agent 跑
+`remote-access up browser <個人電腦>`，它從 ssh `schtasks /run` 這個 task，Chrome 就開在你登入的桌面。直接從 ssh 開 Chrome 不行：ssh 起的程式在 session 0（沒有桌面），
 Chrome 照樣聽 9222，但你看不到視窗、也登入不了（[Session 0 isolation](https://techcommunity.microsoft.com/blog/askperf/application-compatibility---session-0-isolation/372361)）。
 從 ssh 要開有畫面的程式，微軟 Q&A 的建議也是 Task Scheduler（[Run executable via SSH](https://learn.microsoft.com/en-us/answers/questions/960134/run-executable-via-ssh)）。
 
@@ -164,25 +164,34 @@ Register-ScheduledTask -TaskName chrome-agent -Action $action -Principal $princi
 ```
 
 ```bash
-# agent（已配置主機）：叫起 Chrome，再自己把個人電腦的 9222 拉過來（-L，你不用開 -R）
-ssh <個人電腦> schtasks /run /tn chrome-agent
-ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:9222:127.0.0.1:9222 <個人電腦>
+# agent（已配置主機）：叫起 Chrome、把個人電腦的 9222 拉到這台的 9222（-L，你不用開 -R），
+# 再比對這台 9222 接到的是不是那台的 Chrome
+remote-access up browser <個人電腦>
+# 用完：只關這台的轉發，Chrome 和分頁留在你的桌面
+remote-access down browser <個人電腦>
 ```
 
-- 怎麼確認：你的桌面跳出 Chrome 視窗，agent 照下面〈接上〉的 `curl` 有回應。2026-11-26 在 henry-laptop 實測：Chrome 開在 session 2（不是 0）、9222 在聽。
-- 你沒登入那台時 `/run` 不會開 Chrome（Interactive 的限制）。
+`remote-access` 是 agent-config 的 CLI（`~/.claude/skills/remote-access/scripts/remote-access`），`browser` 的定義在同一個 skill 的 `services.yaml`。
+
+- 怎麼確認：你的桌面跳出 Chrome 視窗，`up` 印「比對：… 接到的是 <個人電腦> 那支」、exit 0。
+  2026-11-28 在 henry-laptop 實測：Chrome 開著時再跑一次 `up`，印「browser 在 henry-laptop 已經起好」，沒有多開一支；
+  `down` 之後 Chrome 還開著。2026-11-26 同一台：Chrome 開在 session 2（不是 0）、9222 在聽。
+- 那台已經有 Chrome 在聽 9222（例如你從桌面開的）：`up` 不叫 task、只開轉發。
+- `up` 報「還沒有 task chrome-agent」：照上面的 PowerShell 建（`remote-access` 不建）。
+- `up` 報「沒有人登入桌面」：你沒登入那台時 task 開不了 Chrome（Interactive 的限制），先登入再跑。
 - 不要了：`Unregister-ScheduledTask -TaskName chrome-agent -Confirm:$false`。
 - 坑：
   - `-UserId "$env:USERDOMAIN\$env:USERNAME"` 從 ssh 跑會報 `No mapping between account names and security IDs`；
     `[Security.Principal.WindowsIdentity]::GetCurrent().Name` 可以（2026-11-26 henry-laptop）。
   - 自己改寫時變數別叫 `$args`、`$profile`：那是 PowerShell 的自動變數，會被蓋掉。
 
-**連線**：個人電腦的 9222 → 已配置主機的 9222。你在桌面開的，由你開 `-R`；用上面的 task 叫起的，由 agent 開 `-L`（[怎麼打](README.md#ssh-轉發怎麼讀)）。只能走 ssh，見[能怎麼連](#能怎麼連)。
+**連線**：個人電腦的 9222 → 已配置主機的 9222。你在桌面開的，由你開 `-R`；用上面的 task 叫起的，由 `remote-access up browser` 開（[怎麼打](README.md#ssh-轉發怎麼讀)）。只能走 ssh，見[能怎麼連](#能怎麼連)。
 
 **已配置主機（agent）接上**：
 
 ```bash
-# 確認接到的是你的 Chrome：有 webSocketDebuggerUrl，而且 User-Agent 不是 HeadlessChrome
+# 只有你自己開 -R 時要做：確認接到的是你的 Chrome（有 webSocketDebuggerUrl，而且 User-Agent 不是 HeadlessChrome）
+# 走 remote-access up browser 的話它已經比對過，跳過這行
 curl -s --max-time 3 127.0.0.1:9222/json/version
 # 接上那支 Chrome，之後用 -s=<session> 操作它
 playwright-cli -s=<session> attach --cdp=http://127.0.0.1:9222
@@ -193,7 +202,7 @@ playwright-cli -s=<session> tab-list
 ```
 
 - 怎麼確認：`tab-list` 列得出你開著的分頁。2026-11-05 在 henry-laptop 實測：`tab-new` 兩次後列出三個分頁。
-- 收：agent `playwright-cli -s=<session> detach`；開 ssh 轉發的那一方（你的 `-R` 或 agent 的 `-L`）關掉它。Chrome 和登入留著，下次照上面再開就沿用。
+- 收：agent `playwright-cli -s=<session> detach`；轉發是你開的 `-R` 就由你關；是 `remote-access up browser` 開的，agent 跑 `remote-access down browser <host>`，只關轉發。Chrome 和登入留著，下次照上面再開就沿用。
 - 坑：
   - **這個 profile 的 Chrome 已經開著時，再帶 `--remote-debugging-port` 啟動會被轉給舊的那支、新參數全部被忽略、也不報錯**：
     9222 就是不通。先 `curl 127.0.0.1:9222/json/version`（Windows：`curl.exe`）看是不是已經在了；不是就把那個視窗關掉重開。
@@ -372,6 +381,10 @@ henry-desktop 的獨立 profile）：
 | 9222 一直不通，Chrome 卻開著 | 同 profile 的 Chrome 早就開著、沒帶 debug port，新參數被吞掉 | 關掉那個 Chrome 視窗，重開 |
 | `remote port forwarding failed`（9222 或 1080） | 已配置主機的 port 被佔 | `ss -ltnp \| grep <port>` 看是誰；另一台的 ssh 或 headless 先收掉 |
 | chrome-devtools-mcp 接到的不是你要的那支 | 9222 同時只有一支 Chrome | `curl 127.0.0.1:9222/json/version` 看 `User-Agent` |
+| `remote-access up browser` 印「接到的不是 <host> 那支」 | 這台 9222 轉到的 Chrome 跟那台自己 9222 上的不是同一支（`webSocketDebuggerUrl` 的路徑不同）；`up` 已收掉轉發 | 看它印的 User-Agent 是哪支，收掉那支再重跑 `up` |
+| `remote-access up browser` 印「被別的程式佔著」 | 這台或那台的 9222 有別的程式在聽，常是另一台的 `-R` 或 headless；它不換 port | 照它印的程式名（這台的還附 User-Agent）收掉，再重跑 |
+| `remote-access up browser` 印「比對不了」 | 那台自己的 `webSocketDebuggerUrl` 查不到（ssh 斷、逾時），不代表接錯；轉發留著、exit 1 | 確認 `ssh <host>` 正常後重跑 `up`；不用了就 `down browser <host>` |
+| `remote-access up browser` 印「開著但沒開 9222」 | 那台 chrome-agent profile 的 Chrome 開著、沒帶 debug port | 請使用者關掉那個 Chrome 視窗，再 `up` |
 | `playwright-extension-attach` 說「等了 N 秒沒人連進來」 | `--timeout` 秒內（預設 300，`--tunnel` 600）沒人連進來 | 重跑，用新的網址 |
 | `找不到 cloudflared:--tunnel 要它` | agent 那台沒有 cloudflared | 照它印的官方下載頁裝 |
 | `cloudflared 沒開出 trycloudflare.com 網址` | quick tunnel 沒開成，常見是被限流回 `429`；它會印 cloudflared 最後幾行 | 看那幾行，過一陣子重跑 |
