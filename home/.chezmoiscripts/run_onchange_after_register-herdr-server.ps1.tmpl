@@ -8,8 +8,12 @@
          從 ssh 的 elevated shell 跑 apply 也一樣
        - 動作:conhost --headless 跑 mise shim 的 `herdr server`(官方的 headless server,TUI 自己起的也是這個指令),
          不開視窗;shim 跟著 mise 換版本。
-         工作目錄設 $HOME:沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡(starship 還會掃到逾時)。直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停
+         直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停。
+         工作目錄設 $HOME:沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡(starship 還會掃到逾時)。
        - 不限執行時間(預設 72 小時會被停掉)、已在跑就不再起一個;已經有 server 在跑時,新的這個會自己結束
+       - 權限:註冊完把排程的 DACL 設成 SYSTEM、Administrators、這個使用者都完整控制。預設的擁有者是註冊時的 token:
+         從 ssh(elevated)註冊的,擁有者是 Administrators,之後在一般權限的 pane 跑 apply 會「存取被拒」(vm-2、pos2-dev 實測)。
+         pos2-dev 用測試排程驗過:elevated 註冊並設好之後,一般權限重新註冊成功,反過來也成功。
        註冊完馬上跑一次,這次登入就生效。laptop 用 --session 測過(#416):process 在 session 2、一般權限的 client 連得上。
        任何一步失敗只印一行、exit 0:這是設定步驟、不是安裝,不記裝失敗、不重試(ADR 0006 只管選裝工具的安裝)。取消勾選不會刪排程,同「取消勾選不會解除安裝」。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
@@ -24,6 +28,10 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName 'herdr-server' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+    $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $svc = New-Object -ComObject Schedule.Service
+    $svc.Connect()
+    $svc.GetFolder('\').GetTask('herdr-server').SetSecurityDescriptor("D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;$sid)", 0)
     Start-ScheduledTask -TaskName 'herdr-server' -ErrorAction Stop
     Write-Host (T '{{ "herdr server 改由登入時的排程 herdr-server 起(一般權限)" | b64enc }}')
 } catch {

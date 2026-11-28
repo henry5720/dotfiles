@@ -419,6 +419,10 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName 'herdr-server' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null
+    $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $svc = New-Object -ComObject Schedule.Service
+    $svc.Connect()
+    $svc.GetFolder('\').GetTask('herdr-server').SetSecurityDescriptor("D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;$sid)", 0)
     Start-ScheduledTask -TaskName 'herdr-server' -ErrorAction Stop
     Write-Host (T 'aGVyZHIgc2VydmVyIOaUueeUseeZu+WFpeaZgueahOaOkueoiyBoZXJkci1zZXJ2ZXIg6LW3KOS4gOiIrOasiumZkCk=')
 } catch {
