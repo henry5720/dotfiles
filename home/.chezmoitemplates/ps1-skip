@@ -1,0 +1,16 @@
+{{- /* Windows .ps1 版的 skip_fail(sh 版在 sh-skip,ADR 0006):裝失敗時印一行「略過什麼、怎麼補」,
+       記進 ~/.local/state/dotfiles/install-failed(apply 最後由 run_after_zz-install-failed-summary.ps1 印出來),
+       同時留重試標記 retry/<腳本>,下次 apply 重跑這支。呼叫完要不要 exit 0 由呼叫端決定。
+       Windows 只有這一種:沒有 root 那類步驟,裝不了的清單在渲染時就知道(run_onchange_after_zz-env-skipped.ps1)。
+       函式名照 sh 版叫 skip_fail(PowerShell 不強制 Verb-Noun),兩邊 grep 得到同一個名字。
+       檔案寫成沒有 BOM 的 UTF-8,跟 sh 版同一個格式(- 工具:怎麼補)。
+       用法:先 include ps1-text 與 ps1-retry(要 T 與 $retry_key),再 {{ includeTemplate "ps1-skip" . }};
+       之後 skip_fail '<工具>' (T '<怎麼補的 base64>')。 */ -}}
+function skip_fail([string]$what, [string]$fix) {
+    if (-not $retry_key) { throw 'skip_fail: include ps1-retry first' }
+    Write-Host ((T '{{ "略過 {0}(這次裝失敗,錯誤訊息在上面):{1}" | b64enc }}') -f $what, $fix)
+    $d = Join-Path $HOME '.local\state\dotfiles'
+    New-Item -ItemType Directory -Force (Join-Path $d 'retry') | Out-Null
+    [IO.File]::AppendAllText((Join-Path $d 'install-failed'), "- ${what}:${fix}`n", (New-Object Text.UTF8Encoding $false))
+    New-Item -ItemType File -Force (Join-Path $d "retry\$retry_key") | Out-Null
+}

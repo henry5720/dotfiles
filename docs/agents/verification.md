@@ -20,17 +20,17 @@ runner 測不到、一定要實機的情況(說明在 workflow 開頭):runner �
 
 | # | 時機 | 在 Windows 上做 | 預期 | CI |
 |---|---|---|---|---|
-| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 沒有輸出 | ✅ |
+| 1 | 每次 | `chezmoi apply` 後 `chezmoi diff` | 只有略過彙整 `zz-install-failed-summary.ps1`(`run_after_`,每次都列,ADR 0006) | ✅ |
 | 2 | 每次 | `[Environment]::GetFolderPath('MyDocuments') -eq "$HOME\Documents"` | `True` | ✅ |
 | 3 | 每次 | 開 `pwsh`、`powershell`;再跑 `pwsh -c 'echo hi'` | 開 shell 印 fastfetch、提示列是 starship、沒有紅字、有 `z`;`pwsh -c` 只印 `hi` | ◐ 只驗 `-c` 只印 `hi`、找得到 starship |
 | 4 | 每次 | `Get-ExecutionPolicy -List` | 第一個不是 `Undefined` 的是 `RemoteSigned`、`Unrestricted` 或 `Bypass` | |
 | 5 | 每次 | 開 Windows Terminal;設定 UI 存一次後 `chezmoi diff` | 新分頁是 pwsh 7、starship 圖示不是方框;diff 沒有輸出 | |
 | 6 | 改到 `.wslconfig` | `wsl --shutdown` 後在 WSL 跑 `nproc`、`free -g`、`wslinfo --networking-mode` | 跟 `.wslconfig` 一致 | |
 | 7 | 改到 config 樣板、選裝工具表的 `rules`、選單 | `chezmoi init --prompt`(或 `tools`) | 出用途與選單,Windows 裝不了的標原因;git 身分不問;home repo 的位置沒存過才問;結束後 `chezmoi diff` 沒有輸出 | ◐ 只驗不互動的 init |
-| 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因 | ✅ |
+| 8 | 改到 `.ps1` 腳本、`packages.yaml`、選裝工具表的 Windows 裝法、`mise-tools` | `chezmoi apply` 後 `mise ls`、`winget list --id <id> --exact` | 腳本沒有紅字、不會停在一半;勾的 CLI 在 `mise ls`、勾的 app 在 `winget list`;勾了裝不了的工具時最後列出略過與原因;裝失敗時 apply 照樣跑完、最後列在「這次裝失敗」,修好後再 apply 會重跑、不再列出 | ✅ |
 | 9 | 改到 headless-chrome、playwright-cli 的 Windows 裝法 | 勾兩項後 apply;新開 `pwsh` 跑 `playwright-cli -s=t open https://example.com`、`playwright-cli -s=t snapshot`、`playwright-cli -s=t close` | 已經有 Chrome 的機器 winget 跳過;snapshot 讀得到 `Example Domain` | ◐ 只驗已經有企業版 MSI 的 Chrome 時 winget 跳過、`playwright-cli --version` 跑得起來 |
 | 10 | 改到 coding agent 的安裝腳本 | 勾了那個 agent `chezmoi apply`,開新的 `pwsh` 與 `powershell` 跑 `claude --version`(以及那張新增的指令,例如 `codex --version`) | 兩個 shell 都印出版本 | ✅ |
-| 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 沒有輸出 | ✅ |
+| 11 | 改到 coding agent 的安裝腳本 | 再 `chezmoi apply` 一次,然後 `chezmoi diff` | 第二次沒有重新下載(腳本沒跑,或印「已安裝,跳過」);diff 只有略過彙整那支 | ✅ |
 | 12 | 改到 agent 的設定檔 | 啟動 agent 一次、讓它寫過自己的設定檔,再 `chezmoi diff` | 沒有輸出 | |
 | 13 | 改到 agent-config | `skillshare status`;在 agent 裡打 `/` 與看 MCP 清單 | targets 已同步、指令檔到位;看得到 skill 與 MCP | ◐ 只驗 `skillshare status` |
 | 14 | 改到 `register-herdr-server.ps1` | 勾 herdr 後 apply,登出再登入;`Get-CimInstance Win32_Process \| ? Name -like herdr*` 看 `server` 那行的 `SessionId`;桌面 terminal 跑 `herdr status`;別台 `herdr --machine <這台> workspace list` | 工作排程有 `herdr-server`;server 只有一個、`SessionId` ≥ 1;沒有多出視窗;`herdr status` 與 `--machine` 都連得上 | |

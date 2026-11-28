@@ -11,7 +11,8 @@
        2. 下載官方腳本成檔案、在同一個 process 跑(.chezmoitemplates/ps1-official-installer),env 在跑之前設好
           (codex 的 CODEX_NON_INTERACTIVE=1:installer 最後會 Read-Host 問「Start Codex now?」,apply 會停在那裡)。
           官方腳本出錯是丟例外或 exit 非 0,兩種都接住
-       3. 裝失敗只印手動指令、繼續下一個,最後 exit 0:不然 apply 中止。代價是不會自動重試 */ -}}
+       3. 裝失敗記成裝失敗(ps1-skip 的 skip_fail)、繼續下一個,最後 exit 0:不然 apply 中止。
+          apply 最後列出,下次 apply 重跑這支(ps1-retry,ADR 0006);已經裝好的那個照第 1 步跳過 */ -}}
 {{- $install := includeTemplate "tool-install" . | fromJson -}}
 {{- $run := list -}}
 {{- /* 只看 OS 一次:official 的 sh、ps1 由 OS 決定(tool-install-pick),另一個 OS 渲染成空的 */ -}}
@@ -23,6 +24,8 @@
 {{- if $run -}}
 {{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
+{{ includeTemplate "ps1-retry" (dict "key" "install-official" "home" .chezmoi.homeDir) }}
+{{ includeTemplate "ps1-skip" . }}
 {{- range $name := $run }}
 {{-   $o := (get $install.tools $name).official }}
 {{-   $checks := list }}
@@ -35,7 +38,7 @@ if ({{ first $checks }}) {
 } else {
 {{ includeTemplate "ps1-official-installer" (dict "url" $o.url "env" (get $o "env" | default dict)) | indent 4 }}
     if ($code -ne 0) {
-        Write-Host ((T '{{ "{0} 沒裝好,之後自己跑:irm {1} | iex" | b64enc }}') -f '{{ $name }}', '{{ $o.url }}')
+        skip_fail '{{ $name }}' ((T '{{ "官方 installer 沒跑完,下次 chezmoi apply 會重試,或自己跑:irm {0} | iex" | b64enc }}') -f '{{ $o.url }}')
     }
 }
 {{- end }}

@@ -55,6 +55,8 @@ WINDOWS_SCRIPTS = {
     # MCP 的 API key(context7、graphify)設成使用者環境變數;沒填 key 時渲染成空的,但仍是 managed
     ".chezmoiscripts/set-mcp-env.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
+    # 略過彙整的「這次裝失敗」(#422,ADR 0006):run_after_,每台都有
+    ".chezmoiscripts/zz-install-failed-summary.ps1",
 }
 # 勾了 codex 才部署的設定(#320)。personal.config.toml、codex-gcp.config.toml 不放:給 ai-profile(只有 Linux)用
 CODEX_TARGETS = {".codex/config.toml"}
@@ -485,6 +487,92 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     # coding agent:官方 install.ps1(#316 claude、#317 codex)
     # ===============================================================
+    # ===============================================================
+    # 裝失敗(#422,ADR 0006):skip_fail 記進彙整、留重試標記,下次 apply 重跑
+    # ===============================================================
+    # 會裝東西的六支、各自的重試 key(跟 sh 版同名)、讓它渲染得出東西的勾選
+    RETRY_SCRIPTS = {
+        "run_onchange_before_install-packages-windows.ps1.tmpl": ("install-packages-windows", []),
+        "run_onchange_after_install-mise.ps1.tmpl": ("install-mise", []),
+        "run_onchange_after_install-official.ps1.tmpl": ("install-official", ["claude", "codex"]),
+        "run_onchange_after_install-wakatime.ps1.tmpl": ("install-wakatime", ["wakatime", "claude", "codex"]),
+        "run_onchange_after_install-agent-config.ps1.tmpl": ("install-agent-config", ["agent-config"]),
+        "run_onchange_after_sync-skillshare.ps1.tmpl": ("sync-skillshare", ["agent-config"]),
+    }
+
+    @staticmethod
+    def decoded(out):
+        return "\n".join(base64.b64decode(b).decode("utf-8")
+                         for b in re.findall(r"\(T '([A-Za-z0-9+/=]+)'\)", out))
+
+    def test_windows_scripts_calling_skip_fail_set_retry_key(self):
+        # skip_fail 要 $retry_key 才知道標記叫什麼:用到它的每支都 include ps1-retry,而且就是上面那六支
+        calling = set()
+        for path in sorted(SCRIPTS.glob("*.ps1.tmpl")):
+            out = self.render(path, sorted(WINDOWS_FULL) + ["code-server", "zsh"])
+            call = re.search(r"^\s*skip_fail ", out, re.M)
+            if not call: continue
+            calling.add(path.name)
+            with self.subTest(path=path.name):
+                key = self.RETRY_SCRIPTS[path.name][0]
+                self.assertIn(f"$retry_key = '{key}'", out)
+                # 一開始先刪標記(這次又失敗才再留),skip_fail 定義在呼叫之前
+                self.assertLess(out.index("Remove-Item"), out.index("function skip_fail"))
+                self.assertLess(out.index("function skip_fail"), call.start())
+                # 這幾支原本失敗只印一行的訊息,都換成 skip_fail 了
+                self.assertNotIn("之後自己", self.decoded(out))
+        self.assertEqual(calling, set(self.RETRY_SCRIPTS))
+
+    def test_windows_skip_fail_writes_install_failed_and_retry_marker(self):
+        out = self.render(SCRIPTS / "run_onchange_after_install-mise.ps1.tmpl", [])
+        body = out[out.index("function skip_fail"):]
+        self.assertIn(r"Join-Path $HOME '.local\state\dotfiles'", body)
+        # 跟 sh 版同一個格式:- 工具:怎麼補,沒有 BOM 的 UTF-8
+        self.assertIn("[IO.File]::AppendAllText((Join-Path $d 'install-failed'), \"- ${what}:${fix}`n\", "
+                      "(New-Object Text.UTF8Encoding $false))", body)
+        self.assertIn('New-Item -ItemType File -Force (Join-Path $d "retry\\$retry_key")', body)
+        self.assertIn("略過 {0}(這次裝失敗,錯誤訊息在上面):{1}", self.decoded(body))
+
+    def test_windows_retry_marker_changes_script(self):
+        # 有標記時渲染結果不同,run_onchange_ 下次 apply 才會重跑;渲染結果照樣只有 ASCII
+        for name, (key, tools) in self.RETRY_SCRIPTS.items():
+            with self.subTest(script=name):
+                before = self.render(SCRIPTS / name, tools)
+                marker = self.home / ".local/state/dotfiles/retry" / key
+                marker.parent.mkdir(parents=True, exist_ok=True)
+                marker.touch()
+                try:
+                    after = self.render(SCRIPTS / name, tools)
+                finally:
+                    marker.unlink()
+                self.assertNotEqual(before, after)
+                self.assertIn("# install failed on last apply (marker ", after)
+                self.assertTrue(after.isascii())
+
+    def test_windows_wakatime_missing_agent_is_install_failed(self):
+        # 勾了 claude／codex 才有那段:找不到就是 install-official 這次沒裝好,記成裝失敗、下次重試(同 sh 版)
+        out = self.render(self.WAKATIME_SCRIPT, ["wakatime", "claude", "codex"])
+        decoded = self.decoded(out)
+        self.assertIn("找不到 claude(它這次也沒裝好),下次 chezmoi apply 會重試", decoded)
+        self.assertIn("找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試", decoded)
+        self.assertNotIn("跳過 Claude Code 的 WakaTime plugin", decoded)
+
+    def test_windows_install_failed_summary_every_machine(self):
+        # 每台 Windows 都有(任何機器都可能裝失敗),標題跟 sh 版同一句(.chezmoitemplates/install-failed-header)
+        header = (ROOT / "home/.chezmoitemplates/install-failed-header").read_text(encoding="utf-8").splitlines()[-1]
+        self.assertTrue(header.startswith("== 這次裝失敗"))
+        self.assertIn(".chezmoiscripts/zz-install-failed-summary.ps1", self.managed("windows", []))
+        out = self.render(SCRIPTS / "run_after_zz-install-failed-summary.ps1.tmpl", [])
+        self.assertEqual(self.decoded(out), header)
+        self.assertIn(r"$f = Join-Path $HOME '.local\state\dotfiles\install-failed'", out)
+        # 印完刪 install-failed,重試標記不碰
+        self.assertIn("Remove-Item -Force -ErrorAction SilentlyContinue $f", out)
+        self.assertNotIn("retry", out)
+        # 排在 zz-env-skipped 後面:先列裝不了、再列裝失敗(同 sh 版)
+        self.assertLess("zz-env-skipped.ps1", "zz-install-failed-summary.ps1")
+        sh = (SCRIPTS / "run_after_zz-root-skipped-summary.sh.tmpl").read_text(encoding="utf-8")
+        self.assertIn('includeTemplate "install-failed-header"', sh)
+
     def agent_script(self, tool):
         # #334 起兩個 agent 同一支(install-official.ps1,照選裝工具表跑)
         return SCRIPTS / "run_onchange_after_install-official.ps1.tmpl"
@@ -723,6 +811,7 @@ class WindowsDeployTest(unittest.TestCase):
                             (SCRIPTS / "run_onchange_after_register-herdr-server.ps1.tmpl", ["herdr"]),
                             (SCRIPTS / "run_onchange_after_sync-skillshare.ps1.tmpl", ["agent-config", "claude"]),
                             (SCRIPTS / "run_onchange_after_zz-env-skipped.ps1.tmpl", ["code-server", "zsh"]),
+                            (SCRIPTS / "run_after_zz-install-failed-summary.ps1.tmpl", []),
                             ("home/dot_local/bin/tools.ps1.tmpl", [])):
             with self.subTest(path=str(path)):
                 out = self.render(path, tools)

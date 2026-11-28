@@ -1,0 +1,9 @@
+{{- /* Windows .ps1 版的裝失敗重試(sh 版在 sh-retry,ADR 0006,說明以那份為準):ps1-skip 的 skip_fail 留下
+       ~/.local/state/dotfiles/retry/<key>;下次渲染這裡看到它,多印一行帶時間的註解,腳本內容跟著變,
+       run_onchange_ 就會重跑。重跑一開始先刪掉標記,這次又失敗才再留。
+       用法:{{ includeTemplate "ps1-retry" (dict "key" "<腳本名>" "home" .chezmoi.homeDir) }},放在 ps1-text 後面。 */ -}}
+{{- with stat (joinPath .home ".local/state/dotfiles/retry" .key) -}}
+# install failed on last apply (marker {{ .modTime }}), rerun
+{{ end -}}
+$retry_key = '{{ .key }}'
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
