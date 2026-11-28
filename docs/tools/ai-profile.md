@@ -35,7 +35,7 @@ rules、prompt、TUI、MCP 都跟公司共用（skill 有一個例外，見下�
   把 global 的 `opencode.json`（plugins、MCP）疊回來；並加 `--standalone` 自己起 server，
   不連公司入口起的共用背景服務（連上的話會照公司設定跑，上面這些環境變數都不生效）。
 - route view 裡的 `skills`、`plugins`（herdr 的 `herdr-agent-state.js`）、`cli.json`（TUI plugin）都是整個連回 global 的 symlink（`cli.json` 要等 global 那份存在才連：它由 OpenCode 2 第一次開 TUI 時建，herdr 的 integration 再把 plugin 加進去），
-  `AGENTS.md` 則由 chezmoi 的 `symlink_AGENTS.md.tmpl` 連到 agent-config 的同一份全域指令檔；不另外放同名 skill，
+  `AGENTS.md` 則由 chezmoi 的 `symlink_AGENTS.md.tmpl` 連到 agent-config 的同一份全域規則；不另外放同名 skill，
   避免 loader collision。個人 OMO 設定沿用公司 preset 的
   roles/council，只把 provider 前綴改成 `openai/`；schema 與 `autoUpdate` 跟公司一致（`@latest`、開啟）。
 - 其餘 argv、cwd、project/native loader 語意照原樣。provider 相關的環境變數**不會**被清掉，
