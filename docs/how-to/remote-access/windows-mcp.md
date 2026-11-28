@@ -22,7 +22,8 @@
 | 要做的事 | 指令 |
 |---|---|
 | 接上那台（第一次在那台加 `--create-task`，會留一個常駐 task） | `remote-access up windows-mcp <host>` |
-| 看接著哪幾台、驗證過沒 | `remote-access ps` |
+| 看這台接過哪幾台、驗證過沒（連不上、沒在跑也列） | `remote-access ps` |
+| 查某一台，別台 agent 機器接的也查得到 | `remote-access ps windows-mcp <host>` |
 | 收掉那台 | `remote-access down windows-mcp <host>` |
 | 換 key（交過、懷疑外洩），已接上的機器一起換 | `remote-access key rotate`，再開新的 session |
 
