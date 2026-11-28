@@ -109,6 +109,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'install-mise'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 
@@ -159,6 +160,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'install-packages-windows'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 

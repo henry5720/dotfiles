@@ -46,4 +46,6 @@ Windows 的 `.ps1` 跟 `install-mise` 則印一行、exit 0，但不會進最後
   標記一樣在 `~/.local/state/dotfiles/retry/`。「這次裝失敗」由每台 Windows 都有的 `run_after_zz-install-failed-summary.ps1` 印
   （標題跟 sh 版共用 `.chezmoitemplates/install-failed-header`），「裝不了」那支 `zz-env-skipped.ps1` 照舊是 `run_onchange_`；
   `chezmoi status` 一樣一直多一行，Windows CI 檢查「沒有待跑的腳本」時排除它。winget 裝的基底（mise、pwsh 7、Windows Terminal）
-  裝失敗也只略過、不讓 apply 停：Windows 的 `.ps1` 一向不停，停了排在後面的 mise、agent 腳本都不會跑。
+  裝失敗也只略過、不讓 apply 停。這跟 Linux 的規則一致：基底會讓 apply 停，是因為那些是 chezmoi 自己要用的（git、curl）；
+  Windows 的基底 chezmoi 一個都用不到（`.ps1` 由內建的 Windows PowerShell 5.1 跑，見 `.chezmoi.toml.tmpl` 的 `[interpreters.ps1]`），
+  只是每台都裝的 app。mise 沒裝起來由 `install-mise.ps1` 自己記裝失敗，PowerShell profile 用到 starship、zoxide 前都先 `Get-Command`。

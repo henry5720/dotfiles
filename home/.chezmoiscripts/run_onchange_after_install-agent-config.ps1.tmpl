@@ -28,7 +28,8 @@ $remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'htt
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
 $manual = "skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets; skillshare install -g; skillshare sync --all"
 
-if (Test-Path (Join-Path $dir '.git')) {
+{{- /* 重試時不跳:上次可能 init 完、install 或 sync 失敗(同 sh 版) */}}
+if ((Test-Path (Join-Path $dir '.git')) -and -not $retrying) {
     Write-Host ((T '{{ "agent-config 已安裝({0}),跳過。更新:skillshare pull; skillshare sync --all" | b64enc }}') -f $dir)
     exit 0
 }
@@ -48,7 +49,7 @@ if (-not (Test-Path $ss)) {
 }
 
 if (-not (Test-Path (Join-Path $dir 'config.yaml'))) {
-    Write-Host ((T '{{ "找不到 {0},沒有 init" | b64enc }}') -f (Join-Path $dir 'config.yaml'))
+    skip_fail 'agent-config' ((T '{{ "找不到 {0},沒有 init;下次 chezmoi apply 會重試" | b64enc }}') -f (Join-Path $dir 'config.yaml'))
     exit 0
 }
 function Invoke-Skillshare {
@@ -58,7 +59,7 @@ function Invoke-Skillshare {
         exit 0
     }
 }
-Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets
+if (-not (Test-Path (Join-Path $dir '.git'))) { Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets }
 Invoke-Skillshare install -g
 Invoke-Skillshare sync --all
 exit 0

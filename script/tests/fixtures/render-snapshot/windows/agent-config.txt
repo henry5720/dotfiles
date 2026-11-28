@@ -111,6 +111,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'install-agent-config'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 
@@ -127,8 +128,7 @@ $dir = Join-Path $env:APPDATA 'skillshare'
 $remote = if ($env:AGENT_CONFIG_REMOTE) { $env:AGENT_CONFIG_REMOTE } else { 'https://github.com/henry5720/agent-config.git' }
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
 $manual = "skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets; skillshare install -g; skillshare sync --all"
-
-if (Test-Path (Join-Path $dir '.git')) {
+if ((Test-Path (Join-Path $dir '.git')) -and -not $retrying) {
     Write-Host ((T 'YWdlbnQtY29uZmlnIOW3suWuieijnSh7MH0pLOi3s+mBjuOAguabtOaWsDpza2lsbHNoYXJlIHB1bGw7IHNraWxsc2hhcmUgc3luYyAtLWFsbA==') -f $dir)
     exit 0
 }
@@ -160,7 +160,7 @@ if (-not (Test-Path $ss)) {
 }
 
 if (-not (Test-Path (Join-Path $dir 'config.yaml'))) {
-    Write-Host ((T '5om+5LiN5YiwIHswfSzmspLmnIkgaW5pdA==') -f (Join-Path $dir 'config.yaml'))
+    skip_fail 'agent-config' ((T '5om+5LiN5YiwIHswfSzmspLmnIkgaW5pdDvkuIvmrKEgY2hlem1vaSBhcHBseSDmnIPph43oqaY=') -f (Join-Path $dir 'config.yaml'))
     exit 0
 }
 function Invoke-Skillshare {
@@ -170,7 +170,7 @@ function Invoke-Skillshare {
         exit 0
     }
 }
-Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets
+if (-not (Test-Path (Join-Path $dir '.git'))) { Invoke-Skillshare init --git-root root --remote $remote --no-copy --no-skill --no-targets }
 Invoke-Skillshare install -g
 Invoke-Skillshare sync --all
 exit 0
@@ -182,6 +182,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'install-mise'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 
@@ -225,6 +226,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'sync-skillshare'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 
@@ -252,6 +254,7 @@ exit 0
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
 function T([string]$b64) { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
 
+$retrying = $false
 $retry_key = 'install-packages-windows'
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $HOME ".local\state\dotfiles\retry\$retry_key")
 

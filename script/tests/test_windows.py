@@ -547,7 +547,16 @@ class WindowsDeployTest(unittest.TestCase):
                     marker.unlink()
                 self.assertNotEqual(before, after)
                 self.assertIn("# install failed on last apply (marker ", after)
+                self.assertIn("$retrying = $true", after)
+                self.assertIn("$retrying = $false", before)
                 self.assertTrue(after.isascii())
+
+    def test_windows_agent_config_retry_does_not_skip_on_git(self):
+        # 上次 init 完、install -g 或 sync 失敗:重試時不能因為 .git 在就當成裝好跳過,init 也不重跑(同 sh 版,#429 review)
+        out = self.render(SCRIPTS / "run_onchange_after_install-agent-config.ps1.tmpl", ["agent-config"])
+        self.assertIn("if ((Test-Path (Join-Path $dir '.git')) -and -not $retrying) {", out)
+        self.assertIn("if (-not (Test-Path (Join-Path $dir '.git'))) { Invoke-Skillshare init ", out)
+        self.assertNotIn("找不到 {0},沒有 init\"", self.decoded(out))
 
     def test_windows_wakatime_missing_agent_is_install_failed(self):
         # 勾了 claude／codex 才有那段:找不到就是 install-official 這次沒裝好,記成裝失敗、下次重試(同 sh 版)
@@ -569,7 +578,10 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertIn("Remove-Item -Force -ErrorAction SilentlyContinue $f", out)
         self.assertNotIn("retry", out)
         # 排在 zz-env-skipped 後面:先列裝不了、再列裝失敗(同 sh 版)
-        self.assertLess("zz-env-skipped.ps1", "zz-install-failed-summary.ps1")
+        afters = sorted(re.sub(r"^run_(onchange_|once_)?after_", "", f.name).removesuffix(".tmpl")
+                        for f in SCRIPTS.glob("run_*after_*.ps1.tmpl"))
+        self.assertEqual(afters[-1], "zz-install-failed-summary.ps1")
+        self.assertLess(afters.index("zz-env-skipped.ps1"), afters.index("zz-install-failed-summary.ps1"))
         sh = (SCRIPTS / "run_after_zz-root-skipped-summary.sh.tmpl").read_text(encoding="utf-8")
         self.assertIn('includeTemplate "install-failed-header"', sh)
 
@@ -726,7 +738,7 @@ class WindowsDeployTest(unittest.TestCase):
         # remote 走 HTTPS,init 不照 --targets 加,最後 sync --all(含 MCP 與指令檔)
         self.assertIn("'https://github.com/henry5720/agent-config.git'", out)
         steps = [out.index(s) for s in ("Invoke-Skillshare init --git-root root --remote $remote --no-copy "
-                                        "--no-skill --no-targets\n", "Invoke-Skillshare install -g\n",
+                                        "--no-skill --no-targets }\n", "Invoke-Skillshare install -g\n",
                                         "Invoke-Skillshare sync --all\n")]
         self.assertEqual(steps, sorted(steps))
         self.assertLess(run, steps[0])
