@@ -48,6 +48,8 @@ MCP server ──── agent-config 的 mcp.yaml,skillshare 寫進 Claude / Cod
 - 只有 home repo(`chezmoi init` 問的位置,預設 `~/code`)底下的 repo 生效。`includeIf` 比對的是 **gitdir**,herdr 放在
   `~/.herdr/worktrees/<repo>/<slug>/` 的 worktree,gitdir 是 `<home repo>/<repo>/.git/worktrees/<slug>`,所以也算。
 - git 同時讀 `~/.config/git/config` 和 `~/.gitconfig`,身分設定留在 `~/.gitconfig`,不用動。
+  Windows 不部署 `~/.gitconfig`:沒有的話 chezmoi 建一個空檔(`create-gitconfig.ps1`),身分自己 `git config --global` 設。
+  沒有這個檔,`git config --global` 會寫進 chezmoi 管的 `~/.config/git/config`。
 - 改 `core.hooksPath` 會讓 repo 自己的 `.git/hooks/` 失效。設定當時 `~/code` 的 12 個 repo 加 8 個子 repo,
   `.git/hooks/` 全部只有 `.sample`,沒踩掉東西。
 

@@ -5,7 +5,9 @@
 #
 # 改 hooksPath 會讓 repo 自己的 .git/hooks/ 整個失效。設定當時清過一遍:
 # ~/code 的 12 個 repo 加 8 個子 repo,.git/hooks/ 全部只有 .sample,沒有真 hook,
-# 所以沒有東西被踩掉。
+# 所以沒有東西被踩掉。Windows 的 D:\code(henry-desktop 的 inbox、teamsync-frontend、
+# work-docs,#412)也查過:只有 .sample,也沒有用 filter=lfs。
+# 之後有 repo 用 LFS 要注意:git lfs install 裝在 .git/hooks/ 的 pre-push 這些也會被蓋過、不會跑。
 #
 # ⚠️ repo 在自己的 local config 設了 core.hooksPath 的話(husky 就是這樣做),
 # **local 贏 global**,這份完全不生效,而且是靜默的。檢查方式:

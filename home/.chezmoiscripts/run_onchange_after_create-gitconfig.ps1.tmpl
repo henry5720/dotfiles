@@ -1,0 +1,9 @@
+{{- /* Windows 主機:~/.gitconfig 不存在就建一個空檔,存在就不動(#412)。
+       Windows 部署了 ~/.config/git/config 但刻意不部署 .gitconfig(不問 git 身分)。git 的規則是 ~/.gitconfig 不存在、
+       XDG 那份存在時,`git config --global`(含 `gh auth setup-git`)寫進 XDG 那份,也就是 chezmoi 管的檔,
+       下次 apply 會跟 source 對不上。有了空的 ~/.gitconfig,--global 改寫到它,chezmoi 不管它。
+       run_onchange_:內容不變只跑一次;之後自己刪掉 ~/.gitconfig 不會再建。
+       只部署到 Windows;由 Windows PowerShell 5.1 跑,渲染結果只能有 ASCII。 */ -}}
+{{ includeTemplate "ps1-winps-modules" . }}
+$gitconfig = Join-Path $HOME '.gitconfig'
+if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig | Out-Null }
