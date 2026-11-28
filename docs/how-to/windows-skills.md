@@ -23,7 +23,7 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 
 | skill | 能用的 | 不能用的 | agent-config issue |
 |---|---|---|---|
-| remote-access | tailnet 內的 ssh 轉發、`tailscale serve`；tailnet 外照〈agent 就在那台 Windows〉用 PowerShell 開、驗、收 | `remote-access` 腳本（python3，用 `pgrep`、`SIGHUP`） | [#119](https://github.com/henry5720/agent-config/issues/119) |
+| remote-access | tailnet 內的 ssh 轉發、`tailscale serve`；tailnet 外照 `tailnet-outside.md`〈agent 在原生 Windows〉用 PowerShell 開、驗、收 | `remote-access` 腳本（python3，用 `pgrep`、`SIGHUP`） | [#119](https://github.com/henry5720/agent-config/issues/119) |
 | windows-access | `windows-mcp-http.ps1 start\|stop\|auth-header`（PowerShell 5.1 或 7） | 同一台的 stdio（`mcp.yaml` 的 `windows-mcp`）：`windows-mcp-stdio` 要在 WSL 跑（`wslpath`） | [#119](https://github.com/henry5720/agent-config/issues/119) |
 | browser-access | headless（`playwright-cli open`）、使用者的獨立 profile | 接插件的 `playwright-extension-attach`（要 `python3`、`/proc`、`mkfifo`）；查 port 的 `ss -ltnp` 換 `Get-NetTCPConnection` | [#96](https://github.com/henry5720/agent-config/issues/96) |
 | verify-in-browser | 用 `playwright-cli` 逐條驗、存證據 | 產報告的 `uv run scripts/render-report.py`（要 uv：勾了 agent-config、`uv` 或 windows-mcp 就由 mise 一併裝）；證據資料夾 `chmod 700` 在 NTFS 不生效 | [#96](https://github.com/henry5720/agent-config/issues/96) |
@@ -41,9 +41,9 @@ Windows 主機勾了 agent-config 後，skillshare 把 agent-config 的 skill �
 | mise 裝的工具（完整或自己勾） | playwright-cli（`playwright-cli`）、compress-video（`ffmpeg`；SKILL.md「沒有 ffmpeg」只寫 apt、brew）、herdr、herdr-workflow（`herdr`）、find-skills（`node` 的 `npx`） |
 | 其他 | skillshare（skillshare 本體已裝；附的 `run.sh` 用不到）、pms-workflow（pms MCP；打卡定位用 Windows PowerShell 5.1） |
 
-只靠 `git`、`gh` 或純文字的：archive-branches、ask-matt、caveman、code-review、codebase-design、
+只靠 `git`、`gh` 或純文字的：ask-matt、caveman、code-review、codebase-design、
 domain-modeling、grill-me、grill-with-docs、grilling、handoff、humanizer-zh、implement、implement-spec、
-improve-codebase-architecture（開 HTML 已寫 Windows 的 `start`）、pr、prototype、research、retro、
+improve-codebase-architecture（開 HTML 已寫 Windows 的 `start`）、matt-workflow、pr、prototype、research、retro、
 setup-matt-pocock-skills、tdd、teach、to-questionnaire、to-spec、to-tickets、triage、wait-what、wayfinder、writing-for-agents。
 
 agent-config 加了新 skill 或上面的 issue 修好後，更新這頁。
