@@ -24,6 +24,12 @@ WINDOWS_TARGETS = {
     # 跟 Linux 同一份 ssh config(#307)
     ".ssh/config",
     ".config/starship.toml",
+    # git 的 includeIf 與共用 hooks(codegraph 索引,#412);ignore 擋掉 hook 複製進 worktree 的 .codegraph/
+    ".config/git/config",
+    ".config/git/ignore",
+    ".config/git/config-code",
+    ".config/git/hooks/post-checkout",
+    ".config/git/hooks/post-merge",
     "Documents/PowerShell/Profile.ps1",
     "Documents/WindowsPowerShell/Profile.ps1",
     "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",

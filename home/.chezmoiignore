@@ -23,6 +23,15 @@
 !.ssh/config
 !.config
 !.config/starship.toml
+# git 的共用設定與 hooks(#412):includeIf 比對 home repo(Windows 填 D:\code 會渲染成 D:/code/),
+# 底下的 repo 走 core.hooksPath 跑 codegraph 的 post-checkout、post-merge(Git for Windows 用自帶的 sh 跑 #!/bin/sh)。
+# ignore 一起放:沒有它,hook 複製進 worktree 的 .codegraph/ 會出現在 git status 的 untracked
+!.config/git
+!.config/git/config
+!.config/git/ignore
+!.config/git/config-code
+!.config/git/hooks
+!.config/git/hooks/*
 {{ if has "codex" $tools -}}
 # Codex 的設定(#320),勾了才部署。config.toml 是 modify-template,所有平台同一份(#421)。
 # personal.config.toml、codex-gcp.config.toml 不放:給 ai-profile(codex-personal、codex-gcp,只有 Linux)用

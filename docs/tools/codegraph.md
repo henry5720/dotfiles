@@ -206,6 +206,10 @@ mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定�
 mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
 少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
 
+〈共用 git hook 怎麼接上〉那五個檔 Windows 也部署(#412),home repo 填 `D:\code` 會渲染成 `gitdir:D:/code/`。
+Git for Windows 用自帶的 sh 跑 `#!/bin/sh` 的 hook,`d:\code` 小寫磁碟機也比對得到(2026-11-28 在 Git 2.54.0.windows.1 實測)。
+codegraph 沒裝(沒勾選裝工具 `codegraph`)時兩支 hook 什麼都不做。
+
 同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
 Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。
 
