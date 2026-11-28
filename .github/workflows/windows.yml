@@ -152,6 +152,16 @@ jobs:
           $pending = chezmoi status --include scripts | Where-Object { $_ -notmatch 'zz-install-failed-summary' }
           if ($pending) { "還有腳本待跑:"; $pending; exit 1 }
 
+      # 6b. ~/.gitconfig 是 create-gitconfig.ps1 建的、chezmoi 不管(#412):git config --global 寫到它,
+      #     不寫進 chezmoi 管的 ~/.config/git/config,寫完 verify 照樣沒有差異
+      - name: git config --global 不寫進 chezmoi 管的檔
+        run: |
+          if (-not (Test-Path "$HOME\.gitconfig")) { "沒有 ~/.gitconfig"; exit 1 }
+          git config --global ci.probe 1
+          git config --show-origin --global --get ci.probe
+          chezmoi verify --exclude scripts
+          if ($LASTEXITCODE -ne 0) { chezmoi diff --exclude scripts; exit 1 }
+
       # 7. 實機清單第 2 項:PowerShell 讀得到 chezmoi 部署的 profile
       - name: Documents 是家目錄那份
         run: |

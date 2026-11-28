@@ -48,6 +48,8 @@ MCP server ──── agent-config 的 mcp.yaml,skillshare 寫進 Claude / Cod
 - 只有 home repo(`chezmoi init` 問的位置,預設 `~/code`)底下的 repo 生效。`includeIf` 比對的是 **gitdir**,herdr 放在
   `~/.herdr/worktrees/<repo>/<slug>/` 的 worktree,gitdir 是 `<home repo>/<repo>/.git/worktrees/<slug>`,所以也算。
 - git 同時讀 `~/.config/git/config` 和 `~/.gitconfig`,身分設定留在 `~/.gitconfig`,不用動。
+  Windows 不部署 `~/.gitconfig`:沒有的話 chezmoi 建一個空檔(`create-gitconfig.ps1`),身分自己 `git config --global` 設。
+  沒有這個檔,`git config --global` 會寫進 chezmoi 管的 `~/.config/git/config`。
 - 改 `core.hooksPath` 會讓 repo 自己的 `.git/hooks/` 失效。設定當時 `~/code` 的 12 個 repo 加 8 個子 repo,
   `.git/hooks/` 全部只有 `.sample`,沒踩掉東西。
 
@@ -205,6 +207,10 @@ mise 的 shim 是 `codegraph.exe`，skillshare 寫進各 client 的 MCP 設定�
 在 Windows 寫成 `codegraph.cmd prompt-hook`（Claude Code 用 Git Bash 跑 hook，Git Bash 不補 `.cmd`，上游 #1466），
 mise 裝的沒有 `codegraph.cmd`，hook 每次都會報找不到指令（不擋 prompt，只是沒作用）。
 少了它只差 prompt 前的 codegraph 提示和 `mcp__codegraph__*` 的自動允許，MCP 工具照樣能用。Codex 那邊 codegraph 不寫 hook。
+
+〈共用 git hook 怎麼接上〉那五個檔 Windows 也部署(#412),home repo 填 `D:\code` 會渲染成 `gitdir:D:/code/`。
+Git for Windows 用自帶的 sh 跑 `#!/bin/sh` 的 hook,`d:\code` 小寫磁碟機也比對得到(2026-11-28 在 Git 2.54.0.windows.1 實測)。
+codegraph 沒裝(沒勾選裝工具 `codegraph`)時兩支 hook 什麼都不做。
 
 同一個 checkout 不要讓 Windows 和 WSL 共用 `.codegraph/`：SQLite 的鎖跨不了兩邊，見 codegraph README 的
 Troubleshooting〈Sharing one checkout between Windows and WSL〉（<https://github.com/colbymchenry/codegraph#troubleshooting>）。

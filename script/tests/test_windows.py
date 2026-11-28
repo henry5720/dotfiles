@@ -24,6 +24,12 @@ WINDOWS_TARGETS = {
     # 跟 Linux 同一份 ssh config(#307)
     ".ssh/config",
     ".config/starship.toml",
+    # git 的 includeIf 與共用 hooks(codegraph 索引,#412);ignore 擋掉 hook 複製進 worktree 的 .codegraph/
+    ".config/git/config",
+    ".config/git/ignore",
+    ".config/git/config-code",
+    ".config/git/hooks/post-checkout",
+    ".config/git/hooks/post-merge",
     "Documents/PowerShell/Profile.ps1",
     "Documents/WindowsPowerShell/Profile.ps1",
     "AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
@@ -54,6 +60,8 @@ WINDOWS_SCRIPTS = {
     ".chezmoiscripts/register-herdr-server.ps1",
     # MCP 的 API key(context7、graphify)設成使用者環境變數;沒填 key 時渲染成空的,但仍是 managed
     ".chezmoiscripts/set-mcp-env.ps1",
+    # ~/.gitconfig 不存在就建空檔,git config --global 才不會寫進 chezmoi 管的 ~/.config/git/config(#412)
+    ".chezmoiscripts/create-gitconfig.ps1",
     ".chezmoiscripts/zz-env-skipped.ps1",
     # 略過彙整的「這次裝失敗」(#422,ADR 0006):run_after_,每台都有
     ".chezmoiscripts/zz-install-failed-summary.ps1",
@@ -856,6 +864,16 @@ class WindowsDeployTest(unittest.TestCase):
                 code = [l for l in out.splitlines() if l.strip() and not l.lstrip().startswith("#")]
                 if not code: continue  # 渲染成空的(set-mcp-env 沒帶 key)chezmoi 不跑
                 self.assertIn("$env:PSModulePath", code[0])
+
+    def test_windows_creates_empty_gitconfig_only_when_missing(self):
+        # Windows 部署 ~/.config/git/config 但不部署 .gitconfig(#412):沒有 ~/.gitconfig 時 git config --global
+        # 會寫進 chezmoi 管的那份。腳本只在不存在時建空檔,不寫內容(身分自己設);每台都跑,不看勾選
+        for tools in ([], sorted(WINDOWS_FULL)):
+            with self.subTest(tools=tools):
+                out = self.render(SCRIPTS / "run_onchange_after_create-gitconfig.ps1.tmpl", tools)
+                self.assertIn("$gitconfig = Join-Path $HOME '.gitconfig'", out)
+                self.assertIn("if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig", out)
+                self.assertNotIn("Set-Content", out)
 
     def test_windows_tools_command_reprompts_and_applies(self):
         out = self.render("home/dot_local/bin/tools.ps1.tmpl", [])
