@@ -1,0 +1,36 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+共用 ~/.codex 的 personal profile(ai-profile 的 codex-personal 用 --profile personal 疊在 config.toml 上);
+只管理 model／provider／login,不碰 base gateway、credential 或 state。
+照 chezmoi 官方的 modify-template:現有檔案是 .chezmoi.stdin,不靠 sh、python3(#421)。
+
+1. 現有內容先解析一次,不是合法 TOML 就讓 apply 失敗
+2. 第一個 table 之前的 model、model_provider、forced_login_method 與權限 key 丟掉,其餘每一行原樣留著。
+   權限 key 也丟:用 --profile personal 時,TUI 的 /permissions 會寫進這份,蓋過 base 的 auto_review(#204)
+3. 前面補上 repo 的 model(init 時填的 aiPersonal.codexModel,沒填就不寫)、provider、login,再檢查一次是合法 TOML
+*/ -}}
+{{- $existing := .chezmoi.stdin | replace "\r\n" "\n" -}}
+{{- /* 1. */ -}}
+{{- if trim $existing }}{{ $_ := fromToml $existing }}{{ end -}}
+{{- /* 2. */ -}}
+{{- $drop := list "model" "model_provider" "forced_login_method" "approval_policy" "sandbox_mode" "approvals_reviewer" -}}
+{{- $lines := list -}}
+{{- $inTable := false -}}
+{{- range $line := splitList "\n" $existing -}}
+{{-   $stripped := trim $line -}}
+{{-   if hasPrefix "[" $stripped }}{{ $inTable = true }}{{ end -}}
+{{-   $managed := false -}}
+{{-   if not $inTable -}}
+{{-     range $key := $drop -}}
+{{-       if or (hasPrefix (print $key " ") $stripped) (hasPrefix (print $key "=") $stripped) }}{{ $managed = true }}{{ end -}}
+{{-     end -}}
+{{-   end -}}
+{{-   if not $managed }}{{ $lines = append $lines $line }}{{ end -}}
+{{- end -}}
+{{- /* 3. */ -}}
+{{- $candidate := list -}}
+{{- with (index (default dict (index . "aiPersonal")) "codexModel") }}{{ $candidate = append $candidate (printf "model = %s" (toJson .)) }}{{ end -}}
+{{- $candidate = concat $candidate (list "model_provider = \"openai\"" "forced_login_method = \"chatgpt\"") $lines -}}
+{{- $text := printf "%s\n" (regexReplaceAll "\\s+$" (join "\n" $candidate) "") -}}
+{{- $_ := fromToml $text -}}
+{{- $text -}}

@@ -58,7 +58,6 @@ WINDOWS_SCRIPTS = {
 }
 # 勾了 codex 才部署的設定(#320)。personal.config.toml、codex-gcp.config.toml 不放:給 ai-profile(只有 Linux)用
 CODEX_TARGETS = {".codex/config.toml"}
-CODEX_CONFIG = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 # Codex 自己寫過的 config.toml:codex 加的頂層 key(notify)、信任專案、TUI 計數器、hook,skillshare 寫的 MCP,
 # 使用者在 developer_instructions 自己加的字(多行字串裡有像 table 的一行)
 CODEX_EXISTING = (
@@ -181,7 +180,7 @@ class WindowsDeployTest(unittest.TestCase):
                                        data={"tools": ["opencode"], "codexLbApiKey": "fixture"}))
 
     def test_windows_opencode_json_is_repo_version_and_keeps_mcp(self):
-        # Linux 那份是 sh + jq 的 modify_ 腳本,Windows 跑不了;Windows 渲染成 modify-template(同 Terminal 的 settings.json):
+        # 渲染成 modify-template(同 Terminal 的 settings.json),所有平台同一份(#204):
         # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
         fresh = self.render_opencode_json(None)
         self.assertEqual(fresh["mcp"], {})
@@ -196,25 +195,19 @@ class WindowsDeployTest(unittest.TestCase):
         self.assertEqual(kept, fresh | {"mcp": kept["mcp"]})
 
     # ===============================================================
-    # Codex 的 config.toml(#320):Linux 那份是 sh + python3,Windows 渲染成 modify-template,行為一樣
+    # Codex 的 config.toml(#320):modify-template,所有平台同一份(#421 起 Linux 也不再用 sh + python3)
     # ===============================================================
-    def codex_windows(self, existing):
-        """Windows 上 chezmoi 算出的 ~/.codex/config.toml(existing = None 是檔案不存在)。"""
+    def codex_cat(self, existing, os_name="windows"):
+        """chezmoi 在 os_name 上算出的 ~/.codex/config.toml(existing = None 是檔案不存在)。"""
         target = self.home / ".codex/config.toml"
         target.unlink(missing_ok=True)
         if existing is not None:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(existing, encoding="utf-8")
-        return self.chezmoi("windows", "cat", str(target), data={"tools": ["codex"], "codexLbApiKey": "fixture"})
-
-    def codex_linux(self, existing):
-        script = self.chezmoi("linux", "execute-template", CODEX_CONFIG.read_text(encoding="utf-8"),
-                              data={"tools": ["codex"], "codexLbApiKey": "fixture"})
-        return subprocess.run(["sh", "-c", script], input=existing, text=True, capture_output=True, check=True,
-                              env={"PATH": os.environ["PATH"], "HOME": str(self.home)}).stdout
+        return self.chezmoi(os_name, "cat", str(target), data={"tools": ["codex"], "codexLbApiKey": "fixture"})
 
     def test_windows_codex_config_pins_values_and_keeps_codex_state(self):
-        out = self.codex_windows(CODEX_EXISTING)
+        out = self.codex_cat(CODEX_EXISTING)
         config, before = tomllib.loads(out), tomllib.loads(CODEX_EXISTING)
         for key in ("model", "model_reasoning_effort", "approval_policy", "sandbox_mode"):
             self.assertNotIn(key, config)  # 用 codex 預設(#204)
@@ -226,28 +219,33 @@ class WindowsDeployTest(unittest.TestCase):
         for key in ("notify", "projects", "tui", "features", "mcp_servers"):
             self.assertEqual(config[key], before[key], key)
         self.assertNotIn("skills", config)
-        self.assertEqual(self.codex_windows(out), out)
+        self.assertEqual(self.codex_cat(out), out)
 
-    def test_windows_codex_config_matches_linux_for_same_input(self):
-        # 同一批輸入,Windows 的 modify-template 跟 Linux 的 sh + python3 輸出要逐字一樣
+    def test_codex_config_is_stable_on_every_os(self):
+        # 同一份樣板(#421):輸出再餵一次不變(chezmoi diff 才是空的),Linux、Termux 跟 Windows 逐字一樣
+        # (沒有 obsidian-wiki 的 skill 時;那段只在 Linux 系,見 test_mcp_handoff),記事本存過的 CRLF 檔輸出跟 LF 版一樣
+        banner = "# " + "=" * 60 + "\n"
         cases = [None, "", CODEX_EXISTING,
                  '"developer_instructions" = "a\\n\\n<!-- chezmoi:codex-commit-attribution:start -->\\nold\\n'
                  '<!-- chezmoi:codex-commit-attribution:end -->\\nb"\nnotify = ["x"]\n',
                  '[projects."/x"]\ntrust_level = "trusted"\n\n\n[mcp_servers.a]\nurl = "u"\n',
                  # 舊版 chezmoi 寫的停用 skill 橫幅在中間、table 名稱帶空白與引號、值裡有括號
-                 '[projects."/x"]\ntrust_level = "trusted"\n\n# ' + '=' * 60 + '\n# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n'
-                 '# ' + '=' * 60 + '\n\n[[skills.config]]\npath = "/w/SKILL.md"\nenabled = false\n\n'
+                 '[projects."/x"]\ntrust_level = "trusted"\n\n' + banner + '# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n'
+                 + banner + '\n[[skills.config]]\npath = "/w/SKILL.md"\nenabled = false\n\n'
                  '[ model_providers . "codex-lb-gcp" ]\nname = "x"\n\n[mcp_servers.b]\ncommand = "a[b"\nargs = ["{", "#"]\n']
         for existing in cases:
             with self.subTest(existing=(existing or "")[:40]):
-                linux = self.codex_linux(existing or "")
-                self.assertEqual(self.codex_windows(existing), linux)
-                self.assertEqual(self.codex_windows(linux), linux)
-                # 使用者用記事本存過的 CRLF 檔:舊橫幅照樣認得,輸出跟 codex 一樣是 LF
-                # (Linux 那份讀 CRLF 會失敗,所以比的是同一份內容 LF 版的 Linux 輸出)
+                out = self.codex_cat(existing)
+                config = tomllib.loads(out)
+                self.assertEqual(config["approvals_reviewer"], "auto_review")
+                self.assertNotIn("skills", config)
+                self.assertNotIn("由 chezmoi 停用的 skill", out)
+                self.assertEqual(self.codex_cat(out), out)
+                for os_name in ("linux", "android"):
+                    self.assertEqual(self.codex_cat(existing, os_name), out, os_name)
                 if existing:
                     crlf = existing.replace("\n", "\r\n").encode()
-                    self.assertEqual(self.cat_bytes(".codex/config.toml", crlf, ["codex"], ROOT), linux.encode())
+                    self.assertEqual(self.cat_bytes(".codex/config.toml", crlf, ["codex"], ROOT), out.encode())
 
     def render(self, path, tools):
         """在 Windows 渲染 repo 裡的一個樣板(path 相對 repo 根目錄)。"""
@@ -953,7 +951,7 @@ class WindowsDeployTest(unittest.TestCase):
     # ===============================================================
     # Claude Code 的 settings.json(modify template,#319)
     # ===============================================================
-    # 只釘兩個值(跟 Linux 那份 sh + jq 一樣):官方 chrome-devtools plugin 關掉、attribution.commit。
+    # 只釘兩個值(所有平台同一份,#204):官方 chrome-devtools plugin 關掉、attribution.commit。
     # 其他(hook、statusLine、autoMode、其他 plugin 開關)是 Claude 和其他工具自己寫的,原樣留著。
     def render_claude_settings(self, existing, source=ROOT):
         """existing(str,None = 檔案不存在)放到 ~/.claude/settings.json,回傳 chezmoi 算出的 bytes。"""
@@ -995,7 +993,7 @@ class WindowsDeployTest(unittest.TestCase):
                          {"attribution": {"commit": CLAUDE_COMMIT}, "enabledPlugins": {CHROME_PLUGIN: False}})
 
     def test_windows_claude_settings_replaces_non_object_values(self):
-        # 跟 Linux 的 jq 一樣:attribution 不是物件時整個換成物件
+        # attribution 不是物件時整個換成物件
         after = json.loads(self.render_claude_settings('{"attribution": "x", "enabledPlugins": null}'))
         self.assertEqual(after["attribution"], {"commit": CLAUDE_COMMIT})
         self.assertEqual(after["enabledPlugins"], {CHROME_PLUGIN: False})

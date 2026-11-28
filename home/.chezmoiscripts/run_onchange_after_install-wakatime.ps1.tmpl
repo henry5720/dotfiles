@@ -16,7 +16,7 @@
           marketplace add 從 git URL clone,要系統的 git:勾 wakatime 時 install-packages-windows(before_)用 winget 裝 Git.Git,
           這個 process 的 PATH 是 apply 開始時的,先把登錄檔裡的 Machine、User PATH 接上(同 install-agent-config.ps1)
        3. Codex CLI 的 plugin:照 wakatime/codex-cli-wakatime README 的兩行指令;已裝就跳過
-       已裝的判斷照 plugin list --json 的欄位(同 Linux 的 jq);印出來的不是 JSON 就當作沒裝、照裝
+       已裝的判斷照 plugin list --json 的欄位(Linux 沒有 jq,改用 grep 找 plugin id);印出來的不是 JSON 就當作沒裝、照裝
        (Get-PluginList 接住 ConvertFrom-Json 的例外,不然整段 if 被跳過)。
        agent 先找 PATH,再找官方 installer 裝的位置(.chezmoitemplates/ps1-agent-exe;chezmoi 跑腳本時 -NoProfile,
        PATH 不一定有 .local\bin)。

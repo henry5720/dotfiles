@@ -1,3 +1,6 @@
+{{- /* 基底從 #421 起沒有 python3:這台沒有 python3 就渲染成空的、不跑(chezmoi 不把空的 run_once 記成跑過),
+       不然 env 找不到 python3、apply 失敗。沒有 python3 的多半是新機器,本來就沒有要清的舊條目;之後裝了 python3 會補跑一次。 */ -}}
+{{- if lookPath "python3" -}}
 #!/usr/bin/env python3
 # 一次性遷移:MCP 從 chezmoi 交給 skillshare(dotfiles #34)。
 #
@@ -117,3 +120,4 @@ def clean_codex():
 for rel, (section, legacy) in LEGACY_JSON.items():
     clean_json(rel, section, legacy)
 clean_codex()
+{{ end -}}

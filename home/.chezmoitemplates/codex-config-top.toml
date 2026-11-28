@@ -1,6 +1,6 @@
 # ============================================================
 # codex-lb - 公司自架的 codex 負載平衡器 (GCP asia-east1-b)；以下 provider 與權限
-# 是 repo 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由下方腳本保留。
+# 是 repo 管理的區塊，其餘 codex 狀態（含 skillshare 寫的 MCP）由 chezmoi 的 modify-template 原樣保留。
 # model、reasoning effort、approval_policy、sandbox_mode 不寫，用 codex 的預設（#204）。
 # ============================================================
 model_provider = "codex-lb-gcp"

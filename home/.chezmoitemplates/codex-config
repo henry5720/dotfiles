@@ -1,0 +1,148 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+~/.codex/config.toml 是兩方共用的檔案:上半段是這個 repo 的設定,下半段全是 codex 自己寫進去的狀態
+(信任過的專案、TUI 提示計數器、feature flag、hook 的 trusted_hash)。整份納管的話每跑一次 codex 就多一段 diff,
+而且那些絕對路徑等於把專案清單推上公開 repo。
+
+所以用 modify_:管理 provider、權限與 commit 指引,codex 自己的 table 原封不動吐回去,`chezmoi diff` 因此會是空的。
+所有平台同一份(#421 起;#320 先用在 Windows),照 chezmoi 官方的 modify-template:dot_codex/modify_private_config.toml.tmpl
+原樣吐出這份(有 chezmoi:modify-template),chezmoi 拿現有檔案當 .chezmoi.stdin 執行它,不靠 sh、python3。
+釘的值(provider、權限、commit 指引)從 .chezmoitemplates/ 的 codex-config-top.toml、codex-config-provider.toml、
+codex-commit-attribution.md 來。
+
+MCP server 不歸這裡管,由 skillshare 寫(清單在 agent-config 的 mcp.yaml):所有 [mcp_servers.*] 都當成別人的 table 原樣保留,
+不然每次 apply 都會刪掉 skillshare 寫的。
+
+權限只寫 approvals_reviewer = "auto_review":sandbox 照常擋 .git 寫入與連網,越界的請求先交給 auto_review 審,審不過才問人。
+approval_policy、sandbox_mode 用 codex 預設(信任過的專案就是 on-request + workspace-write);model、model_reasoning_effort 也用預設(#204)。
+- $managed 裡沒寫值的 key 每次 apply 都丟掉:TUI 的 /permissions、/model 會把選擇寫回這份檔
+  (codex 0.171.0 原始碼,tui/src/chatwidget/permission_popups.rs),丟掉才會回到預設。
+- Termux 的 codex 沒有 sandbox:shell 指令不設防地跑、不發核准請求,改檔反而每次都要審。
+  這個 key 照樣寫,只是為了各平台設定一致,不代表 Termux 上有防護。
+- personal profile(modify_private_personal.config.toml)的權限 key 由那份丟掉,--profile personal 疊在這份上就吃到同一組。
+
+⚠️ 不歸 repo 管的頂層 key(例如 notify)只能留在第一個 table 之前:一旦排到 [model_providers.codex-lb-gcp] 後面,
+TOML 就會把它當成那個 table 的欄位,語意整個改掉。所以第 2 步把它們收進 $preamble,插在 repo 管的頂層 key 與第一個 table 之間;
+留不住或放錯位置,第 5 步的安全檢查會擋下來(比的是解析後的結構,位置變了就是結構變了)。
+
+⚠️ 新機器上這份只會產出 repo provider 與權限 key,下半段要自己長回來:
+- 信任專案:第一次進那個目錄時 codex 會問,答 yes 就寫回檔案
+- [features] hooks = true + ~/.codex/hooks.json + herdr-agent-state.sh:這三樣是 herdr 裝的(那支腳本檔頭就寫 "managed by herdr"),
+  重跑 herdr 的 codex 整合會一起回來。不要在這裡 enable,沒有 hooks.json 等於沒開。
+
+1. 讀現有 developer_instructions,只換掉 chezmoi 的區塊,使用者自己加的字留著
+2. 現有內容切成 TOML statement(多行字串、多行陣列算一個):
+   - 第一個 table 前:註解、空行、repo 管的 key 丟掉(會重新長出來),其餘(codex 寫的頂層 key)留著
+   - [model_providers.codex-lb-gcp](含子 table)、[[skills.config]]、舊版 chezmoi 的橫幅丟掉,其餘 table 原樣留著。
+     停用 skill 那段原本在哪,第 4 步就放回哪:skillshare 新增的 MCP table 會接在檔尾,
+     要是這段每次都搬到最後,sync 完 chezmoi diff 就會多出一次換位
+3. 輸出順序:repo 的頂層 key、developer_instructions、留著的頂層 key、provider、留著的 table
+4. obsidian-wiki 那包 skill 停用(Windows 沒有這包,不做):codex 這側用不到,但 description 每個 request 都要進 context
+   (實測 ~1,680 tokens,codex 還會印 "descriptions were shortened" 的 warning)。用 symlink 的實際位置認(路徑含 obsidian_wiki),
+   不寫死清單,wiki 套件增刪 skill 時不用回來改。chezmoi 的樣板函式沒有 realpath,所以交給 sh 的 cd && pwd -P
+   (POSIX,舊版 macOS、busybox 也能用;readlink -f 在 macOS 12.3 以前沒有,而且 symlink 斷掉會失敗)。要恢復:把這段拿掉,或把該 skill 移出 obsidian-wiki 的安裝目錄
+5. 安全檢查:repo 不管的部分解析後跟現有內容一樣,不一樣就讓 apply 失敗,不寫壞檔案
+*/ -}}
+{{- $managed := list "model" "model_provider" "model_reasoning_effort" "approval_policy" "sandbox_mode" "approvals_reviewer" "developer_instructions" -}}
+{{- $provider := "codex-lb-gcp" -}}
+{{- $skillsMarkers := list "# 由 chezmoi 停用的 skill(obsidian-wiki 那包,見上面的 token 實測)。" "# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。" -}}
+{{- $markers := concat $skillsMarkers (list "# 由 chezmoi 管理的 MCP servers。" "# MCP servers managed by chezmoi.") -}}
+{{- /* 記事本存過的 CRLF 檔先換成 LF 再比對與輸出:codex 自己寫 LF,第 5 步也拿換過的比 */ -}}
+{{- $existing := .chezmoi.stdin | replace "\r\n" "\n" -}}
+{{- /* 1. */ -}}
+{{- $prior := get (fromToml $existing) "developer_instructions" | default "" -}}
+{{- if not (kindIs "string" $prior) }}{{ fail "developer_instructions 必須是字串" }}{{ end -}}
+{{- $prior = regexReplaceAll "(?s)(?:\n\n)?<!-- chezmoi:codex-commit-attribution:start -->.*?<!-- chezmoi:codex-commit-attribution:end -->" $prior "" -}}
+{{- $guide := regexReplaceAll "\n+$" (includeTemplate "codex-commit-attribution.md" .) "" -}}
+{{- $instructions := $guide -}}
+{{- if $prior }}{{ $instructions = printf "%s\n\n%s" $prior $guide }}{{ end -}}
+{{- /* 2. 括號只數字串與註解以外的;三引號數到偶數個才算字串結束。
+       shortcut: 不是完整的 TOML lexer(例如 basic string 裡的 """),判斷錯時第 5 步會擋下來讓 apply 失敗 */ -}}
+{{- $out := list -}}
+{{- $preamble := "" -}}
+{{- $skillsAt := -1 -}}
+{{- $keep := false -}}
+{{- $seen := false -}}
+{{- $pending := "" -}}
+{{- range $line := regexFindAll "[^\n]*\n|[^\n]+$" $existing -1 -}}
+{{-   $pending = print $pending $line -}}
+{{-   if or (mod (len (splitList "\"\"\"" $pending)) 2 | eq 0) (mod (len (splitList "'''" $pending)) 2 | eq 0) }}{{ continue }}{{ end -}}
+{{-   $bare := regexReplaceAll "#[^\n]*" (regexReplaceAll "(?s)\"\"\".*?\"\"\"|'''.*?'''|\"(?:[^\"\\\\\n]|\\\\.)*\"|'[^'\n]*'" $pending "") "" -}}
+{{-   if ne (len (splitList "[" $bare)) (len (splitList "]" $bare)) }}{{ continue }}{{ end -}}
+{{-   if ne (len (splitList "{" $bare)) (len (splitList "}" $bare)) }}{{ continue }}{{ end -}}
+{{-   $st := $pending -}}
+{{-   $pending = "" -}}
+{{-   if has (regexReplaceAll "\n+$" $st "") $markers -}}
+{{-     range $_ := $out -}}
+{{-       if and $out (or (not (trim (last $out))) (hasPrefix "# ===" (last $out))) }}{{ $out = initial $out }}{{ else }}{{ break }}{{ end -}}
+{{-     end -}}
+{{-     if and (has (regexReplaceAll "\n+$" $st "") $skillsMarkers) (lt $skillsAt 0) }}{{ $skillsAt = len $out }}{{ end -}}
+{{-     $keep = false -}}
+{{-     continue -}}
+{{-   end -}}
+{{-   if regexMatch "^[ \t]*\\[" $st -}}
+{{-     $seen = true -}}
+{{-     $table := regexReplaceAll "[\\[\\]\"' \t]" (regexReplaceAll "\\][ \t]*(#.*)?\n?$" $st "") "" -}}
+{{-     if or (eq $table (print "model_providers." $provider)) (hasPrefix (print "model_providers." $provider ".") $table) -}}
+{{-       $keep = false -}}
+{{-       continue -}}
+{{-     end -}}
+{{-     if eq $table "skills.config" -}}
+{{-       if lt $skillsAt 0 }}{{ $skillsAt = len $out }}{{ end -}}
+{{-       $keep = false -}}
+{{-       continue -}}
+{{-     end -}}
+{{-     $keep = true -}}
+{{-   end -}}
+{{-   if not $seen -}}
+{{-     if or (not (trim $st)) (hasPrefix "#" (trim $st)) }}{{ continue }}{{ end -}}
+{{-     $key := regexReplaceAll "(?s)^[ \t]*(?:\"([^\"]*)\"|'([^']*)'|([A-Za-z0-9_-]+)).*" $st "${1}${2}${3}" -}}
+{{-     if not (has $key $managed) }}{{ $preamble = print $preamble $st }}{{ end -}}
+{{-     continue -}}
+{{-   end -}}
+{{-   if $keep }}{{ $out = append $out $st }}{{ end -}}
+{{- end -}}
+{{- if $pending }}{{ fail "codex config 安全更新失敗: 認不出 TOML statement 的結尾" }}{{ end -}}
+{{- range $_ := $out -}}
+{{-   if and $out (not (trim (last $out))) }}{{ $out = initial $out }}{{ else }}{{ break }}{{ end -}}
+{{- end -}}
+{{- /* 3. toJson 會把 < > & 跳脫成 \u003c 這類,換回來(舊版 python3 的 json.dumps 寫的是原字,已部署的檔才不會多一次 diff);
+       都是合法的 TOML basic string。shortcut: 指引裡本來就有 \u003c 這幾個字時會被換錯,第 5 步會擋下來 */ -}}
+{{- $json := toJson $instructions | replace "\\u003c" "<" | replace "\\u003e" ">" | replace "\\u0026" "&" -}}
+{{- $preambleText := printf "developer_instructions = %s\n%s" $json (trimAll "\n" $preamble) -}}
+{{- if lt $skillsAt 0 }}{{ $skillsAt = len $out }}{{ end -}}
+{{- $head := regexReplaceAll "\n+$" (slice $out 0 $skillsAt | join "") "" -}}
+{{- $tail := slice $out $skillsAt | join "" | trimAll "\n" -}}
+{{- /* 4. */ -}}
+{{- $skills := "" -}}
+{{- /* glob 會先 chdir 到 destination,destination 不存在(例如 apply --dry-run --destination 一個新目錄)就報錯,先看它在不在 */ -}}
+{{- if and (ne .chezmoi.os "windows") (stat .chezmoi.destDir) (stat (joinPath .chezmoi.homeDir ".codex/skills")) -}}
+{{- /* glob 不跟進 symlink 的目錄,所以列 skills/* 再自己看 SKILL.md 在不在(stat 會跟進) */ -}}
+{{-   range $skill := glob (joinPath .chezmoi.homeDir ".codex/skills/*") | sortAlpha -}}
+{{-     $md := joinPath $skill "SKILL.md" -}}
+{{- /* SKILL.md 在(stat 跟進 symlink)才解路徑:斷掉的 symlink 直接跳過,不讓 output 失敗中止 apply */ -}}
+{{-     if stat $md -}}
+{{-       $real := output "sh" "-c" "cd \"$1\" && pwd -P" "sh" $skill | trim -}}
+{{-       if contains "obsidian_wiki" $real -}}
+{{-         $skills = printf "%s\n[[skills.config]]\npath = %s\nenabled = false\n" $skills (toJson $md | replace "\\u003c" "<" | replace "\\u003e" ">" | replace "\\u0026" "&") -}}
+{{-       end -}}
+{{-     end -}}
+{{-   end -}}
+{{-   if $skills }}{{ $skills = printf "# %s\n# 由 chezmoi 停用的 skill(obsidian-wiki 那包)。\n# %s\n%s" (repeat 60 "=") (repeat 60 "=") $skills }}{{ end -}}
+{{- end -}}
+{{- $candidate := list -}}
+{{- range $part := list $head $skills $tail }}{{ if trim $part }}{{ $candidate = append $candidate (regexReplaceAll "\n+$" $part "") }}{{ end }}{{ end -}}
+{{- $result := printf "%s\n%s\n\n%s\n" (regexReplaceAll "\n+$" (includeTemplate "codex-config-top.toml" .) "") $preambleText (regexReplaceAll "\n+$" (includeTemplate "codex-config-provider.toml" .) "") -}}
+{{- if $candidate }}{{ $result = printf "%s\n%s\n" $result (join "\n\n" $candidate) }}{{ end -}}
+{{- /* 5. */ -}}
+{{- $cmp := list -}}
+{{- range $v := list (fromToml $existing) (fromToml $result) -}}
+{{-   $providers := omit (get $v "model_providers" | default dict) $provider -}}
+{{-   $v = omit $v "model_providers" "skills" -}}
+{{-   range $k := $managed }}{{ $v = omit $v $k }}{{ end -}}
+{{-   if $providers }}{{ $_ := set $v "model_providers" $providers }}{{ end -}}
+{{-   $cmp = append $cmp (toJson $v) -}}
+{{- end -}}
+{{- if ne (index $cmp 0) (index $cmp 1) }}{{ fail "codex config 安全更新失敗: 非 managed TOML 設定在重寫後改變" }}{{ end -}}
+{{- if ne (get (fromToml $result) "developer_instructions") $instructions }}{{ fail "codex config 安全更新失敗: Codex commit 指引未保留在頂層" }}{{ end -}}
+{{- $result -}}

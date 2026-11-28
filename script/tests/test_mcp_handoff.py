@@ -11,9 +11,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
-CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
+CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
-MODIFY_TARGETS = {OPENCODE: ".config/opencode/opencode.json"}
+MODIFY_TARGETS = {OPENCODE: ".config/opencode/opencode.json", CODEX: ".codex/config.toml",
+                  CODEX_PERSONAL: ".codex/personal.config.toml"}
 CLEANUP = ROOT / "home/.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl"
 LEGACY_CHROME = ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222", "--no-usage-statistics", "--no-performance-crux"]
 PERMISSIONS = {"approvals_reviewer": "auto_review"}
@@ -42,7 +43,7 @@ class McpHandoffTest(unittest.TestCase):
         path = self.home / MODIFY_TARGETS[template]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(existing, encoding="utf-8")
-        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "opencode"]}
+        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "codex", "opencode"]}
         return subprocess.run([
             "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(self.cfg),
             "--destination", str(self.home), "--override-data", json.dumps(override), "cat", str(path),
@@ -64,19 +65,38 @@ class McpHandoffTest(unittest.TestCase):
         # 停用 skill 那段要出現,才驗得到它不會被搬到 skillshare 的 table 後面。
         wiki = self.home / "obsidian_wiki/skills/wiki-query"; wiki.mkdir(parents=True); (wiki / "SKILL.md").write_text("x")
         (self.home / ".codex/skills").mkdir(parents=True); (self.home / ".codex/skills/wiki-query").symlink_to(wiki)
-        first = self.run_script(CODEX, "sh")
+        first = self.run_modify(CODEX)
+        self.assertIn('path = "' + str(self.home / ".codex/skills/wiki-query/SKILL.md") + '"\nenabled = false', first)
         synced = first + "\n[mcp_servers.gh_grep]\nurl = 'https://mcp.grep.app'\n"
-        self.assertEqual(self.run_script(CODEX, "sh", synced), synced)
+        self.assertEqual(self.run_modify(CODEX, synced), synced)
+
+    def test_codex_skips_broken_symlink_skill(self):
+        # skill 移除後留下斷掉的 symlink(目標的父目錄也不在):不能讓 apply 失敗,其他 skill 照常判斷(#427 review)
+        wiki = self.home / "obsidian_wiki/skills/wiki-query"; wiki.mkdir(parents=True); (wiki / "SKILL.md").write_text("x")
+        skills = self.home / ".codex/skills"; skills.mkdir(parents=True)
+        (skills / "wiki-query").symlink_to(wiki)
+        (skills / "gone").symlink_to(self.home / "removed-pack/skills/gone")
+        out = self.run_modify(CODEX)
+        self.assertIn('path = "' + str(skills / "wiki-query/SKILL.md") + '"\nenabled = false', out)
+        self.assertNotIn("gone", out)
+
+    def test_codex_resolves_skills_dir_that_is_a_symlink(self):
+        # ~/.codex/skills 本身是 symlink、底下是實體目錄:實際位置照樣認得出 obsidian_wiki(舊版 realpath 的行為)
+        pack = self.home / "obsidian_wiki/skills"; (pack / "wiki-query").mkdir(parents=True)
+        (pack / "wiki-query/SKILL.md").write_text("x")
+        (self.home / ".codex").mkdir(); (self.home / ".codex/skills").symlink_to(pack)
+        out = self.run_modify(CODEX)
+        self.assertIn("wiki-query/SKILL.md\"\nenabled = false", out)
 
     def test_codex_keeps_wakatime_plugin_tables(self):
         # install-wakatime 腳本跑 `codex plugin add` 寫進來的兩個 table(#173),apply 要原樣留著。
-        first = self.run_script(CODEX, "sh")
+        first = self.run_modify(CODEX)
         added = first + (
             '\n[marketplaces.wakatime]\nsource_type = "git"\n'
             'source = "https://github.com/wakatime/codex-cli-wakatime.git"\n'
             '\n[plugins."codex-cli-wakatime@wakatime"]\nenabled = true\n'
         )
-        self.assertEqual(self.run_script(CODEX, "sh", added), added)
+        self.assertEqual(self.run_modify(CODEX, added), added)
         self.assertTrue(tomllib.loads(added)["plugins"]["codex-cli-wakatime@wakatime"]["enabled"])
 
     def test_codex_pins_permission_keys_at_top_level(self):
@@ -86,7 +106,7 @@ class McpHandoffTest(unittest.TestCase):
             'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "medium"\nnotify = ["herdr"]\n\n'
             '[projects."/x"]\ntrust_level = "trusted"\n'
         )
-        first = self.run_script(CODEX, "sh", existing)
+        first = self.run_modify(CODEX, existing)
         config = tomllib.loads(first)
         for key, value in PERMISSIONS.items():
             self.assertEqual(config[key], value)  # 解析後是頂層 key,不在 provider table 底下
@@ -95,14 +115,14 @@ class McpHandoffTest(unittest.TestCase):
         self.assertEqual(config["notify"], ["herdr"])
         self.assertEqual(config["projects"], {"/x": {"trust_level": "trusted"}})
         self.assertNotIn("approvals_reviewer", config["model_providers"]["codex-lb-gcp"])
-        self.assertEqual(self.run_script(CODEX, "sh", first), first)
+        self.assertEqual(self.run_modify(CODEX, first), first)
 
     def test_codex_personal_has_no_permission_keys(self):
-        output = tomllib.loads(self.run_script(CODEX_PERSONAL, "sh"))
+        output = tomllib.loads(self.run_modify(CODEX_PERSONAL))
         self.assertFalse(set(PERMISSIONS) & set(output))
         # TUI 的 /permissions 在 --profile personal 時寫進這份,要丟掉,不然蓋過 base 的 auto_review
         written = 'approvals_reviewer = "user"\napproval_policy = "never"\nsandbox_mode = "read-only"\n'
-        output = tomllib.loads(self.run_script(CODEX_PERSONAL, "sh", written))
+        output = tomllib.loads(self.run_modify(CODEX_PERSONAL, written))
         self.assertFalse({"approvals_reviewer", "approval_policy", "sandbox_mode"} & set(output))
 
     def test_opencode_keeps_mcp_and_resets_other_keys(self):

@@ -159,7 +159,7 @@ _Avoid_: 對外入口（「入口」指從個人電腦操作已配置主機的�
 ## 裝機
 
 **基底**:
-每台機器都裝、不能不勾的套件。Linux、macOS、Termux 只有 chezmoi 自己要用的 git、curl、jq、python3（Termux 另加 openssh）；Windows 主機是 winget 裝的 mise、pwsh 7、Windows Terminal，加上 mise 裝的 zoxide（PowerShell profile 的 `z`，Windows 的 shell 一定是 PowerShell）。
+每台機器都裝、不能不勾的套件。Linux、macOS、Termux 只有 chezmoi 自己要用的 git、curl（Termux 另加 openssh）；jq、python3 不是基底，自寫的 python3 指令要它時寫成那個選裝工具的依賴套件；Windows 主機是 winget 裝的 mise、pwsh 7、Windows Terminal，加上 mise 裝的 zoxide（PowerShell profile 的 `z`，Windows 的 shell 一定是 PowerShell）。
 _Avoid_: 必裝、核心套件
 
 **選裝工具**:

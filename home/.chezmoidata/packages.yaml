@@ -2,31 +2,27 @@
 # 依平台分開列(同一個套件在兩邊名字不同就各寫各的);改了之後下一次 chezmoi apply 只會裝缺的那幾個。
 # 選裝工具與它們的依賴套件不放這裡,寫在選裝工具表 tool-table.yaml。
 packages:
-  # 基底:只放 chezmoi 自己要的。git 給 git-repo external,curl 給各安裝腳本,
-  # jq、python3 給 home/ 的 modify_ 與 run_ 腳本(jq 改 JSON、python3 改 TOML、解 zip)。
+  # 基底:只放 chezmoi 自己要的。git 給 git-repo external,curl 給各安裝腳本。
+  # modify_ 用 chezmoi 內建的 fromJson、fromToml(modify-template),不要 jq、python3(#204、#421);
+  # 自寫的 python3 指令(ai-profile、voice-out-speak)把 python3 寫成那個選裝工具的依賴套件(tool-table.yaml)。
   # WSL／雲端主機本來就有,但 proot Ubuntu 和最小化映像沒有,沒裝 apply 會在半路失敗。
   # 其他東西(zsh、vim、eza…)都是選裝工具,寫在 tool-table.yaml。
   # Ubuntu(WSL、雲端主機、proot Ubuntu),apt 的套件名
   ubuntu:
     - git
     - curl
-    - jq
-    - python3
-  # 原生 Termux,pkg 的套件名。python 套件提供 python3 指令;openssh 給 sshd 與 authorized_keys。
+  # 原生 Termux,pkg 的套件名。openssh 給 sshd 與 authorized_keys。
   termux:
     - git
     - curl
     - openssh
-    - jq
-    - python
   # macOS,brew 的 formula 名(run_onchange_before_install-packages-darwin 交給 brew bundle)。
-  # git、python3 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,只缺 jq
-  # (macOS 15 起系統也有 /usr/bin/jq,舊版沒有)。brews 是 formula、casks 是 app,
+  # git 由 Homebrew 前置的 Xcode Command Line Tools 提供,curl 系統內建,基底不用 brew 裝東西。
+  # 清單留著給以後要加的 formula:brews 是 formula、casks 是 app,
   # 照 chezmoi 官方 brew bundle 範例的結構(cask 改成一個一個 brew install --cask,失敗不中斷,見那支腳本);
   # Homebrew 本身不由 chezmoi 裝(見 Runbook)。
   darwin:
-    brews:
-      - jq
+    brews: []
     casks: []
   # Windows 主機(#275),每台都裝。git、curl 這些 chezmoi 在 Windows 用不到(沒有 sh 腳本、modify_ 腳本)。
   # winget:app 的 winget id(run_onchange_before_install-packages-windows)。mise 給 CLI 選裝工具用;

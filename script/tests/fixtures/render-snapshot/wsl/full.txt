@@ -60,7 +60,7 @@ zsh starship eza fzf bat ripgrep vim fastfetch btop bottom gh code-server openss
 
 
 ## 套件清單
-apt/pkg: git curl jq python3 poppler-utils ffmpeg libatomic1 openssh-server snapclient vim zsh
+apt/pkg: git curl poppler-utils python3 ffmpeg libatomic1 openssh-server snapclient vim zsh
 brew: 
 brew cask: 
 winget: 
@@ -95,6 +95,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 渲染成空的腳本
 .chezmoiscripts/run_before_00-check-home-owner.sh.tmpl
+.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_onchange_after_install-earlyoom.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-headless-chrome.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-snapserver.sh.tmpl
@@ -102,13 +103,12 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 .chezmoiscripts/run_onchange_after_install-tailscale.sh.tmpl
 .chezmoiscripts/run_onchange_after_record-env-skipped.sh.tmpl
 .chezmoiscripts/run_onchange_after_termux-reload-settings.sh.tmpl
-.chezmoiscripts/run_onchange_before_install-home-jq-zsh.sh.tmpl
+.chezmoiscripts/run_onchange_before_install-home-zsh.sh.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-darwin.sh.tmpl
 
 ## 會跑的腳本
 .chezmoiscripts/run_after_authorized-keys-from-github.sh.tmpl
 .chezmoiscripts/run_after_zz-root-skipped-summary.sh.tmpl
-.chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
 .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.sh.tmpl
 .chezmoiscripts/run_onchange_after_install-gh.sh.tmpl
@@ -202,133 +202,12 @@ if [ -s "$d/root-skipped" ]; then
 fi
 rm -f "$d/root-skipped"
 
-### .chezmoiscripts/run_once_after_remove-chezmoi-mcp.py.tmpl
-#!/usr/bin/env python3
-# 一次性遷移:MCP 從 chezmoi 交給 skillshare(dotfiles #34)。
-#
-# 舊版 chezmoi 在三個 client 設定裡寫了 MCP 條目。skillshare 看到同名、不是它寫的條目
-# 會整批停下(existing entry is not managed),所以這支把舊條目拿掉,讓
-# `skillshare sync mcp -g` 可以直接寫。
-#
-# 只刪「跟舊版 chezmoi 寫的一字不差」的條目:skillshare 寫的(版本釘死、key 走 fromEnv)
-# 和手動加或改過的都不碰。手動加的要自己 import 或刪,見 agent-config 的 docs/mcp/README.md〈從舊版 dotfiles 升上來的機器〉。
-#
-# run_once 每台機器只跑一次;新機器上沒有舊條目,跑了什麼都不做。
-# 所有機器都遷移完(#37)就可以刪掉這支。
-import json
-import os
-import re
-import tomllib
-
-dest = "/home/snapshot"
-
-
-def write(path, text):
-    # 先寫暫存檔再換名:Claude Code 可能正在寫 ~/.claude.json,中途斷掉也不會留下半個檔。
-    tmp = path + ".chezmoi-tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(text)
-    os.chmod(tmp, os.stat(path).st_mode & 0o777)
-    os.replace(tmp, path)
-
-CHROME_ARGS = [
-    "-y",
-    "chrome-devtools-mcp@latest",
-    "--browser-url=http://127.0.0.1:9222",
-    "--no-usage-statistics",
-    "--no-performance-crux",
-]
-CODEGRAPH_ARGS = ["serve", "--mcp"]
-
-
-def is_legacy_codex(name, table):
-    if name == "chrome-devtools":
-        return table == {"command": "npx", "args": CHROME_ARGS, "enabled": True, "startup_timeout_sec": 60}
-    if name == "codegraph":
-        return table == {"command": "codegraph", "args": CODEGRAPH_ARGS, "enabled": True}
-    if name == "context7":
-        # key 是本機的值,只看形狀。
-        base = {k: v for k, v in table.items() if k != "http_headers"}
-        headers = table.get("http_headers", {})
-        return base == {"url": "https://mcp.context7.com/mcp", "enabled": True} and set(headers) <= {"CONTEXT7_API_KEY"}
-    return False
-
-
-LEGACY_JSON = {
-    ".claude.json": ("mcpServers", {
-        "chrome-devtools": {"type": "stdio", "command": "npx", "args": CHROME_ARGS, "env": {}},
-    }),
-    ".config/opencode/opencode.json": ("mcp", {
-        "chrome-devtools": {"enabled": True, "type": "local", "command": ["npx"] + CHROME_ARGS},
-        "codegraph": {"enabled": True, "type": "local", "command": ["codegraph"] + CODEGRAPH_ARGS},
-    }),
-}
-
-
-def clean_json(rel, section, legacy):
-    path = os.path.join(dest, rel)
-    if not os.path.exists(path):
-        return
-    text = open(path, encoding="utf-8").read()
-    data = json.loads(text)
-    servers = data.get(section, {})
-    removed = [name for name, value in legacy.items() if servers.get(name) == value]
-    if not removed:
-        return
-    for name in removed:
-        del servers[name]
-    out = json.dumps(data, indent=2, ensure_ascii=False)
-    # 保留原本結尾有沒有換行(Claude Code 寫的 ~/.claude.json 沒有)。
-    if text.endswith("\n"):
-        out += "\n"
-    write(path, out)
-    print(f"{rel}: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
-
-
-def clean_codex():
-    path = os.path.join(dest, ".codex/config.toml")
-    if not os.path.exists(path):
-        return
-    text = open(path, encoding="utf-8").read()
-    servers = tomllib.loads(text).get("mcp_servers", {})
-    removed = [name for name, table in servers.items() if is_legacy_codex(name, table)]
-    if not removed:
-        return
-    # 舊版寫的是一般的 [mcp_servers.NAME] table(沒有子 table),刪到下一個 table 或
-    # 註解為止 —— 後面緊接的註解是下一段的橫幅(例如停用 skill 那段),不能一起刪。
-    header = re.compile(r"^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
-    out, dropping = [], False
-    for line in text.splitlines(keepends=True):
-        match = header.match(line)
-        if match:
-            dropping = match.group(1) in {f"mcp_servers.{name}" for name in removed}
-        elif dropping and line.lstrip().startswith("#"):
-            dropping = False
-            # 橫幅前面那個空行跟著被刪的 table 走了,補回來(codex 的 modify_ 也會這樣排)。
-            if out and out[-1].strip():
-                out.append("\n")
-        if not dropping:
-            out.append(line)
-    result = "".join(out).rstrip("\n") + "\n"
-    # 文字比對只認得不加引號的 header;沒刪到的(例如 [mcp_servers."x"])就不算。
-    left = tomllib.loads(result).get("mcp_servers", {})
-    removed = [name for name in removed if name not in left]
-    if not removed:
-        return
-    write(path, result)
-    print(f".codex/config.toml: 移除舊的 chezmoi MCP 條目 {', '.join(removed)}")
-
-
-for rel, (section, legacy) in LEGACY_JSON.items():
-    clean_json(rel, section, legacy)
-clean_codex()
-
 ### .chezmoiscripts/run_once_after_set-default-shell.sh.tmpl
 #!@BIN@/sh
 # 選裝工具 zsh 的一部分:把預設 shell 換成 zsh。沒勾 zsh 就渲染成空的,chezmoi 不跑。
 # zsh 由 run_onchange_before_install-packages 先裝好。
 # 沒有 root(.chezmoitemplates/has-root)或非 Debian 系 Linux 渲染成空的:zsh 是 zsh-bin 裝到家目錄的
-# (run_onchange_before_install-home-jq-zsh),不在 /etc/shells,不 chsh,改由 ~/.bashrc 在互動式 bash
+# (run_onchange_before_install-home-zsh),不在 /etc/shells,不 chsh,改由 ~/.bashrc 在互動式 bash
 # 啟動時 exec zsh(home/modify_dot_bashrc.tmpl)。
 # run_once_:跑成功一次就不再跑;已經是 zsh 的機器直接結束,不叫 sudo。
 set -eu
@@ -713,7 +592,11 @@ echo "snapclient 的系統服務已停用。收聽朗讀:snapclient --host <tail
 # 同時勾了 claude、codex、code-server 的機器再裝那邊的官方 WakaTime plugin／擴充(第 3 段起)。放在這支、不另開腳本:
 # 勾選組合一變,這支渲染出來的內容就變,run_onchange 會重跑,舊機器補勾也會裝到;
 # 而且照檔名順序,install-official(claude、codex、code-server 的官方 installer)已經先跑完。
-# wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。zip 用基底的 python3 解(python3 -m zipfile),不用 unzip。
+# wakatime-cli 抓 GitHub release,chezmoi 不負責更新它。
+# 不用 .chezmoiexternal 的 archive-file(chezmoi 官方抓 release 的做法):plugin 會自己把 wakatime-cli-<os>-<arch> 換成新版,
+# external 管著那個位置就會在每次 apply 換回快取的舊版,`chezmoi diff` 永遠有差異(#421)。
+# 解 zip 不靠 python3、unzip(全新的 Ubuntu 映像沒有):release 的 zip 裡只有一個 deflate 壓縮的檔,
+# GNU gzip 解得開這種 zip(gzip 手冊寫明支援),Ubuntu、Termux 一定有 gzip;macOS 的 gzip 不是 GNU 版,改用系統內建的 unzip。
 #
 # wakatime-cli 照官方 install_cli.py 的位置放:本體 ~/.wakatime/wakatime-cli-<os>-<arch>
 # (os 是 linux 或 darwin;Termux 用 linux 版),
@@ -751,10 +634,6 @@ skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
   : > "$HOME/.local/state/dotfiles/retry/${retry_key:?呼叫 skip_fail 的腳本要先 include sh-retry}"
 }
 
-# apt 用不了的機器,jq 可能是 run_onchange_before_install-home-jq-zsh 抓到 ~/.local/bin 的,
-# 而 chezmoi 跑腳本時的 PATH 不一定有它:找不到 jq 就把 ~/.local/bin 加進 PATH。
-command -v jq >/dev/null 2>&1 || PATH="$HOME/.local/bin:$PATH"
-
 # 架構不支援就印訊息、exit 0 跳過:不讓整個 apply 失敗。架構一律用 uname -m 判斷。
 skip_arch() { echo "$1 不支援架構 $(uname -m),跳過"; exit 0; }
 
@@ -774,9 +653,9 @@ else
   trap 'rm -rf "$tmp"' EXIT
   curl -fsSL -o "$tmp/wakatime.zip" \
     "https://github.com/wakatime/wakatime-cli/releases/latest/download/wakatime-cli-$asset.zip" &&
-    python3 -m zipfile -e "$tmp/wakatime.zip" "$tmp" &&
+    gzip -dc <"$tmp/wakatime.zip" >"$tmp/wakatime-cli" &&
     mkdir -p "$dir" &&
-    install -m 755 "$tmp/wakatime-cli-$asset" "$bin" ||
+    install -m 755 "$tmp/wakatime-cli" "$bin" ||
     skip_fail wakatime-cli "從 GitHub release 下載或解壓失敗,下次 chezmoi apply 會重試"
 fi
 [ ! -x "$bin" ] || ln -sfn "$bin" "$dir/wakatime-cli"
@@ -790,12 +669,13 @@ fi
 #    plugin 找 ~/.wakatime/wakatime-cli-<os>-<arch>、讀 ~/.wakatime.cfg,跟上面放的位置一樣。
 #    plugin 的 hook 用 node 跑,要有 node(勾了 wakatime 就會一併裝 Node,見 .chezmoidata/tool-table.yaml 的 needsNode;沒有 node 只是不送 heartbeat,不影響 Claude Code)。
 #    已裝就跳過:重跑那兩行雖然也只會印「already」,但會連 GitHub。
+#    已裝的判斷用 grep 找 plugin id(不靠 jq):--json 的輸出裡有 "id": "claude-code-wakatime@wakatime" 就算。
 #    chezmoi 跑腳本時的 PATH 不一定有 ~/.local/bin,所以也直接看檔案。
 claude=$(command -v claude || echo "$HOME/.local/bin/claude")
 if [ ! -x "$claude" ]; then
   # 勾了 claude 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
   skip_fail "Claude Code 的 WakaTime plugin" "找不到 claude(它這次也沒裝好),下次 chezmoi apply 會重試"
-elif "$claude" plugin list --json </dev/null | jq -e 'any(.[]; .id == "claude-code-wakatime@wakatime")' >/dev/null; then
+elif "$claude" plugin list --json </dev/null | grep -q '"claude-code-wakatime@wakatime"'; then
   echo "Claude Code 的 WakaTime plugin 已安裝,跳過"
 else
   "$claude" plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git </dev/null &&
@@ -807,11 +687,13 @@ fi
 #    codex 會把 [marketplaces.wakatime]、[plugins."codex-cli-wakatime@wakatime"] 寫進
 #    ~/.codex/config.toml;modify_private_config.toml.tmpl 原樣保留別人的 table,不會被 apply 蓋掉。
 #    plugin 一樣用 ~/.wakatime 的 wakatime-cli 與 ~/.wakatime.cfg,hook 也用 node 跑。
+#    已裝的判斷不靠 jq:--json 的輸出分 installed、available 兩段,marketplace 加了但 plugin 沒裝成時,
+#    plugin id 會出現在 available 那段,所以只 grep "available" 之前的部分。格式變了頂多判斷成沒裝、重跑一次安裝指令。
 codex=$(command -v codex || echo "$HOME/.local/bin/codex")
 if [ ! -x "$codex" ]; then
   # 勾了 codex 才有這段:找不到就是它前面裝失敗了,一起等下次 apply 重試
   skip_fail "Codex CLI 的 WakaTime plugin" "找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試"
-elif "$codex" plugin list --json </dev/null | jq -e 'any(.installed[]?; .pluginId == "codex-cli-wakatime@wakatime")' >/dev/null; then
+elif "$codex" plugin list --json </dev/null | sed -n '/"available"/q;p' | grep -q '"codex-cli-wakatime@wakatime"'; then
   echo "Codex CLI 的 WakaTime plugin 已安裝,跳過"
 else
   "$codex" plugin marketplace add wakatime/codex-cli-wakatime </dev/null &&
@@ -980,11 +862,10 @@ echo "WSL 的 sshd 聽 127.0.0.1:2222。確認:ss -ltn 'sport = :2222'"
 # 另外加上 tools 有勾、選裝工具表(.chezmoidata/tool-table.yaml)上這台走 apt／pkg 的選裝工具與依賴套件;
 # 這台裝不了的勾了也不裝。
 #
-# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。jq、zsh 改由 run_onchange_before_install-home-jq-zsh
+# 沒有 root 時不叫 sudo:缺的套件印一行略過(apply 最後彙整)。zsh 改由 run_onchange_before_install-home-zsh
 # 裝到家目錄,vim 這類選裝工具照表改走 mise,都不算在缺的裡面。
 #
-# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git),
-# 也在 modify_ 腳本之前(它們要 jq、python3)。
+# 名字帶 before_:一定在 externals 之前跑完(git-repo external 要外部 git)。
 # run_onchange_:清單沒變就不會再跑;清單變了、或上次有選裝工具的套件裝失敗(sh-retry)才重跑,而且只裝缺的。
 set -eu
 
@@ -1021,9 +902,9 @@ skip_fail() {  # skip_fail <工具或步驟> <之後怎麼補>
 }
 
 base="" tools=""
-for pkg in git curl jq python3 poppler-utils ffmpeg libatomic1 openssh-server snapclient vim zsh; do
+for pkg in git curl poppler-utils python3 ffmpeg libatomic1 openssh-server snapclient vim zsh; do
   dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' && continue
-  case " git curl jq python3 " in
+  case " git curl " in
     *" $pkg "*) base="$base $pkg" ;;
     *) tools="$tools $pkg" ;;
   esac

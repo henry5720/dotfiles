@@ -225,7 +225,7 @@ check_zsh_env() {  # check_zsh_env <印出預設 shell 路徑的容器內指令>
   check_alias "cat 沒被換成 bat" cat '$a != *bat*'
   check_alias "grep 沒被換成 rg" grep '" $a " != *" rg "*'
   # `zsh -i -c` 不畫 prompt,所以要真的開互動 shell 看 starship 畫不畫得出來:
-  # 用 python 的 pty 模擬終端機(兩邊都有 python3),等輸出停下來再送 exit。
+  # 用 python 的 pty 模擬終端機(python3 是 e2e 第一次 apply 之後自己裝的),等輸出停下來再送 exit。
   # exit 沒被吃掉、30 秒內結束,輸出裡有提示列的 ❯(starship.toml 的 character)才算過。
   check "互動 zsh(有 tty)畫出 starship 提示列、正常 exit" \
     "out=\$(python3 - <<'PY'
@@ -403,7 +403,9 @@ TOOL_SCRIPT_RE="\\.chezmoiscripts/(npm-)?install-($(IFS="|"; echo "${!TOOL_CHECK
 
 # 基底套件:跟 home/.chezmoidata/packages.yaml 是兩份獨立的期望值,刻意不從 yaml 讀,
 # 不然 yaml 少列一個測試也照樣過。
-UBUNTU_BASE=(git curl jq python3)
+UBUNTU_BASE=(git curl)
+# e2e 自己的檢查要用、但不是基底的工具(#421):第一次 apply 之後才由 e2e 自己裝,apply 本身要在沒有它們的機器上跑得起來
+E2E_UBUNTU_TOOLS=(jq python3)
 
 # 原生 Termux(#274):跟 Linux 同一套用途與選單,環境用 --override-data 模擬時給 ANDROID_ENV。
 # Termux 的精簡跟 Ubuntu 的一樣:精簡只放 shell 體驗(#273),每一項 Termux 都能用 pkg 裝。
@@ -548,6 +550,10 @@ scenario_ubuntu() {
   for p in "${UBUNTU_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
+  check "基底不裝 jq(#421)" "! dpkg-query -W -f='\${Status}' jq 2>/dev/null | grep -q 'install ok installed'"
+  # ai-profile 是 python3 腳本,python3 寫成 codex 的依賴套件(#421);映像本來沒有 python3
+  check "python3 跟著 codex 的依賴套件裝好" "dpkg-query -W -f='\${Status}' python3 | grep -q 'install ok installed'"
+  step "e2e 自己的檢查要用的 ${E2E_UBUNTU_TOOLS[*]}(不是基底)" "sudo apt-get update -qq && sudo apt-get install -y -qq ${E2E_UBUNTU_TOOLS[*]} >/dev/null"
   for t in ${TOOLS_FIRST//\// }; do check_tool "$t"; done
   # 選單沒勾 node,勾了 codegraph、playwright-cli 就要自動帶入(mise 的 Node LTS,沒有 nvm,#342)
   check_tool node
@@ -591,6 +597,7 @@ scenario_ubuntu() {
     "grep -Eq '^Host company-ec2( |\$)' ~/.ssh/config && ! grep -qi ProxyCommand ~/.ssh/config && [ ! -e ~/.local/bin/ssh ] && [ ! -e ~/.local/opt/openssh ]"
   check "zshrc 沒被 installer 改動(nvm 等不能往 ~/.zshrc 追加)" "chezmoi verify ~/.zshrc"
   # Termux 用 .chezmoiignore 排除這支;Ubuntu 上要照常跑(scriptState 記下它的名字就是跑完了)。
+  # 沒有 python3 時它渲染成空的(#421);這台的 python3 是 codex 的依賴套件裝的,所以要有跑
   check "移除 chezmoi MCP 的 python 腳本有跑" \
     "chezmoi state dump --format json | jq -e '[.scriptState[].name] | index(\".chezmoiscripts/remove-chezmoi-mcp.py\")'"
   # Termux 字型三件套只給 android;Ubuntu 上什麼都不多。
@@ -730,7 +737,7 @@ scenario_ubuntu() {
   check "chezmoi verify 通過" "chezmoi verify --exclude scripts && ! { chezmoi status | grep -E '^.?R' | grep -v zz-root-skipped-summary; }"
 
   bold "▶ 套件清單加一個套件"
-  step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^    - python3\$/a\\    - tree' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml"
+  step "yaml 的 ubuntu 清單加上 tree" "sed -i '/^  ubuntu:\$/,/^  [a-z]/ s/^    - curl\$/&\\n    - tree/' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml && grep -A3 '^  ubuntu:' ~/.local/share/chezmoi/home/.chezmoidata/packages.yaml | grep -qx '    - tree'"
   check "套件腳本待跑(chezmoi status 有 R)" "chezmoi status | grep -E '^.?R.*install-packages'"
   check "apply exit 0" "chezmoi apply --no-tty"
   check "只裝了 tree" "tail -n 20 /var/log/apt/history.log | grep '^Commandline:' | tail -n 1 | grep -qx 'Commandline: apt-get install -y tree'"
@@ -973,16 +980,16 @@ scenario_ubuntu() {
   done
   check "非 Debian 系勾了 playwright-cli 照裝(mise 的 npm backend,不要 apt,#349、#342)" \
     "chezmoi execute-template --override-data '$fedora_tools' < $scripts/run_onchange_after_npm-install-playwright-cli.sh.tmpl > /tmp/fedora-pw.sh && grep -qF 'mise/shims' /tmp/fedora-pw.sh && ! grep -qE 'apt|npm install' /tmp/fedora-pw.sh"
-  # jq、zsh 不走 mise:jq 要在 modify_ 之前就有,zsh 用 zsh-bin(spec US42)
+  # zsh 不走 mise,用 zsh-bin(spec US42);以前同一支也裝 jq,#421 起不裝
   local fedora_zsh='{"chezmoi":{"osRelease":{"id":"fedora","idLike":""}},"tools":["zsh"]}'
-  check "非 Debian 系勾 zsh:install-home-jq-zsh 裝 jq 與 zsh-bin,語法對" \
-    "chezmoi execute-template --override-data '$fedora_zsh' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hjz.sh && sh -n /tmp/fedora-hjz.sh && grep -q 'jq-linux-' /tmp/fedora-hjz.sh && grep -q 'romkatv/zsh-bin' /tmp/fedora-hjz.sh"
-  check "非 Debian 系沒勾 zsh:install-home-jq-zsh 只裝 jq" \
-    "chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl > /tmp/fedora-hj.sh && sh -n /tmp/fedora-hj.sh && grep -q 'jq-linux-' /tmp/fedora-hj.sh && ! grep -q 'romkatv/zsh-bin' /tmp/fedora-hj.sh"
+  check "非 Debian 系勾 zsh:install-home-zsh 裝 zsh-bin、不裝 jq,語法對" \
+    "chezmoi execute-template --override-data '$fedora_zsh' < $scripts/run_onchange_before_install-home-zsh.sh.tmpl > /tmp/fedora-hjz.sh && sh -n /tmp/fedora-hjz.sh && ! grep -q 'jq-linux-' /tmp/fedora-hjz.sh && grep -q 'romkatv/zsh-bin' /tmp/fedora-hjz.sh"
+  check "非 Debian 系沒勾 zsh:install-home-zsh 渲染成空的" \
+    "[ -z \"\$(chezmoi execute-template --override-data '$fedora_mise' < $scripts/run_onchange_before_install-home-zsh.sh.tmpl | tr -d '[:space:]')\" ]"
   check "非 Debian 系勾 zsh:部署 .bashrc(互動式 bash 切 zsh)" \
     "chezmoi managed --override-data '$fedora_zsh' | grep -qx .bashrc"
-  check "(對照)有 root 的 Ubuntu:install-home-jq-zsh 渲染成空的、不部署 .bashrc" \
-    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"zsh\"]}' < $scripts/run_onchange_before_install-home-jq-zsh.sh.tmpl | tr -d '[:space:]')\" ] && ! chezmoi managed --override-data '{\"tools\":[\"zsh\"]}' | grep -qx .bashrc"
+  check "(對照)有 root 的 Ubuntu:install-home-zsh 渲染成空的、不部署 .bashrc" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"zsh\"]}' < $scripts/run_onchange_before_install-home-zsh.sh.tmpl | tr -d '[:space:]')\" ] && ! chezmoi managed --override-data '{\"tools\":[\"zsh\"]}' | grep -qx .bashrc"
   check "(對照)Debian 系(ID_LIKE 有 debian,例如 Linux Mint)照常出選單" \
     "chezmoi --config /tmp/fresh-mint.toml execute-template --init --no-tty --override-data '{\"chezmoi\":{\"osRelease\":{\"id\":\"linuxmint\",\"idLike\":\"ubuntu debian\"}}}' $(printf '%q ' "${INIT_FLAGS[@]}") --promptMultichoice $(printf '%q' "$(menu_choice fastfetch)") < $tmpl/.chezmoi.toml.tmpl | grep -q '\"fastfetch\"'"
 
@@ -1004,8 +1011,10 @@ scenario_ubuntu() {
   check "macOS 的選單列 snapserver、標裝不了,勾了照存" \
     "grep -q '（裝不了：' <<<$(printf '%q' "$label") && $(render_cmd /tmp/u-mac.toml --override-data "$mac" --promptMultichoice "$label") | grep -qxF '$(toml_list snapserver)'"
   local mac_tools='{"chezmoi":{"os":"darwin"},"tools":["zsh","starship","eza","claude","ttyd","code-server","herdr","cloudflared","tailscale"]}'
-  check "macOS 的 brew bundle 腳本:基底 jq 加有勾的 formula,沒勾的、走 installer 的不列,app 另外 brew install --cask、失敗不中斷,語法對" \
-    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"cloudflared\" brew \"code-server\" brew \"eza\" brew \"jq\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ] && ! grep -q '^cask ' /tmp/brew.sh && [ \"\$(grep -E '^brew install --cask ' /tmp/brew.sh)\" = 'brew install --cask \"tailscale-app\" ||' ]"
+  check "macOS 的 brew bundle 腳本:只有有勾的 formula(基底沒有 brew 的套件,#421),沒勾的、走 installer 的不列,app 另外 brew install --cask、失敗不中斷,語法對" \
+    "chezmoi execute-template --override-data '$mac_tools' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl > /tmp/brew.sh && sh -n /tmp/brew.sh && grep -q '^brew bundle --file=/dev/stdin' /tmp/brew.sh && [ \"\$(grep -E '^brew \"' /tmp/brew.sh | sort | paste -sd' ')\" = 'brew \"cloudflared\" brew \"code-server\" brew \"eza\" brew \"poppler\" brew \"starship\" brew \"ttyd\"' ] && ! grep -q '^cask ' /tmp/brew.sh && [ \"\$(grep -E '^brew install --cask ' /tmp/brew.sh)\" = 'brew install --cask \"tailscale-app\" ||' ]"
+  check "macOS 什麼都沒勾:brew bundle 腳本渲染成空的(沒有 Homebrew 也不會停在找 brew)" \
+    "[ -z \"\$(chezmoi execute-template --override-data '{\"chezmoi\":{\"os\":\"darwin\"},\"tools\":[]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Linux 渲染成空的" \
     "[ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"eza\"]}' < $scripts/run_onchange_before_install-packages-darwin.sh.tmpl | tr -d '[:space:]')\" ]"
   check "brew bundle 腳本在 Termux 渲染成空的" \
@@ -1102,12 +1111,12 @@ scenario_ubuntu() {
   check "先裝 nvm、Node 與 npm 全域的 codegraph,再勾 codegraph、playwright-cli apply:zsh 的 node 是 mise 的、~/.nvm 還在、兩個指令找得到" \
     "$(render_cmd /tmp/u-none.toml --promptChoice "$(use_choice custom)" --promptMultichoice "$(menu_choice zsh/codegraph/playwright-cli)") > /tmp/nvm-first.toml && rm -rf /tmp/nvm-first /tmp/nvm-first.boltdb && mkdir /tmp/nvm-first && src=\$HOME/.local/share/chezmoi && export HOME=/tmp/nvm-first && curl -fsSL -o /tmp/nvm-install.sh https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh && PROFILE=/dev/null bash /tmp/nvm-install.sh >/dev/null && bash -c '. ~/.nvm/nvm.sh && nvm install --lts >/dev/null && npm install -g @colbymchenry/codegraph >/dev/null' && chezmoi --source \$src --config /tmp/nvm-first.toml --persistent-state /tmp/nvm-first.boltdb apply --no-tty && out=\$(zsh -i -c 'whence -p node; whence -p codegraph; whence -p playwright-cli; codegraph --version && playwright-cli --version' 2>&1); echo \"\$out\"; [ -s ~/.nvm/nvm.sh ] && grep -qx '/tmp/nvm-first/.local/share/mise/shims/node' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/codegraph' <<<\"\$out\" && grep -qx '/tmp/nvm-first/.local/share/mise/shims/playwright-cli' <<<\"\$out\""
 
-  # 基底只剩 git、curl、jq、python3;zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
+  # 基底只剩 git、curl(#421);zsh、vim 走 apt,eza 等走 mise(選裝工具表),都是勾了才有。
   bold "▶ (渲染)基底縮小、zsh 等變選裝工具"
   local none='{"tools":[]}'
-  # 前面「套件清單加一個套件」在 yaml 的 ubuntu 清單加了 tree,所以這裡是四項 + tree
-  check "沒勾任何工具時套件腳本只有基底四項" \
-    "chezmoi execute-template --override-data '$none' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/base.sh && sh -n /tmp/base.sh && grep -qx 'for pkg in git curl jq python3 tree; do' /tmp/base.sh"
+  # 前面「套件清單加一個套件」在 yaml 的 ubuntu 清單加了 tree,所以這裡是兩項 + tree
+  check "沒勾任何工具時套件腳本只有基底兩項" \
+    "chezmoi execute-template --override-data '$none' < $scripts/run_onchange_before_install-packages.sh.tmpl > /tmp/base.sh && sh -n /tmp/base.sh && grep -qx 'for pkg in git curl tree; do' /tmp/base.sh"
   check "只勾 vim 時套件腳本多 vim、沒有 zsh" \
     "chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw vim && ! chezmoi execute-template --override-data '{\"tools\":[\"vim\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw zsh"
   check "沒勾 zsh:不部署 .zshrc、zsh 外掛" \
@@ -1132,8 +1141,8 @@ scenario_ubuntu() {
     "[ -z \"\$(chezmoi execute-template --override-data '$none' < $tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl | tr -d '[:space:]')\" ] && [ -z \"\$(chezmoi execute-template --override-data '$none' < $scripts/run_onchange_after_install-mise.sh.tmpl | tr -d '[:space:]')\" ]"
   check "只勾 fzf 時 mise 安裝腳本語法對、清單只有 fzf" \
     "chezmoi execute-template --override-data '{\"tools\":[\"fzf\"]}' < $scripts/run_onchange_after_install-mise.sh.tmpl > /tmp/mise-fzf.sh && sh -n /tmp/mise-fzf.sh && [ \"\$(grep -E '^#   \"' /tmp/mise-fzf.sh)\" = '#   \"fzf\" = \"latest\"' ]"
-  check "wakatime 腳本不用 unzip(用 python3 -m zipfile)" \
-    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && ! grep -v '^ *#' /tmp/waka.sh | grep -qw unzip && grep -q '^ *python3 -m zipfile' /tmp/waka.sh"
+  check "wakatime 腳本不用 unzip、python3、jq(Linux 用 gzip 解 zip,#421)" \
+    "chezmoi execute-template --override-data '{\"tools\":[\"wakatime\",\"claude\",\"codex\"]}' < $scripts/run_onchange_after_install-wakatime.sh.tmpl > /tmp/waka.sh && sh -n /tmp/waka.sh && ! grep -v '^ *#' /tmp/waka.sh | grep -qwE 'unzip|python3|jq' && grep -q '^ *gzip -dc' /tmp/waka.sh"
 
   # 只勾 wakatime、沒勾 agent:不碰 agent 的 plugin。實裝那半在上面(agent 先勾、之後補勾 wakatime)。
   bold "▶ (渲染)只勾 wakatime 不裝 agent 的 WakaTime plugin"
@@ -1170,7 +1179,7 @@ scenario_ubuntu() {
 # 目標:termux(代表原生 Termux)
 # ===============================================================
 # 映像模擬一台剛裝好的 Termux:什麼都沒裝。chezmoi 照 README 用 pkg 裝,
-# git、openssh、python、jq、zsh 等由 chezmoi 的套件腳本裝。
+# git、openssh、zsh 等由 chezmoi 的套件腳本裝。
 # 基底映像的 entrypoint 會以 root 起動再 su 成 system(uid 1000),第一次執行時跑完
 # bootstrap second stage;build 時先跑一次,之後的容器就不用再等。
 # 容器裡沒有 Android 系統 CA,go-git 走 https 會 x509 失敗,所以設 SSL_CERT_FILE(真機不需要)。
@@ -1187,9 +1196,10 @@ DOCKERFILE
   make_fixtures
 }
 
-# Termux 基底:git curl openssh,加上 modify_ 自己要用的 jq(改 JSON)與 python(改 TOML,套件名是 python,
-# 指令是 python3)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,走 pkg(選裝工具表)。
-TERMUX_BASE=(git curl openssh jq python)
+# Termux 基底:git curl openssh(#421 起沒有 jq、python)。zsh、eza、fzf、bat、ripgrep、vim 這些是精簡勾的選裝工具,
+# 走 pkg(選裝工具表)。jq、python(指令是 python3)是 e2e 自己的檢查要用的,第一次 apply 之後由 e2e 自己裝。
+TERMUX_BASE=(git curl openssh)
+E2E_TERMUX_TOOLS=(jq python)
 APT_LOG='$PREFIX/var/log/apt/history.log'
 # nerd-fonts v3.5.1 Hack.tar.xz 裡 HackNerdFont-Regular.ttf 的 sha256,在主機上下載後算的
 # (fc-query 確認 family=Hack Nerd Font、style=Regular)。URL 釘 tag,這個值不會變。
@@ -1211,6 +1221,8 @@ scenario_termux() {
   for p in "${TERMUX_BASE[@]}"; do
     check "基底套件 $p 已安裝" "dpkg-query -W -f='\${Status}' $p | grep -q 'install ok installed'"
   done
+  check "基底不裝 jq、python(#421)" "! dpkg-query -W -f='\${Status}' jq python 2>/dev/null | grep -q 'install ok installed'"
+  step "e2e 自己的檢查要用的 ${E2E_TERMUX_TOOLS[*]}(不是基底)" "DEBIAN_FRONTEND=noninteractive pkg install -y ${E2E_TERMUX_TOOLS[*]} >/dev/null 2>&1"
   # 精簡沒勾任何 agent:client 的設定目錄都不部署(#211)。
   check "沒勾的 client 不部署設定目錄(~/.claude、~/.codex、~/.config/opencode、skillshare 的 config.yaml)" \
     "[ ! -e ~/.claude ] && [ ! -e ~/.codex ] && [ ! -e ~/.config/opencode ] && [ ! -e ~/.config/skillshare/config.yaml ]"
@@ -1312,6 +1324,7 @@ scenario_termux() {
 # 目標:noroot(沒有 root 的 Ubuntu,代表別人給的帳號、TeamSync 工作區)
 # ===============================================================
 # 映像模擬雲端映像本來就有的東西:curl、ca-certificates、git、python3;**不裝 sudo**。
+# jq 是 e2e 自己的檢查要用的(#421 起不在基底,apply 不裝也不用它)。
 # 另放一支假的 vim 在 /usr/local/bin:代表「系統已經有的指令」,mise 不該再裝一份。
 # 每個情境一個新使用者(家目錄是全新的),不在 sudo／admin／wheel 群組;wheeluser 只給 root 判斷的樣板檢查用。
 # 要加檢查:精簡、完整各一個 noroot_<情境>_checks,照順序加在裡面,其他地方不用動。
@@ -1321,7 +1334,7 @@ setup_noroot() {
   docker build -q -t "$IMAGE" - >/dev/null <<'DOCKERFILE' || { red "✗ 建映像失敗"; exit 1; }
 FROM ubuntu:24.04
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates git python3 \
+ && apt-get install -y --no-install-recommends curl ca-certificates git python3 jq \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd wheel \
  && useradd -m -s /bin/bash slim \
@@ -1435,8 +1448,8 @@ check_ssh_client() {
 }
 
 noroot_slim_checks() {
-  # 精簡要 apt 的只剩 jq、zsh、vim:jq、zsh 從 release 裝到家目錄,vim 系統已有;tailscale 不在精簡裡(#273)
-  check "精簡沒有任何要略過的步驟:沒有略過彙整(jq、zsh 裝到家目錄,vim 系統已有)" \
+  # 精簡要 apt 的只剩 zsh、vim:zsh 從 release 裝到家目錄,vim 系統已有;tailscale 不在精簡裡(#273)
+  check "精簡沒有任何要略過的步驟:沒有略過彙整(zsh 裝到家目錄,vim 系統已有)" \
     "! grep -q '^$SKIP_HEADER' ~/e2e-init.log && ! grep -q '以下選裝工具已略過' ~/e2e-init.log"
   check "預設 shell 不算略過(改由 ~/.bashrc 切 zsh)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -q 預設\ shell"
@@ -1455,7 +1468,7 @@ noroot_slim_checks() {
   # 非互動 login bash 用 env -i 起:不帶外面這層 login shell 已經設好的 PATH
   check "沒有 ~/.profile 時補一個:login bash 找得到 ~/.local/bin 的 chezmoi、login 互動 bash 會切成 zsh" \
     "mv ~/.profile ~/.profile.skel && ~/.local/bin/chezmoi apply --no-tty --force && grep -qF '. \"\$HOME/.bashrc\"' ~/.profile && [ \"\$(env -i HOME=\$HOME PATH=/usr/bin:/bin bash -lc 'command -v chezmoi')\" = \"\$HOME/.local/bin/chezmoi\" ] && $(pty_bash -il) && echo \"\$out\" | tail -n 5 && grep -q 'ZV=:5\.8:' <<<\"\$out\"; r=\$?; mv -f ~/.profile.skel ~/.profile; exit \$r"
-  check "jq 不用 root 從 GitHub release 裝到 ~/.local/bin" "~/.local/bin/jq --version"
+  check "沒有往 ~/.local/bin 裝 jq(#421 起 apply 不用 jq)" "[ ! -e ~/.local/bin/jq ]"
   # 單一執行檔的選裝工具跟有 root 時一樣由 mise 裝(#233)
   # fastfetch 也在精簡裡(#273):每台開 shell 都跑它
   for t in eza fzf bat rg starship fastfetch; do check_mise "$t"; done
@@ -1540,7 +1553,7 @@ noroot_full_checks() {
   check "沒有 ~/.local/share/mise/installs/node" "[ ! -e ~/.local/share/mise/installs/node ]"
   check_skipped tailscale
   check "已經有 ~/.bash_profile 時不補 ~/.profile" "[ -e ~/.bash_profile ] && [ ! -e ~/.profile ]"
-  # 映像已有基底套件 git、curl、python3,libatomic1 不再進 apt 清單(#342),mise 裝的與 jq、zsh 也不算:沒有要 apt 的
+  # 映像已有基底套件 git、curl 與 codex、opencode 的依賴 python3,libatomic1 不再進 apt 清單(#342),mise 裝的與 zsh 也不算:沒有要 apt 的
   check "略過彙整沒有系統套件(沒有要 apt 的套件)" \
     "! sed -n '/^$SKIP_HEADER/,\$p' ~/e2e-init.log | grep -qF -- '- 系統套件:'"
   check "改由 mise 裝的不在略過彙整(gh、fastfetch、code-server、cloudflared)" \
@@ -1558,8 +1571,8 @@ noroot_full_checks() {
   # playwright-cli 沒有 libatomic 裝不了、完整不勾(#342),playwright-extension-attach 不部署
   check_playwright_extension_attach no
   check_remote_access yes
-  check "modify-template 照常產出 ~/.claude/settings.json(用家目錄的 jq 讀)" \
-    "~/.local/bin/jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
+  check "modify-template 照常產出 ~/.claude/settings.json" \
+    "jq -e '.enabledPlugins[\"chrome-devtools-mcp@claude-plugins-official\"] == false' ~/.claude/settings.json"
   check "第二次 apply exit 0、mise 的安裝腳本沒重跑" \
     "out=\$(chezmoi apply --no-tty 2>&1); r=\$?; echo \"\$out\"; [ \$r = 0 ] && ! grep -q 'mise' <<<\"\$out\""
   check "再跑 mise install 不重新下載(mise 回報都已安裝)" \

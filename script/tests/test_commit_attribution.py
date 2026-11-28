@@ -14,8 +14,9 @@ CLAUDE = ROOT / "home/dot_claude/modify_settings.json.tmpl"
 CODEX = ROOT / "home/dot_codex/modify_private_config.toml.tmpl"
 OPENCODE = ROOT / "home/dot_config/opencode/modify_private_opencode.json.tmpl"
 OPENCODE_PERSONAL = ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl"
-CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml.tmpl"
-MODIFY_TARGETS = {CLAUDE: ".claude/settings.json", OPENCODE: ".config/opencode/opencode.json"}
+CODEX_PERSONAL = ROOT / "home/dot_codex/modify_private_personal.config.toml"
+MODIFY_TARGETS = {CLAUDE: ".claude/settings.json", OPENCODE: ".config/opencode/opencode.json",
+                  CODEX: ".codex/config.toml", CODEX_PERSONAL: ".codex/personal.config.toml"}
 
 
 class CommitAttributionTest(unittest.TestCase):
@@ -36,20 +37,12 @@ class CommitAttributionTest(unittest.TestCase):
             json.dumps({"chezmoi": {"homeDir": str(self.home)}}), "execute-template",
         ], input=template.read_bytes()).decode()
 
-    def run_script(self, template, existing=""):
-        env = os.environ.copy()
-        env["HOME"] = str(self.home)
-        return subprocess.run(
-            ["sh", "-c", self.render(template)], input=existing, env=env,
-            text=True, capture_output=True, check=True,
-        ).stdout
-
     def run_modify(self, template, existing=""):
         # modify-template(#204 起所有平台):把現有內容放到暫存家目錄,用 chezmoi cat 算出 apply 會寫的內容
         path = self.home / MODIFY_TARGETS[template]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(existing, encoding="utf-8")
-        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "opencode"]}
+        override = {"chezmoi": {"homeDir": str(self.home)}, "tools": ["claude", "codex", "opencode"]}
         return subprocess.run([
             "chezmoi", "--no-tty", "--source", str(ROOT), "--config", str(self.cfg),
             "--destination", str(self.home), "--override-data", json.dumps(override), "cat", str(path),
@@ -79,14 +72,14 @@ class CommitAttributionTest(unittest.TestCase):
             'notify = ["herdr"]\n'
             '[mcp_servers.fixture]\nurl = "https://example.com/mcp"\n'
         )
-        first = self.run_script(CODEX, existing)
+        first = self.run_modify(CODEX, existing)
         before, after = tomllib.loads(existing), tomllib.loads(first)
         instructions = after["developer_instructions"]
         self.assertTrue(instructions.startswith(before["developer_instructions"]))
         self.assertIn("Co-authored-by: Codex <noreply@openai.com>", instructions)
         self.assertEqual(after["notify"], before["notify"])
         self.assertEqual(after["mcp_servers"], before["mcp_servers"])
-        self.assertEqual(self.run_script(CODEX, first), first)
+        self.assertEqual(self.run_modify(CODEX, first), first)
 
     def test_codex_replaces_only_its_managed_instruction_block(self):
         instructions = (
@@ -94,13 +87,13 @@ class CommitAttributionTest(unittest.TestCase):
             "<!-- chezmoi:codex-commit-attribution:start -->\n舊版指引\n"
             "<!-- chezmoi:codex-commit-attribution:end -->\n後來追加的指引"
         )
-        first = self.run_script(CODEX, "\"developer_instructions\" = " + json.dumps(instructions))
+        first = self.run_modify(CODEX, "\"developer_instructions\" = " + json.dumps(instructions))
         after = tomllib.loads(first)["developer_instructions"]
         self.assertIn("使用者原有指引\n後來追加的指引", after)
         self.assertNotIn("舊版指引", after)
         self.assertEqual(after.count("Co-authored-by: Codex <noreply@openai.com>"), 1)
-        self.assertEqual(self.run_script(CODEX, first), first)
-        personal = tomllib.loads(self.run_script(CODEX_PERSONAL))
+        self.assertEqual(self.run_modify(CODEX, first), first)
+        personal = tomllib.loads(self.run_modify(CODEX_PERSONAL))
         self.assertNotIn("developer_instructions", personal)
 
     def test_opencode_routes_load_one_shared_commit_guide_and_keep_mcp(self):
