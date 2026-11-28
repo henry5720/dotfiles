@@ -113,11 +113,20 @@ class AiProfileTest(unittest.TestCase):
 
     def test_personal_route_names_and_global_symlinks(self):
         # OpenCode 2 的 OPENCODE_CONFIG_DIR 取代 global 目錄(#407):global 的 plugins(herdr-agent-state.js)、cli.json(TUI plugin)連回去
-        for name in ("symlink_plugins.tmpl", "symlink_cli.json.tmpl"):
-            self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal" / name).read_text())
+        self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_plugins.tmpl").read_text())
         self.assertFalse((ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").exists())
         self.assertNotIn("acpAgents", (ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_text())
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_skills.tmpl").read_text())
+
+    def test_cli_json_symlink_only_when_global_exists(self):
+        # global 的 cli.json 不是每台都有,沒有時不建 symlink(#442)
+        template = (ROOT / "home/dot_config/opencode/routes/personal/symlink_cli.json.tmpl").read_bytes()
+        with tempfile.TemporaryDirectory() as home:
+            cfg = Path(home) / "data.toml"; cfg.write_text("", encoding="utf-8")
+            render = lambda: subprocess.check_output(["chezmoi", "--source", str(ROOT), "--config", str(cfg), "execute-template"], input=template, env={**os.environ, "HOME": home}).decode()
+            self.assertEqual(render().strip(), "")
+            target = Path(home) / ".config/opencode/cli.json"; target.parent.mkdir(parents=True); target.write_text("{}", encoding="utf-8")
+            self.assertEqual(render().strip(), str(target))
 
     def test_rendered_personal_route_models_and_common_role_metadata(self):
         with tempfile.TemporaryDirectory() as d:
