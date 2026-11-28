@@ -626,6 +626,22 @@ class WindowsDeployTest(unittest.TestCase):
                 self.assertLess(out.index("Test-Path"), out.index(url))
                 self.assertNotIn(f"Get-Command {tool}", out)
 
+    def test_windows_untraversable_junction_skips_installer_and_plugin(self):
+        # #431:經 ssh 的 admin session 走不進 codex installer 建的 junction(ERROR_UNTRUSTED_MOUNT_POINT),
+        # 不重跑 installer、不當成沒裝,記成裝失敗並提示到桌面的終端機跑
+        hint = "走不進 installer 建的 junction(未受信任的掛接點);到桌面的終端機跑 chezmoi apply"
+        for script, tools, call in ((self.agent_script("codex"), ["codex"],
+                                     r"Test-JunctionBlocked (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')"),
+                                    (self.WAKATIME_SCRIPT, ["wakatime", "codex"], "Test-JunctionBlocked $codex")):
+            with self.subTest(script=script.name):
+                out = self.render(script, tools)
+                self.assertIn("$_.Exception.InnerException.HResult -eq -2147024448", out)
+                self.assertLess(out.index("function Test-JunctionBlocked"), out.index(call))
+                self.assertIn(hint, self.decoded(out))
+                self.assertTrue(out.isascii())
+        out = self.render(self.agent_script("codex"), ["codex"])
+        self.assertLess(out.index("Test-JunctionBlocked ("), out.index("https://chatgpt.com/codex/install.ps1"))
+
     def test_windows_codex_installer_runs_non_interactive(self):
         # 官方 install.ps1 最後會問「Start Codex now?」(Read-Host),apply 會停在那裡;CODEX_NON_INTERACTIVE=1 才不問
         out = self.render(self.agent_script("codex"), ["codex"])

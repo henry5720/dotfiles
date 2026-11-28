@@ -1,0 +1,9 @@
+{{- /* 經 ssh 的 admin session(elevated、session 0)走不進一般權限建的 junction(#431):codex 的 installer 把
+       %LOCALAPPDATA%\Programs\OpenAI\Codex\bin 建成 junction,elevated 的程序讀它裡面會拿到
+       ERROR_UNTRUSTED_MOUNT_POINT(0x800701C0,「由於此路徑包含未受信任的掛接點」),Test-Path 那支 exe 是 False。
+       這時 agent 其實裝好了,重跑 installer 也一樣卡在這個 junction。
+       用法:Test-JunctionBlocked <exe 的路徑>;目錄不存在或讀得到都是 $false。 */ -}}
+function Test-JunctionBlocked([string]$exe) {
+    try { [IO.Directory]::GetFiles((Split-Path $exe)) | Out-Null; return $false }
+    catch { return $_.Exception.InnerException.HResult -eq -2147024448 }
+}

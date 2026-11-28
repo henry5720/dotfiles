@@ -7,7 +7,9 @@
        由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII,中文訊息走 ps1-text。
 
        1. 已經裝過就跳過。只認表上官方裝的位置:PATH 上的同名指令可能是 mise、npm、winget 那份,認了就永遠裝不到官方版。
-          用 if/else 不用 exit:後面還有別的工具要跑
+          用 if/else 不用 exit:後面還有別的工具要跑。
+          經 ssh 的 admin session 走不進 installer 建的 junction(codex,#431;.chezmoitemplates/ps1-junction-blocked)
+          時不重跑 installer(重跑也卡在同一個 junction),記成裝失敗、提示到桌面的終端機跑
        2. 下載官方腳本成檔案、在同一個 process 跑(.chezmoitemplates/ps1-official-installer),env 在跑之前設好
           (codex 的 CODEX_NON_INTERACTIVE=1:installer 最後會 Read-Host 問「Start Codex now?」,apply 會停在那裡)。
           官方腳本出錯是丟例外或 exit 非 0,兩種都接住
@@ -26,6 +28,7 @@
 {{ includeTemplate "ps1-text" . }}
 {{ includeTemplate "ps1-retry" (dict "key" "install-official" "home" .chezmoi.homeDir) }}
 {{ includeTemplate "ps1-skip" . }}
+{{ includeTemplate "ps1-junction-blocked" . }}
 {{- range $name := $run }}
 {{-   $o := (get $install.tools $name).official }}
 {{-   $checks := list }}
@@ -35,6 +38,8 @@
 # {{ $name }}
 if ({{ first $checks }}) {
     Write-Host ((T '{{ "{0} 已安裝,跳過" | b64enc }}') -f '{{ $name }}')
+} elseif (Test-JunctionBlocked ({{ first $o.installed.paths }})) {
+    skip_fail '{{ $name }}' (T '{{ "已經裝好,但這個 admin 的 ssh session 走不進 installer 建的 junction(未受信任的掛接點);到桌面的終端機跑 chezmoi apply" | b64enc }}')
 } else {
 {{ includeTemplate "ps1-official-installer" (dict "url" $o.url "env" (get $o "env" | default dict)) | indent 4 }}
     if ($code -ne 0) {

@@ -89,6 +89,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-install-failed-summary.ps1.tmpl
+.chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 .chezmoiscripts/run_onchange_after_sync-skillshare.ps1.tmpl
@@ -106,6 +107,11 @@ if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) {
 }
 Remove-Item -Force -ErrorAction SilentlyContinue $f
 exit 0
+
+### .chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
+$gitconfig = Join-Path $HOME '.gitconfig'
+if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig | Out-Null }
 
 ### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'

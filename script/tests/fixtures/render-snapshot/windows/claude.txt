@@ -87,6 +87,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-install-failed-summary.ps1.tmpl
+.chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
 .chezmoiscripts/run_onchange_before_install-packages-windows.ps1.tmpl
@@ -103,6 +104,11 @@ if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) {
 }
 Remove-Item -Force -ErrorAction SilentlyContinue $f
 exit 0
+
+### .chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
+$gitconfig = Join-Path $HOME '.gitconfig'
+if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig | Out-Null }
 
 ### .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 # mise list (~/.config/mise/conf.d/dotfiles.toml):
@@ -166,10 +172,17 @@ function skip_fail([string]$what, [string]$fix) {
     New-Item -ItemType File -Force (Join-Path $d "retry\$retry_key") | Out-Null
 }
 
+function Test-JunctionBlocked([string]$exe) {
+    try { [IO.Directory]::GetFiles((Split-Path $exe)) | Out-Null; return $false }
+    catch { return $_.Exception.InnerException.HResult -eq -2147024448 }
+}
+
 
 # claude
 if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
     Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'claude')
+} elseif (Test-JunctionBlocked (Join-Path $HOME '.local\bin\claude.exe')) {
+    skip_fail 'claude' (T '5bey57aT6KOd5aW9LOS9humAmeWAiyBhZG1pbiDnmoQgc3NoIHNlc3Npb24g6LWw5LiN6YCyIGluc3RhbGxlciDlu7rnmoQganVuY3Rpb24o5pyq5Y+X5L+h5Lu755qE5o6b5o6l6bueKTvliLDmoYzpnaLnmoTntYLnq6/mqZ/ot5EgY2hlem1vaSBhcHBseQ==')
 } else {
     $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
     try {

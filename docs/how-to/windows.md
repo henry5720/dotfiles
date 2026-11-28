@@ -98,6 +98,11 @@ snapserver 在 Windows 標裝不了（原因寫在選單上，`home/.chezmoidata
 `mise ls` 找出那一項的名字（例如 `codex`、`npm:@openai/codex`），`mise unuse -g <那一項>` 從設定拿掉並移除，
 再開新的 shell 確認 `(Get-Command codex).Source` 是 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`。
 
+經 ssh 跑 `chezmoi apply` 時，codex 和它的 WakaTime plugin 可能列在裝失敗，說「走不進 installer 建的 junction」（#431，2026-11-28 henry-laptop 實測）：
+installer 把 `Codex\bin` 建成指向 `.codex\packages\standalone\current\bin` 的 junction，
+OpenSSH 的 admin session（elevated、session 0）不跟一般權限建的 junction，看不到 `codex.exe`，重跑 installer 也報「未受信任的掛接點」。
+codex 其實裝好了，到桌面的終端機再跑一次 `chezmoi apply` 就好。
+
 ### windows-mcp
 
 PyPI 上的 `windows-mcp` 由 mise 的 pipx backend 裝（#343）。mise 有 uv 就用 `uv tool install`，清單裡有 uv 時先裝 uv
