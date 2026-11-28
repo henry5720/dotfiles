@@ -37,7 +37,7 @@ docs/                           文件（見 README 的文件索引）
 
 - 檔名前綴（`dot_`、`private_`、`symlink_`、`.tmpl`…）決定部署結果，規則見
   [target types](https://www.chezmoi.io/reference/target-types/)；逐檔清單跑 `chezmoi managed`。
-- skills、MCP 和全域規則（`CLAUDE.md`／`AGENTS.md`、commit 指引）的內容在 agent-config，這裡只放
+- skills、MCP、全域規則（`CLAUDE.md`／`AGENTS.md`）和 commit 指引的內容在 agent-config，這裡只放
   skillshare 的 `config.yaml`，其中 targets、extras 段照選單勾的 client 產生，決定 skills 與規則連到哪（[ADR 0003](adr/0003-agent-instructions-linked-by-skillshare-extras.md)）；見 agent-config 的
   [skill](https://github.com/henry5720/agent-config/blob/main/docs/skills/README.md)、[MCP](https://github.com/henry5720/agent-config/blob/main/docs/mcp/README.md)。
 - Windows 主機也用這個 repo，只部署 `home/.chezmoiignore` Windows 段白名單上的檔案、只跑 `.ps1` 腳本，見[Windows 主機](how-to/windows.md)；
