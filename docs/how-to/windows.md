@@ -35,11 +35,12 @@ after   install-official.ps1           勾了 claude、codex 才跑：照選裝�
 after   install-wakatime.ps1           勾了 wakatime 才跑：wakatime-cli 放到 .wakatime\（已經有就跳過），再為勾了的 claude、codex 裝 WakaTime plugin（已裝就跳過）
 after   sync-skillshare.ps1            勾了 agent-config 才跑：config.yaml 釘的兩段變了（例如多勾一個 client）就 skillshare sync --all
 after   zz-env-skipped.ps1             勾了 Windows 裝不了的工具時，列出略過了哪些、為什麼
+after   zz-install-failed-summary.ps1  每次都跑：這次有東西裝失敗時，列出略過了哪些、怎麼補
 ```
 
 腳本一律用 Windows PowerShell 5.1 跑、只對那個 process 繞過執行原則（`.chezmoi.toml.tmpl` 的 `[interpreters.ps1]`）：
-第一次 init 時 pwsh 7 多半還沒裝，Windows client 的 5.1 預設執行原則又是 `Restricted`。裝失敗（winget、mise）只印一行、
-apply 照樣跑完，照印出的指令自己補。
+第一次 init 時 pwsh 7 多半還沒裝，Windows client 的 5.1 預設執行原則又是 `Restricted`。裝失敗（網路、winget、mise）的那一項略過、
+apply 照樣跑完，最後列在「這次裝失敗」那段；修好原因後再 `chezmoi apply` 會重跑那支腳本（[ADR 0006](../adr/0006-install-failure-skips-and-retries.md)）。
 
 兩份 `Profile.ps1` 內容一樣，做的事見[裝了什麼、怎麼用](#裝了什麼怎麼用)。
 chezmoi 不碰 `$PROFILE`（`Microsoft.PowerShell_profile.ps1`），機器專屬的設定（例如 API key）寫在那裡，不進 repo。

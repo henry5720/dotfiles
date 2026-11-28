@@ -20,12 +20,15 @@
        (Get-PluginList 接住 ConvertFrom-Json 的例外,不然整段 if 被跳過)。
        agent 先找 PATH,再找官方 installer 裝的位置(.chezmoitemplates/ps1-agent-exe;chezmoi 跑腳本時 -NoProfile,
        PATH 不一定有 .local\bin)。
-       任何一步失敗只印一行、exit 0(同 Windows 其他腳本:不然 apply 中止)。代價是不會自動重試,要照印出來的指令自己裝。 */ -}}
+       任何一步失敗只略過那一步(ps1-skip 的 skip_fail)、exit 0(不然 apply 中止),apply 最後列出,下次 apply 重跑這支
+       (ps1-retry,ADR 0006)。claude、codex 的段落勾了才有:找不到它就是 install-official 這次沒裝好,一樣記成裝失敗、等下次重試。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- if has "wakatime" $installing -}}
 {{- $asset := printf "windows-%s" .chezmoi.arch -}}
 {{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
+{{ includeTemplate "ps1-retry" (dict "key" "install-wakatime" "home" .chezmoi.homeDir) }}
+{{ includeTemplate "ps1-skip" . }}
 {{- if has .chezmoi.arch (list "amd64" "arm64") }}
 $dir = Join-Path $HOME '.wakatime'
 $bin = Join-Path $dir 'wakatime-cli-{{ $asset }}.exe'
@@ -43,7 +46,7 @@ if (Test-Path $bin) {
         Copy-Item -Path (Join-Path $tmp 'wakatime-cli-{{ $asset }}.exe') -Destination $bin -ErrorAction Stop
     } catch {
         Write-Host $_
-        Write-Host ((T '{{ "wakatime-cli 沒裝好,之後自己下載 {0} 解開到 {1}" | b64enc }}') -f $url, $dir)
+        skip_fail 'wakatime-cli' ((T '{{ "從 GitHub release 下載或解壓失敗,下次 chezmoi apply 會重試,或自己下載 {0} 解開到 {1}" | b64enc }}') -f $url, $dir)
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }
@@ -69,14 +72,14 @@ function Get-PluginList([string]$exe) {
 
 $claude = Find-Agent 'claude' ({{ includeTemplate "ps1-agent-exe" "claude" }})
 if (-not (Test-Path $claude)) {
-    Write-Host (T '{{ "找不到 claude,跳過 Claude Code 的 WakaTime plugin" | b64enc }}')
+    skip_fail (T '{{ "Claude Code 的 WakaTime plugin" | b64enc }}') (T '{{ "找不到 claude(它這次也沒裝好),下次 chezmoi apply 會重試" | b64enc }}')
 } elseif (@(Get-PluginList $claude | Where-Object { $_.id -eq 'claude-code-wakatime@wakatime' }).Count -gt 0) {
     Write-Host (T '{{ "Claude Code 的 WakaTime plugin 已安裝,跳過" | b64enc }}')
 } else {
     & $claude plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git
     & $claude plugin install claude-code-wakatime@wakatime
     if ($LASTEXITCODE -ne 0) {
-        Write-Host (T '{{ "Claude Code 的 WakaTime plugin 沒裝好,之後自己跑:claude plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git; claude plugin install claude-code-wakatime@wakatime" | b64enc }}')
+        skip_fail (T '{{ "Claude Code 的 WakaTime plugin" | b64enc }}') (T '{{ "claude plugin 指令失敗,下次 chezmoi apply 會重試,或自己跑:claude plugin marketplace add https://github.com/wakatime/claude-code-wakatime.git; claude plugin install claude-code-wakatime@wakatime" | b64enc }}')
     }
 }
 {{- end }}
@@ -84,14 +87,14 @@ if (-not (Test-Path $claude)) {
 
 $codex = Find-Agent 'codex' ({{ includeTemplate "ps1-agent-exe" "codex" }})
 if (-not (Test-Path $codex)) {
-    Write-Host (T '{{ "找不到 codex,跳過 Codex CLI 的 WakaTime plugin" | b64enc }}')
+    skip_fail (T '{{ "Codex CLI 的 WakaTime plugin" | b64enc }}') (T '{{ "找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試" | b64enc }}')
 } elseif (@((Get-PluginList $codex).installed | Where-Object { $_.pluginId -eq 'codex-cli-wakatime@wakatime' }).Count -gt 0) {
     Write-Host (T '{{ "Codex CLI 的 WakaTime plugin 已安裝,跳過" | b64enc }}')
 } else {
     & $codex plugin marketplace add wakatime/codex-cli-wakatime
     & $codex plugin add codex-cli-wakatime@wakatime
     if ($LASTEXITCODE -ne 0) {
-        Write-Host (T '{{ "Codex CLI 的 WakaTime plugin 沒裝好,之後自己跑:codex plugin marketplace add wakatime/codex-cli-wakatime; codex plugin add codex-cli-wakatime@wakatime" | b64enc }}')
+        skip_fail (T '{{ "Codex CLI 的 WakaTime plugin" | b64enc }}') (T '{{ "codex plugin 指令失敗,下次 chezmoi apply 會重試,或自己跑:codex plugin marketplace add wakatime/codex-cli-wakatime; codex plugin add codex-cli-wakatime@wakatime" | b64enc }}')
     }
 }
 {{- end }}

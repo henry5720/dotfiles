@@ -11,7 +11,7 @@
          工作目錄設 $HOME:沒指定時排程從 C:\Windows\System32 起,server 和每個新 pane 都在那裡(starship 還會掃到逾時)。直接排 herdr.exe 會開一個 console 視窗,關掉 server 就停
        - 不限執行時間(預設 72 小時會被停掉)、已在跑就不再起一個;已經有 server 在跑時,新的這個會自己結束
        註冊完馬上跑一次,這次登入就生效。laptop 用 --session 測過(#416):process 在 session 2、一般權限的 client 連得上。
-       任何一步失敗只印一行、exit 0(同 Windows 其他腳本)。取消勾選不會刪排程,同「取消勾選不會解除安裝」。 */ -}}
+       任何一步失敗只印一行、exit 0:這是設定步驟、不是安裝,不記裝失敗、不重試(ADR 0006 只管選裝工具的安裝)。取消勾選不會刪排程,同「取消勾選不會解除安裝」。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- if has "herdr" $installing -}}
 {{ includeTemplate "ps1-winps-modules" . }}

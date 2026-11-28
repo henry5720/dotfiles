@@ -162,7 +162,7 @@ fi
 rm -f "$d/env-skipped"
 if [ -s "$d/install-failed" ]; then
   echo
-  echo "== 這次裝失敗,以下已略過(錯誤訊息在上面;其餘照常裝好,修好原因後再 chezmoi apply 會重試):"
+  echo '== 這次裝失敗,以下已略過(錯誤訊息在上面;其餘照常裝好,修好原因後再 chezmoi apply 會重試):'
   cat "$d/install-failed"
 fi
 rm -f "$d/install-failed"

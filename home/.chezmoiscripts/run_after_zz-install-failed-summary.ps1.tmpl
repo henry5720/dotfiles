@@ -1,0 +1,20 @@
+{{- /* Windows 主機的略過彙整「這次裝失敗」那段(ADR 0006;sh 版在 run_after_zz-root-skipped-summary)。
+       每台 Windows 都有:任何機器都可能裝失敗(網路、winget 壞了)。各腳本裝失敗時由 ps1-skip 的 skip_fail
+       記進 ~/.local/state/dotfiles/install-failed,這支在 apply 最後印出來再刪掉;重試標記在 retry/,不在這裡刪。
+       「這台裝不了」那段是另一支 run_onchange_after_zz-env-skipped.ps1:清單在渲染時就知道,勾選或原因變了才印,
+       不併進來(併進 run_after_ 就變成每次 apply 都印一次)。檔名 zz-install-failed-:target 名稱排在 zz-env-skipped 後面,
+       跟 sh 版一樣先列裝不了、再列裝失敗。
+       run_after_:每次 apply 都跑,沒有裝失敗就什麼都不印。代價同 sh 版:chezmoi status 一直多一行 R(ADR 0006)。
+       只部署到 Windows;由 Windows PowerShell 5.1 跑,渲染結果只能有 ASCII(標題經 ps1-text 的 T 解 base64)。 */ -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{ includeTemplate "ps1-winps-modules" . }}
+{{ includeTemplate "ps1-text" . }}
+$f = Join-Path $HOME '.local\state\dotfiles\install-failed'
+if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) {
+    Write-Host ''
+    Write-Host (T '{{ includeTemplate "install-failed-header" . | trim | b64enc }}')
+    [IO.File]::ReadAllLines($f, [Text.Encoding]::UTF8) | ForEach-Object { Write-Host $_ }
+}
+Remove-Item -Force -ErrorAction SilentlyContinue $f
+exit 0
+{{ end -}}

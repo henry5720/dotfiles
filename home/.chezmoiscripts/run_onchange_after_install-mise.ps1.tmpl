@@ -6,7 +6,7 @@
 
        1. PATH 從登錄重讀一次:mise 是 before_ 的 install-packages-windows 剛用 winget 裝的,
           winget 改的是使用者 Path,chezmoi 這個 process 繼承的 PATH 還沒有它
-       2. 還是找不到 mise 就印一行、exit 0
+       2. 還是找不到 mise(前面 winget 沒裝好)就記成裝失敗、exit 0
        3. %LOCALAPPDATA%\mise\shims 加到使用者 Path 最前面,已經有就不動(#400):ssh 進 Windows 預設是 cmd,
           不讀 PowerShell profile,只看使用者 Path。mise 官方說 cmd.exe 與不讀 profile 的程式要把 shims 放進
           使用者 Path(https://mise.jdx.dev/dev-tools/shims.html);我們用 winget 裝 mise,用不到官方 install.ps1 的
@@ -19,11 +19,11 @@
           PowerShell profile 也會把 shims 加進 PATH,但它先看已經有沒有,這裡加過就不會再加一次。
        4. mise install(順便建 shims)。
           要打 GitHub API(aqua backend;未登入每小時 60 次),被限流時設 GITHUB_TOKEN 再 apply。
-          裝失敗只印一行、exit 0:不然 apply 中止。代價是不會自動重試,要自己跑 mise install。
+          裝失敗記成裝失敗(ps1-skip 的 skip_fail)、exit 0:不然 apply 中止。apply 最後列出,下次 apply 重跑這支(ps1-retry,ADR 0006)。
        5. mise prune:取消勾選的工具只從清單拿掉的話,shim 還在,打指令會報 No version is set for shim(#330)。
           清單變了才跑(run_onchange_)。自己 mise use -g 的與專案 mise.toml 要的版本都留著
           (mise 記著載入過的設定檔),只為 mise exec <工具>@<版本> 裝的會被刪(https://mise.jdx.dev/cli/prune.html)。
-          install 失敗也照跑;prune 失敗只印一行、exit 0。
+          install 失敗也照跑;prune 失敗也記成裝失敗、exit 0。
        連 mise 一起清掉:mise implode、winget uninstall jdx.mise。 */ -}}
 {{- $list := includeTemplate "mise-tools" . -}}
 {{- if $list -}}
@@ -31,10 +31,12 @@
 {{ $list | trim | comment "#   " }}
 {{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
+{{ includeTemplate "ps1-retry" (dict "key" "install-mise" "home" .chezmoi.homeDir) }}
+{{ includeTemplate "ps1-skip" . }}
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 
 if (-not (Get-Command mise -ErrorAction SilentlyContinue)) {
-    Write-Host (T '{{ "找不到 mise,CLI 工具沒裝。先 winget install --id jdx.mise --exact,開新的 PowerShell 再 chezmoi apply" | b64enc }}')
+    skip_fail (T '{{ "mise 與它的工具" | b64enc }}') (T '{{ "找不到 mise(winget 這次也沒裝好),下次 chezmoi apply 會重試,或先 winget install --id jdx.mise --exact" | b64enc }}')
     exit 0
 }
 
@@ -47,12 +49,12 @@ if (@($parts | ForEach-Object { [Environment]::ExpandEnvironmentVariables($_).Tr
 
 mise install
 if ($LASTEXITCODE -ne 0) {
-    Write-Host (T '{{ "mise install 有工具沒裝好,之後自己跑:mise install" | b64enc }}')
+    skip_fail (T '{{ "mise 的工具" | b64enc }}') (T '{{ "mise install 有工具沒裝好(被 GitHub API 限流時設 GITHUB_TOKEN),下次 chezmoi apply 會重試,或自己跑 mise install" | b64enc }}')
 }
 
 mise prune --yes
 if ($LASTEXITCODE -ne 0) {
-    Write-Host (T '{{ "mise prune 沒跑完,取消勾選的工具可能還留著 shim,之後自己跑:mise prune" | b64enc }}')
+    skip_fail 'mise prune' (T '{{ "沒跑完,取消勾選的工具可能還留著 shim,下次 chezmoi apply 會重試,或自己跑 mise prune" | b64enc }}')
 }
 exit 0
 {{ end -}}

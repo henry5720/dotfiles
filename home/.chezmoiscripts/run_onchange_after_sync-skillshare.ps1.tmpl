@@ -4,12 +4,16 @@
        兩個 hash 寫在下面的註解,內容變了 run_onchange_ 才重跑(同 Linux)。
        新機器上 install-agent-config(字母序在前)的 sync --all 已經做過,這裡再跑一次無害。
        沒開 Developer Mode 時指令檔是複製的:agent-config 的內容改了(skillshare pull 之後)也要 sync --all 才會更新。
-       失敗只印一行、exit 0(同 Windows 其他腳本)。由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII。 */ -}}
+       sync 失敗記成裝失敗(ps1-skip 的 skip_fail)、exit 0,apply 最後列出,下次 apply 重跑這支(ps1-retry,ADR 0006)。
+       agent-config 還沒裝好時只印一行跳過:install-agent-config 那支已經記了裝失敗,它重試裝好時自己會 sync --all。
+       由 Windows PowerShell 5.1 跑:渲染結果只能有 ASCII。 */ -}}
 {{- if has "agent-config" (splitList " " (includeTemplate "tools-to-install" .)) -}}
 # hash: {{ include "AppData/Roaming/skillshare/modify_config.yaml" | sha256sum }}
 # pinned: {{ includeTemplate "skillshare-pinned" . | sha256sum }}
 {{ includeTemplate "ps1-winps-modules" . }}
 {{ includeTemplate "ps1-text" . }}
+{{ includeTemplate "ps1-retry" (dict "key" "sync-skillshare" "home" .chezmoi.homeDir) }}
+{{ includeTemplate "ps1-skip" . }}
 $ss = Join-Path $env:LOCALAPPDATA 'Programs\skillshare\skillshare.exe'
 if (-not (Test-Path (Join-Path $env:APPDATA 'skillshare\.git')) -or -not (Test-Path $ss)) {
     Write-Host (T '{{ "agent-config 還沒裝好,跳過 skillshare sync" | b64enc }}')
@@ -17,7 +21,7 @@ if (-not (Test-Path (Join-Path $env:APPDATA 'skillshare\.git')) -or -not (Test-P
 }
 & $ss sync --all
 if ($LASTEXITCODE -ne 0) {
-    Write-Host (T '{{ "skillshare sync --all 失敗,之後自己再跑一次" | b64enc }}')
+    skip_fail 'skillshare sync --all' (T '{{ "失敗(錯誤在上面),下次 chezmoi apply 會重試,或自己再跑一次" | b64enc }}')
 }
 exit 0
 {{ end -}}

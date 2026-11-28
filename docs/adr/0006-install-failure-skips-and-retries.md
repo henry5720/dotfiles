@@ -42,4 +42,10 @@ Windows 的 `.ps1` 跟 `install-mise` 則印一行、exit 0，但不會進最後
 - **重試標記不會自己過期。** 一直裝不起來的工具（例如 Intel macOS 上某個 brew 編不過的 formula），每次 apply 都會重跑那支腳本、再列一次。
   這是刻意的：要讓它停，就取消勾選。
 - **macOS 的 cask 不重試。** cask 最常見的失敗是 `/Applications` 已經有同一個 app（官網或 App Store 裝的），重試只會每次再失敗一次，所以維持印一行略過。
-- **Windows 的 `.ps1` 還沒跟上。** 它們本來就不會讓 apply 停，但裝失敗還沒進彙整、也還沒重試；#422 處理，要在 Windows 實機驗。
+- **Windows 另有一支彙整，基底裝失敗也不停。** `.ps1` 用同一套做法（#422）：`.chezmoitemplates/ps1-skip` 的 `skip_fail`、`ps1-retry`，
+  標記一樣在 `~/.local/state/dotfiles/retry/`。「這次裝失敗」由每台 Windows 都有的 `run_after_zz-install-failed-summary.ps1` 印
+  （標題跟 sh 版共用 `.chezmoitemplates/install-failed-header`），「裝不了」那支 `zz-env-skipped.ps1` 照舊是 `run_onchange_`；
+  `chezmoi status` 一樣一直多一行，Windows CI 檢查「沒有待跑的腳本」時排除它。winget 裝的基底（mise、pwsh 7、Windows Terminal）
+  裝失敗也只略過、不讓 apply 停。這跟 Linux 的規則一致：基底會讓 apply 停，是因為那些是 chezmoi 自己要用的（git、curl）；
+  Windows 的基底 chezmoi 一個都用不到（`.ps1` 由內建的 Windows PowerShell 5.1 跑，見 `.chezmoi.toml.tmpl` 的 `[interpreters.ps1]`），
+  只是每台都裝的 app。mise 沒裝起來由 `install-mise.ps1` 自己記裝失敗，PowerShell profile 用到 starship、zoxide 前都先 `Get-Command`。

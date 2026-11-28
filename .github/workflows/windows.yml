@@ -117,9 +117,9 @@ jobs:
           }
           chezmoi init --apply @flags henry5720 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\init.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # 實機清單第 8 項的「沒有紅字」:.ps1 腳本失敗只印一行、exit 0(不讓 apply 中止),exit code 看不出來,
-          # 改看 log 有沒有 PowerShell 的錯誤(FullyQualifiedErrorId)與腳本自己印的失敗訊息
-          $bad = Select-String -Path "$env:RUNNER_TEMP\init.log" -Encoding utf8 -Pattern 'FullyQualifiedErrorId', '沒裝好', '失敗,之後', '找不到 winget', '找不到 mise'
+          # 實機清單第 8 項的「沒有紅字」:.ps1 腳本裝失敗記進彙整、exit 0(不讓 apply 中止,ADR 0006),exit code 看不出來,
+          # 改看 log 有沒有 PowerShell 的錯誤(FullyQualifiedErrorId)與 skip_fail 印的「這次裝失敗」
+          $bad = Select-String -Path "$env:RUNNER_TEMP\init.log" -Encoding utf8 -Pattern 'FullyQualifiedErrorId', '這次裝失敗', '沒裝好', '找不到 winget', '找不到 mise'
           if ($bad) { '腳本有錯:'; $bad; exit 1 }
 
       # 5. 完整勾了 Windows 裝不了的,要在略過彙整裡看到(run_onchange_after_zz-env-skipped.ps1);
@@ -141,14 +141,15 @@ jobs:
           }
 
       # 6. 實機清單第 1 項:檔案全部跟 source 一致,也沒有還沒跑過的腳本(run_onchange_ 失敗或沒跑會留在 status)。
-      #    Windows 的略過彙整是 run_onchange_,跑過就不在 status,不用像 macos.yml 排除它
+      #    「這次裝失敗」的彙整(run_after_zz-install-failed-summary.ps1)是 run_after_,每次 apply 都跑、status 永遠看得到它,
+      #    照 macos.yml 排除;「裝不了」那支(zz-env-skipped.ps1)是 run_onchange_,跑過就不在 status
       - name: chezmoi verify
         run: |
           [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
           Get-Content -Encoding utf8 "$HOME\.config\chezmoi\chezmoi.toml"
           chezmoi verify --exclude scripts
           if ($LASTEXITCODE -ne 0) { chezmoi diff --exclude scripts; exit 1 }
-          $pending = chezmoi status --include scripts
+          $pending = chezmoi status --include scripts | Where-Object { $_ -notmatch 'zz-install-failed-summary' }
           if ($pending) { "還有腳本待跑:"; $pending; exit 1 }
 
       # 7. 實機清單第 2 項:PowerShell 讀得到 chezmoi 部署的 profile
@@ -223,7 +224,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       # 11. 實機清單第 11 項:再 apply 一次不重新下載。腳本 run_onchange_ 內容沒變就不跑(上面 status 已經是空的),
-      #    這裡再看官方 installer、mise、winget 裝的東西修改時間沒變,diff 也沒有輸出
+      #    這裡再看官方 installer、mise、winget 裝的東西修改時間沒變,diff 也沒有輸出(彙整的 run_after_ 永遠在 diff 裡,排除)
       - name: 第二次 apply 不重新下載
         run: |
           [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
@@ -238,9 +239,39 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $changed = Compare-Object @($before) @(Snapshot)
           if ($changed) { "第二次 apply 改了這些檔:"; $changed; exit 1 }
-          $diff = chezmoi diff
+          $diff = chezmoi diff --exclude scripts
           if ($diff) { $diff; exit 1 }
+          $pending = chezmoi status --include scripts | Where-Object { $_ -notmatch 'zz-install-failed-summary' }
+          if ($pending) { "還有腳本待跑:"; $pending; exit 1 }
           "沒有重新下載($(@($before).Count) 個檔),diff 沒有輸出"
+
+      # 12. 裝失敗(#422,ADR 0006):mise 的清單多一個不存在的工具,install-mise 的 mise install 失敗。
+      #     先清掉 entryState(run_onchange_ 跑過的紀錄;scriptState 是 run_once_ 的),讓 run_onchange_ 腳本全部重跑:apply 要照樣成功、最後列出
+      #     「這次裝失敗」、留下重試標記、install-failed 印完刪掉。拿掉那個工具再 apply 一次(不清 state):
+      #     install-mise 因為標記讓內容變了而重跑,跑完標記清掉、不再列出。精簡那組跑就好,做法兩組一樣
+      - name: 裝失敗會列出、下次 apply 重試
+        if: matrix.use == 'minimal'
+        run: |
+          [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+          $ErrorActionPreference = 'Continue'
+          $state = "$HOME\.local\state\dotfiles"
+          $broken = "$HOME\.config\mise\conf.d\ci-broken.toml"
+          '[tools]', '"github:henry5720/ci-tool-that-does-not-exist" = "1.0.0"' | Set-Content -Encoding ascii $broken
+          chezmoi state delete-bucket --bucket=entryState
+          chezmoi apply --no-tty 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\fail.log"
+          if ($LASTEXITCODE -ne 0) { Write-Error '裝失敗讓 apply 停了'; exit 1 }
+          $log = Get-Content -Encoding utf8 "$env:RUNNER_TEMP\fail.log"
+          $start = ($log | Select-String -SimpleMatch '== 這次裝失敗,以下已略過' | Select-Object -First 1).LineNumber
+          if (-not $start) { Write-Error 'apply 最後沒有列出這次裝失敗'; exit 1 }
+          if (-not ($log | Select-Object -Skip $start | Where-Object { $_.StartsWith('- mise') })) { Write-Error '彙整沒有 mise'; exit 1 }
+          if (-not (Test-Path "$state\retry\install-mise")) { Write-Error '沒有留下重試標記'; exit 1 }
+          if (Test-Path "$state\install-failed") { Write-Error 'install-failed 印完沒刪'; exit 1 }
+          Remove-Item $broken
+          chezmoi apply --no-tty 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath "$env:RUNNER_TEMP\retry.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path "$state\retry\install-mise") { Write-Error '重試後標記沒清掉(install-mise 沒重跑或又失敗)'; exit 1 }
+          if (Select-String -Path "$env:RUNNER_TEMP\retry.log" -Encoding utf8 -SimpleMatch '這次裝失敗') { Write-Error '修好後還列出裝失敗'; exit 1 }
+          '裝失敗有列出、留標記;修好後重跑、標記清掉'
 
       - name: 留下 log
         if: always()
