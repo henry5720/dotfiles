@@ -54,6 +54,13 @@ opencode mcp list                                        # 看有沒有 connecte
 
 - ⚠️ installer 或 opencode 自己寫進 `mcp` 以外的設定,下次 `chezmoi apply` 會被蓋回 repo 版,**而且不出聲**。
   要留住就改 repo 那份再 apply。
+- 打 `codex-lb-gcp` 常回 `model_not_found: The '<model>' model is not supported when using Codex with a ChatGPT account`,
+  同時段 `codex exec` 卻都成功:gateway 只把帶 Codex `originator` header 的請求當 Codex 用戶端,OpenCode 2 不帶。
+  provider 的 `headers` 已經補上 `originator: codex_cli_rs`;換 gateway 或改 provider 時別拿掉。
+  2026-11-28 在 company-ec2 用記錄 proxy 重放同一份請求逐個 header 試出來的(#407)。
+- slim 自己更新了、OpenCode 卻還停在舊版:oh-my-opencode-slim 不鎖版本又開了 `autoUpdate`,
+  OpenCode 本身卻要另外升:Linux、macOS 跑 `opencode upgrade`,Windows 用 mise 裝的要 `mise upgrade`。slim 哪天把 `engines.opencode` 拉高,
+  沒升的機器就載不到 slim(#204 當時就是這樣)。Windows 上 `opencode upgrade` 認不出 mise 裝的,一定要用 `mise upgrade`。
 - 剛 apply 完、第一次跑 `opencode debug agents` 看不到 oh-my-opencode-slim 的 agent(只有 build、plan、explore、general):
   OpenCode 2 的背景服務在 plugin 還沒下載完時就起來了。等 `~/.cache/opencode/npm/oh-my-opencode-slim@latest` 出現,
   `opencode service restart` 再看。2026-11-28 在 company-ec2 實測(#407)。

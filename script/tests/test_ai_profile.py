@@ -111,8 +111,11 @@ class AiProfileTest(unittest.TestCase):
             self.assertIn("keep-codex", output)
             self.assertNotIn("models", output)
 
-    def test_personal_route_names_and_tui_pin(self):
-        self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").read_text())
+    def test_personal_route_names_and_global_symlinks(self):
+        # OpenCode 2 的 OPENCODE_CONFIG_DIR 取代 global 目錄(#407):global 的 plugins(herdr-agent-state.js)、cli.json(TUI plugin)連回去
+        for name in ("symlink_plugins.tmpl", "symlink_cli.json.tmpl"):
+            self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal" / name).read_text())
+        self.assertFalse((ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").exists())
         self.assertNotIn("acpAgents", (ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_text())
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_skills.tmpl").read_text())
 
