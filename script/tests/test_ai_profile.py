@@ -23,7 +23,7 @@ class AiProfileTest(unittest.TestCase):
         for name in ("codex-work", "codex-personal", "opencode-work", "opencode-personal"):
             (self.bin / name).symlink_to(LAUNCHER)
         self.write_fake("codex", "#!/bin/sh\nif [ \"$1\" = login ] && [ \"$2\" = status ]; then printf 'chatgpt\\n'; exit 0; fi\nprintf '%s\\n' \"$*\"\nprintf 'CODEX_HOME=%s\\n' \"${CODEX_HOME-}\"\nexit 7\n")
-        self.write_fake("opencode", "#!/usr/bin/env python3\nimport json,os,sys\nprint(json.dumps({'argv':sys.argv[1:],'config':os.environ.get('OPENCODE_CONFIG_DIR',''),'content':os.environ.get('OPENCODE_CONFIG_CONTENT',''),'tui':os.environ.get('OPENCODE_TUI_CONFIG',''),'preset':os.environ.get('OH_MY_OPENCODE_SLIM_PRESET','')}))\nraise SystemExit(7)\n")
+        self.write_fake("opencode", "#!/usr/bin/env python3\nimport json,os,sys\nprint(json.dumps({'argv':sys.argv[1:],'config':os.environ.get('OPENCODE_CONFIG_DIR',''),'content':os.environ.get('OPENCODE_CONFIG_CONTENT',''),'tui':os.environ.get('OPENCODE_TUI_CONFIG',''),'preset':os.environ.get('OH_MY_OPENCODE_SLIM_PRESET',''),'file':os.environ.get('OPENCODE_CONFIG','')}))\nraise SystemExit(7)\n")
 
     def tearDown(self): self.tmp.cleanup()
 
@@ -40,7 +40,7 @@ class AiProfileTest(unittest.TestCase):
 
     def write_opencode_route(self):
         path = self.home / ".config/opencode/routes/personal"; path.mkdir(parents=True)
-        (path / "opencode.json").write_text('{"model":"openai/personal","small_model":"openai/small"}', encoding="utf-8")
+        (path / "opencode.json").write_text('{"model":"openai/personal","agents":{"title":{"model":"openai/small"}}}', encoding="utf-8")
         (path / "oh-my-opencode-slim.json").write_text('{"presets":{"personal":{}},"council":{"presets":{"personal":{"terra":{"model":"openai/personal"},"sol":{"model":"openai/sol"},"luna":{"model":"openai/luna"}}}}}', encoding="utf-8")
 
     def test_codex_work_passes_argv_and_shared_root(self):
@@ -58,7 +58,12 @@ class AiProfileTest(unittest.TestCase):
     def test_opencode_personal_route_overlay_and_no_runtime_write(self):
         self.write_opencode_route(); before = sorted(str(p.relative_to(self.home)) for p in self.home.rglob("*"))
         result = self.invoke("opencode-personal", "run", "hello", extra={"OPENCODE_CONFIG_CONTENT": '{"theme":"neutral"}'})
-        self.assertEqual(result.returncode, 7); payload = json.loads(result.stdout); self.assertIn("routes/personal", payload["config"]); self.assertEqual(json.loads(payload["content"])["theme"], "neutral")
+        self.assertEqual(result.returncode, 7); payload = json.loads(result.stdout); self.assertIn("routes/personal", payload["config"]); content = json.loads(payload["content"]); self.assertEqual(content["theme"], "neutral")
+        # OpenCode 2 的鍵(#407):只放行 openai,title 用 route 的 model
+        self.assertEqual(content["policies"], [{"action": "provider.use", "resource": "*", "effect": "deny"}, {"action": "provider.use", "resource": "openai", "effect": "allow"}])
+        self.assertEqual(content["agents"]["title"]["model"], "openai/small"); self.assertNotIn("enabled_providers", content)
+        # OPENCODE_CONFIG_DIR 在 V2 取代 global 那層,global 的 opencode.json 用 OPENCODE_CONFIG 疊回;--standalone 不連共用服務
+        self.assertEqual(payload["file"], str(self.home / ".config/opencode/opencode.json")); self.assertEqual(payload["argv"], ["--standalone", "run", "hello"])
         self.assertEqual(before, sorted(str(p.relative_to(self.home)) for p in self.home.rglob("*")))
 
     def test_opencode_personal_ready_empty_argv_and_work_resets_route_overrides(self):
@@ -89,8 +94,9 @@ class AiProfileTest(unittest.TestCase):
             result = self.invoke("opencode-personal", *args, extra={"OPENCODE_CONFIG": "bad", "OPENCODE_CONFIG_DIR": "bad", "OPENCODE_TUI_CONFIG": "bad", "OPENCODE_CONFIG_CONTENT": "bad", "OH_MY_OPENCODE_SLIM_PRESET": "bad"})
             self.assertEqual(result.returncode, 7)
             payload = json.loads(result.stdout)
-            self.assertEqual(payload["argv"], ["--pure", *args])
+            self.assertEqual(payload["argv"], list(args))
             self.assertEqual(payload["config"], "")
+            self.assertEqual(payload["file"], "")
             self.assertEqual(payload["content"], "")
             self.assertEqual(payload["tui"], "")
             self.assertEqual(payload["preset"], "")
@@ -105,8 +111,11 @@ class AiProfileTest(unittest.TestCase):
             self.assertIn("keep-codex", output)
             self.assertNotIn("models", output)
 
-    def test_personal_route_names_and_tui_pin(self):
-        self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").read_text())
+    def test_personal_route_names_and_global_symlinks(self):
+        # OpenCode 2 的 OPENCODE_CONFIG_DIR 取代 global 目錄(#407):global 的 plugins(herdr-agent-state.js)、cli.json(TUI plugin)連回去
+        for name in ("symlink_plugins.tmpl", "symlink_cli.json.tmpl"):
+            self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal" / name).read_text())
+        self.assertFalse((ROOT / "home/dot_config/opencode/routes/personal/symlink_tui.jsonc.tmpl").exists())
         self.assertNotIn("acpAgents", (ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_text())
         self.assertIn("{{ .chezmoi.homeDir }}", (ROOT / "home/dot_config/opencode/routes/personal/symlink_skills.tmpl").read_text())
 
@@ -121,10 +130,11 @@ class AiProfileTest(unittest.TestCase):
         self.assertEqual(roles["oracle"]["model"], "openai/gpt-6.1-sol")
         self.assertTrue(all(role["model"].startswith("openai/") for role in roles.values()))
         self.assertNotIn("acpAgents", rendered); self.assertEqual(rendered["fallback"]["enabled"], False)
-        self.assertEqual(rendered["autoUpdate"], False)
-        self.assertIn("@3.0.7/", rendered["$schema"])
+        # OpenCode 2 之後不再固定 3.0.7(#407)
+        self.assertEqual(rendered["autoUpdate"], True)
+        self.assertIn("@latest/", rendered["$schema"])
         company = json.loads((ROOT / "home/dot_config/opencode/oh-my-opencode-slim.json").read_text())
-        self.assertEqual(company["autoUpdate"], False)
+        self.assertEqual(company["autoUpdate"], True)
         # skills、mcps 沒寫的用 OMO 預設;有寫的(oracle 的 skills)照搬
         for name in ("orchestrator", "oracle"):
             for key in ("skills", "mcps"):
@@ -172,7 +182,7 @@ class AiProfileTest(unittest.TestCase):
             core = json.loads(subprocess.check_output(["chezmoi", "--source", str(source), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/opencode.json.tmpl").read_bytes()))
             omo = json.loads(subprocess.check_output(["chezmoi", "--source", str(source), "--config", str(cfg), "execute-template"], input=(ROOT / "home/dot_config/opencode/routes/personal/oh-my-opencode-slim.json.tmpl").read_bytes()))
         self.assertEqual(core["model"], "openai/fixture-main")
-        self.assertEqual(core["small_model"], "openai/fixture-small")
+        self.assertEqual(core["agents"]["title"]["model"], "openai/fixture-small")
         self.assertEqual(omo["presets"]["personal"]["orchestrator"]["model"], "openai/fixture-main")
         self.assertEqual(omo["council"]["presets"]["personal"]["terra"]["model"], "openai/fixture-terra")
         self.assertEqual(omo["autoUpdate"], False)

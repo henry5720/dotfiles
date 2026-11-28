@@ -35,8 +35,8 @@ SH_EXPECT = {
               "https://chatgpt.com/codex/install.sh",
               'CODEX_NON_INTERACTIVE="1" PATH="$HOME/.local/bin:$PATH" bash "$tmp/codex.sh"'),
     "herdr": ("command -v herdr >/dev/null 2>&1", "https://herdr.dev/install.sh", 'sh "$tmp/herdr.sh"'),
-    "opencode": ('command -v opencode >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode" ]',
-                 "https://opencode.ai/install", 'bash "$tmp/opencode.sh" --no-modify-path'),
+    "opencode": ('command -v opencode2 >/dev/null 2>&1 || [ -x "$HOME/.opencode/bin/opencode2" ]',
+                 "https://opencode.ai/v2/install", 'bash "$tmp/opencode.sh" --no-modify-path'),
 }
 PS1_EXPECT = {
     "claude": ("https://claude.ai/install.ps1", r"Join-Path $HOME '.local\bin\claude.exe'"),

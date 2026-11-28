@@ -194,10 +194,10 @@ class WindowsDeployTest(unittest.TestCase):
         # 內容跟 Linux 同一份 JSON,mcp 照現有檔案留著(skillshare 管的),其他 key 換回 repo 的
         fresh = self.render_opencode_json(None)
         self.assertEqual(fresh["mcp"], {})
-        self.assertEqual(fresh["plugin"], ["opencode-wakatime", "oh-my-opencode-slim@3.0.7"])
-        self.assertEqual(fresh["provider"]["codex-lb-gcp"]["options"]["apiKey"], "fixture")
+        self.assertEqual(fresh["plugins"], ["opencode-wakatime", "oh-my-opencode-slim"])
+        self.assertEqual(fresh["providers"]["codex-lb-gcp"]["settings"]["apiKey"], "fixture")
         self.assertEqual(fresh["model"], "codex-lb-gcp/gpt-6.1-sol")
-        self.assertEqual(fresh["small_model"], "codex-lb-gcp/gpt-6-luna")
+        self.assertEqual(fresh["agents"]["title"]["model"], "codex-lb-gcp/gpt-6-luna")
         existing = json.dumps({"mcp": {"gh_grep": {"type": "remote", "url": "https://mcp.grep.app"}},
                                "model": "someone/else", "theme": "x"})
         kept = self.render_opencode_json(existing)
@@ -368,23 +368,22 @@ class WindowsDeployTest(unittest.TestCase):
                              data={"tools": ["playwright-cli"]})
         self.assertEqual(set(linux.split()), {'"node"', '"npm:@playwright/cli"', '"lts"', '"latest"', "="})
 
-    def test_windows_opencode_installs_v1_with_mise_npm_and_node(self):
+    def test_windows_opencode_installs_v2_with_mise_npm_and_node(self):
         # #318:OpenCode 沒有 Windows 的 install.ps1(curl installer 在 Windows 要 Git Bash),走 mise 的 npm backend。
-        # 點名 opencode-ai:這個套件只有 OpenCode 1,跟 Linux 的 opencode.ai/install 同一個大版本;
-        # registry 的短名 opencode 已經指到 OpenCode 2(@opencode/cli)。它要 Node,沒勾 node 也列 LTS。
-        # Linux 照舊官方 installer,不進 mise 清單
-        self.assertEqual(self.mise_list(["opencode"]), {"zoxide", "npm:opencode-ai", "node"})
+        # #407:點名 @opencode/cli(OpenCode 2,跟 Linux 的 opencode.ai/v2/install 同一個大版本);opencode-ai 只有 OpenCode 1。
+        # 它要 Node,沒勾 node 也列 LTS。Linux 照舊官方 installer,不進 mise 清單
+        self.assertEqual(self.mise_list(["opencode"]), {"zoxide", "npm:@opencode/cli", "node"})
         linux = self.chezmoi("linux", "execute-template",
                              (ROOT / "home/.chezmoitemplates/mise-tools").read_text(encoding="utf-8"),
                              data={"tools": ["opencode"]})
         self.assertNotIn("opencode", linux)
 
     def test_windows_opencode_runs_its_postinstall(self):
-        # mise 的 npm backend 預設不跑 lifecycle script:opencode-ai 的 bin/opencode.exe 是佔位檔,
-        # 要 postinstall 換成平台套件裡的真執行檔(henry-desktop 實測沒跑時 opencode --version 失敗)。
-        # tool option allow_builds 只放行 opencode-ai 自己的 script
+        # mise 的 npm backend 預設不跑 lifecycle script:套件的 bin/opencode.exe 是佔位檔,
+        # 要 postinstall 換成平台套件裡的真執行檔(henry-desktop 實測 opencode-ai 沒跑時 opencode --version 失敗)。
+        # tool option allow_builds 只放行 @opencode/cli 自己的 script
         out = self.render("home/dot_config/mise/conf.d/dotfiles.toml.tmpl", ["opencode"])
-        self.assertIn('"npm:opencode-ai" = { version = "latest", allow_builds = ["opencode-ai"] }', out)
+        self.assertIn('"npm:@opencode/cli" = { version = "latest", allow_builds = ["@opencode/cli"] }', out)
 
     def test_windows_codegraph_installs_release_bundle_with_mise_without_node(self):
         # #323:registry 的短名 codegraph 是 aqua:colbymchenry/codegraph,裝 GitHub release 的 bundle(自帶 Node runtime),

@@ -1,7 +1,7 @@
 {
-  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.7/oh-my-opencode-slim.schema.json",
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@latest/oh-my-opencode-slim.schema.json",
   "preset": "teamsync",
-  "autoUpdate": false,
+  "autoUpdate": true,
   "presets": {
     "teamsync": {
       "orchestrator": {

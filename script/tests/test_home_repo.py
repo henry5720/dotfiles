@@ -87,7 +87,8 @@ class HomeRepoTest(unittest.TestCase):
     def allowed_dirs(self, home_repo, os_name):
         out = self.cat(".config/opencode/opencode.json", home_repo, os_name=os_name,
                        data={"tools": ["opencode"], "codexLbApiKey": "fixture"})
-        return set(json.loads(out)["permission"]["external_directory"])
+        # OpenCode 2 的 permissions 是規則陣列(#407)
+        return {r["resource"] for r in json.loads(out)["permissions"] if r["action"] == "external_directory"}
 
     def test_opencode_allows_home_repo(self):
         for home_repo, os_name, want in ((None, "linux", "~/code/**"), ("D:\\code", "windows", "D:/code/**"),

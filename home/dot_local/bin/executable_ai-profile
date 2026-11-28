@@ -38,7 +38,8 @@ def model_ready(tool):
         omo = json.loads((root / "oh-my-opencode-slim.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return False
-    return bool(core.get("model")) and bool(core.get("small_model")) and bool(omo.get("presets"))
+    title = core.get("agents", {}).get("title", {}).get("model")
+    return bool(core.get("model")) and bool(title) and bool(omo.get("presets"))
 
 
 def overlay_opencode(env, ready):
@@ -52,15 +53,22 @@ def overlay_opencode(env, ready):
             fail("OPENCODE_CONFIG_CONTENT 必須是 JSON object")
     else:
         base = {}
-    for key in ("provider", "providers", "model", "small_model", "enabled_providers"):
+    # OpenCode 2 的鍵(#407):policies 取代 enabled_providers,agents.title 取代 small_model
+    for key in ("provider", "providers", "model", "small_model", "enabled_providers", "disabled_providers", "policies"):
         base.pop(key, None)
-    base["enabled_providers"] = ["openai"]
+    base["policies"] = [
+        {"action": "provider.use", "resource": "*", "effect": "deny"},
+        {"action": "provider.use", "resource": "openai", "effect": "allow"},
+    ]
     if ready:
         root = Path(env.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "opencode/routes/personal"
         route = json.loads((root / "opencode.json").read_text(encoding="utf-8"))
-        for key in ("model", "small_model"):
-            if key in route:
-                base[key] = route[key]
+        if "model" in route:
+            base["model"] = route["model"]
+        title = route.get("agents", {}).get("title")
+        if title:
+            agents = base.get("agents") if isinstance(base.get("agents"), dict) else {}
+            base["agents"] = agents | {"title": title}
     return base
 
 
@@ -81,7 +89,8 @@ def main():
     if tool == "opencode" and args[:2] in (["auth", "login"], ["providers", "login"]):
         for key in ("OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OPENCODE_TUI_CONFIG", "OPENCODE_CONFIG_CONTENT", "OH_MY_OPENCODE_SLIM_PRESET"):
             env.pop(key, None)
-        os.execvpe(binary, [binary, "--pure", *args], env)
+        # OpenCode 2 沒有 --pure:不認得的 flag 只會印 help、不登入(#407)
+        os.execvpe(binary, [binary, *args], env)
     if tool == "codex":
         # Codex 的登入狀態屬於共用 auth，login/logout 也不接受 profile。
         # 這些指令必須原生轉送，不能被 model ready gate 擋住。
@@ -91,14 +100,19 @@ def main():
             fail("personal Codex 尚未設定 model；請先在 chezmoi data.aiPersonal.codexModel 填寫")
         os.execvpe(binary, [binary, "--profile", "personal", *args], env)
     ready = model_ready(tool)
-    env["OPENCODE_CONFIG_DIR"] = str(Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "opencode/routes/personal")
+    config = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "opencode"
+    # OpenCode 2(#407):OPENCODE_CONFIG_DIR 取代 global 那層、不再疊上去,global 的 opencode.json(plugins、mcp…)
+    # 改用 OPENCODE_CONFIG 疊回來;`opencode debug config` 的順序是 route、global、inline,inline 的 model、policies 最後生效
+    env["OPENCODE_CONFIG_DIR"] = str(config / "routes/personal")
+    env["OPENCODE_CONFIG"] = str(config / "opencode.json")
     env["OH_MY_OPENCODE_SLIM_PRESET"] = "personal"
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps(overlay_opencode(env, ready))
     if not args and not ready:
         fail("personal OpenCode route 缺少 model 設定；請確認 chezmoi 已部署 route templates")
     if args and args[0] not in {"help", "auth", "providers", "models", "--help", "-h", "--version", "version"} and not ready:
         fail("personal OpenCode route 缺少 model 設定；請確認 chezmoi 已部署 route templates")
-    os.execvpe(binary, [binary, *args], env)
+    # --standalone:OpenCode 2 預設連共用的背景服務,服務是公司入口起的就會照公司設定跑,這些環境變數不生效
+    os.execvpe(binary, [binary, "--standalone", *args], env)
 
 
 if __name__ == "__main__":

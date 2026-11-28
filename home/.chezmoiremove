@@ -45,3 +45,5 @@
 .local/bin/personal-chrome-attach
 # 舊名的網頁 shell 指令改名 ttyd-serve,只起 ttyd,分享改打 remote-access funnel(#381)。
 .local/bin/share-shell
+# OpenCode 2 不讀 tui.jsonc(#407),personal route 指過去的 symlink 沒有作用;TUI plugin 改走 cli.json 的 symlink。
+.config/opencode/routes/personal/tui.jsonc
