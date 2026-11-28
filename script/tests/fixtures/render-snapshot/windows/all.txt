@@ -108,6 +108,7 @@ idiomatic_version_file_enable_tools = ["node", "pnpm"]
 
 ## 會跑的腳本
 .chezmoiscripts/run_after_zz-install-failed-summary.ps1.tmpl
+.chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-mise.ps1.tmpl
 .chezmoiscripts/run_onchange_after_install-official.ps1.tmpl
@@ -129,6 +130,11 @@ if ((Test-Path $f) -and (Get-Item $f).Length -gt 0) {
 }
 Remove-Item -Force -ErrorAction SilentlyContinue $f
 exit 0
+
+### .chezmoiscripts/run_onchange_after_create-gitconfig.ps1.tmpl
+$env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
+$gitconfig = Join-Path $HOME '.gitconfig'
+if (-not (Test-Path -LiteralPath $gitconfig)) { New-Item -ItemType File -Path $gitconfig | Out-Null }
 
 ### .chezmoiscripts/run_onchange_after_install-agent-config.ps1.tmpl
 $env:PSModulePath = (($env:PSModulePath -split ';') | Where-Object { $_ -notmatch '\\PowerShell\\|\\Microsoft\.PowerShell_' }) -join ';'
@@ -280,10 +286,17 @@ function skip_fail([string]$what, [string]$fix) {
     New-Item -ItemType File -Force (Join-Path $d "retry\$retry_key") | Out-Null
 }
 
+function Test-JunctionBlocked([string]$exe) {
+    try { [IO.Directory]::GetFiles((Split-Path $exe)) | Out-Null; return $false }
+    catch { return $_.Exception.InnerException.HResult -eq -2147024448 }
+}
+
 
 # claude
 if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
     Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'claude')
+} elseif (Test-JunctionBlocked (Join-Path $HOME '.local\bin\claude.exe')) {
+    skip_fail 'claude' (T '5bey57aT6KOd5aW9LOS9humAmeWAiyBhZG1pbiDnmoQgc3NoIHNlc3Npb24g6LWw5LiN6YCyIGluc3RhbGxlciDlu7rnmoQganVuY3Rpb24o5pyq5Y+X5L+h5Lu755qE5o6b5o6l6bueKTvliLDmoYzpnaLnmoTntYLnq6/mqZ/ot5EgY2hlem1vaSBhcHBseQ==')
 } else {
     $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
     try {
@@ -306,6 +319,8 @@ if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
 # codex
 if (Test-Path (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')) {
     Write-Host ((T 'ezB9IOW3suWuieijnSzot7PpgY4=') -f 'codex')
+} elseif (Test-JunctionBlocked (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')) {
+    skip_fail 'codex' (T '5bey57aT6KOd5aW9LOS9humAmeWAiyBhZG1pbiDnmoQgc3NoIHNlc3Npb24g6LWw5LiN6YCyIGluc3RhbGxlciDlu7rnmoQganVuY3Rpb24o5pyq5Y+X5L+h5Lu755qE5o6b5o6l6bueKTvliLDmoYzpnaLnmoTntYLnq6/mqZ/ot5EgY2hlem1vaSBhcHBseQ==')
 } else {
     $installer = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.ps1')
     try {
@@ -342,6 +357,11 @@ function skip_fail([string]$what, [string]$fix) {
     New-Item -ItemType Directory -Force (Join-Path $d 'retry') | Out-Null
     [IO.File]::AppendAllText((Join-Path $d 'install-failed'), "- ${what}:${fix}`n", (New-Object Text.UTF8Encoding $false))
     New-Item -ItemType File -Force (Join-Path $d "retry\$retry_key") | Out-Null
+}
+
+function Test-JunctionBlocked([string]$exe) {
+    try { [IO.Directory]::GetFiles((Split-Path $exe)) | Out-Null; return $false }
+    catch { return $_.Exception.InnerException.HResult -eq -2147024448 }
 }
 
 $dir = Join-Path $HOME '.wakatime'
@@ -394,7 +414,9 @@ if (-not (Test-Path $claude)) {
 }
 
 $codex = Find-Agent 'codex' (Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin\codex.exe')
-if (-not (Test-Path $codex)) {
+if (Test-JunctionBlocked $codex) {
+    skip_fail (T 'Q29kZXggQ0xJIOeahCBXYWthVGltZSBwbHVnaW4=') (T 'Y29kZXgg5bey57aT6KOd5aW9LOS9humAmeWAiyBhZG1pbiDnmoQgc3NoIHNlc3Npb24g6LWw5LiN6YCyIGluc3RhbGxlciDlu7rnmoQganVuY3Rpb24o5pyq5Y+X5L+h5Lu755qE5o6b5o6l6bueKTvliLDmoYzpnaLnmoTntYLnq6/mqZ/ot5EgY2hlem1vaSBhcHBseQ==')
+} elseif (-not (Test-Path $codex)) {
     skip_fail (T 'Q29kZXggQ0xJIOeahCBXYWthVGltZSBwbHVnaW4=') (T '5om+5LiN5YiwIGNvZGV4KOWug+mAmeasoeS5n+aykuijneWlvSks5LiL5qyhIGNoZXptb2kgYXBwbHkg5pyD6YeN6Kmm')
 } elseif (@((Get-PluginList $codex).installed | Where-Object { $_.pluginId -eq 'codex-cli-wakatime@wakatime' }).Count -gt 0) {
     Write-Host (T 'Q29kZXggQ0xJIOeahCBXYWthVGltZSBwbHVnaW4g5bey5a6J6KOdLOi3s+mBjg==')

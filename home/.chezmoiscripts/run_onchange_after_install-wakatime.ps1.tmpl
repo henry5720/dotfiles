@@ -21,7 +21,9 @@
        agent 先找 PATH,再找官方 installer 裝的位置(.chezmoitemplates/ps1-agent-exe;chezmoi 跑腳本時 -NoProfile,
        PATH 不一定有 .local\bin)。
        任何一步失敗只略過那一步(ps1-skip 的 skip_fail)、exit 0(不然 apply 中止),apply 最後列出,下次 apply 重跑這支
-       (ps1-retry,ADR 0006)。claude、codex 的段落勾了才有:找不到它就是 install-official 這次沒裝好,一樣記成裝失敗、等下次重試。 */ -}}
+       (ps1-retry,ADR 0006)。claude、codex 的段落勾了才有:找不到它就是 install-official 這次沒裝好,一樣記成裝失敗、等下次重試;
+       經 ssh 的 admin session 走不進 codex installer 建的 junction 時(#431,.chezmoitemplates/ps1-junction-blocked)也記成裝失敗,
+       提示到桌面的終端機跑。 */ -}}
 {{- $installing := splitList " " (includeTemplate "tools-to-install" .) -}}
 {{- if has "wakatime" $installing -}}
 {{- $asset := printf "windows-%s" .chezmoi.arch -}}
@@ -29,6 +31,7 @@
 {{ includeTemplate "ps1-text" . }}
 {{ includeTemplate "ps1-retry" (dict "key" "install-wakatime" "home" .chezmoi.homeDir) }}
 {{ includeTemplate "ps1-skip" . }}
+{{ includeTemplate "ps1-junction-blocked" . }}
 {{- if has .chezmoi.arch (list "amd64" "arm64") }}
 $dir = Join-Path $HOME '.wakatime'
 $bin = Join-Path $dir 'wakatime-cli-{{ $asset }}.exe'
@@ -86,7 +89,9 @@ if (-not (Test-Path $claude)) {
 {{- if has "codex" $installing }}
 
 $codex = Find-Agent 'codex' ({{ includeTemplate "ps1-agent-exe" "codex" }})
-if (-not (Test-Path $codex)) {
+if (Test-JunctionBlocked $codex) {
+    skip_fail (T '{{ "Codex CLI 的 WakaTime plugin" | b64enc }}') (T '{{ "codex 已經裝好,但這個 admin 的 ssh session 走不進 installer 建的 junction(未受信任的掛接點);到桌面的終端機跑 chezmoi apply" | b64enc }}')
+} elseif (-not (Test-Path $codex)) {
     skip_fail (T '{{ "Codex CLI 的 WakaTime plugin" | b64enc }}') (T '{{ "找不到 codex(它這次也沒裝好),下次 chezmoi apply 會重試" | b64enc }}')
 } elseif (@((Get-PluginList $codex).installed | Where-Object { $_.pluginId -eq 'codex-cli-wakatime@wakatime' }).Count -gt 0) {
     Write-Host (T '{{ "Codex CLI 的 WakaTime plugin 已安裝,跳過" | b64enc }}')
