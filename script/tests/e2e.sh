@@ -297,7 +297,7 @@ menu_choice() {
   done
   (IFS=/; echo "$TOOLS_PROMPT=${out[*]}")
 }
-# 第一次 init 只勾這些;ttyd、wakatime、opencode 故意不勾,之後模擬 edit-config 補勾 wakatime。
+# 第一次 init 只勾這些;ttyd、wakatime、opencode、pi 故意不勾,之後模擬 edit-config 補勾 wakatime。
 # ffmpeg 不單獨勾(相依套件一大串);勾 snapserver(#290)會一併裝,check_snapserver 驗。
 # node 刻意不勾:勾了 codegraph 或 playwright-cli 就自動由 mise 裝 Node(見 check_tool node)。
 # zsh、eza、fzf、bat、ripgrep、vim 以前在基底,現在是選裝工具;第一次照樣全勾(下面的 zsh 檢查要它們,還有 starship)。
@@ -354,6 +354,8 @@ declare -A TOOL_CHECK=(
   [claude]="command -v claude && claude --version"
   [codex]="command -v codex && codex --version"
   [opencode]="command -v opencode || [ -x ~/.opencode/bin/opencode ]"
+  # Linux 由 mise 的 npm backend 裝;bash -l 沒有 shims,直接找 shim
+  [pi]="~/.local/share/mise/shims/pi --version"
   [ffmpeg]="dpkg-query -W -f='\${Status}' ffmpeg 2>/dev/null | grep -q 'install ok installed'"
   # apt 的 snapserver,連同它要的 ffmpeg(朗讀指令解 mp3)、開關指令 voice-out、朗讀指令 voice-out-speak
   # 與它跑 edge-tts 用的 uv(runtime,勾 snapserver 就連帶由 mise 裝,表上的 needsUv;edge-tts 不另裝);服務與朗讀的檢查在 check_snapserver
@@ -572,6 +574,7 @@ scenario_ubuntu() {
   check_no_tool ttyd
   check_no_tool wakatime
   check_no_tool opencode
+  check_no_tool pi
   check "沒勾 openssh-server:authorized_keys 腳本渲染成空的、沒跑" \
     "! chezmoi status | grep -q authorized-keys-from-github && ! grep -q 'github.com/henry5720 的公鑰' ~/e2e-init.log"
   # 不為了這項裝 sshd:渲染時給 tools 勾 openssh-server,直接跑渲染出來的腳本(authorized_keys 跟 sshd 裝了沒無關)
@@ -850,6 +853,7 @@ scenario_ubuntu() {
     "chezmoi --config /tmp/s-readme.toml init --no-tty --promptDefaults --promptChoice $(printf '%q' "$(use_choice minimal)") --promptString 'git user.email=e2e@example.com' </dev/null && cat /tmp/s-readme.toml && ! grep -qE '$secret_keys' /tmp/s-readme.toml && grep -qx '    gitUserName = \"henry\"' /tmp/s-readme.toml"
   check "勾 code-server:只問 code-server 密碼" "[ \"\$($(secrets_asked custom code-server))\" = codeServerPassword ]"
   check "勾 opencode(沒勾 codex):只問 codex-lb key" "[ \"\$($(secrets_asked custom opencode))\" = codexLbApiKey ]"
+  check "勾 pi(沒勾 codex):只問 codex-lb key" "[ \"\$($(secrets_asked custom pi))\" = codexLbApiKey ]"
   check "勾 codex:只問 codex-lb key" "[ \"\$($(secrets_asked custom codex))\" = codexLbApiKey ]"
   check "勾 agent-config、wakatime:問 Context7、WakaTime key" \
     "[ \"\$($(secrets_asked custom wakatime/agent-config))\" = 'context7ApiKey wakatimeApiKey' ]"
@@ -1074,7 +1078,7 @@ scenario_ubuntu() {
   # Linux 的 Node 由 mise 裝(#342):勾了 node 或要 Node 的工具,mise 清單就有 node(lts);codegraph、playwright-cli
   # 走 mise 的 npm backend,同一份清單裡 mise 先裝 node 再裝它們(https://mise.jdx.dev/dev-tools/backends/npm.html)。
   # 下面的空 HOME apply 是 README 那條路線(先裝 mise、照清單 mise install),不是只跑單一腳本。
-  bold "▶ 勾了 node 或要 Node 的工具(codegraph、playwright-cli、opencode、wakatime)由 mise 裝 Node"
+  bold "▶ 勾了 node 或要 Node 的工具(codegraph、playwright-cli、opencode、pi、wakatime)由 mise 裝 Node"
   local mise_list=$tmpl/dot_config/mise/conf.d/dotfiles.toml.tmpl
   mise_has() {  # mise_has <tools JSON 陣列> <清單裡的一行>:渲染出的 mise 清單有這一行
     echo "chezmoi execute-template --override-data '{\"tools\":$1}' < $mise_list | grep -qxF '$2'"
@@ -1083,7 +1087,7 @@ scenario_ubuntu() {
     "$(mise_has '["codegraph"]' '"node" = "lts"') && $(mise_has '["codegraph"]' '"npm:@colbymchenry/codegraph" = "latest"') && [ -z \"\$(chezmoi execute-template --override-data '{\"tools\":[\"codegraph\"]}' < $scripts/run_onchange_after_install-node.sh.tmpl | tr -d '[:space:]')\" ]"
   check "只勾 playwright-cli:mise 清單有 node 與 npm:@playwright/cli" \
     "$(mise_has '["playwright-cli"]' '"node" = "lts"') && $(mise_has '["playwright-cli"]' '"npm:@playwright/cli" = "latest"')"
-  for t in opencode wakatime; do
+  for t in opencode pi wakatime; do
     check "只勾 $t:mise 清單有 node、套件腳本加 libatomic1" \
       "$(mise_has "[\"$t\"]" '"node" = "lts"') && chezmoi execute-template --override-data '{\"tools\":[\"$t\"]}' < $scripts/run_onchange_before_install-packages.sh.tmpl | grep -E '^for pkg in' | grep -qw libatomic1"
   done

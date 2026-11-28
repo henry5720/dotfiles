@@ -23,7 +23,7 @@
 
 - 原生 Termux、Windows 主機也問，流程一樣；精簡、完整扣掉那台裝不了的（見下面〈環境〉）。Windows 的精簡沒有 zsh，另外每台 Windows 都裝 zoxide（見[Windows 主機](windows.md#裝了什麼怎麼用)）。`node` 在 Termux 是 pkg 的 `nodejs-lts`，在 Linux、macOS、Windows 是 mise 的 Node LTS（macOS 的 mise 本身由 brew 裝）。
 - 非 Debian 系 Linux 照樣問，走 apt 的選裝工具改用 mise 裝（見[沒有 root 的機器](no-root-machine.md)）。
-- `node` 裝 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
+- `node` 裝 Node LTS，給只要 Node、不要其他工具的機器；完整有、精簡沒有。勾了要 Node 的工具（codegraph、playwright-cli、opencode、pi、wakatime）沒勾 `node` 也會一併裝。以前存著 `nvm` 的 config，下次 `chezmoi init` 換成 `node`。
   已經用 nvm 裝過的機器見下面〈從 nvm 換掉〉。
 - `starship` 是 zsh、bash 共用的提示列，跟 `zsh` 分開勾：只要 zsh 外掛、不要提示列，或用 bash 配 starship 都行；沒勾就是 shell 預設的提示列。以前存自訂、勾了 `zsh` 的 config（當時 zsh 附帶 p10k），下次 `chezmoi init` 自動補勾 `starship`。
 
@@ -117,7 +117,7 @@ macOS 的 `tailscale` 用 brew cask 裝官方 app（`tailscale-app`）。哪個�
 | 勾了 | 問 |
 |---|---|
 | code-server | `code-server 密碼` |
-| codex 或 opencode | `codex-lb API key` |
+| codex、opencode 或 pi | `codex-lb API key` |
 | agent-config | `Context7 API key`、`Graphify API key`（都可留空） |
 | wakatime | `WakaTime API key`（可留空） |
 

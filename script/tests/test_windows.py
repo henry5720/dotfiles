@@ -41,6 +41,8 @@ WINDOWS_TARGETS = {
 # 勾了 opencode 才部署的設定(#318)。routes/personal 不放:它給 opencode-personal(ai-profile,Linux 的指令)用,
 # 裡面還有 symlink(Windows 沒開 Developer Mode 建不了)
 OPENCODE_TARGETS = {".config/opencode/opencode.json", ".config/opencode/oh-my-opencode-slim.json"}
+# 勾了 pi 才部署的設定:provider(models.json)與預設模型(settings.json,modify-template)
+PI_TARGETS = {".pi/agent/models.json", ".pi/agent/settings.json"}
 # 勾了 claude 才部署的設定(#319)。plugins/claude-hud 不放:claude-hud 由 skillshare 的 plugin 裝,沒裝時那份設定沒人讀
 CLAUDE_SETTINGS = ".claude/settings.json"
 CLAUDE_COMMIT = "Co-Authored-By: Claude Code <noreply@anthropic.com>"
@@ -84,7 +86,8 @@ CODEX_EXISTING = (
 )
 # skillshare 在 Windows 讀 %AppData%\skillshare\config.yaml(#321),勾了 agent-config 才部署
 SKILLSHARE_CONFIG = "AppData/Roaming/skillshare/config.yaml"
-# henry-desktop 上 skillshare 自己存的 config.yaml(LF,勾 claude、codex、opencode、agent-config)
+# henry-desktop 上 skillshare 自己存的 config.yaml(LF,勾 claude、codex、opencode、agent-config)。
+# opencode 的 target(skills 關掉)是照 Linux 上 skillshare 存的樣子補的:path 再 enabled,路徑用反斜線
 SKILLSHARE_FIXTURE = ROOT / "script/tests/fixtures/windows-skillshare-config.yaml"
 # WakaTime 的 API key(#324),兩個 plugin 都讀 %USERPROFILE%\.wakatime.cfg,勾了 wakatime 才部署
 WAKATIME_CFG = ".wakatime.cfg"
@@ -103,11 +106,11 @@ WINDOWS_LEAN = ["starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch"]
 # 加 winget 裝的 tailscale、headless-chrome(#327),加官方 install.ps1 裝的 coding agent(claude #316、codex #317)
 # 與 skillshare(agent-config #321),加 mise 的 npm backend 裝的 opencode(#318),加 mise 的 aqua backend 裝的 codegraph(#323),
 # 加 wakatime(#324:wakatime-cli 放官方位置 ~/.wakatime,plugin 由 claude、codex 裝),加 mise 裝的 runtime uv(#341),
-# 加 mise 的 pipx backend 裝的 windows-mcp(#343)
+# 加 mise 的 pipx backend 裝的 windows-mcp(#343),加 mise 的 npm backend 裝的 pi
 WINDOWS_FULL = {"starship", "eza", "fzf", "bat", "ripgrep", "vim", "fastfetch",
                 "gh", "cloudflared", "ttyd", "ffmpeg", "node", "uv", "herdr", "bottom", "snapclient", "tailscale",
                 "headless-chrome", "playwright-cli", "claude", "codex", "opencode", "agent-config", "codegraph",
-                "wakatime", "windows-mcp"}
+                "wakatime", "windows-mcp", "pi"}
 # 官方 install.ps1 裝的 coding agent:勾選名 -> (官方腳本網址, 官方裝的位置)。位置是官方文件／installer 寫的,
 # claude:code.claude.com/docs/en/setup;codex:chatgpt.com/codex/install.ps1 的 $defaultVisibleBinDir
 OFFICIAL_INSTALLERS = {
@@ -161,13 +164,14 @@ class WindowsDeployTest(unittest.TestCase):
         # (Windows 上有那個目錄,skillshare 會把它整個搬到 %AppData%)
         base = WINDOWS_TARGETS | parents(WINDOWS_TARGETS) | WINDOWS_SCRIPTS
         opencode = OPENCODE_TARGETS | parents(OPENCODE_TARGETS)
+        pi = PI_TARGETS | parents(PI_TARGETS)
         skillshare = {SKILLSHARE_CONFIG} | parents([SKILLSHARE_CONFIG])
         codex = CODEX_TARGETS | parents(CODEX_TARGETS)
         claude = {CLAUDE_SETTINGS} | parents([CLAUDE_SETTINGS])
         # .wakatime.cfg 要有 API key 才管(test_wakatime_cfg_managed_only_with_api_key),這裡沒帶 key
         for tools, extra in (([], set()), (WINDOWS_LEAN, set()),
-                             (sorted(WINDOWS_FULL), opencode | skillshare | claude | codex), (["codex"], codex),
-                             (["zsh", "claude", "tailscale"], claude), (["opencode"], opencode),
+                             (sorted(WINDOWS_FULL), opencode | pi | skillshare | claude | codex), (["codex"], codex),
+                             (["zsh", "claude", "tailscale"], claude), (["opencode"], opencode), (["pi"], pi),
                              (["agent-config"], skillshare), (["wakatime"], set())):
             with self.subTest(tools=tools):
                 self.assertEqual(self.managed("windows", tools), base | extra)
@@ -828,6 +832,18 @@ class WindowsDeployTest(unittest.TestCase):
         once = self.cat_bytes(SKILLSHARE_CONFIG, saved, tools, ROOT)
         self.assertEqual(once, saved)
         self.assertEqual(self.cat_bytes(SKILLSHARE_CONFIG, once, tools, ROOT), once)
+
+    def test_pi_settings_pins_four_values_and_keeps_pi_state(self):
+        # pi 自己寫的 lastChangelogVersion 留著;四個值都對時原樣輸出,pi 改過排版也不出 diff
+        target = ".pi/agent/settings.json"
+        pinned = {"defaultProvider": "codex-lb", "defaultModel": "gpt-6.1-sol", "defaultThinkingLevel": "medium",
+                  "packages": ["npm:pi-subagents@0.90.0", "npm:cc-safety-net@2.9.0"]}
+        self.assertEqual(json.loads(self.cat_bytes(target, b"", ["pi"], ROOT)), pinned)
+        drifted = json.dumps({"lastChangelogVersion": "1.7.0", "defaultModel": "gpt-6-luna"}).encode()
+        self.assertEqual(json.loads(self.cat_bytes(target, drifted, ["pi"], ROOT)),
+                         pinned | {"lastChangelogVersion": "1.7.0"})
+        same = json.dumps({"lastChangelogVersion": "1.7.0"} | pinned, indent=4).encode()
+        self.assertEqual(self.cat_bytes(target, same, ["pi"], ROOT), same)
 
     def test_windows_opencode_json_ends_with_one_newline(self):
         # toPrettyJson 自己以換行結尾;樣板自己的換行不能漏進來

@@ -8,7 +8,7 @@
 ```
 shell 日常      zsh  starship  eza  fzf  bat  ripgrep  vim  fastfetch  btop  bottom  mise
 入口與連線      tailscale  openssh-server  cloudflared  code-server  ttyd  gh
-coding agent    herdr  claude  codex  opencode  agent-config
+coding agent    herdr  claude  codex  opencode  pi  agent-config
 agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-mcp
 其他            ffmpeg  snapserver  snapclient  wakatime  earlyoom
 自寫指令        tools  ai-profile  ttyd-serve  playwright-extension-attach  remote-access
@@ -58,6 +58,7 @@ agent 輔助      codegraph  headless-chrome  playwright-cli  node  uv  windows-
 | claude | Claude Code | [Claude Code](tools/claude.md) |
 | codex | Codex CLI | [codex](tools/codex.md) |
 | opencode | OpenCode | [opencode](tools/opencode.md) |
+| pi | pi coding agent；provider 與預設模型由 chezmoi 放（`~/.pi/agent/`） | [pi](https://pi.dev) |
 | agent-config | 用 skillshare 統一管理各 agent 的 skills、MCP、全域規則 | [skillshare](https://skillshare.runkids.cc/) |
 
 ## agent 輔助

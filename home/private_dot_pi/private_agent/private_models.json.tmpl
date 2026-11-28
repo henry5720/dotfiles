@@ -1,0 +1,71 @@
+{{- /* ~/.pi/agent/models.json:pi 的自訂 provider(codex-lb),pi 自己不改寫這個檔(模型清單快取在 models-store.json)。
+       headers.originator 跟 opencode-json 同一個理由:codex-lb 只把帶 Codex originator 的請求當 Codex 用戶端。
+       authHeader:apiKey 以 Authorization: Bearer 送出。 */ -}}
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "codex-lb": {
+      "name": "TeamSync codex-lb",
+      "baseUrl": "https://codex.teamsync.com.tw/backend-api/codex",
+      "api": "openai-responses",
+      "apiKey": {{ .codexLbApiKey | toJson }},
+      "authHeader": true,
+      "headers": {
+        "originator": "codex_cli_rs"
+      },
+      "models": [
+        {
+          "id": "gpt-6-astra",
+          "name": "GPT-6 Astra",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 272000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "gpt-6-luna",
+          "name": "GPT-6 Luna",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 272000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "gpt-6.1-sol",
+          "name": "GPT-6.1 Sol",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 272000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

@@ -15,6 +15,10 @@ targets:
   codex:
     skills:
       path: ~\.agents\skills
+  opencode:
+    skills:
+      path: ~\.config\opencode\skills
+      enabled: false
 
 extras:
   - name: agents-md

@@ -33,8 +33,9 @@ LINKS = {
         ".config/opencode/routes/personal/AGENTS.md": AGENTS_MD,
         ".config/opencode/commit-instructions.md": OPENCODE_COMMIT,
     },
+    "pi": {".pi/agent/AGENTS.md": AGENTS_MD},
 }
-ALL = ["claude", "codex", "opencode", "agent-config"]
+ALL = ["claude", "codex", "opencode", "pi", "agent-config"]
 # skillshare init／extras 指令存檔後的樣子:加 schema 註解、重排 key、extras 放在 preserve_tilde_on_save 前面。
 # targets 多一個手動 `skillshare target add` 加的 gemini,claude 的 agents 路徑是舊的
 SAVED_BY_SKILLSHARE = """\
@@ -77,6 +78,20 @@ CODEX_TARGET = """\
   codex:
     skills:
       path: ~/.agents/skills
+"""
+# opencode、pi 有 target;它們讀得到的 claude、codex 目錄有人同步時 skills 關掉(只為了 MCP sync)。
+# enabled 排在 path 後面,跟 skillshare 存檔的順序一樣
+OPENCODE_TARGET = """\
+  opencode:
+    skills:
+      path: ~/.config/opencode/skills
+      enabled: false
+"""
+PI_TARGET = """\
+  pi:
+    skills:
+      path: ~/.pi/agent/skills
+      enabled: false
 """
 
 
@@ -127,23 +142,36 @@ class SkillshareConfigTest(unittest.TestCase):
         self.assertEqual(self.extras_paths(out), ["~/.claude", "~/.config/agent-commit", "~/.claude/rules"])
         self.assertIn("as: CLAUDE.md", out)
 
-    def test_all_clients_target_claude_and_codex_but_not_opencode(self):
+    def test_all_clients_have_targets_and_opencode_pi_skills_are_off(self):
         out = self.run_script(ALL)
-        self.assertEqual(self.section(out, "targets"), "targets:\n" + CLAUDE_TARGET + CODEX_TARGET)
+        self.assertEqual(self.section(out, "targets"),
+                         "targets:\n" + CLAUDE_TARGET + CODEX_TARGET + OPENCODE_TARGET + PI_TARGET)
         self.assertEqual(self.extras_paths(out), [
-            "~/.claude", "~/.codex", "~/.config/opencode", "~/.config/opencode/routes/personal",
+            "~/.claude", "~/.codex", "~/.config/opencode", "~/.config/opencode/routes/personal", "~/.pi/agent",
             "~/.config/agent-commit", "~/.claude/rules", "~/.config/opencode",
         ])
         # 來源用 skillshare 預設的 ~/.config/skillshare/extras/<name>/,不寫 source
         self.assertNotIn("source:", self.section(out, "extras"))
 
-    def test_only_opencode_has_no_target_but_its_extras(self):
+    def test_only_opencode_syncs_its_own_skills_and_has_its_extras(self):
+        # 沒勾 claude、codex:沒人同步 OpenCode 讀得到的目錄,skills 照常同步到 ~/.config/opencode/skills
         out = self.run_script(["opencode", "agent-config"])
-        self.assertEqual(self.section(out, "targets"), "targets: {}\n")
+        self.assertEqual(self.section(out, "targets"), "targets:\n" + OPENCODE_TARGET.replace("      enabled: false\n", ""))
         self.assertEqual(self.extras_paths(out), [
             "~/.config/opencode", "~/.config/opencode/routes/personal",
             "~/.config/agent-commit", "~/.config/opencode",
         ])
+
+    def test_pi_skills_off_only_when_codex_syncs_agents_skills(self):
+        # pi 只讀 ~/.agents/skills(codex 的 target),不讀 ~/.claude/skills
+        on = "targets:\n" + PI_TARGET.replace("      enabled: false\n", "")
+        self.assertEqual(self.section(self.run_script(["claude", "pi", "agent-config"]), "targets"),
+                         "targets:\n" + CLAUDE_TARGET + on.removeprefix("targets:\n"))
+        self.assertEqual(self.section(self.run_script(["codex", "pi", "agent-config"]), "targets"),
+                         "targets:\n" + CODEX_TARGET + PI_TARGET)
+        out = self.run_script(["pi", "agent-config"])
+        self.assertEqual(self.section(out, "targets"), on)
+        self.assertEqual(self.extras_paths(out), ["~/.pi/agent", "~/.config/agent-commit"])
 
     def test_no_agent_has_no_targets_and_drops_extras(self):
         out = self.run_script(["agent-config"], SAVED_BY_SKILLSHARE)
@@ -169,7 +197,8 @@ class SkillshareConfigTest(unittest.TestCase):
         for gone in ("gemini", "old-agents", "name: old"):
             self.assertNotIn(gone, out)
         before = SAVED_BY_SKILLSHARE.split("targets:\n")[0]
-        self.assertTrue(out.startswith(before + "targets:\n" + CLAUDE_TARGET + CODEX_TARGET + "\nextras:\n"))
+        self.assertTrue(out.startswith(before + "targets:\n" + CLAUDE_TARGET + CODEX_TARGET + OPENCODE_TARGET + PI_TARGET
+                                       + "\nextras:\n"))
         self.assertTrue(out.endswith("      - path: ~/.config/opencode\n\npreserve_tilde_on_save: true\n"))
         self.assertEqual(self.run_script(ALL, out), out)
 
@@ -239,10 +268,10 @@ class SkillshareConfigTest(unittest.TestCase):
     # 沒勾的 client 不部署設定目錄
     # ===============================================================
     def test_unchecked_clients_config_dirs_are_ignored(self):
-        dirs = {".claude", ".codex", ".config/opencode", ".config/skillshare"}
+        dirs = {".claude", ".codex", ".config/opencode", ".pi", ".config/skillshare"}
         cases = {
             (): dirs,
-            ("claude", "agent-config"): {".codex", ".config/opencode"},
+            ("claude", "agent-config"): {".codex", ".config/opencode", ".pi"},
             tuple(ALL): set(),
         }
         for tools, expected in cases.items():
@@ -269,7 +298,7 @@ class SkillshareConfigTest(unittest.TestCase):
                 subprocess.run(["skillshare", "sync", "extras"], env=env, cwd=self.home,
                                check=True, capture_output=True)
                 expected = {".config/agent-commit/instructions.md": AGENT_COMMIT}
-                for client in ("claude", "codex", "opencode"):
+                for client in ("claude", "codex", "opencode", "pi"):
                     if client in tools:
                         expected |= LINKS[client]
                 for link, target in expected.items():

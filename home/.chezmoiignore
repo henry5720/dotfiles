@@ -45,6 +45,13 @@
 !.config/opencode/opencode.json
 !.config/opencode/oh-my-opencode-slim.json
 {{ end -}}
+{{ if has "pi" $tools -}}
+# pi 的 provider 與預設模型,勾了才部署。settings.json 是 modify-template(所有平台同一份)。
+!.pi
+!.pi/agent
+!.pi/agent/models.json
+!.pi/agent/settings.json
+{{ end -}}
 {{ if has "claude" $tools -}}
 # Claude Code 的設定(#319),勾了才部署。settings.json 是 modify-template(所有平台同一份,#204)。
 # plugins/claude-hud 不放:claude-hud 由 skillshare 的 plugin 裝,那份設定跟著它走,這張不處理。
@@ -141,6 +148,7 @@ AppData
 {{ if not (has "claude" $tools) }}.claude{{ end }}
 {{ if not (has "codex" $tools) }}.codex{{ end }}
 {{ if not (has "opencode" $tools) }}.config/opencode{{ end }}
+{{ if not (has "pi" $tools) }}.pi{{ end }}
 {{ if not (has "agent-config" $tools) }}.config/skillshare{{ end }}
 # playwright-extension-attach 指向 agent-config 的 browser-access skill,跑起來要 playwright-cli:
 # 兩個都勾才部署,不然是斷掉的連結(例如 Termux)。

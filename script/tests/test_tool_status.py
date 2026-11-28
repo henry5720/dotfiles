@@ -382,7 +382,7 @@ exit 0
     def test_android_annotations(self):
         got = {l.split(" ")[0] for l in self.labels(ANDROID) if "（裝不了：" in l}
         self.assertEqual(got, {"tailscale", "btop", "code-server", "headless-chrome", "playwright-cli",
-                               "claude", "opencode", "herdr", "agent-config", "codegraph", "snapserver",
+                               "claude", "opencode", "pi", "herdr", "agent-config", "codegraph", "snapserver",
                                "earlyoom", "bottom", "windows-mcp", "openssh-server"})
 
     def test_android_codex_is_pkg(self):
